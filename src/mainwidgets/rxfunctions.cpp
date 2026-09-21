@@ -6,6 +6,8 @@
 #include "dispatcher.h"
 #include "rxwidget.h"
 #include "sstvrx.h"
+#include "sstv/mmsstv_martin_rx.h"
+#include "sstv/engineselection.h"
 
 #include <QApplication>
 
@@ -24,6 +26,7 @@ rxFunctions::rxFunctions(QObject *parent) : QThread(parent)
   rxState=RXIDLE;
   sstvRxPtr=new sstvRx;
   drmRxPtr=new drmRx;
+  martinRxPtr=new MmsstvMartinRx;
   rxBytes=0;
   setObjectName("rx-thread");
 }
@@ -32,6 +35,7 @@ rxFunctions::~rxFunctions()
 {
   delete sstvRxPtr;
   delete drmRxPtr;
+  delete martinRxPtr;
 }
 
 //static DSPFLOAT dummyBuf[RXSTRIPE];
@@ -81,6 +85,23 @@ void rxFunctions::run()
                 case TRXNOMODE:
                   switchRxState(RXIDLE);
                   break;
+                }
+              // mmsstv-linux-port Step 7: independent drain of the raw
+              // (un-decimated) audio tap for mmsstv-core's Martin 1 RX
+              // engine, alongside (not instead of) sstvRxPtr's own
+              // decimated-pipeline dispatch above. Gated on its own
+              // buffer's fill level (it fills faster than rxBuffer, since
+              // it isn't decimated) and on the Step 6 engine setting --
+              // when ENGINE_QSSTV is selected for Martin 1, this is
+              // simply skipped and QSSTV's own pipeline handles it
+              // unmodified (see syncprocessor.cpp's createModeBase()).
+              if((transmissionModeIndex==TRXSSTV)
+                 && (selectedEngine(M1)==ENGINE_MMSSTV_CORE)
+                 && (soundIOPtr->rawRxBuffer.count()>=DOWNSAMPLESIZE))
+                {
+                  static DSPFLOAT rawBuf[DOWNSAMPLESIZE];
+                  soundIOPtr->rawRxBuffer.copyNoCheck(rawBuf,DOWNSAMPLESIZE);
+                  martinRxPtr->processSamples(rawBuf,DOWNSAMPLESIZE);
                 }
             }
           break;

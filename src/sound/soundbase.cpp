@@ -184,6 +184,17 @@ int soundBase::capture()
           storedFrames+=count;
         }
     }
+  // mmsstv-linux-port Step 7: tap the raw, un-decimated samples for
+  // mmsstv-core's engine (see rawRxBuffer's declaration in soundbase.h) --
+  // before downSample4() touches tempRXBuffer, same as the decimated path
+  // below reads it after. tempRXBuffer is mono at this point regardless of
+  // source (SNDINCARD's downmix already happened in read(); SNDINFROMFILE
+  // reads mono/pre-downmixed data directly).
+  {
+    FILTERPARAMTYPE rawSamples[DOWNSAMPLESIZE];
+    for(int i=0;i<DOWNSAMPLESIZE;i++) rawSamples[i]=FILTERPARAMTYPE(tempRXBuffer[i]);
+    rawRxBuffer.putNoCheck(rawSamples,DOWNSAMPLESIZE);
+  }
   downsampleFilterPtr->downSample4(tempRXBuffer);
   volume=downsampleFilterPtr->avgVolumeDb;
   rxBuffer.putNoCheck(downsampleFilterPtr->filteredDataPtr(),RXSTRIPE);
@@ -336,11 +347,13 @@ bool soundBase::startCapture()
   switch(soundRoutingInput)
     {
     case SNDINFROMFILE:
-      if(!waveIn.openFileForRead("",true))
-        {
-          errorHandler("File not opened","");
-          return false;
-        }
+      {
+        if(!waveIn.openFileForRead("",true))
+          {
+            errorHandler("File not opened","");
+            return false;
+          }
+      }
       break;
     case SNDINCARDTOFILE:
       {

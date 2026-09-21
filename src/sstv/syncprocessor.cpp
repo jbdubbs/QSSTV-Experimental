@@ -5,6 +5,7 @@
 #include "dispatchevents.h"
 #include "dispatcher.h"
 #include "modes/modes.h"
+#include "engineselection.h"
 
 #ifndef QT_NO_DEBUG
 #include "scope/scopeview.h"
@@ -945,6 +946,22 @@ bool  syncProcessor::createModeBase()
   switch (currentMode)
   {
   case M1:
+    // mmsstv-linux-port Step 7: when mmsstv-core is selected for Martin 1
+    // (the default -- see sstv/engineselection.h), QSSTV's own detector
+    // steps aside here exactly like an unrecognized VIS code would (falls
+    // through to the same NOTVALID path below), and the independent
+    // mmsstv_martin_rx.cpp engine (fed from the raw-audio tap, gated the
+    // same way) handles the reception instead. When ENGINE_QSSTV is
+    // selected, this runs exactly as upstream, unchanged.
+    if(selectedEngine(M1)==ENGINE_QSSTV)
+      {
+        currentModePtr=new modeGBR(currentMode,RXSTRIPE,false,false);
+      }
+    else
+      {
+        currentMode=NOTVALID;
+      }
+    break;
   case M2:
     currentModePtr=new modeGBR(currentMode,RXSTRIPE,false,false);
     break;

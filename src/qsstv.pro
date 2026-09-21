@@ -150,6 +150,7 @@ SOURCES += main.cpp\
     sstv/sstvrx.cpp \
     sstv/sstvtx.cpp \
     sstv/mmsstv_martin_tx.cpp \
+    sstv/mmsstv_martin_rx.cpp \
     sstv/engineselection.cpp \
     sstv/syncprocessor.cpp \
     utils/qurlinfo.cpp \
@@ -323,6 +324,7 @@ HEADERS  += mainwindow.h \
     sstv/sstvrx.h \
     sstv/sstvtx.h \
     sstv/mmsstv_martin_tx.h \
+    sstv/mmsstv_martin_rx.h \
     sstv/engineselection.h \
     sstv/syncprocessor.h \
     utils/qurlinfo.h \
