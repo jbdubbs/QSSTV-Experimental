@@ -854,6 +854,16 @@
              </property>
             </widget>
            </item>
+           <item>
+            <widget class="QCheckBox" name="engineCheckBox">
+             <property name="toolTip">
+              <string>When checked, uses the mmsstv-core engine (ported from MMSSTV) for modes it supports (currently Martin 1) instead of QSSTV's own engine.</string>
+             </property>
+             <property name="text">
+              <string>Use MMSSTV Core engine</string>
+             </property>
+            </widget>
+           </item>
           </layout>
          </item>
          <item>

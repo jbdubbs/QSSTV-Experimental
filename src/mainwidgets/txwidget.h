@@ -101,6 +101,7 @@ public slots:
 
   void slotModeChanged(int);
   void slotResizeChanged(int);
+  void slotEngineChanged(bool);
   void slotBinary();
   void slotHybridToggled();
   void slotNotifyTimeout();
@@ -120,6 +121,7 @@ private:
   void sendHybrid(QString fn);
   void applyTemplate();
   void updateTxTime();
+  void updateEngineCheckBox();
   void startTxImage();
   void enableButtons(bool enable);
 

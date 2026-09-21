@@ -21,6 +21,7 @@
 #include "rigcontrol.h"
 #include "imageviewer.h"
 #include "testpatternselection.h"
+#include "sstv/engineselection.h"
 
 
 txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
@@ -44,6 +45,7 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
 
   connect(ui->sstvModeComboBox,SIGNAL(activated(int)),SLOT(slotModeChanged(int )));
   connect(ui->sstvResizeComboBox,SIGNAL(activated(int)),SLOT(slotResizeChanged(int)));
+  connect(ui->engineCheckBox,SIGNAL(toggled(bool)),SLOT(slotEngineChanged(bool)));
 
   connect(ui->drmTxBandwidthComboBox,SIGNAL(activated(int)),SLOT(slotGetTXParams()));
   connect(ui->drmTxInterleaveComboBox,SIGNAL(activated(int)),SLOT(slotGetTXParams()));
@@ -261,6 +263,7 @@ void txWidget::setParams()
   if(compressedSize>MAXDRMSIZE) compressedSize=MAXDRMSIZE;
   setValue(compressedSize,ui->sizeSlider);
   ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex!=TRXSSTV));
+  updateEngineCheckBox();
   updateTxTime();
 }
 
@@ -631,7 +634,29 @@ void txWidget::slotModeChanged(int m)
     {
       sstvModeIndexTx=(esstvMode)m;
       applyTemplate();
+      updateEngineCheckBox();
     }
+}
+
+// mmsstv-linux-port Step 6: shows/hides+syncs the "Use MMSSTV Core engine"
+// checkbox for the current TX mode. Only modes mmsstv-core actually
+// implements (currently just Martin 1) offer a choice at all; every other
+// mode always uses QSSTV's own engine, so the checkbox is hidden then.
+void txWidget::updateEngineCheckBox()
+{
+  bool hasChoice=mmsstvCoreSupports(sstvModeIndexTx);
+  ui->engineCheckBox->setVisible(hasChoice);
+  if(hasChoice)
+    {
+      ui->engineCheckBox->blockSignals(true);
+      ui->engineCheckBox->setChecked(selectedEngine(sstvModeIndexTx)==ENGINE_MMSSTV_CORE);
+      ui->engineCheckBox->blockSignals(false);
+    }
+}
+
+void txWidget::slotEngineChanged(bool checked)
+{
+  setSelectedEngine(sstvModeIndexTx, checked ? ENGINE_MMSSTV_CORE : ENGINE_QSSTV);
 }
 
 void txWidget::slotResizeChanged(int i)

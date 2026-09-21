@@ -150,6 +150,7 @@ SOURCES += main.cpp\
     sstv/sstvrx.cpp \
     sstv/sstvtx.cpp \
     sstv/mmsstv_martin_tx.cpp \
+    sstv/engineselection.cpp \
     sstv/syncprocessor.cpp \
     utils/qurlinfo.cpp \
     utils/reedsolomoncoder.cpp \
@@ -322,6 +323,7 @@ HEADERS  += mainwindow.h \
     sstv/sstvrx.h \
     sstv/sstvtx.h \
     sstv/mmsstv_martin_tx.h \
+    sstv/engineselection.h \
     sstv/syncprocessor.h \
     utils/qurlinfo.h \
     utils/reedsolomoncoder.h \
