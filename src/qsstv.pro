@@ -590,6 +590,16 @@ DISTFILES += \
 
 INSTALLS += target
 
+# mmsstv-core: portable extraction of MMSSTV's SSTV DSP core (see
+# https://github.com/n5ac/mmsstv), built separately via CMake as a sibling
+# checkout. Referenced by relative path for now -- vendoring it as a git
+# submodule is a decision for later, once this fork is closer to something
+# published. Not wired into any actual RX/TX behavior yet -- this linkage
+# was proven with a temporary call in mainwindow.cpp (removed once
+# confirmed; see the project plan's "Step 4"), real use starts in Step 5.
+INCLUDEPATH += $$PWD/../../mmsstv-core/src $$PWD/../../mmsstv-core/compat
+LIBS += -L$$PWD/../../mmsstv-core/build -lmmsstv_core
+
 LIBS +=  -lpulse \
          -lpulse-simple \
          -lfftw3f \

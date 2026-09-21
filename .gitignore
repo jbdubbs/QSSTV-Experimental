@@ -55,3 +55,6 @@ compile_commands.json
 documentation/api/api_html
 documentation/manual/manual_html
 
+# mmsstv-linux-port fork: local build output
+src/build/
+
