@@ -14,7 +14,7 @@ class iirFilter;
 class modeBase;
 class sstvRx;
 class drmRx;
-class MmsstvMartinRx;
+class MmsstvSstvRx;
 
 class rxFunctions : public QThread
 {
@@ -47,10 +47,10 @@ private:
   uint rxBytes;
   void forceInit();
 
-  // mmsstv-linux-port Step 7: independent Martin 1 RX path via
-  // mmsstv-core, drained alongside (not instead of) sstvRxPtr's own
-  // decimated-pipeline dispatch. See sstv/mmsstv_martin_rx.h.
-  MmsstvMartinRx *martinRxPtr;
+  // mmsstv-linux-port Step 7/8: independent RX path via mmsstv-core for
+  // whichever modes it supports, drained alongside (not instead of)
+  // sstvRxPtr's own decimated-pipeline dispatch. See sstv/mmsstv_sstv_rx.h.
+  MmsstvSstvRx *mmsstvRxPtr;
 
 };
 

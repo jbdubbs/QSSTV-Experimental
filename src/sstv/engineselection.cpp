@@ -1,5 +1,5 @@
 /***************************************************************************
- *   mmsstv-linux-port: Step 6 -- per-mode engine selection                *
+ *   mmsstv-linux-port: Step 6/8 -- per-mode engine selection              *
  *   See engineselection.h for what this is and why.                      *
  ***************************************************************************/
 #include "engineselection.h"
@@ -7,14 +7,24 @@
 #include <QSettings>
 #include <QString>
 
+namespace {
+constexpr esstvMode kMmsstvCoreModes[] = { M1, S1 };
+}
+
 bool mmsstvCoreSupports(esstvMode mode)
 {
-	switch (mode) {
-	case M1:
-		return true;
-	default:
-		return false;
+	for (esstvMode m : kMmsstvCoreModes) {
+		if (m == mode) return true;
 	}
+	return false;
+}
+
+bool mmsstvCoreActiveForAnyMode()
+{
+	for (esstvMode m : kMmsstvCoreModes) {
+		if (selectedEngine(m) == ENGINE_MMSSTV_CORE) return true;
+	}
+	return false;
 }
 
 eEngine selectedEngine(esstvMode mode)

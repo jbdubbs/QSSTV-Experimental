@@ -149,8 +149,8 @@ SOURCES += main.cpp\
     sstv/sstvparam.cpp \
     sstv/sstvrx.cpp \
     sstv/sstvtx.cpp \
-    sstv/mmsstv_martin_tx.cpp \
-    sstv/mmsstv_martin_rx.cpp \
+    sstv/mmsstv_sstv_tx.cpp \
+    sstv/mmsstv_sstv_rx.cpp \
     sstv/engineselection.cpp \
     sstv/syncprocessor.cpp \
     utils/qurlinfo.cpp \
@@ -323,8 +323,8 @@ HEADERS  += mainwindow.h \
     sstv/sstvparam.h \
     sstv/sstvrx.h \
     sstv/sstvtx.h \
-    sstv/mmsstv_martin_tx.h \
-    sstv/mmsstv_martin_rx.h \
+    sstv/mmsstv_sstv_tx.h \
+    sstv/mmsstv_sstv_rx.h \
     sstv/engineselection.h \
     sstv/syncprocessor.h \
     utils/qurlinfo.h \

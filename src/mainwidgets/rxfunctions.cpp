@@ -6,7 +6,7 @@
 #include "dispatcher.h"
 #include "rxwidget.h"
 #include "sstvrx.h"
-#include "sstv/mmsstv_martin_rx.h"
+#include "sstv/mmsstv_sstv_rx.h"
 #include "sstv/engineselection.h"
 
 #include <QApplication>
@@ -26,7 +26,7 @@ rxFunctions::rxFunctions(QObject *parent) : QThread(parent)
   rxState=RXIDLE;
   sstvRxPtr=new sstvRx;
   drmRxPtr=new drmRx;
-  martinRxPtr=new MmsstvMartinRx;
+  mmsstvRxPtr=new MmsstvSstvRx;
   rxBytes=0;
   setObjectName("rx-thread");
 }
@@ -35,7 +35,7 @@ rxFunctions::~rxFunctions()
 {
   delete sstvRxPtr;
   delete drmRxPtr;
-  delete martinRxPtr;
+  delete mmsstvRxPtr;
 }
 
 //static DSPFLOAT dummyBuf[RXSTRIPE];
@@ -86,22 +86,26 @@ void rxFunctions::run()
                   switchRxState(RXIDLE);
                   break;
                 }
-              // mmsstv-linux-port Step 7: independent drain of the raw
-              // (un-decimated) audio tap for mmsstv-core's Martin 1 RX
-              // engine, alongside (not instead of) sstvRxPtr's own
+              // mmsstv-linux-port Step 7/8: independent drain of the raw
+              // (un-decimated) audio tap for mmsstv-core's RX engine,
+              // alongside (not instead of) sstvRxPtr's own
               // decimated-pipeline dispatch above. Gated on its own
               // buffer's fill level (it fills faster than rxBuffer, since
-              // it isn't decimated) and on the Step 6 engine setting --
-              // when ENGINE_QSSTV is selected for Martin 1, this is
-              // simply skipped and QSSTV's own pipeline handles it
-              // unmodified (see syncprocessor.cpp's createModeBase()).
+              // it isn't decimated) and on whether any mmsstv-core-capable
+              // mode is currently set to use it -- RX doesn't know which
+              // mode is incoming until VIS locks (mmsstv_sstv_rx.cpp
+              // handles that per-mode check once it does), so this can't
+              // gate on one specific mode's setting the way TX does. When
+              // no such mode is active, this is simply skipped and
+              // QSSTV's own pipeline handles every mode unmodified (see
+              // syncprocessor.cpp's createModeBase()).
               if((transmissionModeIndex==TRXSSTV)
-                 && (selectedEngine(M1)==ENGINE_MMSSTV_CORE)
+                 && mmsstvCoreActiveForAnyMode()
                  && (soundIOPtr->rawRxBuffer.count()>=DOWNSAMPLESIZE))
                 {
                   static DSPFLOAT rawBuf[DOWNSAMPLESIZE];
                   soundIOPtr->rawRxBuffer.copyNoCheck(rawBuf,DOWNSAMPLESIZE);
-                  martinRxPtr->processSamples(rawBuf,DOWNSAMPLESIZE);
+                  mmsstvRxPtr->processSamples(rawBuf,DOWNSAMPLESIZE);
                 }
             }
           break;

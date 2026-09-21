@@ -1,8 +1,8 @@
 /***************************************************************************
- *   mmsstv-linux-port: Step 5 -- Martin 1 TX bridge to mmsstv-core        *
- *   See mmsstv_martin_tx.h for what this is and why.                     *
+ *   mmsstv-linux-port: Step 5/8 -- mode-aware TX bridge to mmsstv-core    *
+ *   See mmsstv_sstv_tx.h for what this is and why.                       *
  ***************************************************************************/
-#include "mmsstv_martin_tx.h"
+#include "mmsstv_sstv_tx.h"
 
 #include "imageviewer.h"
 #include "synthes.h"
@@ -20,8 +20,6 @@ namespace {
 
 constexpr int kWidth = 320;
 constexpr int kHeight = 256;
-constexpr double kLineTimeMs = 146.432; // Martin 1, matches SendSSTV()'s dispatch table
-constexpr int kMartin1VisCode = 0xAC;
 
 // Drains whatever CSSTVMOD::Write() calls have queued so far into real
 // audio via the public bulk API (synthesizer::writeBuffer() -- write()/
@@ -42,24 +40,55 @@ void drainToTx(CSSTVMOD &mod)
 	}
 }
 
+typedef void (*EncodeLineFn)(CSSTVMOD *mod, double tw, const unsigned char *rgbRow, int width);
+
+// One row per mmsstv-core-supported mode (see engineselection.h's
+// mmsstvCoreSupports(), which must stay in sync with this table). VIS
+// codes and line-time-ms constants match Main.cpp's SendSSTV()/VIS-code
+// dispatch tables exactly (see mmsstv_martin_tx.cpp's original Step 5
+// comment and pixelconv.h's EncodeScottieLine comment for Scottie's).
+struct ModeTxInfo
+{
+	esstvMode mode;
+	int visCode;
+	double lineTimeMs;
+	EncodeLineFn encodeLine;
+};
+
+const ModeTxInfo kModeTable[] = {
+	{ M1, 0xAC, 146.432, &EncodeMartinLine },
+	{ S1, 0x3c, 138.24, &EncodeScottieLine },
+};
+
+const ModeTxInfo *findModeInfo(esstvMode mode)
+{
+	for (const auto &info : kModeTable) {
+		if (info.mode == mode) return &info;
+	}
+	return nullptr;
+}
+
 } // namespace
 
-bool sendMartin1ImageViaMmsstv(imageViewer *ivPtr)
+bool sendImageViaMmsstv(imageViewer *ivPtr, esstvMode mode)
 {
+	const ModeTxInfo *info = findModeInfo(mode);
+	if (!info) return false; // caller should have checked mmsstvCoreSupports() first
+
 	// Run at QSSTV's native TX rate -- resolves the RX/TX shared-rate
 	// requirement flagged in Step 4 without any resampling, since TX here
-	// needs no new audio tap (unlike RX, deferred to Step 6).
+	// needs no new audio tap (unlike RX).
 	SampFreq = 48000.0;
 	SampBase = 48000.0;
 	sys.m_SampFreq = SampFreq;
 
-	SSTVSET.SetTxMode(smMRT1);
+	SSTVSET.SetTxMode(mode);
 
 	CSSTVMOD mod;
 	mod.OpenTXBuf(10);
 	mod.InitTXBuf();
 
-	SendVisHeader(&mod, kMartin1VisCode);
+	SendVisHeader(&mod, info->visCode);
 	drainToTx(mod);
 
 	unsigned char row[kWidth * 3];
@@ -71,7 +100,7 @@ bool sendMartin1ImageViaMmsstv(imageViewer *ivPtr)
 			row[x * 3 + 1] = static_cast<unsigned char>(qGreen(t));
 			row[x * 3 + 2] = static_cast<unsigned char>(qBlue(t));
 		}
-		EncodeMartinLine(&mod, kLineTimeMs, row, kWidth);
+		info->encodeLine(&mod, info->lineTimeMs, row, kWidth);
 		drainToTx(mod);
 	}
 
