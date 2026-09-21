@@ -22,6 +22,7 @@
 #include "txfunctions.h"
 #include "appglobal.h"
 #include "sstv/sstvtx.h"
+#include "sstv/mmsstv_martin_tx.h"
 #include "cw.h"
 
 
@@ -257,7 +258,12 @@ void txFunctions::run()
           addToLog("Entered SSTVTXIMAGE",LOGTXFUNC);
           startProgress(sstvTxPtr->calcTxTime(0));
           addToLog("Entered before SSTVTXIMAGE",LOGTXFUNC);
-          if(sstvTxPtr->sendImage(txWidgetPtr->getImageViewerPtr()))
+          // mmsstv-linux-port Step 5: Martin 1 goes through mmsstv-core
+          // instead of QSSTV's own modeGBR TX path; every other mode is
+          // unchanged. See sstv/mmsstv_martin_tx.h.
+          if(txSSTVParam.mode==M1
+             ? sendMartin1ImageViaMmsstv(txWidgetPtr->getImageViewerPtr())
+             : sstvTxPtr->sendImage(txWidgetPtr->getImageViewerPtr()))
             {
               switchTxState(TXSSTVPOST);
             }

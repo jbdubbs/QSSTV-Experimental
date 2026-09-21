@@ -1,0 +1,79 @@
+/***************************************************************************
+ *   mmsstv-linux-port: Step 5 -- Martin 1 TX bridge to mmsstv-core        *
+ *   See mmsstv_martin_tx.h for what this is and why.                     *
+ ***************************************************************************/
+#include "mmsstv_martin_tx.h"
+
+#include "imageviewer.h"
+#include "synthes.h"
+
+// mmsstv-core headers (see qsstv.pro's INCLUDEPATH additions).
+#include "pixelconv.h"
+#include "sstv.h"
+
+#include <QRgb>
+
+#include <cmath>
+#include <vector>
+
+namespace {
+
+constexpr int kWidth = 320;
+constexpr int kHeight = 256;
+constexpr double kLineTimeMs = 146.432; // Martin 1, matches SendSSTV()'s dispatch table
+constexpr int kMartin1VisCode = 0xAC;
+
+// Drains whatever CSSTVMOD::Write() calls have queued so far into real
+// audio via the public bulk API (synthesizer::writeBuffer() -- write()/
+// filter() are private). Packing matches synthesizer::filter(): SOUNDFRAME
+// is quint32, low 16 bits = left-channel int16 sample, high 16 bits unused
+// here (that's only for VOX-tone keying on the other channel, which this
+// bridge doesn't need -- QSSTV's normal TX start already handles PTT).
+void drainToTx(CSSTVMOD &mod)
+{
+	std::vector<quint32> frames;
+	frames.reserve(4096);
+	while (mod.GetBufCnt() > 0) {
+		double sample = mod.Do();
+		frames.push_back(static_cast<quint32>(std::lround(sample)) & 0xFFFFu);
+	}
+	if (!frames.empty()) {
+		synthesPtr->writeBuffer(frames.data(), int(frames.size()));
+	}
+}
+
+} // namespace
+
+bool sendMartin1ImageViaMmsstv(imageViewer *ivPtr)
+{
+	// Run at QSSTV's native TX rate -- resolves the RX/TX shared-rate
+	// requirement flagged in Step 4 without any resampling, since TX here
+	// needs no new audio tap (unlike RX, deferred to Step 6).
+	SampFreq = 48000.0;
+	SampBase = 48000.0;
+	sys.m_SampFreq = SampFreq;
+
+	SSTVSET.SetTxMode(smMRT1);
+
+	CSSTVMOD mod;
+	mod.OpenTXBuf(10);
+	mod.InitTXBuf();
+
+	SendVisHeader(&mod, kMartin1VisCode);
+	drainToTx(mod);
+
+	unsigned char row[kWidth * 3];
+	for (int y = 0; y < kHeight; y++) {
+		QRgb *pixels = ivPtr->getScanLineAddress(y);
+		for (int x = 0; x < kWidth; x++) {
+			QRgb t = pixels[x];
+			row[x * 3 + 0] = static_cast<unsigned char>(qRed(t));
+			row[x * 3 + 1] = static_cast<unsigned char>(qGreen(t));
+			row[x * 3 + 2] = static_cast<unsigned char>(qBlue(t));
+		}
+		EncodeMartinLine(&mod, kLineTimeMs, row, kWidth);
+		drainToTx(mod);
+	}
+
+	return true;
+}
