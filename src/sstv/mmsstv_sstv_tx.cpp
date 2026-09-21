@@ -58,6 +58,8 @@ struct ModeTxInfo
 const ModeTxInfo kModeTable[] = {
 	{ M1, 0xAC, 146.432, &EncodeMartinLine },
 	{ S1, 0x3c, 138.24, &EncodeScottieLine },
+	{ S2, 0xb8, 88.064, &EncodeScottieLine },
+	{ SDX, 0xcc, 345.6, &EncodeScottieLine },
 };
 
 const ModeTxInfo *findModeInfo(esstvMode mode)

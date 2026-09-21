@@ -966,8 +966,13 @@ bool  syncProcessor::createModeBase()
     currentModePtr=new modeGBR(currentMode,RXSTRIPE,false,false);
     break;
   case S1:
+  case S2:
+  case SDX:
     // Same conditional split as M1 above -- see that case's comment.
-    if(selectedEngine(S1)==ENGINE_QSSTV)
+    // Each variant checks its own selectedEngine() independently, since
+    // the user can pick per-mode (e.g. Scottie 1 via mmsstv-core, Scottie
+    // DX via QSSTV's own path).
+    if(selectedEngine(currentMode)==ENGINE_QSSTV)
       {
         currentModePtr=new modeGBR2(currentMode,RXSTRIPE,false,false);
       }
@@ -975,10 +980,6 @@ bool  syncProcessor::createModeBase()
       {
         currentMode=NOTVALID;
       }
-    break;
-  case S2:
-  case SDX:
-    currentModePtr=new modeGBR2(currentMode,RXSTRIPE,false,false);
     break;
   case R36:
     currentModePtr=new modeRobot1(currentMode,RXSTRIPE,false,false);

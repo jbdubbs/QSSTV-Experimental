@@ -31,6 +31,8 @@ esstvMode mapMmsstvCoreMode(int coreMode)
 	switch (coreMode) {
 	case smMRT1: return M1;
 	case smSCT1: return S1;
+	case smSCT2: return S2;
+	case smSCTDX: return SDX;
 	default: return NOTVALID;
 	}
 }
@@ -89,7 +91,15 @@ void MmsstvSstvRx::processSamples(const double *samples, int count)
 				unsigned char rgbRow[kWidth * 3];
 				switch (trackingMode) {
 				case M1: martinDecoder.DecodeLine(ip, kWidth, rgbRow); break;
-				case S1: scottieDecoder.DecodeLine(ip, kWidth, rgbRow); break;
+				case S1:
+				case S2:
+				case SDX:
+					// All three Scottie variants share one decoder instance --
+					// CScottieRxDecoder is mode-aware internally (SSTVSET.m_Mode
+					// picks GetPixelLevel vs GetPictureLevel for SDX), not
+					// per-instance. See pixelconv.h/cpp.
+					scottieDecoder.DecodeLine(ip, kWidth, rgbRow);
+					break;
 				default: break; // can't happen: trackingImage implies a mapped mode
 				}
 
