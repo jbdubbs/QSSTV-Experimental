@@ -53,6 +53,11 @@ esstvMode mapMmsstvCoreMode(int coreMode)
 	case smML240: return ML240;
 	case smML280: return ML280;
 	case smML320: return ML320;
+	case smMR73: return MR73;
+	case smMR90: return MR90;
+	case smMR115: return MR115;
+	case smMR140: return MR140;
+	case smMR175: return MR175;
 	default: return NOTVALID;
 	}
 }
@@ -182,12 +187,17 @@ void MmsstvSstvRx::processSamples(const double *samples, int count)
 					case ML240:
 					case ML280:
 					case ML320:
+					case MR73:
+					case MR90:
+					case MR115:
+					case MR140:
+					case MR175:
 						// All share one decoder instance -- CRobotChromaRxDecoder
 						// only ever reads generic SSTVSET.* fields, already correct
-						// per-mode. ML shares Robot 72/24's exact RX segment case
+						// per-mode. ML/MR share Robot 72/24's exact RX segment case
 						// block in Main.cpp (confirmed directly, not assumed from
-						// the "ML family" framing -- see pixelconv.h's
-						// EncodeMLLine comment for the one place ML's wire format
+						// the "ML/MR family" framing -- see pixelconv.h's
+						// EncodeMLLine comment for the one place ML/MR's wire format
 						// actually differs, which is TX-only). See pixelconv.h/cpp.
 						robotChromaDecoder.DecodeLine(ip, width, rgbRow);
 						break;

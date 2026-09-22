@@ -111,6 +111,14 @@ const ModeTxInfo kModeTable[] = {
 	{ ML240, 640, 496, 1, FAMILY_ML_CHROMA, 0x8623, 236.5, &EncodeMLLine, nullptr, nullptr },
 	{ ML280, 640, 496, 1, FAMILY_ML_CHROMA, 0x8923, 277.5, &EncodeMLLine, nullptr, nullptr },
 	{ ML320, 640, 496, 1, FAMILY_ML_CHROMA, 0x8a23, 317.5, &EncodeMLLine, nullptr, nullptr },
+	// MR73-175 (Step 15): shares EncodeMLLine/FAMILY_ML_CHROMA exactly with
+	// ML -- LineMR is fully parameterized by width, and MR's dimensions
+	// (320x256) are just a different table row, not different code.
+	{ MR73, 320, 256, 1, FAMILY_ML_CHROMA, 0x4523, 138.0, &EncodeMLLine, nullptr, nullptr },
+	{ MR90, 320, 256, 1, FAMILY_ML_CHROMA, 0x4623, 171.0, &EncodeMLLine, nullptr, nullptr },
+	{ MR115, 320, 256, 1, FAMILY_ML_CHROMA, 0x4923, 220.0, &EncodeMLLine, nullptr, nullptr },
+	{ MR140, 320, 256, 1, FAMILY_ML_CHROMA, 0x4a23, 269.0, &EncodeMLLine, nullptr, nullptr },
+	{ MR175, 320, 256, 1, FAMILY_ML_CHROMA, 0x4c23, 337.0, &EncodeMLLine, nullptr, nullptr },
 };
 
 const ModeTxInfo *findModeInfo(esstvMode mode)
