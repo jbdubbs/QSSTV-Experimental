@@ -1,5 +1,5 @@
 /***************************************************************************
- *   mmsstv-linux-port: Step 7/8 -- mode-aware RX bridge to mmsstv-core    *
+ *   mmsstv-linux-port: Step 7/8/10 -- mode-aware RX bridge to mmsstv-core *
  *   See mmsstv_sstv_rx.h for what this is and why.                       *
  ***************************************************************************/
 #include "mmsstv_sstv_rx.h"
@@ -10,16 +10,18 @@
 #include "dispatcher.h"
 #include "dispatchevents.h"
 #include "engineselection.h"
+#include "mmsstv_sstv_tx.h" // getModeDimensions() -- see its header for why RX shares TX's table
 
 #include <QApplication>
 #include <QSize>
 
 namespace {
 
-// Both mmsstv-core-supported modes today are 320x256; this'll need to
-// become per-mode data once a differently-sized mode is added.
-constexpr int kWidth = 320;
-constexpr int kHeight = 256;
+// Every mmsstv-core-supported mode's width is 320 (Robot 36's differs only
+// in height); this is just the RGB row scratch buffer's fixed capacity,
+// not a per-mode dimension assumption -- actual width/height always come
+// from getModeDimensions().
+constexpr int kMaxWidth = 320;
 
 // Maps mmsstv-core's own internal mode constant (SSTVSET.m_Mode, from
 // mmsstv-core/src/sstv.h) to QSSTV's esstvMode (sstv/sstvparam.h) -- the
@@ -33,6 +35,7 @@ esstvMode mapMmsstvCoreMode(int coreMode)
 	case smSCT1: return S1;
 	case smSCT2: return S2;
 	case smSCTDX: return SDX;
+	case smR36: return R36;
 	default: return NOTVALID;
 	}
 }
@@ -71,8 +74,10 @@ void MmsstvSstvRx::processSamples(const double *samples, int count)
 			trackingMode = lockedMode;
 			trackingImage = (lockedMode != NOTVALID) && (selectedEngine(lockedMode) == ENGINE_MMSSTV_CORE);
 			if (trackingImage) {
+				int width, height;
+				getModeDimensions(lockedMode, width, height); // trackingImage implies this succeeds
 				bool done = false;
-				startImageRXEvent *ce = new startImageRXEvent(QSize(kWidth, kHeight));
+				startImageRXEvent *ce = new startImageRXEvent(QSize(width, height));
 				ce->waitFor(&done);
 				QApplication::postEvent(dispatcherPtr, ce);
 				while (!done) {
@@ -86,33 +91,40 @@ void MmsstvSstvRx::processSamples(const double *samples, int count)
 		}
 
 		while (dem->m_rPage != dem->m_wPage) {
-			if (trackingImage && decodedRows < kHeight) {
-				short *ip = &dem->m_Buf[dem->m_rPage * dem->m_BWidth];
-				unsigned char rgbRow[kWidth * 3];
-				switch (trackingMode) {
-				case M1: martinDecoder.DecodeLine(ip, kWidth, rgbRow); break;
-				case S1:
-				case S2:
-				case SDX:
-					// All three Scottie variants share one decoder instance --
-					// CScottieRxDecoder is mode-aware internally (SSTVSET.m_Mode
-					// picks GetPixelLevel vs GetPictureLevel for SDX), not
-					// per-instance. See pixelconv.h/cpp.
-					scottieDecoder.DecodeLine(ip, kWidth, rgbRow);
-					break;
-				default: break; // can't happen: trackingImage implies a mapped mode
-				}
+			if (trackingImage) {
+				int width, height;
+				getModeDimensions(trackingMode, width, height);
+				if (decodedRows < height) {
+					short *ip = &dem->m_Buf[dem->m_rPage * dem->m_BWidth];
+					unsigned char rgbRow[kMaxWidth * 3];
+					switch (trackingMode) {
+					case M1: martinDecoder.DecodeLine(ip, width, rgbRow); break;
+					case S1:
+					case S2:
+					case SDX:
+						// All three Scottie variants share one decoder instance --
+						// CScottieRxDecoder is mode-aware internally (SSTVSET.m_Mode
+						// picks GetPixelLevel vs GetPictureLevel for SDX), not
+						// per-instance. See pixelconv.h/cpp.
+						scottieDecoder.DecodeLine(ip, width, rgbRow);
+						break;
+					case R36:
+						robot36Decoder.DecodeLine(ip, width, rgbRow);
+						break;
+					default: break; // can't happen: trackingImage implies a mapped mode
+					}
 
-				QRgb *pixels = rxWidgetPtr->getImageViewerPtr()->getScanLineAddress(decodedRows);
-				for (int x = 0; x < kWidth; x++) {
-					pixels[x] = qRgb(rgbRow[x * 3 + 0], rgbRow[x * 3 + 1], rgbRow[x * 3 + 2]);
-				}
-				QApplication::postEvent(dispatcherPtr, new lineDisplayEvent(decodedRows));
-				decodedRows++;
+					QRgb *pixels = rxWidgetPtr->getImageViewerPtr()->getScanLineAddress(decodedRows);
+					for (int x = 0; x < width; x++) {
+						pixels[x] = qRgb(rgbRow[x * 3 + 0], rgbRow[x * 3 + 1], rgbRow[x * 3 + 2]);
+					}
+					QApplication::postEvent(dispatcherPtr, new lineDisplayEvent(decodedRows));
+					decodedRows++;
 
-				if (decodedRows >= kHeight) {
-					QApplication::postEvent(dispatcherPtr, new endImageSSTVRXEvent(trackingMode));
-					trackingImage = false;
+					if (decodedRows >= height) {
+						QApplication::postEvent(dispatcherPtr, new endImageSSTVRXEvent(trackingMode));
+						trackingImage = false;
+					}
 				}
 			}
 			dem->m_rPage++;

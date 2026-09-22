@@ -1,14 +1,16 @@
 /***************************************************************************
- *   mmsstv-linux-port: Step 5/8 -- mode-aware TX bridge to mmsstv-core    *
+ *   mmsstv-linux-port: Step 5/8/10 -- mode-aware TX bridge to mmsstv-core *
  *                                                                         *
  *   Not part of upstream QSSTV. Bridges QSSTV's existing TX pipeline to  *
  *   mmsstv-core (a portable extraction of MMSSTV's SSTV DSP core, see    *
  *   https://github.com/n5ac/mmsstv), used in place of QSSTV's own        *
  *   per-mode TX path for whichever modes mmsstv-core implements (see     *
  *   engineselection.h's mmsstvCoreSupports()). See the project plan's    *
- *   "Step 5" (Martin 1, the original single-mode version of this file)   *
- *   and "Step 8" (generalized into a per-mode dispatch table) for the    *
- *   full rationale and integration-point research.                       *
+ *   "Step 5" (Martin 1, the original single-mode version of this file),  *
+ *   "Step 8" (generalized into a per-mode dispatch table), and "Step 10" *
+ *   (per-mode dimensions, once Robot 36 -- 320x240, not 320x256 like     *
+ *   every mode before it -- showed the table needs one) for the full     *
+ *   rationale and integration-point research.                            *
  ***************************************************************************/
 #ifndef MMSSTV_SSTV_TX_H
 #define MMSSTV_SSTV_TX_H
@@ -29,5 +31,12 @@ class imageViewer;
 // this bridge has no abort path yet, so it currently always returns true
 // once it runs).
 bool sendImageViaMmsstv(imageViewer *ivPtr, esstvMode mode);
+
+// This file's per-mode table is the single source of truth for
+// width/height (see the Step 10 dimensions note above) -- the RX bridge
+// (mmsstv_sstv_rx.cpp) queries it here rather than keeping its own copy.
+// Returns false for a mode not in the table (caller should have already
+// checked mmsstvCoreSupports()).
+bool getModeDimensions(esstvMode mode, int &width, int &height);
 
 #endif // MMSSTV_SSTV_TX_H

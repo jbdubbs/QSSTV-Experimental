@@ -1,5 +1,5 @@
 /***************************************************************************
- *   mmsstv-linux-port: Step 5/8 -- mode-aware TX bridge to mmsstv-core    *
+ *   mmsstv-linux-port: Step 5/8/10 -- mode-aware TX bridge to mmsstv-core *
  *   See mmsstv_sstv_tx.h for what this is and why.                       *
  ***************************************************************************/
 #include "mmsstv_sstv_tx.h"
@@ -17,9 +17,6 @@
 #include <vector>
 
 namespace {
-
-constexpr int kWidth = 320;
-constexpr int kHeight = 256;
 
 // Drains whatever CSSTVMOD::Write() calls have queued so far into real
 // audio via the public bulk API (synthesizer::writeBuffer() -- write()/
@@ -40,26 +37,39 @@ void drainToTx(CSSTVMOD &mod)
 	}
 }
 
-typedef void (*EncodeLineFn)(CSSTVMOD *mod, double tw, const unsigned char *rgbRow, int width);
+// The RGB family (Martin/Scottie) all share one encode signature (a whole-
+// line duration in ms, the library divides by width itself). Robot 36
+// (YUV family) has fixed per-segment ms literals instead of one scalable
+// line-time, and needs the row index for its chroma-channel parity
+// decision -- genuinely different, not worth forcing into one signature.
+typedef void (*EncodeRgbLineFn)(CSSTVMOD *mod, double tw, const unsigned char *rgbRow, int width);
+enum PixelFamily { FAMILY_RGB, FAMILY_ROBOT36 };
 
 // One row per mmsstv-core-supported mode (see engineselection.h's
 // mmsstvCoreSupports(), which must stay in sync with this table). VIS
 // codes and line-time-ms constants match Main.cpp's SendSSTV()/VIS-code
 // dispatch tables exactly (see mmsstv_martin_tx.cpp's original Step 5
-// comment and pixelconv.h's EncodeScottieLine comment for Scottie's).
+// comment, pixelconv.h's EncodeScottieLine comment for Scottie's, and
+// EncodeRobot36Line's comment for Robot 36's). width/height are this
+// table's single source of truth (see getModeDimensions() below) --
+// Robot 36 is 320x240, every mode before it was 320x256.
 struct ModeTxInfo
 {
 	esstvMode mode;
+	int width;
+	int height;
+	PixelFamily family;
 	int visCode;
-	double lineTimeMs;
-	EncodeLineFn encodeLine;
+	double lineTimeMs; // FAMILY_RGB only
+	EncodeRgbLineFn encodeRgbLine; // FAMILY_RGB only
 };
 
 const ModeTxInfo kModeTable[] = {
-	{ M1, 0xAC, 146.432, &EncodeMartinLine },
-	{ S1, 0x3c, 138.24, &EncodeScottieLine },
-	{ S2, 0xb8, 88.064, &EncodeScottieLine },
-	{ SDX, 0xcc, 345.6, &EncodeScottieLine },
+	{ M1, 320, 256, FAMILY_RGB, 0xAC, 146.432, &EncodeMartinLine },
+	{ S1, 320, 256, FAMILY_RGB, 0x3c, 138.24, &EncodeScottieLine },
+	{ S2, 320, 256, FAMILY_RGB, 0xb8, 88.064, &EncodeScottieLine },
+	{ SDX, 320, 256, FAMILY_RGB, 0xcc, 345.6, &EncodeScottieLine },
+	{ R36, 320, 240, FAMILY_ROBOT36, 0x88, 0.0, nullptr },
 };
 
 const ModeTxInfo *findModeInfo(esstvMode mode)
@@ -71,6 +81,15 @@ const ModeTxInfo *findModeInfo(esstvMode mode)
 }
 
 } // namespace
+
+bool getModeDimensions(esstvMode mode, int &width, int &height)
+{
+	const ModeTxInfo *info = findModeInfo(mode);
+	if (!info) return false;
+	width = info->width;
+	height = info->height;
+	return true;
+}
 
 bool sendImageViaMmsstv(imageViewer *ivPtr, esstvMode mode)
 {
@@ -93,16 +112,23 @@ bool sendImageViaMmsstv(imageViewer *ivPtr, esstvMode mode)
 	SendVisHeader(&mod, info->visCode);
 	drainToTx(mod);
 
-	unsigned char row[kWidth * 3];
-	for (int y = 0; y < kHeight; y++) {
+	std::vector<unsigned char> row(info->width * 3);
+	for (int y = 0; y < info->height; y++) {
 		QRgb *pixels = ivPtr->getScanLineAddress(y);
-		for (int x = 0; x < kWidth; x++) {
+		for (int x = 0; x < info->width; x++) {
 			QRgb t = pixels[x];
 			row[x * 3 + 0] = static_cast<unsigned char>(qRed(t));
 			row[x * 3 + 1] = static_cast<unsigned char>(qGreen(t));
 			row[x * 3 + 2] = static_cast<unsigned char>(qBlue(t));
 		}
-		info->encodeLine(&mod, info->lineTimeMs, row, kWidth);
+		switch (info->family) {
+		case FAMILY_RGB:
+			info->encodeRgbLine(&mod, info->lineTimeMs, row.data(), info->width);
+			break;
+		case FAMILY_ROBOT36:
+			EncodeRobot36Line(&mod, row.data(), info->width, y);
+			break;
+		}
 		drainToTx(mod);
 	}
 

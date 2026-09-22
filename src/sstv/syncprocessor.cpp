@@ -982,7 +982,15 @@ bool  syncProcessor::createModeBase()
       }
     break;
   case R36:
-    currentModePtr=new modeRobot1(currentMode,RXSTRIPE,false,false);
+    // Same conditional split as M1/S1/S2/SDX above -- see M1's comment.
+    if(selectedEngine(R36)==ENGINE_QSSTV)
+      {
+        currentModePtr=new modeRobot1(currentMode,RXSTRIPE,false,false);
+      }
+    else
+      {
+        currentMode=NOTVALID;
+      }
     break;
   case R24:
   case R72:
