@@ -48,12 +48,19 @@ void drainToTx(CSSTVMOD &mod)
 // The PD family (Step 12) needs a fourth shape entirely: one call encodes
 // TWO source rows at once (sharing one chroma sample pair between them --
 // see pixelconv.h's CPDRxDecoder/EncodePDLine comment), so it takes two
-// row pointers and, like the RGB family, a scalable per-mode `tw`. Four
-// genuinely different shapes, not worth forcing into one signature.
+// row pointers and, like the RGB family, a scalable per-mode `tw`. The ML
+// family (Step 13) shares Robot 72/24's RX decoder exactly, but its own
+// TX encode function (EncodeMLLine) happens to need the exact same
+// signature as the RGB family's (a scalable `tw`, no row-doubling) --
+// reuses EncodeRgbLineFn's typedef rather than inventing a fifth one,
+// since a genuinely identical function-pointer shape doesn't need its own
+// name; `family` alone (not the typedef) is what a reader should look at
+// to know ML's RX side actually dispatches through robotChromaDecoder,
+// not a special ML decoder -- see mmsstv_sstv_rx.cpp.
 typedef void (*EncodeRgbLineFn)(CSSTVMOD *mod, double tw, const unsigned char *rgbRow, int width);
 typedef void (*EncodeRobotChromaLineFn)(CSSTVMOD *mod, const unsigned char *rgbRow, int width);
 typedef void (*EncodePDLineFn)(CSSTVMOD *mod, double tw, const unsigned char *rgbRowEven, const unsigned char *rgbRowOdd, int width);
-enum PixelFamily { FAMILY_RGB, FAMILY_ROBOT36, FAMILY_ROBOT_CHROMA, FAMILY_INTERLACED_YUV };
+enum PixelFamily { FAMILY_RGB, FAMILY_ROBOT36, FAMILY_ROBOT_CHROMA, FAMILY_INTERLACED_YUV, FAMILY_ML_CHROMA };
 
 // One row per mmsstv-core-supported mode (see engineselection.h's
 // mmsstvCoreSupports(), which must stay in sync with this table). VIS
@@ -78,8 +85,8 @@ struct ModeTxInfo
 	int rowStep;
 	PixelFamily family;
 	int visCode;
-	double lineTimeMs; // FAMILY_RGB, FAMILY_INTERLACED_YUV
-	EncodeRgbLineFn encodeRgbLine; // FAMILY_RGB only
+	double lineTimeMs; // FAMILY_RGB, FAMILY_INTERLACED_YUV, FAMILY_ML_CHROMA
+	EncodeRgbLineFn encodeRgbLine; // FAMILY_RGB, FAMILY_ML_CHROMA (same fn-pointer shape)
 	EncodeRobotChromaLineFn encodeRobotChromaLine; // FAMILY_ROBOT_CHROMA only
 	EncodePDLineFn encodePDLine; // FAMILY_INTERLACED_YUV only
 };
@@ -99,6 +106,10 @@ const ModeTxInfo kModeTable[] = {
 	{ PD180, 640, 496, 2, FAMILY_INTERLACED_YUV, 0x60, 183.040, nullptr, nullptr, &EncodePDLine },
 	{ PD240, 640, 496, 2, FAMILY_INTERLACED_YUV, 0xe1, 244.480, nullptr, nullptr, &EncodePDLine },
 	{ PD290, 800, 616, 2, FAMILY_INTERLACED_YUV, 0xde, 228.800, nullptr, nullptr, &EncodePDLine },
+	{ ML180, 640, 496, 1, FAMILY_ML_CHROMA, 0x8523, 176.5, &EncodeMLLine, nullptr, nullptr },
+	{ ML240, 640, 496, 1, FAMILY_ML_CHROMA, 0x8623, 236.5, &EncodeMLLine, nullptr, nullptr },
+	{ ML280, 640, 496, 1, FAMILY_ML_CHROMA, 0x8923, 277.5, &EncodeMLLine, nullptr, nullptr },
+	{ ML320, 640, 496, 1, FAMILY_ML_CHROMA, 0x8a23, 317.5, &EncodeMLLine, nullptr, nullptr },
 };
 
 const ModeTxInfo *findModeInfo(esstvMode mode)
@@ -198,6 +209,9 @@ bool sendImageViaMmsstv(imageViewer *ivPtr, esstvMode mode)
 		case FAMILY_INTERLACED_YUV:
 			readRow(y + 1, rowOdd.data());
 			info->encodePDLine(&mod, info->lineTimeMs, row.data(), rowOdd.data(), info->width);
+			break;
+		case FAMILY_ML_CHROMA:
+			info->encodeRgbLine(&mod, info->lineTimeMs, row.data(), info->width);
 			break;
 		}
 		drainToTx(mod);

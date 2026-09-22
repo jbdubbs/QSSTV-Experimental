@@ -1005,15 +1005,27 @@ bool  syncProcessor::createModeBase()
         currentMode=NOTVALID;
       }
     break;
+  case ML180:
+  case ML240:
+  case ML280:
+  case ML320:
+    // Same conditional split as M1/R36/R24/R72/PD above -- see M1's
+    // comment. MR73-175 (not migrated -- out of scope) stays in its own
+    // unconditional block below.
+    if(selectedEngine(currentMode)==ENGINE_QSSTV)
+      {
+        currentModePtr=new modeRobot2(currentMode,RXSTRIPE,false,false);
+      }
+    else
+      {
+        currentMode=NOTVALID;
+      }
+    break;
   case MR73:
   case MR90:
   case MR115:
   case MR140:
   case MR175:
-  case ML180:
-  case ML240:
-  case ML280:
-  case ML320:
     currentModePtr=new modeRobot2(currentMode,RXSTRIPE,false,false);
     break;
   case SC2_60:

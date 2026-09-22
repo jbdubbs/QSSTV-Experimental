@@ -15,6 +15,8 @@
 #include <QApplication>
 #include <QSize>
 
+#include <vector>
+
 namespace {
 
 // Every mmsstv-core-supported mode's width was 320 (Robot 36's differed
@@ -46,6 +48,10 @@ esstvMode mapMmsstvCoreMode(int coreMode)
 	case smPD180: return PD180;
 	case smPD240: return PD240;
 	case smPD290: return PD290;
+	case smML180: return ML180;
+	case smML240: return ML240;
+	case smML280: return ML280;
+	case smML320: return ML320;
 	default: return NOTVALID;
 	}
 }
@@ -59,6 +65,35 @@ MmsstvSstvRx::MmsstvSstvRx()
 	// tap (soundBase::rawRxBuffer) is un-decimated. Must happen *before*
 	// `new CSSTVDEM` below -- see the member comment in the header for why
 	// this can't just be a plain member object.
+	//
+	// Step 13 finding, deliberately NOT worked around here: a genuinely
+	// fresh CSSTVDEM (the very first one constructed in a process) has a
+	// real, reproducible chance of failing to lock an extended-VIS signal
+	// (the two-byte VIS mechanism the ML/MP families use) on its first
+	// attempt, even though the same signal locks reliably once any other
+	// mode has already been encoded/decoded in the process. One real,
+	// confirmed contributing bug was found and fixed directly in
+	// mmsstv-core (CSSTVDEM's constructor read m_SyncRestart, used by
+	// CalcBPF() to pick the wideband filter's cutoff, before setting it --
+	// see that fix's own comment in mmsstv-core/src/sstv.cpp). Beyond
+	// that, extensive live and isolated testing (byte-level diffing of
+	// CSSTVDEM/SSTVSET instances, construct/destruct bisection, chunked
+	// vs. single-loop sample delivery) traced the *remaining* effect to
+	// heap-memory-reuse timing: a throwaway CSSTVMOD+CSSTVDEM pair that
+	// processes some real audio and is destructed before the real
+	// demodulator is constructed reliably fixed it in every single-loop
+	// test -- but the SAME fix, fed the same signal in realistic
+	// RXSTRIPE-sized chunks (matching how this bridge actually receives
+	// audio), failed just as often as no fix at all. That makes the
+	// underlying bug genuinely non-deterministic / heap-layout-dependent
+	// rather than a fixed condition: no warm-up strategy tested was ever
+	// reliable enough to trust here, and an earlier attempt was live-
+	// tested and found to introduce a worse problem (blocking real-time
+	// sample delivery long enough to corrupt Robot 72 RX, previously
+	// reliable since Step 11). A real fix needs the actual uninitialized
+	// read found and eliminated (auditing every CSSTVDEM sub-object's
+	// constructor -- CIIRTANK, CIIR, CPLL, CVCO, CSmooz, CFIR2, CSYNCINT,
+	// etc.), not a workaround -- deferred; see the Step 13 plan notes.
 	SampFreq = 48000.0;
 	SampBase = 48000.0;
 	sys.m_SampFreq = SampFreq;
@@ -136,9 +171,17 @@ void MmsstvSstvRx::processSamples(const double *samples, int count)
 						break;
 					case R72:
 					case R24:
-						// Both share one decoder instance -- CRobotChromaRxDecoder
+					case ML180:
+					case ML240:
+					case ML280:
+					case ML320:
+						// All share one decoder instance -- CRobotChromaRxDecoder
 						// only ever reads generic SSTVSET.* fields, already correct
-						// per-mode. See pixelconv.h/cpp.
+						// per-mode. ML shares Robot 72/24's exact RX segment case
+						// block in Main.cpp (confirmed directly, not assumed from
+						// the "ML family" framing -- see pixelconv.h's
+						// EncodeMLLine comment for the one place ML's wire format
+						// actually differs, which is TX-only). See pixelconv.h/cpp.
 						robotChromaDecoder.DecodeLine(ip, width, rgbRow);
 						break;
 					default:
