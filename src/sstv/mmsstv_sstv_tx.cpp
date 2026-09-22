@@ -1,6 +1,6 @@
 /***************************************************************************
- *   mmsstv-linux-port: Step 5/8/10 -- mode-aware TX bridge to mmsstv-core *
- *   See mmsstv_sstv_tx.h for what this is and why.                       *
+ *   mmsstv-linux-port: Step 5/8/10/11 -- mode-aware TX bridge to         *
+ *   mmsstv-core. See mmsstv_sstv_tx.h for what this is and why.          *
  ***************************************************************************/
 #include "mmsstv_sstv_tx.h"
 
@@ -11,6 +11,7 @@
 #include "pixelconv.h"
 #include "sstv.h"
 
+#include <QImage>
 #include <QRgb>
 
 #include <cmath>
@@ -41,35 +42,47 @@ void drainToTx(CSSTVMOD &mod)
 // line duration in ms, the library divides by width itself). Robot 36
 // (YUV family) has fixed per-segment ms literals instead of one scalable
 // line-time, and needs the row index for its chroma-channel parity
-// decision -- genuinely different, not worth forcing into one signature.
+// decision. Robot 72/24 (also YUV, but with no chroma-select parity
+// decision at all -- see pixelconv.h's CRobotChromaRxDecoder comment)
+// share a third, simpler signature (fixed literals, no row argument) --
+// three genuinely different shapes, not worth forcing into one signature.
 typedef void (*EncodeRgbLineFn)(CSSTVMOD *mod, double tw, const unsigned char *rgbRow, int width);
-enum PixelFamily { FAMILY_RGB, FAMILY_ROBOT36 };
+typedef void (*EncodeRobotChromaLineFn)(CSSTVMOD *mod, const unsigned char *rgbRow, int width);
+enum PixelFamily { FAMILY_RGB, FAMILY_ROBOT36, FAMILY_ROBOT_CHROMA };
 
 // One row per mmsstv-core-supported mode (see engineselection.h's
 // mmsstvCoreSupports(), which must stay in sync with this table). VIS
 // codes and line-time-ms constants match Main.cpp's SendSSTV()/VIS-code
 // dispatch tables exactly (see mmsstv_martin_tx.cpp's original Step 5
 // comment, pixelconv.h's EncodeScottieLine comment for Scottie's, and
-// EncodeRobot36Line's comment for Robot 36's). width/height are this
-// table's single source of truth (see getModeDimensions() below) --
-// Robot 36 is 320x240, every mode before it was 320x256.
+// EncodeRobot36Line/EncodeRobot72Line/EncodeRobot24Line's comments for
+// the Robot family's). width/height are this table's single source of
+// truth (see getModeDimensions() below) -- every Robot mode is 320x240,
+// every mode before Robot 36 was 320x256. `rowStep` is 2 for Robot 24
+// (only even source rows are ever transmitted -- see pixelconv.h's
+// CRobotChromaRxDecoder comment for exactly how this was confirmed in
+// Main.cpp), 1 for every other mode.
 struct ModeTxInfo
 {
 	esstvMode mode;
 	int width;
 	int height;
+	int rowStep;
 	PixelFamily family;
 	int visCode;
 	double lineTimeMs; // FAMILY_RGB only
 	EncodeRgbLineFn encodeRgbLine; // FAMILY_RGB only
+	EncodeRobotChromaLineFn encodeRobotChromaLine; // FAMILY_ROBOT_CHROMA only
 };
 
 const ModeTxInfo kModeTable[] = {
-	{ M1, 320, 256, FAMILY_RGB, 0xAC, 146.432, &EncodeMartinLine },
-	{ S1, 320, 256, FAMILY_RGB, 0x3c, 138.24, &EncodeScottieLine },
-	{ S2, 320, 256, FAMILY_RGB, 0xb8, 88.064, &EncodeScottieLine },
-	{ SDX, 320, 256, FAMILY_RGB, 0xcc, 345.6, &EncodeScottieLine },
-	{ R36, 320, 240, FAMILY_ROBOT36, 0x88, 0.0, nullptr },
+	{ M1, 320, 256, 1, FAMILY_RGB, 0xAC, 146.432, &EncodeMartinLine, nullptr },
+	{ S1, 320, 256, 1, FAMILY_RGB, 0x3c, 138.24, &EncodeScottieLine, nullptr },
+	{ S2, 320, 256, 1, FAMILY_RGB, 0xb8, 88.064, &EncodeScottieLine, nullptr },
+	{ SDX, 320, 256, 1, FAMILY_RGB, 0xcc, 345.6, &EncodeScottieLine, nullptr },
+	{ R36, 320, 240, 1, FAMILY_ROBOT36, 0x88, 0.0, nullptr, nullptr },
+	{ R72, 320, 240, 1, FAMILY_ROBOT_CHROMA, 0x0c, 0.0, nullptr, &EncodeRobot72Line },
+	{ R24, 320, 240, 2, FAMILY_ROBOT_CHROMA, 0x84, 0.0, nullptr, &EncodeRobot24Line },
 };
 
 const ModeTxInfo *findModeInfo(esstvMode mode)
@@ -112,9 +125,39 @@ bool sendImageViaMmsstv(imageViewer *ivPtr, esstvMode mode)
 	SendVisHeader(&mod, info->visCode);
 	drainToTx(mod);
 
+	// QSSTV's own sstvparam.cpp table drives ivPtr's own scaling
+	// (applyTemplate() -> setParam(numberOfPixels, numberOfDisplayLines)),
+	// and for every mode except Robot 24 that already matches this
+	// table's width/height exactly, so getScanLineAddress() below reads
+	// a buffer of exactly the size we expect. Robot 24 is the one
+	// exception: QSSTV's own table declares it 160x120 (its own,
+	// different, 120-real-line-only convention -- see mmsstv-core's
+	// pixelconv.h comment and the Step 11 plan's width-discrepancy
+	// discussion), while this port matches MMSSTV's real 320-wide, 240-
+	// tall (120 real lines, each duplicated) convention instead. Reading
+	// getScanLineAddress(y) for y up to 238 against QSSTV's actual
+	// 120-row buffer is an out-of-bounds heap read, not just a
+	// wrong-looking picture. Detect any such mismatch generically (so a
+	// future mode with the same kind of table disagreement is also
+	// caught) and fall back to an independent scale of the original,
+	// unscaled source image to exactly the dimensions this port needs.
+	QImage localScaled;
+	QImage *displayed = ivPtr->getDisplayedImage();
+	bool sizeMismatch = displayed->isNull()
+		|| displayed->width() != info->width
+		|| displayed->height() != info->height;
+	if (sizeMismatch) {
+		localScaled = ivPtr->getImagePtr()->scaled(
+			info->width, info->height,
+			Qt::IgnoreAspectRatio, Qt::SmoothTransformation)
+			.convertToFormat(QImage::Format_RGB32);
+	}
+
 	std::vector<unsigned char> row(info->width * 3);
-	for (int y = 0; y < info->height; y++) {
-		QRgb *pixels = ivPtr->getScanLineAddress(y);
+	for (int y = 0; y < info->height; y += info->rowStep) {
+		QRgb *pixels = sizeMismatch
+			? reinterpret_cast<QRgb *>(localScaled.scanLine(y))
+			: ivPtr->getScanLineAddress(y);
 		for (int x = 0; x < info->width; x++) {
 			QRgb t = pixels[x];
 			row[x * 3 + 0] = static_cast<unsigned char>(qRed(t));
@@ -127,6 +170,9 @@ bool sendImageViaMmsstv(imageViewer *ivPtr, esstvMode mode)
 			break;
 		case FAMILY_ROBOT36:
 			EncodeRobot36Line(&mod, row.data(), info->width, y);
+			break;
+		case FAMILY_ROBOT_CHROMA:
+			info->encodeRobotChromaLine(&mod, row.data(), info->width);
 			break;
 		}
 		drainToTx(mod);

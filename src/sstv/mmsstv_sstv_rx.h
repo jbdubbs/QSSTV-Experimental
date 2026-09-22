@@ -75,10 +75,14 @@ private:
 	// fixed set (see engineselection.h's mmsstvCoreSupports()), so plain
 	// per-mode members plus a switch in the .cpp is simpler and clearer
 	// than a polymorphic decoder hierarchy for classes with unrelated
-	// pixel math (RGB-family vs. Robot 36's YUV-family).
+	// pixel math (RGB-family vs. Robot 36's toggle-based YUV vs. Robot
+	// 72/24's fresh-every-line YUV). robotChromaDecoder is shared by both
+	// Robot 72 and Robot 24 -- see pixelconv.h's CRobotChromaRxDecoder
+	// comment for why one instance correctly handles both.
 	CMartinRxDecoder martinDecoder;
 	CScottieRxDecoder scottieDecoder;
 	CRobot36RxDecoder robot36Decoder;
+	CRobotChromaRxDecoder robotChromaDecoder;
 
 	esstvMode trackingMode = NOTVALID; // which mode's picture is being decoded, if any
 	bool trackingImage = false;

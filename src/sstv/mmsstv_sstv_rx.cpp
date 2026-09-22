@@ -1,6 +1,6 @@
 /***************************************************************************
- *   mmsstv-linux-port: Step 7/8/10 -- mode-aware RX bridge to mmsstv-core *
- *   See mmsstv_sstv_rx.h for what this is and why.                       *
+ *   mmsstv-linux-port: Step 7/8/10/11 -- mode-aware RX bridge to        *
+ *   mmsstv-core. See mmsstv_sstv_rx.h for what this is and why.          *
  ***************************************************************************/
 #include "mmsstv_sstv_rx.h"
 
@@ -36,6 +36,8 @@ esstvMode mapMmsstvCoreMode(int coreMode)
 	case smSCT2: return S2;
 	case smSCTDX: return SDX;
 	case smR36: return R36;
+	case smR72: return R72;
+	case smR24: return R24;
 	default: return NOTVALID;
 	}
 }
@@ -97,6 +99,12 @@ void MmsstvSstvRx::processSamples(const double *samples, int count)
 				if (decodedRows < height) {
 					short *ip = &dem->m_Buf[dem->m_rPage * dem->m_BWidth];
 					unsigned char rgbRow[kMaxWidth * 3];
+					// Robot 24 transmits at half vertical resolution (120 real
+					// lines) -- each decode call's row is duplicated into two
+					// consecutive output rows, matching Main.cpp's gp/gp2
+					// row-doubling exactly (see pixelconv.h's
+					// CRobotChromaRxDecoder comment for how this was confirmed).
+					int rowsThisCall = (trackingMode == R24) ? 2 : 1;
 					switch (trackingMode) {
 					case M1: martinDecoder.DecodeLine(ip, width, rgbRow); break;
 					case S1:
@@ -111,6 +119,13 @@ void MmsstvSstvRx::processSamples(const double *samples, int count)
 					case R36:
 						robot36Decoder.DecodeLine(ip, width, rgbRow);
 						break;
+					case R72:
+					case R24:
+						// Both share one decoder instance -- CRobotChromaRxDecoder
+						// only ever reads generic SSTVSET.* fields, already correct
+						// per-mode. See pixelconv.h/cpp.
+						robotChromaDecoder.DecodeLine(ip, width, rgbRow);
+						break;
 					default: break; // can't happen: trackingImage implies a mapped mode
 					}
 
@@ -119,7 +134,14 @@ void MmsstvSstvRx::processSamples(const double *samples, int count)
 						pixels[x] = qRgb(rgbRow[x * 3 + 0], rgbRow[x * 3 + 1], rgbRow[x * 3 + 2]);
 					}
 					QApplication::postEvent(dispatcherPtr, new lineDisplayEvent(decodedRows));
-					decodedRows++;
+					if (rowsThisCall == 2 && decodedRows + 1 < height) {
+						QRgb *pixels2 = rxWidgetPtr->getImageViewerPtr()->getScanLineAddress(decodedRows + 1);
+						for (int x = 0; x < width; x++) {
+							pixels2[x] = qRgb(rgbRow[x * 3 + 0], rgbRow[x * 3 + 1], rgbRow[x * 3 + 2]);
+						}
+						QApplication::postEvent(dispatcherPtr, new lineDisplayEvent(decodedRows + 1));
+					}
+					decodedRows += rowsThisCall;
 
 					if (decodedRows >= height) {
 						QApplication::postEvent(dispatcherPtr, new endImageSSTVRXEvent(trackingMode));
