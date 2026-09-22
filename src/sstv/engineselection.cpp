@@ -13,6 +13,7 @@ constexpr esstvMode kMmsstvCoreModes[] = {
 	PD50, PD90, PD120, PD160, PD180, PD240, PD290,
 	ML180, ML240, ML280, ML320,
 	MR73, MR90, MR115, MR140, MR175,
+	MP73, MP115, MP140, MP175,
 };
 }
 

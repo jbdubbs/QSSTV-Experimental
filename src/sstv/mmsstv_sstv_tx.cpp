@@ -119,6 +119,15 @@ const ModeTxInfo kModeTable[] = {
 	{ MR115, 320, 256, 1, FAMILY_ML_CHROMA, 0x4923, 220.0, &EncodeMLLine, nullptr, nullptr },
 	{ MR140, 320, 256, 1, FAMILY_ML_CHROMA, 0x4a23, 269.0, &EncodeMLLine, nullptr, nullptr },
 	{ MR175, 320, 256, 1, FAMILY_ML_CHROMA, 0x4c23, 337.0, &EncodeMLLine, nullptr, nullptr },
+	// MP73-175 (Step 16): shares PD's exact FAMILY_INTERLACED_YUV shape
+	// and CPDRxDecoder for RX (confirmed by direct read of Main.cpp: MP
+	// falls into PD's identical RX segment block) -- only TX differs, via
+	// a new EncodeMPLine (a copy of EncodePDLine with different sync/porch
+	// literals, see pixelconv.h's comment).
+	{ MP73, 320, 256, 2, FAMILY_INTERLACED_YUV, 0x2523, 140.0, nullptr, nullptr, &EncodeMPLine },
+	{ MP115, 320, 256, 2, FAMILY_INTERLACED_YUV, 0x2923, 223.0, nullptr, nullptr, &EncodeMPLine },
+	{ MP140, 320, 256, 2, FAMILY_INTERLACED_YUV, 0x2a23, 270.0, nullptr, nullptr, &EncodeMPLine },
+	{ MP175, 320, 256, 2, FAMILY_INTERLACED_YUV, 0x2c23, 340.0, nullptr, nullptr, &EncodeMPLine },
 };
 
 const ModeTxInfo *findModeInfo(esstvMode mode)

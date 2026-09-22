@@ -1062,10 +1062,14 @@ bool  syncProcessor::createModeBase()
   case PD180:
   case PD240:
   case PD290:
+  case MP73:
+  case MP115:
+  case MP140:
+  case MP175:
     // Same conditional split as M1/R36/R24/R72 above -- see M1's comment.
-    // MP73-175 (not yet migrated -- see the Step 12 plan's "explicitly
-    // deferred" section) stay in their own unconditional block below,
-    // since they still need QSSTV's own engine unconditionally today.
+    // MP73-175 (Step 16) given the same gate PD already had -- both share
+    // modePD on QSSTV's native side too. MP73N/110N/140N (narrow FSK, not
+    // yet migrated) stay in their own unconditional block below.
     if(selectedEngine(currentMode)==ENGINE_QSSTV)
       {
         currentModePtr=new modePD(currentMode,RXSTRIPE,false,false);
@@ -1074,12 +1078,6 @@ bool  syncProcessor::createModeBase()
       {
         currentMode=NOTVALID;
       }
-    break;
-  case MP73:
-  case MP115:
-  case MP140:
-  case MP175:
-    currentModePtr=new modePD(currentMode,RXSTRIPE,false,false);
     break;
   case MP73N:
   case MP110N:

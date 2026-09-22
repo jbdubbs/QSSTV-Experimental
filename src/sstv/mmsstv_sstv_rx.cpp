@@ -58,6 +58,10 @@ esstvMode mapMmsstvCoreMode(int coreMode)
 	case smMR115: return MR115;
 	case smMR140: return MR140;
 	case smMR175: return MR175;
+	case smMP73: return MP73;
+	case smMP115: return MP115;
+	case smMP140: return MP140;
+	case smMP175: return MP175;
 	default: return NOTVALID;
 	}
 }
@@ -159,8 +163,14 @@ void MmsstvSstvRx::processSamples(const double *samples, int count)
 					// carry distinct luma sharing one chroma pair -- so
 					// CPDRxDecoder::DecodeLine fills rgbRow/rgbRowOdd directly
 					// with two different rows, rather than one row duplicated.
-					bool isPD = (trackingMode >= PD50) && (trackingMode <= PD290);
-					int rowsThisCall = (trackingMode == R24 || isPD) ? 2 : 1;
+					// MP73-175 (Step 16) share this exact PD RX shape (and
+					// CPDRxDecoder itself) -- confirmed by direct read of
+					// Main.cpp, MP falls into PD's identical RX segment block
+					// -- and sit immediately after PD290 in QSSTV's esstvMode
+					// enum (sstvparam.h), so the range check below extends
+					// cleanly to include them.
+					bool isInterlacedYuv = (trackingMode >= PD50) && (trackingMode <= MP175);
+					int rowsThisCall = (trackingMode == R24 || isInterlacedYuv) ? 2 : 1;
 					switch (trackingMode) {
 					case M1:
 				case M2:
@@ -202,7 +212,10 @@ void MmsstvSstvRx::processSamples(const double *samples, int count)
 						robotChromaDecoder.DecodeLine(ip, width, rgbRow);
 						break;
 					default:
-						if (isPD) {
+						// PD50-290 and MP73-175 (Step 16) both land here --
+						// CPDRxDecoder handles either, distinguished only by
+						// SSTVSET's already-correct per-mode timing.
+						if (isInterlacedYuv) {
 							pdDecoder.DecodeLine(ip, width, rgbRow, rgbRowOdd);
 						}
 						break; // otherwise can't happen: trackingImage implies a mapped mode
@@ -214,7 +227,7 @@ void MmsstvSstvRx::processSamples(const double *samples, int count)
 					}
 					QApplication::postEvent(dispatcherPtr, new lineDisplayEvent(decodedRows));
 					if (rowsThisCall == 2 && decodedRows + 1 < height) {
-						const unsigned char *secondRow = isPD ? rgbRowOdd : rgbRow;
+						const unsigned char *secondRow = isInterlacedYuv ? rgbRowOdd : rgbRow;
 						QRgb *pixels2 = rxWidgetPtr->getImageViewerPtr()->getScanLineAddress(decodedRows + 1);
 						for (int x = 0; x < width; x++) {
 							pixels2[x] = qRgb(secondRow[x * 3 + 0], secondRow[x * 3 + 1], secondRow[x * 3 + 2]);
