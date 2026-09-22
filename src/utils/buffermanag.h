@@ -42,12 +42,17 @@ public:
 
   unsigned int count()
   {
-
-    return ((writeIndex-readIndex)& ((1<<N)-1));
+    mutex.lock();
+    unsigned int c=countNoLock();
+    mutex.unlock();
+    return c;
   }
   unsigned int spaceLeft()
   {
-    return ((1<<N)-count()-1);
+    mutex.lock();
+    unsigned int s=spaceLeftNoLock();
+    mutex.unlock();
+    return s;
   }
   unsigned int getBufferSize() {return (1<<N);}
   bool get(T &v)
@@ -67,7 +72,7 @@ public:
   {
     int i;
     mutex.lock();
-    if(len>count())
+    if(len>countNoLock())
       {
         mutex.unlock();
         return false;
@@ -100,7 +105,7 @@ public:
     unsigned int i;
     mutex.lock();
 
-    if(len>spaceLeft())
+    if(len>spaceLeftNoLock())
       {
         mutex.unlock();
         return false;
@@ -146,7 +151,7 @@ public:
   bool skip(unsigned int s)
   {
     mutex.lock();
-    if(s>count())
+    if(s>countNoLock())
       {
         mutex.unlock();
         return false;
@@ -159,7 +164,7 @@ public:
   bool rewind(unsigned int s)
   {
     mutex.lock();
-    if(s>spaceLeft())
+    if(s>spaceLeftNoLock())
       {
         mutex.unlock();
         return false;
@@ -208,6 +213,20 @@ public:
   }
 
 private:
+  // count()/spaceLeft() as (writeIndex-readIndex) math, for callers that
+  // already hold mutex -- QMutex isn't reentrant, so the public,
+  // lock-taking count()/spaceLeft() below would deadlock if called from
+  // inside get()/put()/skip()/rewind(), which is why those use these
+  // instead.
+  unsigned int countNoLock()
+  {
+    return ((writeIndex-readIndex)& ((1<<N)-1));
+  }
+  unsigned int spaceLeftNoLock()
+  {
+    return ((1<<N)-countNoLock()-1);
+  }
+
   T *memblock;
   unsigned int readIndex;
   unsigned int writeIndex;
