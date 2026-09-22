@@ -9,7 +9,7 @@
 
 namespace {
 constexpr esstvMode kMmsstvCoreModes[] = {
-	M1, S1, S2, SDX, R36, R72, R24,
+	M1, M2, S1, S2, SDX, R36, R72, R24,
 	PD50, PD90, PD120, PD160, PD180, PD240, PD290,
 	ML180, ML240, ML280, ML320,
 };

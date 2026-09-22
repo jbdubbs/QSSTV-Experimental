@@ -35,6 +35,7 @@ esstvMode mapMmsstvCoreMode(int coreMode)
 {
 	switch (coreMode) {
 	case smMRT1: return M1;
+	case smMRT2: return M2;
 	case smSCT1: return S1;
 	case smSCT2: return S2;
 	case smSCTDX: return SDX;
@@ -156,7 +157,13 @@ void MmsstvSstvRx::processSamples(const double *samples, int count)
 					bool isPD = (trackingMode >= PD50) && (trackingMode <= PD290);
 					int rowsThisCall = (trackingMode == R24 || isPD) ? 2 : 1;
 					switch (trackingMode) {
-					case M1: martinDecoder.DecodeLine(ip, width, rgbRow); break;
+					case M1:
+				case M2:
+					// Both share one decoder instance -- confirmed in
+					// Main.cpp both smMRT1/smMRT2 fall into the same
+					// generic RGB decode branch. See pixelconv.h/cpp.
+					martinDecoder.DecodeLine(ip, width, rgbRow);
+					break;
 					case S1:
 					case S2:
 					case SDX:

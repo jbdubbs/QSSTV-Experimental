@@ -963,7 +963,15 @@ bool  syncProcessor::createModeBase()
       }
     break;
   case M2:
-    currentModePtr=new modeGBR(currentMode,RXSTRIPE,false,false);
+    // Same conditional split as M1 above -- see that case's comment.
+    if(selectedEngine(M2)==ENGINE_QSSTV)
+      {
+        currentModePtr=new modeGBR(currentMode,RXSTRIPE,false,false);
+      }
+    else
+      {
+        currentMode=NOTVALID;
+      }
     break;
   case S1:
   case S2:

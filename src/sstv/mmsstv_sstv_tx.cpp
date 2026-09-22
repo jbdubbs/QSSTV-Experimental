@@ -93,6 +93,7 @@ struct ModeTxInfo
 
 const ModeTxInfo kModeTable[] = {
 	{ M1, 320, 256, 1, FAMILY_RGB, 0xAC, 146.432, &EncodeMartinLine, nullptr, nullptr },
+	{ M2, 320, 256, 1, FAMILY_RGB, 0x28, 73.216, &EncodeMartinLine, nullptr, nullptr },
 	{ S1, 320, 256, 1, FAMILY_RGB, 0x3c, 138.24, &EncodeScottieLine, nullptr, nullptr },
 	{ S2, 320, 256, 1, FAMILY_RGB, 0xb8, 88.064, &EncodeScottieLine, nullptr, nullptr },
 	{ SDX, 320, 256, 1, FAMILY_RGB, 0xcc, 345.6, &EncodeScottieLine, nullptr, nullptr },
