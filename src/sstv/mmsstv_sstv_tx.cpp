@@ -44,11 +44,16 @@ void drainToTx(CSSTVMOD &mod)
 // line-time, and needs the row index for its chroma-channel parity
 // decision. Robot 72/24 (also YUV, but with no chroma-select parity
 // decision at all -- see pixelconv.h's CRobotChromaRxDecoder comment)
-// share a third, simpler signature (fixed literals, no row argument) --
-// three genuinely different shapes, not worth forcing into one signature.
+// share a third, simpler signature (fixed literals, no row argument).
+// The PD family (Step 12) needs a fourth shape entirely: one call encodes
+// TWO source rows at once (sharing one chroma sample pair between them --
+// see pixelconv.h's CPDRxDecoder/EncodePDLine comment), so it takes two
+// row pointers and, like the RGB family, a scalable per-mode `tw`. Four
+// genuinely different shapes, not worth forcing into one signature.
 typedef void (*EncodeRgbLineFn)(CSSTVMOD *mod, double tw, const unsigned char *rgbRow, int width);
 typedef void (*EncodeRobotChromaLineFn)(CSSTVMOD *mod, const unsigned char *rgbRow, int width);
-enum PixelFamily { FAMILY_RGB, FAMILY_ROBOT36, FAMILY_ROBOT_CHROMA };
+typedef void (*EncodePDLineFn)(CSSTVMOD *mod, double tw, const unsigned char *rgbRowEven, const unsigned char *rgbRowOdd, int width);
+enum PixelFamily { FAMILY_RGB, FAMILY_ROBOT36, FAMILY_ROBOT_CHROMA, FAMILY_INTERLACED_YUV };
 
 // One row per mmsstv-core-supported mode (see engineselection.h's
 // mmsstvCoreSupports(), which must stay in sync with this table). VIS
@@ -58,10 +63,13 @@ enum PixelFamily { FAMILY_RGB, FAMILY_ROBOT36, FAMILY_ROBOT_CHROMA };
 // EncodeRobot36Line/EncodeRobot72Line/EncodeRobot24Line's comments for
 // the Robot family's). width/height are this table's single source of
 // truth (see getModeDimensions() below) -- every Robot mode is 320x240,
-// every mode before Robot 36 was 320x256. `rowStep` is 2 for Robot 24
-// (only even source rows are ever transmitted -- see pixelconv.h's
-// CRobotChromaRxDecoder comment for exactly how this was confirmed in
-// Main.cpp), 1 for every other mode.
+// every mode before Robot 36 was 320x256, PD varies per-variant (see
+// below). `rowStep` is 2 for Robot 24 (only even source rows are ever
+// transmitted -- see pixelconv.h's CRobotChromaRxDecoder comment for
+// exactly how this was confirmed in Main.cpp) and 2 for the PD family
+// (every call reads/advances by TWO source rows, not one -- a different
+// meaning of the same field, disambiguated by `family` at the call site),
+// 1 for every other mode.
 struct ModeTxInfo
 {
 	esstvMode mode;
@@ -70,19 +78,27 @@ struct ModeTxInfo
 	int rowStep;
 	PixelFamily family;
 	int visCode;
-	double lineTimeMs; // FAMILY_RGB only
+	double lineTimeMs; // FAMILY_RGB, FAMILY_INTERLACED_YUV
 	EncodeRgbLineFn encodeRgbLine; // FAMILY_RGB only
 	EncodeRobotChromaLineFn encodeRobotChromaLine; // FAMILY_ROBOT_CHROMA only
+	EncodePDLineFn encodePDLine; // FAMILY_INTERLACED_YUV only
 };
 
 const ModeTxInfo kModeTable[] = {
-	{ M1, 320, 256, 1, FAMILY_RGB, 0xAC, 146.432, &EncodeMartinLine, nullptr },
-	{ S1, 320, 256, 1, FAMILY_RGB, 0x3c, 138.24, &EncodeScottieLine, nullptr },
-	{ S2, 320, 256, 1, FAMILY_RGB, 0xb8, 88.064, &EncodeScottieLine, nullptr },
-	{ SDX, 320, 256, 1, FAMILY_RGB, 0xcc, 345.6, &EncodeScottieLine, nullptr },
-	{ R36, 320, 240, 1, FAMILY_ROBOT36, 0x88, 0.0, nullptr, nullptr },
-	{ R72, 320, 240, 1, FAMILY_ROBOT_CHROMA, 0x0c, 0.0, nullptr, &EncodeRobot72Line },
-	{ R24, 320, 240, 2, FAMILY_ROBOT_CHROMA, 0x84, 0.0, nullptr, &EncodeRobot24Line },
+	{ M1, 320, 256, 1, FAMILY_RGB, 0xAC, 146.432, &EncodeMartinLine, nullptr, nullptr },
+	{ S1, 320, 256, 1, FAMILY_RGB, 0x3c, 138.24, &EncodeScottieLine, nullptr, nullptr },
+	{ S2, 320, 256, 1, FAMILY_RGB, 0xb8, 88.064, &EncodeScottieLine, nullptr, nullptr },
+	{ SDX, 320, 256, 1, FAMILY_RGB, 0xcc, 345.6, &EncodeScottieLine, nullptr, nullptr },
+	{ R36, 320, 240, 1, FAMILY_ROBOT36, 0x88, 0.0, nullptr, nullptr, nullptr },
+	{ R72, 320, 240, 1, FAMILY_ROBOT_CHROMA, 0x0c, 0.0, nullptr, &EncodeRobot72Line, nullptr },
+	{ R24, 320, 240, 2, FAMILY_ROBOT_CHROMA, 0x84, 0.0, nullptr, &EncodeRobot24Line, nullptr },
+	{ PD50, 320, 256, 2, FAMILY_INTERLACED_YUV, 0xdd, 91.520, nullptr, nullptr, &EncodePDLine },
+	{ PD90, 320, 256, 2, FAMILY_INTERLACED_YUV, 0x63, 170.240, nullptr, nullptr, &EncodePDLine },
+	{ PD120, 640, 496, 2, FAMILY_INTERLACED_YUV, 0x5f, 121.600, nullptr, nullptr, &EncodePDLine },
+	{ PD160, 512, 400, 2, FAMILY_INTERLACED_YUV, 0xe2, 195.584, nullptr, nullptr, &EncodePDLine },
+	{ PD180, 640, 496, 2, FAMILY_INTERLACED_YUV, 0x60, 183.040, nullptr, nullptr, &EncodePDLine },
+	{ PD240, 640, 496, 2, FAMILY_INTERLACED_YUV, 0xe1, 244.480, nullptr, nullptr, &EncodePDLine },
+	{ PD290, 800, 616, 2, FAMILY_INTERLACED_YUV, 0xde, 228.800, nullptr, nullptr, &EncodePDLine },
 };
 
 const ModeTxInfo *findModeInfo(esstvMode mode)
@@ -153,17 +169,22 @@ bool sendImageViaMmsstv(imageViewer *ivPtr, esstvMode mode)
 			.convertToFormat(QImage::Format_RGB32);
 	}
 
-	std::vector<unsigned char> row(info->width * 3);
-	for (int y = 0; y < info->height; y += info->rowStep) {
+	auto readRow = [&](int y, unsigned char *dst) {
 		QRgb *pixels = sizeMismatch
 			? reinterpret_cast<QRgb *>(localScaled.scanLine(y))
 			: ivPtr->getScanLineAddress(y);
 		for (int x = 0; x < info->width; x++) {
 			QRgb t = pixels[x];
-			row[x * 3 + 0] = static_cast<unsigned char>(qRed(t));
-			row[x * 3 + 1] = static_cast<unsigned char>(qGreen(t));
-			row[x * 3 + 2] = static_cast<unsigned char>(qBlue(t));
+			dst[x * 3 + 0] = static_cast<unsigned char>(qRed(t));
+			dst[x * 3 + 1] = static_cast<unsigned char>(qGreen(t));
+			dst[x * 3 + 2] = static_cast<unsigned char>(qBlue(t));
 		}
+	};
+
+	std::vector<unsigned char> row(info->width * 3);
+	std::vector<unsigned char> rowOdd(info->family == FAMILY_INTERLACED_YUV ? info->width * 3 : 0);
+	for (int y = 0; y < info->height; y += info->rowStep) {
+		readRow(y, row.data());
 		switch (info->family) {
 		case FAMILY_RGB:
 			info->encodeRgbLine(&mod, info->lineTimeMs, row.data(), info->width);
@@ -173,6 +194,10 @@ bool sendImageViaMmsstv(imageViewer *ivPtr, esstvMode mode)
 			break;
 		case FAMILY_ROBOT_CHROMA:
 			info->encodeRobotChromaLine(&mod, row.data(), info->width);
+			break;
+		case FAMILY_INTERLACED_YUV:
+			readRow(y + 1, rowOdd.data());
+			info->encodePDLine(&mod, info->lineTimeMs, row.data(), rowOdd.data(), info->width);
 			break;
 		}
 		drainToTx(mod);

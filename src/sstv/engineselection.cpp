@@ -8,7 +8,10 @@
 #include <QString>
 
 namespace {
-constexpr esstvMode kMmsstvCoreModes[] = { M1, S1, S2, SDX, R36, R72, R24 };
+constexpr esstvMode kMmsstvCoreModes[] = {
+	M1, S1, S2, SDX, R36, R72, R24,
+	PD50, PD90, PD120, PD160, PD180, PD240, PD290,
+};
 }
 
 bool mmsstvCoreSupports(esstvMode mode)

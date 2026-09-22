@@ -17,11 +17,12 @@
 
 namespace {
 
-// Every mmsstv-core-supported mode's width is 320 (Robot 36's differs only
-// in height); this is just the RGB row scratch buffer's fixed capacity,
-// not a per-mode dimension assumption -- actual width/height always come
-// from getModeDimensions().
-constexpr int kMaxWidth = 320;
+// Every mmsstv-core-supported mode's width was 320 (Robot 36's differed
+// only in height) until the PD family (Step 12), whose largest variant
+// (PD290) is 800 wide -- this is just the RGB row scratch buffers' fixed
+// capacity, not a per-mode dimension assumption -- actual width/height
+// always come from getModeDimensions().
+constexpr int kMaxWidth = 800;
 
 // Maps mmsstv-core's own internal mode constant (SSTVSET.m_Mode, from
 // mmsstv-core/src/sstv.h) to QSSTV's esstvMode (sstv/sstvparam.h) -- the
@@ -38,6 +39,13 @@ esstvMode mapMmsstvCoreMode(int coreMode)
 	case smR36: return R36;
 	case smR72: return R72;
 	case smR24: return R24;
+	case smPD50: return PD50;
+	case smPD90: return PD90;
+	case smPD120: return PD120;
+	case smPD160: return PD160;
+	case smPD180: return PD180;
+	case smPD240: return PD240;
+	case smPD290: return PD290;
 	default: return NOTVALID;
 	}
 }
@@ -99,12 +107,19 @@ void MmsstvSstvRx::processSamples(const double *samples, int count)
 				if (decodedRows < height) {
 					short *ip = &dem->m_Buf[dem->m_rPage * dem->m_BWidth];
 					unsigned char rgbRow[kMaxWidth * 3];
+					unsigned char rgbRowOdd[kMaxWidth * 3];
 					// Robot 24 transmits at half vertical resolution (120 real
 					// lines) -- each decode call's row is duplicated into two
 					// consecutive output rows, matching Main.cpp's gp/gp2
 					// row-doubling exactly (see pixelconv.h's
 					// CRobotChromaRxDecoder comment for how this was confirmed).
-					int rowsThisCall = (trackingMode == R24) ? 2 : 1;
+					// The PD family (Step 12) also produces two output rows per
+					// call, but for a genuinely different reason -- both rows
+					// carry distinct luma sharing one chroma pair -- so
+					// CPDRxDecoder::DecodeLine fills rgbRow/rgbRowOdd directly
+					// with two different rows, rather than one row duplicated.
+					bool isPD = (trackingMode >= PD50) && (trackingMode <= PD290);
+					int rowsThisCall = (trackingMode == R24 || isPD) ? 2 : 1;
 					switch (trackingMode) {
 					case M1: martinDecoder.DecodeLine(ip, width, rgbRow); break;
 					case S1:
@@ -126,7 +141,11 @@ void MmsstvSstvRx::processSamples(const double *samples, int count)
 						// per-mode. See pixelconv.h/cpp.
 						robotChromaDecoder.DecodeLine(ip, width, rgbRow);
 						break;
-					default: break; // can't happen: trackingImage implies a mapped mode
+					default:
+						if (isPD) {
+							pdDecoder.DecodeLine(ip, width, rgbRow, rgbRowOdd);
+						}
+						break; // otherwise can't happen: trackingImage implies a mapped mode
 					}
 
 					QRgb *pixels = rxWidgetPtr->getImageViewerPtr()->getScanLineAddress(decodedRows);
@@ -135,9 +154,10 @@ void MmsstvSstvRx::processSamples(const double *samples, int count)
 					}
 					QApplication::postEvent(dispatcherPtr, new lineDisplayEvent(decodedRows));
 					if (rowsThisCall == 2 && decodedRows + 1 < height) {
+						const unsigned char *secondRow = isPD ? rgbRowOdd : rgbRow;
 						QRgb *pixels2 = rxWidgetPtr->getImageViewerPtr()->getScanLineAddress(decodedRows + 1);
 						for (int x = 0; x < width; x++) {
-							pixels2[x] = qRgb(rgbRow[x * 3 + 0], rgbRow[x * 3 + 1], rgbRow[x * 3 + 2]);
+							pixels2[x] = qRgb(secondRow[x * 3 + 0], secondRow[x * 3 + 1], secondRow[x * 3 + 2]);
 						}
 						QApplication::postEvent(dispatcherPtr, new lineDisplayEvent(decodedRows + 1));
 					}

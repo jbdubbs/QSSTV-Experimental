@@ -83,6 +83,7 @@ private:
 	CScottieRxDecoder scottieDecoder;
 	CRobot36RxDecoder robot36Decoder;
 	CRobotChromaRxDecoder robotChromaDecoder;
+	CPDRxDecoder pdDecoder;
 
 	esstvMode trackingMode = NOTVALID; // which mode's picture is being decoded, if any
 	bool trackingImage = false;
