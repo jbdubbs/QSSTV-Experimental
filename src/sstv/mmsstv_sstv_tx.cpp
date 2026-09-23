@@ -14,10 +14,19 @@
 #include <QImage>
 #include <QRgb>
 
+#include <atomic>
 #include <cmath>
 #include <vector>
 
 namespace {
+
+// Step 18: set from the GUI thread (requestMmsstvTxAbort(), called by
+// txFunctions::stopAndWait()), polled from the TX thread inside
+// sendImageViaMmsstv()'s row loop -- atomic since nothing else
+// synchronizes the two threads here (unlike modeBase::abortRun's plain
+// bool, which relies on the surrounding per-iteration function calls
+// happening to act as compiler barriers).
+std::atomic<bool> abortRequested{false};
 
 // Drains whatever CSSTVMOD::Write() calls have queued so far into real
 // audio via the public bulk API (synthesizer::writeBuffer() -- write()/
@@ -140,6 +149,11 @@ const ModeTxInfo *findModeInfo(esstvMode mode)
 
 } // namespace
 
+void requestMmsstvTxAbort()
+{
+	abortRequested.store(true, std::memory_order_relaxed);
+}
+
 bool getModeDimensions(esstvMode mode, int &width, int &height)
 {
 	const ModeTxInfo *info = findModeInfo(mode);
@@ -212,7 +226,14 @@ bool sendImageViaMmsstv(imageViewer *ivPtr, esstvMode mode)
 
 	std::vector<unsigned char> row(info->width * 3);
 	std::vector<unsigned char> rowOdd(info->family == FAMILY_INTERLACED_YUV ? info->width * 3 : 0);
+	// Step 18: cleared here (not e.g. at function entry) to mirror
+	// modeBase::transmitImage()'s own abortRun=false placed immediately
+	// before its loop -- same small, accepted race window as that
+	// existing pattern (a Stop click landing in the gap between this line
+	// and the loop starting isn't realistically triggerable by a human).
+	abortRequested.store(false, std::memory_order_relaxed);
 	for (int y = 0; y < info->height; y += info->rowStep) {
+		if (abortRequested.load(std::memory_order_relaxed)) return false;
 		readRow(y, row.data());
 		switch (info->family) {
 		case FAMILY_RGB:

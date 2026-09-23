@@ -27,10 +27,16 @@ class imageViewer;
 // (already set up by the caller, txFunctions::run()) just works. Caller
 // must check engineselection.h's mmsstvCoreSupports(mode) first -- this
 // function does not fall back to QSSTV's own path for unsupported modes.
-// Returns true on completion (mirrors sstvTx::sendImage()'s bool contract;
-// this bridge has no abort path yet, so it currently always returns true
-// once it runs).
+// Returns true on completion, false if requestMmsstvTxAbort() was called
+// mid-transmission (mirrors sstvTx::sendImage()'s bool contract exactly,
+// so txFunctions::run()'s TXSSTVIMAGE case needs no per-engine handling).
 bool sendImageViaMmsstv(imageViewer *ivPtr, esstvMode mode);
+
+// Step 18: lets txFunctions::stopAndWait() (GUI thread) cancel an
+// in-progress sendImageViaMmsstv() row loop (TX thread), mirroring the
+// role modeBase::abortRun plays for QSSTV's own native TX path -- see
+// mmsstv_sstv_tx.cpp's sendImageViaMmsstv() for where this is polled.
+void requestMmsstvTxAbort();
 
 // This file's per-mode table is the single source of truth for
 // width/height (see the Step 10 dimensions note above) -- the RX bridge

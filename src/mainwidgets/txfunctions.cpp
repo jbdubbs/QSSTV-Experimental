@@ -428,6 +428,11 @@ void txFunctions::stopAndWait()
   if(transmissionModeIndex==TRXSSTV)
     {
       sstvTxPtr->abort();
+      // Step 18: sstvTxPtr->abort() only reaches modeBase::abortRun,
+      // which sendImageViaMmsstv() (the mmsstv-core TX bridge) never
+      // polls -- fire both unconditionally, same as this call already
+      // does regardless of which engine is actually active.
+      requestMmsstvTxAbort();
       switchTxState(TXRESTART);
       while(txState!=TXIDLE)
         {
