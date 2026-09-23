@@ -131,6 +131,7 @@ void MmsstvSstvRx::processSamples(const double *samples, int count)
 			if (trackingImage) {
 				int width, height;
 				getModeDimensions(lockedMode, width, height); // trackingImage implies this succeeds
+				QApplication::postEvent(dispatcherPtr, new rxSSTVStatusEvent(QString("Receiving ") + getSSTVModeNameLong(lockedMode) + " (MMSSTV)"));
 				bool done = false;
 				startImageRXEvent *ce = new startImageRXEvent(QSize(width, height));
 				ce->waitFor(&done);

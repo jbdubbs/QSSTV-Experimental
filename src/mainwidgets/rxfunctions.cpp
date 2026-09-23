@@ -80,6 +80,12 @@ void rxFunctions::run()
                   drmRxPtr->run(tempBuf);
                   break;
                 case TRXSSTV:
+                  // Tell QSSTV's own detector whether mmsstv-core is the one
+                  // actually receiving right now (as of the previous
+                  // buffer's raw-tap drain below), so it holds off spamming
+                  // "No sync" over mmsstv-core's status while it steps aside
+                  // -- see sstvRx::setCoreEngineBusy()'s comment.
+                  sstvRxPtr->setCoreEngineBusy(mmsstvRxPtr->isTrackingImage());
                   sstvRxPtr->run(tempBuf,volBuf);
                   break;
                 case TRXNOMODE:

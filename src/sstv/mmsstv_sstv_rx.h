@@ -33,16 +33,15 @@
 #include "sstv.h"
 #include "sstvparam.h"
 
-// Only meaningful to feed samples to when at least one mode
-// engineselection.h's mmsstvCoreSupports() covers is currently set to
-// ENGINE_MMSSTV_CORE -- the caller (rxFunctions::run()) is responsible for
-// that gating, not this class. Since RX doesn't know which mode is
-// incoming until VIS locks, this class always scans for *any* mode's VIS
-// code once fed, but only tracks/decodes a picture for a locked mode if
-// that specific mode's selectedEngine() is ENGINE_MMSSTV_CORE at lock time
-// -- otherwise it drains the demodulator (so its internal ring buffer
-// doesn't stall) without producing any image, leaving QSSTV's own
-// (correspondingly gated) per-mode RX path to handle it instead.
+// Only meaningful to feed samples to when rxPreferCoreEngine() ("MMSSTV
+// Core As Default") is on -- the caller (rxFunctions::run()) is
+// responsible for that gating, not this class. Since RX doesn't know
+// which mode is incoming until VIS locks, this class always scans for
+// *any* mode's VIS code once fed, but only tracks/decodes a picture if
+// the locked mode is one mmsstvCoreSupports() covers -- otherwise it
+// drains the demodulator (so its internal ring buffer doesn't stall)
+// without producing any image, leaving QSSTV's own (correspondingly
+// gated) per-mode RX path to handle it instead.
 class MmsstvSstvRx
 {
 public:
@@ -58,6 +57,15 @@ public:
 	// startImageRXEvent/endImageSSTVRXEvent QSSTV's own pipeline uses for
 	// cross-thread-safe GUI updates.
 	void processSamples(const double *samples, int count);
+
+	// True while this engine is actively decoding a picture -- rxfunctions.cpp
+	// uses this to tell sstvRx (sstv/sstvrx.cpp) to hold off posting its own
+	// "No sync" status while this engine is the one actually receiving, since
+	// QSSTV's own detector keeps re-attempting (and "failing", by design --
+	// see createModeBase() in syncprocessor.cpp) the same VIS lock in
+	// parallel and would otherwise spam over this class's "Receiving ...
+	// (MMSSTV)" status every buffer.
+	bool isTrackingImage() const { return trackingImage; }
 
 private:
 	// Heap-allocated and constructed *after* the constructor body sets
