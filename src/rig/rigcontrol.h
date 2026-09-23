@@ -2,6 +2,7 @@
 #define RIGCONTROL_H
 
 #include <hamlib/rig.h>
+#include <hamlib/port.h>
 #include "xmlinterface.h"
 
 #include <QObject>

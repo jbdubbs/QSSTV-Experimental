@@ -268,7 +268,7 @@ bool editorScene::save(QFile &f,bool templ)
   str <<  CONFIGVERSION;
   str << (quint16) QDataStream::Qt_4_4;
   graphItemBase *it;
-  foreach(QGraphicsItem *t,items())
+  for (QGraphicsItem *t : items())
     {
       it=qgraphicsitem_cast<graphItemBase *>(t);
       if(t->type()>graphItemBase::BASE)
@@ -304,7 +304,7 @@ void editorScene::convertReplayImage()
   if(fn.isEmpty()) return;
   if(imv.openImage(fn,false,false,false,false))
     {
-      foreach(QGraphicsItem *t,items())
+      for (QGraphicsItem *t : items())
         {
           if(t->type()==graphItemBase::REPLAY)
             {
@@ -322,7 +322,7 @@ void editorScene::convertReplayImage()
 
 void editorScene::convertText()
 {
-  foreach(QGraphicsItem *t,items())
+  for (QGraphicsItem *t : items())
     {
       if(t->type()==graphItemBase::TEXT)
         {
@@ -352,7 +352,7 @@ void editorScene::apply(changeFlags cf)
   QPen p;
   graphItemBase *it;
   if(selectedItems().isEmpty()) return; // nothing to do
-  foreach(QGraphicsItem *t,selectedItems())
+  for (QGraphicsItem *t : selectedItems())
     {
       it=qgraphicsitem_cast<graphItemBase *>(t);
       if(cf & DFILLCOLOR)
@@ -396,7 +396,7 @@ void editorScene::apply(changeFlags cf)
 void editorScene::clearAll()
 {
   graphItemBase *r;
-  foreach(QGraphicsItem *t,items())
+  for (QGraphicsItem *t : items())
     {
       r=qgraphicsitem_cast<graphItemBase *>(t);
       if((r->getParamPtr()->type>graphItemBase::BASE) && (r->getParamPtr()->type!=graphItemBase::SBORDER))
@@ -587,7 +587,7 @@ void editorScene::slotExpand()
 {
   graphItemBase *it;
   if(selectedItems().isEmpty()) return; // nothing to do
-  foreach(QGraphicsItem *t,selectedItems())
+  for (QGraphicsItem *t : selectedItems())
     {
       it=qgraphicsitem_cast<graphItemBase *>(t);
       if(it->type()!=graphItemBase::TEXT)
@@ -662,7 +662,7 @@ void editorScene::slotDeleteItem()
 {
   graphItemBase *r;
   if(selectedItems().isEmpty()) return; // nothing to do
-  foreach(QGraphicsItem *t,selectedItems())
+  for (QGraphicsItem *t : selectedItems())
     {
 
       r=qgraphicsitem_cast<graphItemBase *>(t);
@@ -682,7 +682,7 @@ void editorScene::slotLock()
 {
   graphItemBase *it;
   if(selectedItems().isEmpty()) return; // nothing to do
-  foreach(QGraphicsItem *t,selectedItems())
+  for (QGraphicsItem *t : selectedItems())
     {
       it=qgraphicsitem_cast<graphItemBase *>(t);
       it->setLocked(true);
@@ -694,7 +694,7 @@ void editorScene::slotUnlock()
 
   graphItemBase *it;
   if(selectedItems().isEmpty()) return; // nothing to do
-  foreach(QGraphicsItem *t,selectedItems())
+  for (QGraphicsItem *t : selectedItems())
     {
       it=qgraphicsitem_cast<graphItemBase *>(t);
       it->setLocked(false);
@@ -705,7 +705,7 @@ void editorScene::slotUnlock()
 void editorScene::slotBringToFront()
 {
   if(selectedItems().isEmpty()) return; // nothing to do
-  foreach(QGraphicsItem *t,selectedItems())
+  for (QGraphicsItem *t : selectedItems())
     {
       zMax+=1;
       t->setZValue(zMax);
@@ -716,7 +716,7 @@ void editorScene::slotBringToFront()
 void editorScene::slotSendToBack()
 {
   if(selectedItems().isEmpty()) return; // nothing to do
-  foreach(QGraphicsItem *t,selectedItems())
+  for (QGraphicsItem *t : selectedItems())
     {
       t->setZValue(0.5);
     }
@@ -727,7 +727,7 @@ void editorScene::slotSendToBack()
 void editorScene::slotSendBackward()
 {
   if(selectedItems().isEmpty()) return; // nothing to do
-  foreach(QGraphicsItem *t,selectedItems())
+  for (QGraphicsItem *t : selectedItems())
     {
       t->setZValue(t->zValue()-1.5);
     }
@@ -737,7 +737,7 @@ void editorScene::slotSendBackward()
 void editorScene::slotSendForward()
 {
   if(selectedItems().isEmpty()) return; // nothing to do
-  foreach(QGraphicsItem *t,selectedItems())
+  for (QGraphicsItem *t : selectedItems())
     {
       t->setZValue(t->zValue()+1.5);
     }
@@ -750,7 +750,7 @@ void editorScene::optimizeDepth()
   zMax=items().count();
   qreal i=0;
   //  foreach(QGraphicsItem *t,items(itemsBoundingRect ()))
-  foreach(QGraphicsItem *t,items())
+  for (QGraphicsItem *t : items())
     {
       it=qgraphicsitem_cast<graphItemBase *>(t);
       if(it->type()==graphItemBase::SBORDER)

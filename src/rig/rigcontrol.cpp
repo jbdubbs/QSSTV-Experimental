@@ -84,6 +84,9 @@ bool rigControl::init()
       return false;
     }
 
+  hamlib_port_t *rigport = (hamlib_port_t *)rig_data_pointer(my_rig, RIG_PTRX_RIGPORT);
+  hamlib_port_t *pttport = (hamlib_port_t *)rig_data_pointer(my_rig, RIG_PTRX_PTTPORT);
+
   if(QString(my_rig->caps->mfg_name)=="Icom")
     {
       if(!catParams.civAddress.isEmpty())
@@ -93,20 +96,20 @@ bool rigControl::init()
     }
   if(!catParams.serialPort.isEmpty())
     {
-      strncpy(my_rig->state.rigport.pathname,(const char *)catParams.serialPort.toLatin1().data(),HAMLIB_FILPATHLEN-1);
+      strncpy(rigport->pathname,(const char *)catParams.serialPort.toLatin1().data(),HAMLIB_FILPATHLEN-1);
     }
-  my_rig->state.rigport.parm.serial.rate = catParams.baudrate;
-  my_rig->state.rigport.parm.serial.data_bits=catParams.databits;
-  my_rig->state.rigport.parm.serial.stop_bits=catParams.stopbits;
-  if(catParams.parity=="Even") my_rig->state.rigport.parm.serial.parity= RIG_PARITY_EVEN;
-  else if (catParams.parity=="Odd") my_rig->state.rigport.parm.serial.parity = RIG_PARITY_ODD;
-  else  my_rig->state.rigport.parm.serial.parity = RIG_PARITY_NONE;
-  if(catParams.handshake=="XOn/Xoff") my_rig->state.rigport.parm.serial.handshake = RIG_HANDSHAKE_XONXOFF;
-  if(catParams.handshake=="Hardware") my_rig->state.rigport.parm.serial.handshake = RIG_HANDSHAKE_HARDWARE;
-  else my_rig->state.rigport.parm.serial.handshake = RIG_HANDSHAKE_NONE;
-  my_rig->state.pttport.type.ptt = catParams.pttType;
+  rigport->parm.serial.rate = catParams.baudrate;
+  rigport->parm.serial.data_bits=catParams.databits;
+  rigport->parm.serial.stop_bits=catParams.stopbits;
+  if(catParams.parity=="Even") rigport->parm.serial.parity= RIG_PARITY_EVEN;
+  else if (catParams.parity=="Odd") rigport->parm.serial.parity = RIG_PARITY_ODD;
+  else  rigport->parm.serial.parity = RIG_PARITY_NONE;
+  if(catParams.handshake=="XOn/Xoff") rigport->parm.serial.handshake = RIG_HANDSHAKE_XONXOFF;
+  if(catParams.handshake=="Hardware") rigport->parm.serial.handshake = RIG_HANDSHAKE_HARDWARE;
+  else rigport->parm.serial.handshake = RIG_HANDSHAKE_NONE;
+  pttport->type.ptt = catParams.pttType;
 
-  addToLog(QString("rigcontrol:init rigport.pathname: %1").arg(my_rig->state.rigport.pathname),LOGRIGCTRL);
+  addToLog(QString("rigcontrol:init rigport.pathname: %1").arg(rigport->pathname),LOGRIGCTRL);
   retcode = rig_open(my_rig);
 
   if (retcode != RIG_OK )
@@ -130,8 +133,8 @@ bool rigControl::init()
   canSetMode=(my_rig->caps->set_mode != NULL);
   canGetMode=(my_rig->caps->get_mode != NULL);
   canSetPTT=(my_rig->caps->set_ptt != NULL) ||
-          (my_rig->state.pttport.type.ptt == RIG_PTT_SERIAL_DTR) ||
-          (my_rig->state.pttport.type.ptt == RIG_PTT_SERIAL_RTS);
+          (pttport->type.ptt == RIG_PTT_SERIAL_DTR) ||
+          (pttport->type.ptt == RIG_PTT_SERIAL_RTS);
   canGetPTT=(my_rig->caps->get_ptt != NULL);
   double fr;
   getFrequency(fr);
@@ -458,8 +461,7 @@ int  rigControl::rawCommand(QByteArray ba)
   QString command="w ";
   QByteArray cmdBa;
   if(!rigControlEnabled) return 0;
-  struct rig_state *rs;
-  rs = &my_rig->state;
+  hamlib_port_t *rigport = (hamlib_port_t *)rig_data_pointer(my_rig, RIG_PTRX_RIGPORT);
   // check if backend via rigctld
   if(catParams.radioModelNumber==2)
     {
@@ -480,14 +482,14 @@ int  rigControl::rawCommand(QByteArray ba)
 
       command+="\n";
       cmdBa=command.toLatin1();
-      result=write_block(&rs->rigport,cmdBa.constData(), cmdBa.count());
+      result=write_block(rigport,cmdBa.constData(), cmdBa.count());
 
     }
   else
     {
-      result=write_block(&rs->rigport,ba.constData(), ba.count());
+      result=write_block(rigport,ba.constData(), ba.count());
     }
-  read_block(&rs->rigport,rxBuffer,99);
+  read_block(rigport,rxBuffer,99);
   return result;
 
 }

@@ -243,7 +243,7 @@ int drmTx::processFIX(QByteArray bsrByteArray)
          sl=str.split("\n",Qt::SkipEmptyParts);
 
 #else
-        sl=str.split("\n",QString::SkipEmptyParts);
+        sl=str.split("\n",Qt::SkipEmptyParts);
 #endif
 
 

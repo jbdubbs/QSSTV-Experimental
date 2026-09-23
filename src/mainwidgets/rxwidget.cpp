@@ -30,7 +30,7 @@ rxWidget::rxWidget(QWidget *parent):QWidget(parent),ui(new Ui::rxWidget)
 
 
   rebuildModeComboBox();
-  foreach (QByteArray format, QImageWriter::supportedImageFormats())
+  for (const QByteArray &format : QImageWriter::supportedImageFormats())
     {
       QString text = tr("%1").arg(QString(format));
       ui->defaultImageFormatComboBox->addItem(text);

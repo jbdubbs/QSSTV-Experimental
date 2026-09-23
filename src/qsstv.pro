@@ -612,6 +612,12 @@ LIBS +=  -lpulse \
          -lfftw3 \
          -lhamlib
 
+# hamlib is linked via pkg-config (PKGCONFIG += hamlib above). When it's
+# installed to a non-standard prefix (e.g. a from-source checkout instead of
+# a system package), bake its libdir in as an rpath so the binary finds
+# libhamlib.so at runtime without needing LD_LIBRARY_PATH set manually.
+QMAKE_LFLAGS += -Wl,-rpath,$$system(pkg-config --variable=libdir hamlib)
+
 !macx: LIBS +=  -lasound \
          -lv4l2 \
          -lv4lconvert \
@@ -628,6 +634,11 @@ HEADERS  += scope/scopeoffset.h \
 FORMS   += scope/scopeoffset.ui \
                 scope/plotform.ui
 
-!macx: INCLUDEPATH += /usr/include/qwt /usr/include/qt5/qwt
-!macx: LIBS += -lqwt-qt5
+!macx: greaterThan(QT_MAJOR_VERSION, 5) {
+    INCLUDEPATH += /usr/include/qwt /usr/include/qt6/qwt
+    LIBS += -lqwt-qt6
+} else {
+    !macx: INCLUDEPATH += /usr/include/qwt /usr/include/qt5/qwt
+    !macx: LIBS += -lqwt-qt5
+}
 }
