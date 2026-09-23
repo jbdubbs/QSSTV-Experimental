@@ -12,6 +12,7 @@
 #include "qglobal.h"
 
 #include <QWidget>
+#include <QVector>
 
 enum etxMode {TXUPLOAD,TXBINARY,TXNORMAL};
 
@@ -121,7 +122,7 @@ private:
   void sendHybrid(QString fn);
   void applyTemplate();
   void updateTxTime();
-  void updateEngineCheckBox();
+  void rebuildModeComboBox();
   void startTxImage();
   void enableButtons(bool enable);
 
@@ -151,6 +152,16 @@ private:
   bool notifyBusy;
   bool repeaterIdleImage;
   float fileSize;
+
+  // Step 17: index -> esstvMode map for the (possibly filtered)
+  // sstvModeComboBox, rebuilt by rebuildModeComboBox() -- see that
+  // function's comment for why a direct index-to-enum cast no longer
+  // works once the list can be filtered.
+  QVector<esstvMode> txModeList;
+  // Persisted checked-state of "Use MMSSTV Core engine", independent of
+  // any specific mode's selectedEngine() value -- see engineCheckBox's
+  // handlers for why.
+  bool useMmsstvCoreEngine;
 
 };
 

@@ -14,11 +14,11 @@
 #include "mainwindow.h"
 #include "configparams.h"
 #include "ftpthread.h"
+#include "engineselection.h"
 
 
 rxWidget::rxWidget(QWidget *parent):QWidget(parent),ui(new Ui::rxWidget)
 {
-  int i;
   ui->setupUi(this);
   rxFunctionsPtr=new rxFunctions();
   ui->syncWidget->setHorizontal(false);
@@ -29,11 +29,7 @@ rxWidget::rxWidget(QWidget *parent):QWidget(parent),ui(new Ui::rxWidget)
   imageViewerPtr=ui->imageFrame;
 
 
-  ui->sstvModeComboBox->addItem("Auto");
-  for(i=0;i<NUMSSTVMODES;i++)
-    {
-      ui->sstvModeComboBox->addItem(getSSTVModeNameLong((esstvMode)i));
-    }
+  rebuildModeComboBox();
   foreach (QByteArray format, QImageWriter::supportedImageFormats())
     {
       QString text = tr("%1").arg(QString(format));
@@ -79,6 +75,7 @@ void rxWidget::init()
   connect(ui->resyncToolButton,SIGNAL(clicked()),SLOT(slotResync()));
   connect(ui->autoSaveCheckBox,SIGNAL(clicked()),SLOT(slotGetParams()));
   connect(ui->autoSlantAdjustCheckBox,SIGNAL(clicked()),SLOT(slotGetParams()));
+  connect(ui->engineCheckBox,SIGNAL(toggled(bool)),SLOT(slotEngineChanged(bool)));
 
 
 
@@ -135,12 +132,16 @@ void rxWidget::writeSettings()
 
 void rxWidget::getParams()
 {
-  int temp;
+  int idx;
   getValue(autoSlantAdjust,ui->autoSlantAdjustCheckBox);
   getValue(autoSave,ui->autoSaveCheckBox);
   getIndex(sensitivity,ui->sensitivityComboBox);
-  getIndex(temp,ui->sstvModeComboBox);
-  sstvModeIndexRx=(esstvMode)temp;
+  getIndex(idx,ui->sstvModeComboBox);
+  esstvMode selected=(idx>=0 && idx<rxModeList.size()) ? rxModeList[idx] : NOTVALID;
+  sstvModeIndexRx=(selected==NOTVALID) ? (esstvMode)0 : (esstvMode)((int)selected+1);
+  bool preferCore;
+  getValue(preferCore,ui->engineCheckBox);
+  setRxPreferCoreEngine(preferCore);
   getValue(defaultImageFormat,ui->defaultImageFormatComboBox);
   getValue(minCompletion,ui->completeSpinBox);
 }
@@ -150,9 +151,61 @@ void rxWidget::setParams()
   setValue(autoSlantAdjust,ui->autoSlantAdjustCheckBox);
   setValue(autoSave,ui->autoSaveCheckBox);
   setIndex(sensitivity,ui->sensitivityComboBox);
-  setIndex(sstvModeIndexRx,ui->sstvModeComboBox);
+  rebuildModeComboBox();
   setValue(defaultImageFormat,ui->defaultImageFormatComboBox);
   setValue(minCompletion,ui->completeSpinBox);
+}
+
+// Step 17: repopulates sstvModeComboBox ("Auto" always first) filtered by
+// rxPreferCoreEngine() (checked -> only mmsstvCoreSupports() modes;
+// unchecked -> every mode), rebuilds rxModeList (index -> esstvMode,
+// index 0 == the "Auto" sentinel NOTVALID) in step, and re-selects
+// whichever mode sstvModeIndexRx previously pointed to if it's still
+// present (else falls back to "Auto"). sstvModeIndexRx itself always
+// stores the real esstvMode plus one (0 meaning "Auto"), never a raw
+// combo-box row -- that stays meaningful across filter changes, unlike a
+// raw index would (see syncProcessor::init()'s own -1 conversion, which
+// this preserves unchanged).
+void rxWidget::rebuildModeComboBox()
+{
+  esstvMode currentReal=(sstvModeIndexRx==(esstvMode)0) ? NOTVALID : (esstvMode)((int)sstvModeIndexRx-1);
+  bool preferCore=rxPreferCoreEngine();
+  ui->sstvModeComboBox->blockSignals(true);
+  ui->sstvModeComboBox->clear();
+  rxModeList.clear();
+  ui->sstvModeComboBox->addItem("Auto");
+  rxModeList.append(NOTVALID);
+  for(int i=0;i<NUMSSTVMODES;i++)
+    {
+      esstvMode m=(esstvMode)i;
+      if(preferCore && !mmsstvCoreSupports(m)) continue;
+      ui->sstvModeComboBox->addItem(getSSTVModeNameLong(m));
+      rxModeList.append(m);
+    }
+  int newIndex=(currentReal==NOTVALID) ? 0 : rxModeList.indexOf(currentReal);
+  if(newIndex<0) newIndex=0; // previously-forced mode got filtered out -> fall back to Auto
+  ui->sstvModeComboBox->setCurrentIndex(newIndex);
+  esstvMode nowSelected=rxModeList[newIndex];
+  sstvModeIndexRx=(nowSelected==NOTVALID) ? (esstvMode)0 : (esstvMode)((int)nowSelected+1);
+  ui->sstvModeComboBox->blockSignals(false);
+  ui->engineCheckBox->blockSignals(true);
+  setValue(preferCore,ui->engineCheckBox);
+  ui->engineCheckBox->blockSignals(false);
+}
+
+void rxWidget::slotEngineChanged(bool checked)
+{
+  setRxPreferCoreEngine(checked);
+  rebuildModeComboBox();
+}
+
+void rxWidget::handleEngineAutoFallback(esstvMode mode)
+{
+  // setRxPreferCoreEngine(false) was already applied on the rx-thread
+  // before this event was posted (see syncProcessor::createModeBase()) --
+  // this just reflects that back into the UI.
+  rebuildModeComboBox();
+  setSSTVStatusText(QString("Auto-detected %1 (QSSTV engine only) -- switched off MMSSTV Core preference").arg(getSSTVModeNameLong(mode)));
 }
 
 void rxWidget::slotGetParams()

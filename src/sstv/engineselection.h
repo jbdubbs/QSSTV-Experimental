@@ -1,14 +1,14 @@
 /***************************************************************************
- *   mmsstv-linux-port: Step 6/8/9 -- per-mode engine selection            *
+ *   mmsstv-linux-port: Step 6/8/9/17 -- per-mode engine selection         *
  *                                                                         *
  *   Not part of upstream QSSTV. QSSTV's own engine is kept permanently   *
  *   available for every mode; mmsstv-core (a portable extraction of      *
  *   MMSSTV's SSTV DSP core, see https://github.com/n5ac/mmsstv) is an    *
- *   alternative engine for the modes it supports (Martin 1, the full     *
- *   Scottie family -- 1, 2, DX -- and Robot 36, so far). This lets the   *
- *   user pick which engine handles a given mode, defaulting to           *
- *   mmsstv-core where it's available. See the project plan's "Step 6"    *
- *   for the full rationale.                                              *
+ *   alternative engine for the modes it supports (the RGB family --      *
+ *   Martin 1/2, Scottie 1/2/DX -- Robot 36/72/24, and the full PD/ML/MR/ *
+ *   MP families). This lets the user pick which engine handles a given   *
+ *   mode, defaulting to mmsstv-core where it's available. See the        *
+ *   project plan's "Step 6" for the full rationale.                      *
  ***************************************************************************/
 #ifndef ENGINESELECTION_H
 #define ENGINESELECTION_H
@@ -39,5 +39,16 @@ eEngine selectedEngine(esstvMode mode);
 // mmsstvCoreSupports(mode) is true; the caller should not offer a choice
 // otherwise.
 void setSelectedEngine(esstvMode mode, eEngine engine);
+
+// Step 17: RX-only master override, independent of the per-mode
+// selectedEngine() table above -- RX auto-detection can lock onto any of
+// dozens of modes at any moment, unlike TX (always exactly one active
+// mode), so a single global preference is used instead of bulk-writing
+// every kMmsstvCoreModes() entry, and it deliberately never touches the
+// per-mode table TX's own checkbox writes to. Defaults to true. See
+// mmsstv_sstv_rx.cpp/syncprocessor.cpp for how it's consulted, and
+// rxwidget.cpp for the checkbox that drives it.
+bool rxPreferCoreEngine();
+void setRxPreferCoreEngine(bool prefer);
 
 #endif // ENGINESELECTION_H

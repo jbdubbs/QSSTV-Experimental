@@ -941,6 +941,10 @@ void syncProcessor::resetRetraceFlag()
 bool  syncProcessor::createModeBase()
 {
   bool done=false;
+  // Step 17: captured before the switch below can reset currentMode to
+  // NOTVALID, so the auto-fallback check after the switch still knows
+  // what was actually detected.
+  esstvMode detectedMode=currentMode;
   if(currentModePtr) delete currentModePtr;
   currentModePtr=NULL;
   switch (currentMode)
@@ -952,8 +956,12 @@ bool  syncProcessor::createModeBase()
     // through to the same NOTVALID path below), and the independent
     // mmsstv_sstv_rx.cpp engine (fed from the raw-audio tap, gated the
     // same way) handles the reception instead. When ENGINE_QSSTV is
-    // selected, this runs exactly as upstream, unchanged.
-    if(selectedEngine(M1)==ENGINE_QSSTV)
+    // selected, this runs exactly as upstream, unchanged. Step 17 added
+    // the `|| !rxPreferCoreEngine()` half: the RX "Use MMSSTV Core engine"
+    // checkbox is a single global override (unlike selectedEngine()'s
+    // per-mode table, shared with TX) -- when it's off, QSSTV's own engine
+    // runs regardless of any individual mode's stored preference.
+    if(selectedEngine(M1)==ENGINE_QSSTV || !rxPreferCoreEngine())
       {
         currentModePtr=new modeGBR(currentMode,RXSTRIPE,false,false);
       }
@@ -964,7 +972,7 @@ bool  syncProcessor::createModeBase()
     break;
   case M2:
     // Same conditional split as M1 above -- see that case's comment.
-    if(selectedEngine(M2)==ENGINE_QSSTV)
+    if(selectedEngine(M2)==ENGINE_QSSTV || !rxPreferCoreEngine())
       {
         currentModePtr=new modeGBR(currentMode,RXSTRIPE,false,false);
       }
@@ -980,7 +988,7 @@ bool  syncProcessor::createModeBase()
     // Each variant checks its own selectedEngine() independently, since
     // the user can pick per-mode (e.g. Scottie 1 via mmsstv-core, Scottie
     // DX via QSSTV's own path).
-    if(selectedEngine(currentMode)==ENGINE_QSSTV)
+    if(selectedEngine(currentMode)==ENGINE_QSSTV || !rxPreferCoreEngine())
       {
         currentModePtr=new modeGBR2(currentMode,RXSTRIPE,false,false);
       }
@@ -991,7 +999,7 @@ bool  syncProcessor::createModeBase()
     break;
   case R36:
     // Same conditional split as M1/S1/S2/SDX above -- see M1's comment.
-    if(selectedEngine(R36)==ENGINE_QSSTV)
+    if(selectedEngine(R36)==ENGINE_QSSTV || !rxPreferCoreEngine())
       {
         currentModePtr=new modeRobot1(currentMode,RXSTRIPE,false,false);
       }
@@ -1004,7 +1012,7 @@ bool  syncProcessor::createModeBase()
   case R72:
     // Same conditional split as M1/R36 above -- see M1's comment. Each
     // checks its own selectedEngine() independently.
-    if(selectedEngine(currentMode)==ENGINE_QSSTV)
+    if(selectedEngine(currentMode)==ENGINE_QSSTV || !rxPreferCoreEngine())
       {
         currentModePtr=new modeRobot2(currentMode,RXSTRIPE,false,false);
       }
@@ -1025,7 +1033,7 @@ bool  syncProcessor::createModeBase()
     // Same conditional split as M1/R36/R24/R72/PD above -- see M1's
     // comment. MR73-175 (Step 15) given the same gate ML already had --
     // both share modeRobot2 on QSSTV's native side too.
-    if(selectedEngine(currentMode)==ENGINE_QSSTV)
+    if(selectedEngine(currentMode)==ENGINE_QSSTV || !rxPreferCoreEngine())
       {
         currentModePtr=new modeRobot2(currentMode,RXSTRIPE,false,false);
       }
@@ -1070,7 +1078,7 @@ bool  syncProcessor::createModeBase()
     // MP73-175 (Step 16) given the same gate PD already had -- both share
     // modePD on QSSTV's native side too. MP73N/110N/140N (narrow FSK, not
     // yet migrated) stay in their own unconditional block below.
-    if(selectedEngine(currentMode)==ENGINE_QSSTV)
+    if(selectedEngine(currentMode)==ENGINE_QSSTV || !rxPreferCoreEngine())
       {
         currentModePtr=new modePD(currentMode,RXSTRIPE,false,false);
       }
@@ -1087,6 +1095,18 @@ bool  syncProcessor::createModeBase()
   default:
     currentMode=NOTVALID;
     break;
+  }
+  if (detectedMode!=NOTVALID && !mmsstvCoreSupports(detectedMode) && rxPreferCoreEngine())
+  {
+    // Step 17: landed on a mode mmsstv-core has no implementation for at
+    // all (e.g. SC2_60, P3, BW8, AVT24... -- the unconditional cases
+    // above, no selectedEngine() gate to begin with) while the RX "Use
+    // MMSSTV Core engine" checkbox was on. QSSTV's own engine already
+    // handled the reception either way; this just keeps the checkbox
+    // honest about what actually happened and persists the correction so
+    // a restart doesn't re-show "Core" for something it can't do.
+    setRxPreferCoreEngine(false);
+    QApplication::postEvent(dispatcherPtr, new rxEngineFallbackEvent(detectedMode));
   }
   if (currentMode!=NOTVALID)
   {

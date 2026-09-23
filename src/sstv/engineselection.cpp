@@ -1,5 +1,5 @@
 /***************************************************************************
- *   mmsstv-linux-port: Step 6/8 -- per-mode engine selection              *
+ *   mmsstv-linux-port: Step 6/8/17 -- per-mode engine selection           *
  *   See engineselection.h for what this is and why.                      *
  ***************************************************************************/
 #include "engineselection.h"
@@ -50,5 +50,22 @@ void setSelectedEngine(esstvMode mode, eEngine engine)
 	QSettings qSettings;
 	qSettings.beginGroup("Engine");
 	qSettings.setValue(getSSTVModeNameShort(mode), int(engine));
+	qSettings.endGroup();
+}
+
+bool rxPreferCoreEngine()
+{
+	QSettings qSettings;
+	qSettings.beginGroup("RX");
+	bool prefer = qSettings.value("useMmsstvCoreEngine", true).toBool();
+	qSettings.endGroup();
+	return prefer;
+}
+
+void setRxPreferCoreEngine(bool prefer)
+{
+	QSettings qSettings;
+	qSettings.beginGroup("RX");
+	qSettings.setValue("useMmsstvCoreEngine", prefer);
 	qSettings.endGroup();
 }

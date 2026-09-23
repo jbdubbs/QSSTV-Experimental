@@ -121,6 +121,10 @@ void dispatcher::customEvent( QEvent * e )
         }
       break;
 
+    case rxEngineFallback:
+      rxWidgetPtr->handleEngineAutoFallback(((rxEngineFallbackEvent*)e)->getMode());
+      break;
+
 
     case rxDRMStatus:
       rxWidgetPtr->setDRMStatusText(((rxDRMStatusEvent*)e)->getStr());
