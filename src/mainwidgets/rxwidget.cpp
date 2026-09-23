@@ -156,20 +156,21 @@ void rxWidget::setParams()
   setValue(minCompletion,ui->completeSpinBox);
 }
 
-// Step 17: repopulates sstvModeComboBox ("Auto" always first) filtered by
-// rxPreferCoreEngine() (checked -> only mmsstvCoreSupports() modes;
-// unchecked -> every mode), rebuilds rxModeList (index -> esstvMode,
-// index 0 == the "Auto" sentinel NOTVALID) in step, and re-selects
-// whichever mode sstvModeIndexRx previously pointed to if it's still
-// present (else falls back to "Auto"). sstvModeIndexRx itself always
+// Populates sstvModeComboBox ("Auto" always first) with every SSTV mode
+// -- the list is no longer filtered by the "MMSSTV Core As Default"
+// checkbox (that checkbox only picks which engine handles a given mode,
+// it doesn't hide any mode from manual selection or auto-detection),
+// rebuilds rxModeList (index -> esstvMode, index 0 == the "Auto" sentinel
+// NOTVALID) in step, and re-selects whichever mode sstvModeIndexRx
+// previously pointed to if it's still present (else falls back to
+// "Auto") -- this guards against a stale index from an older settings
+// file with a different NUMSSTVMODES. sstvModeIndexRx itself always
 // stores the real esstvMode plus one (0 meaning "Auto"), never a raw
-// combo-box row -- that stays meaningful across filter changes, unlike a
-// raw index would (see syncProcessor::init()'s own -1 conversion, which
+// combo-box row (see syncProcessor::init()'s own -1 conversion, which
 // this preserves unchanged).
 void rxWidget::rebuildModeComboBox()
 {
   esstvMode currentReal=(sstvModeIndexRx==(esstvMode)0) ? NOTVALID : (esstvMode)((int)sstvModeIndexRx-1);
-  bool preferCore=rxPreferCoreEngine();
   ui->sstvModeComboBox->blockSignals(true);
   ui->sstvModeComboBox->clear();
   rxModeList.clear();
@@ -178,34 +179,20 @@ void rxWidget::rebuildModeComboBox()
   for(int i=0;i<NUMSSTVMODES;i++)
     {
       esstvMode m=(esstvMode)i;
-      if(preferCore && !mmsstvCoreSupports(m)) continue;
       ui->sstvModeComboBox->addItem(getSSTVModeNameLong(m));
       rxModeList.append(m);
     }
   int newIndex=(currentReal==NOTVALID) ? 0 : rxModeList.indexOf(currentReal);
-  if(newIndex<0) newIndex=0; // previously-forced mode got filtered out -> fall back to Auto
+  if(newIndex<0) newIndex=0; // stale index (e.g. old settings file) -> fall back to Auto
   ui->sstvModeComboBox->setCurrentIndex(newIndex);
   esstvMode nowSelected=rxModeList[newIndex];
   sstvModeIndexRx=(nowSelected==NOTVALID) ? (esstvMode)0 : (esstvMode)((int)nowSelected+1);
   ui->sstvModeComboBox->blockSignals(false);
-  ui->engineCheckBox->blockSignals(true);
-  setValue(preferCore,ui->engineCheckBox);
-  ui->engineCheckBox->blockSignals(false);
 }
 
 void rxWidget::slotEngineChanged(bool checked)
 {
   setRxPreferCoreEngine(checked);
-  rebuildModeComboBox();
-}
-
-void rxWidget::handleEngineAutoFallback(esstvMode mode)
-{
-  // setRxPreferCoreEngine(false) was already applied on the rx-thread
-  // before this event was posted (see syncProcessor::createModeBase()) --
-  // this just reflects that back into the UI.
-  rebuildModeComboBox();
-  setSSTVStatusText(QString("Auto-detected %1 (QSSTV engine only) -- switched off MMSSTV Core preference").arg(getSSTVModeNameLong(mode)));
 }
 
 void rxWidget::slotGetParams()

@@ -347,13 +347,13 @@
            <item row="4" column="0">
             <widget class="QCheckBox" name="engineCheckBox">
              <property name="toolTip">
-              <string>When checked, the Mode dropdown above only lists modes the mmsstv-core engine (ported from MMSSTV) supports, and auto-detection prefers it. When unchecked, every mode is listed and QSSTV's own engine is used for all of them.</string>
+              <string>When checked, the mmsstv-core engine (ported from MMSSTV) is used to receive any mode it supports; modes it doesn't support still use QSSTV's own engine automatically. When unchecked, QSSTV's own engine is used for every mode.</string>
              </property>
              <property name="layoutDirection">
               <enum>Qt::RightToLeft</enum>
              </property>
              <property name="text">
-              <string>Use MMSSTV Core engine</string>
+              <string>MMSSTV Core As Default</string>
              </property>
             </widget>
            </item>

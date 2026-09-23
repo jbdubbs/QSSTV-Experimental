@@ -22,11 +22,13 @@ enum eEngine { ENGINE_MMSSTV_CORE, ENGINE_QSSTV };
 // this is about whether there's a choice to make in the first place.
 bool mmsstvCoreSupports(esstvMode mode);
 
-// True if at least one mmsstvCoreSupports() mode is currently set to
-// ENGINE_MMSSTV_CORE. RX doesn't know which mode is incoming until VIS
-// locks, so the raw-audio-tap drain (rxfunctions.cpp) needs this rather
-// than a single mode's selectedEngine() to decide whether to run
-// mmsstv-core's demodulator at all.
+// Named gate for rxfunctions.cpp's raw-audio-tap drain: mirrors
+// rxPreferCoreEngine(), since RX no longer consults the per-mode
+// selectedEngine() table (see that function's comment below) -- every
+// mmsstvCoreSupports() mode uses Core whenever the RX checkbox is on. RX
+// doesn't know which mode is incoming until VIS locks, so this is a
+// single up-front "is it worth running mmsstv-core's demodulator at all"
+// check rather than a per-mode one.
 bool mmsstvCoreActiveForAnyMode();
 
 // The engine to actually use for `mode` right now: reads a persisted
@@ -40,14 +42,18 @@ eEngine selectedEngine(esstvMode mode);
 // otherwise.
 void setSelectedEngine(esstvMode mode, eEngine engine);
 
-// Step 17: RX-only master override, independent of the per-mode
-// selectedEngine() table above -- RX auto-detection can lock onto any of
-// dozens of modes at any moment, unlike TX (always exactly one active
-// mode), so a single global preference is used instead of bulk-writing
-// every kMmsstvCoreModes() entry, and it deliberately never touches the
-// per-mode table TX's own checkbox writes to. Defaults to true. See
-// mmsstv_sstv_rx.cpp/syncprocessor.cpp for how it's consulted, and
-// rxwidget.cpp for the checkbox that drives it.
+// RX-only master switch ("MMSSTV Core As Default" checkbox), independent
+// of the per-mode selectedEngine() table above -- RX auto-detection can
+// lock onto any of dozens of modes at any moment, unlike TX (always
+// exactly one active mode), and RX's own dispatch (syncprocessor.cpp,
+// mmsstv_sstv_rx.cpp) deliberately never consults selectedEngine(), since
+// that table is really "what did TX last pick for this mode" and mixing
+// it into RX's decision let a TX-tab pick silently override the RX
+// checkbox. So this is RX's sole source of truth: when true, every
+// mmsstvCoreSupports() mode uses mmsstv-core and every other mode still
+// uses QSSTV automatically; when false, QSSTV is used for everything.
+// Defaults to true. See mmsstv_sstv_rx.cpp/syncprocessor.cpp for how it's
+// consulted, and rxwidget.cpp for the checkbox that drives it.
 bool rxPreferCoreEngine();
 void setRxPreferCoreEngine(bool prefer);
 

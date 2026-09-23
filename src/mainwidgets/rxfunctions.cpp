@@ -86,17 +86,18 @@ void rxFunctions::run()
                   switchRxState(RXIDLE);
                   break;
                 }
-              // mmsstv-linux-port Step 7/8: independent drain of the raw
+              // mmsstv-linux-port: independent drain of the raw
               // (un-decimated) audio tap for mmsstv-core's RX engine,
               // alongside (not instead of) sstvRxPtr's own
               // decimated-pipeline dispatch above. Gated on its own
               // buffer's fill level (it fills faster than rxBuffer, since
-              // it isn't decimated) and on whether any mmsstv-core-capable
-              // mode is currently set to use it -- RX doesn't know which
-              // mode is incoming until VIS locks (mmsstv_sstv_rx.cpp
-              // handles that per-mode check once it does), so this can't
-              // gate on one specific mode's setting the way TX does. When
-              // no such mode is active, this is simply skipped and
+              // it isn't decimated) and on whether the RX engine
+              // preference favors mmsstv-core at all (mmsstvCoreActiveForAnyMode(),
+              // which just mirrors rxPreferCoreEngine()) -- RX doesn't know
+              // which mode is incoming until VIS locks (mmsstv_sstv_rx.cpp
+              // handles the per-mode support check once it does), so this
+              // can't gate on one specific mode's setting the way TX does.
+              // When the checkbox is off, this is simply skipped and
               // QSSTV's own pipeline handles every mode unmodified (see
               // syncprocessor.cpp's createModeBase()).
               if((transmissionModeIndex==TRXSSTV)

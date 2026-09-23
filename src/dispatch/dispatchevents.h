@@ -53,8 +53,7 @@ enum dispatchEventType
   ftpSetup,
   notifyCheck,
   ftpUploadFile,
-  statusBarMsg,
-  rxEngineFallback //!< Step 17: RX auto-detected a core-unsupported mode while "prefer Core" was on
+  statusBarMsg
 };
 
 class baseEvent: public QEvent
@@ -434,22 +433,6 @@ public:
   endImageSSTVRXEvent(esstvMode md):baseEvent( (QEvent::Type)endSSTVImageRX ),mode(md)
   {
     description="endImageSSTVRXEvent";
-  }
-  esstvMode getMode() {return mode;}
-private:
-  esstvMode mode;
-};
-
-// Step 17: posted by syncProcessor::createModeBase() (rx-thread) when RX
-// auto-detects a mode mmsstv-core has no implementation for at all while
-// the RX "Use MMSSTV Core engine" checkbox was on -- tells the GUI thread
-// to uncheck it and refresh the mode dropdown's filter.
-class rxEngineFallbackEvent : public baseEvent
-{
-public:
-  rxEngineFallbackEvent(esstvMode md):baseEvent( (QEvent::Type)rxEngineFallback ),mode(md)
-  {
-    description="rxEngineFallbackEvent";
   }
   esstvMode getMode() {return mode;}
 private:

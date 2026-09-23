@@ -27,10 +27,7 @@ bool mmsstvCoreSupports(esstvMode mode)
 
 bool mmsstvCoreActiveForAnyMode()
 {
-	for (esstvMode m : kMmsstvCoreModes) {
-		if (selectedEngine(m) == ENGINE_MMSSTV_CORE) return true;
-	}
-	return false;
+	return rxPreferCoreEngine();
 }
 
 eEngine selectedEngine(esstvMode mode)
