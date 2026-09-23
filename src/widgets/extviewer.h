@@ -16,6 +16,7 @@ public:
   explicit extViewer(QWidget *parent = 0);
   ~extViewer();
   void setup(QString fn);
+  void done(int r) override;
   
 private:
   Ui::extViewer *ui;

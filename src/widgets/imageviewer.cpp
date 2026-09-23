@@ -741,9 +741,11 @@ void imageViewer::slotUploadFTP()
 
 void imageViewer::slotView()
 {
-  extViewer vm(this);
-  vm.setup(imageFileName);
-  vm.exec();
+  // parentless and non-modal so the window manager treats it as an independent window
+  extViewer *vm=new extViewer(nullptr);
+  vm->setAttribute(Qt::WA_DeleteOnClose);
+  vm->setup(imageFileName);
+  vm->show();
 }
 
 
