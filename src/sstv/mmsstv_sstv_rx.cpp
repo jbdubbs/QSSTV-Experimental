@@ -115,8 +115,23 @@ MmsstvSstvRx::~MmsstvSstvRx()
 	delete dem;
 }
 
+bool MmsstvSstvRx::serviceAbort()
+{
+	if (!abortRequested.exchange(false)) return false;
+	// No endImageSSTVRXEvent: a dropped picture must not be autosaved.
+	trackingImage = false;
+	trackingMode = NOTVALID;
+	decodedRows = 0;
+	// CSSTVDEM never drops m_Sync on its own; a stale lock would hide the
+	// next picture's 0->1 lock edge from processSamples(). Stop() puts it
+	// back to hunting for a VIS (without recreating it -- see the ctor).
+	dem->Stop();
+	return true;
+}
+
 void MmsstvSstvRx::processSamples(const double *samples, int count)
 {
+	serviceAbort();
 	for (int i = 0; i < count; i++) {
 		bool wasSync = dem->m_Sync != 0;
 		dem->Do(samples[i]);

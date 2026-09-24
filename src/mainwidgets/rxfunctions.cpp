@@ -106,6 +106,18 @@ void rxFunctions::run()
               // When the checkbox is off, this is simply skipped and
               // QSSTV's own pipeline handles every mode unmodified (see
               // syncprocessor.cpp's createModeBase()).
+              // An engine switch (see switchEngine()) may be pending even
+              // when the tap is no longer being fed; if one was, also
+              // discard audio that piled up in the tap meanwhile so the
+              // (possibly newly enabled) engine starts from live audio.
+              if(mmsstvRxPtr->serviceAbort())
+                {
+                  static DSPFLOAT discardBuf[DOWNSAMPLESIZE];
+                  while(soundIOPtr->rawRxBuffer.count()>=DOWNSAMPLESIZE)
+                    {
+                      soundIOPtr->rawRxBuffer.copyNoCheck(discardBuf,DOWNSAMPLESIZE);
+                    }
+                }
               if((transmissionModeIndex==TRXSSTV)
                  && mmsstvCoreActiveForAnyMode()
                  && (soundIOPtr->rawRxBuffer.count()>=DOWNSAMPLESIZE))
@@ -217,6 +229,14 @@ void rxFunctions::eraseImage()
           sstvRxPtr->eraseImage();
         }
     }
+}
+
+void rxFunctions::switchEngine()
+{
+  // Stop whichever engine is mid-picture (both, to be safe) so they never
+  // paint the shared canvas at the same time.
+  mmsstvRxPtr->abortImage();
+  eraseImage();
 }
 
 void rxFunctions::switchRxState(erxState newState)

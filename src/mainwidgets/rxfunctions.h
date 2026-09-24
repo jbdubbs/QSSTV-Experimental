@@ -30,6 +30,7 @@ public:
   void startRX();
   void restartRX();
   void eraseImage();
+  void switchEngine();
   QString getModeStr();
   sstvRx  *sstvRxPtr;
   void stopThread();

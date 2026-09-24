@@ -29,6 +29,8 @@
 #ifndef MMSSTV_SSTV_RX_H
 #define MMSSTV_SSTV_RX_H
 
+#include <atomic>
+
 #include "pixelconv.h"
 #include "sstv.h"
 #include "sstvparam.h"
@@ -67,6 +69,18 @@ public:
 	// (MMSSTV)" status every buffer.
 	bool isTrackingImage() const { return trackingImage; }
 
+	// Asks this engine to drop any picture it's mid-way through decoding
+	// without saving it. Safe to call from the GUI thread: it only sets a
+	// flag, which the RX thread consumes via serviceAbort() (all decode
+	// state stays single-threaded). Used when the RX engine checkbox
+	// flips, so the outgoing engine stops painting the shared canvas.
+	void abortImage() { abortRequested = true; }
+
+	// RX-thread side of abortImage(). Returns true if an abort was pending
+	// (and has now been applied). Must be called from the RX thread, even
+	// when the raw tap isn't being fed to processSamples().
+	bool serviceAbort();
+
 private:
 	// Heap-allocated and constructed *after* the constructor body sets
 	// SampFreq/SampBase -- CSSTVDEM's constructor designs all its internal
@@ -95,6 +109,7 @@ private:
 
 	esstvMode trackingMode = NOTVALID; // which mode's picture is being decoded, if any
 	bool trackingImage = false;
+	std::atomic<bool> abortRequested{false};
 	int decodedRows = 0;
 };
 

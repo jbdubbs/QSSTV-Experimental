@@ -75,7 +75,7 @@ void rxWidget::init()
   connect(ui->resyncToolButton,SIGNAL(clicked()),SLOT(slotResync()));
   connect(ui->autoSaveCheckBox,SIGNAL(clicked()),SLOT(slotGetParams()));
   connect(ui->autoSlantAdjustCheckBox,SIGNAL(clicked()),SLOT(slotGetParams()));
-  connect(ui->engineCheckBox,SIGNAL(toggled(bool)),SLOT(slotEngineChanged(bool)));
+  connect(ui->engineCheckBox,SIGNAL(clicked(bool)),SLOT(slotEngineChanged(bool))); // clicked, not toggled: only a user click aborts RX, not settings load
 
 
 
@@ -193,6 +193,10 @@ void rxWidget::rebuildModeComboBox()
 void rxWidget::slotEngineChanged(bool checked)
 {
   setRxPreferCoreEngine(checked);
+  // Whatever engine was mid-picture is dropped and the canvas cleared; the
+  // (new) engine starts on the next VIS lock.
+  rxFunctionsPtr->switchEngine();
+  imageViewerPtr->createImage(QSize(320,256),imageBackGroundColor,imageStretch);
 }
 
 void rxWidget::slotGetParams()
