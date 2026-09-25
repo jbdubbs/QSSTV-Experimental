@@ -56,6 +56,8 @@ enum esstvMode
   PD50,
   PD90,
   PD120,
+  PD120S,
+  PD120W,
   PD160,
   PD180,
   PD240,

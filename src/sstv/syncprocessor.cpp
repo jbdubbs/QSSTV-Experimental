@@ -1078,6 +1078,11 @@ bool  syncProcessor::createModeBase()
         currentMode=NOTVALID;
       }
     break;
+  case PD120S:
+  case PD120W:
+    // QSSTV-only modes: not in kMmsstvCoreModes, so never deferred to the core engine.
+    currentModePtr=new modePD(currentMode,RXSTRIPE,false,false);
+    break;
   case MP73N:
   case MP110N:
   case MP140N:
