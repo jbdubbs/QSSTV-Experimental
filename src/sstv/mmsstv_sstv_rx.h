@@ -69,6 +69,16 @@ public:
 	// (MMSSTV)" status every buffer.
 	bool isTrackingImage() const { return trackingImage; }
 
+	// Tells this engine whether QSSTV's own engine is mid-picture (set by
+	// rxfunctions.cpp before each processSamples() call). Modes that only
+	// QSSTV's engine decodes (e.g. PD120S/PD120W) still run through this
+	// engine's demodulator, whose VIS scanner can false-lock on picture
+	// content and pick a stale mode; if it then swapped the shared canvas
+	// for that mode's size, QSSTV's engine would paint past the end of the
+	// new image. So while QSSTV owns the canvas this engine neither starts
+	// a picture nor keeps one going.
+	void setQsstvBusy(bool busy) { qsstvBusy = busy; if (busy) trackingImage = false; }
+
 	// Asks this engine to drop any picture it's mid-way through decoding
 	// without saving it. Safe to call from the GUI thread: it only sets a
 	// flag, which the RX thread consumes via serviceAbort() (all decode
@@ -108,6 +118,7 @@ private:
 	CPDRxDecoder pdDecoder;
 
 	esstvMode trackingMode = NOTVALID; // which mode's picture is being decoded, if any
+	bool qsstvBusy = false;
 	bool trackingImage = false;
 	std::atomic<bool> abortRequested{false};
 	int decodedRows = 0;

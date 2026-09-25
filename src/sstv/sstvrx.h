@@ -46,6 +46,12 @@ public:
   // spam over mmsstv_sstv_rx.cpp's "Receiving ... (MMSSTV)" status every
   // buffer.
   void setCoreEngineBusy(bool busy) { coreEngineBusy=busy; }
+
+  // True while QSSTV's own engine is mid-picture (its mode's canvas exists
+  // and it is painting it). rxFunctions::run() passes this to
+  // MmsstvSstvRx::setQsstvBusy() so mmsstv-core can't also claim the shared
+  // canvas -- see that method's comment.
+  bool isReceivingImage() const { return SSTVState==PROCESSING || SSTVState==WAITFORSYNC || SSTVState==SLANTADJUST; }
 #ifndef QT_NO_DEBUG
   unsigned int setOffset(unsigned int offset,bool ask);
 #endif

@@ -124,6 +124,7 @@ void rxFunctions::run()
                 {
                   static DSPFLOAT rawBuf[DOWNSAMPLESIZE];
                   soundIOPtr->rawRxBuffer.copyNoCheck(rawBuf,DOWNSAMPLESIZE);
+                  mmsstvRxPtr->setQsstvBusy(sstvRxPtr->isReceivingImage());
                   mmsstvRxPtr->processSamples(rawBuf,DOWNSAMPLESIZE);
                 }
             }

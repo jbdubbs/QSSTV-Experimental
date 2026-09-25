@@ -142,7 +142,7 @@ void MmsstvSstvRx::processSamples(const double *samples, int count)
 			decodedRows = 0;
 			esstvMode lockedMode = mapMmsstvCoreMode(SSTVSET.m_Mode);
 			trackingMode = lockedMode;
-			trackingImage = (lockedMode != NOTVALID) && rxPreferCoreEngine();
+			trackingImage = (lockedMode != NOTVALID) && rxPreferCoreEngine() && !qsstvBusy;
 			if (trackingImage) {
 				int width, height;
 				getModeDimensions(lockedMode, width, height); // trackingImage implies this succeeds
