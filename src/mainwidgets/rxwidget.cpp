@@ -15,6 +15,7 @@
 #include "configparams.h"
 #include "ftpthread.h"
 #include "engineselection.h"
+#include "videofilterselection.h"
 
 
 rxWidget::rxWidget(QWidget *parent):QWidget(parent),ui(new Ui::rxWidget)
@@ -75,6 +76,7 @@ void rxWidget::init()
   connect(ui->resyncToolButton,SIGNAL(clicked()),SLOT(slotResync()));
   connect(ui->autoSaveCheckBox,SIGNAL(clicked()),SLOT(slotGetParams()));
   connect(ui->autoSlantAdjustCheckBox,SIGNAL(clicked()),SLOT(slotGetParams()));
+  connect(ui->wideFilterCheckBox,SIGNAL(clicked()),SLOT(slotGetParams()));
   connect(ui->engineCheckBox,SIGNAL(clicked(bool)),SLOT(slotEngineChanged(bool))); // clicked, not toggled: only a user click aborts RX, not settings load
 
 
@@ -142,6 +144,9 @@ void rxWidget::getParams()
   bool preferCore;
   getValue(preferCore,ui->engineCheckBox);
   setRxPreferCoreEngine(preferCore);
+  bool wideFilter;
+  getValue(wideFilter,ui->wideFilterCheckBox);
+  setWideVideoFilterEnabled(wideFilter);
   getValue(defaultImageFormat,ui->defaultImageFormatComboBox);
   getValue(minCompletion,ui->completeSpinBox);
 }
@@ -150,6 +155,7 @@ void rxWidget::setParams()
 {
   setValue(autoSlantAdjust,ui->autoSlantAdjustCheckBox);
   setValue(autoSave,ui->autoSaveCheckBox);
+  setValue(wideVideoFilterEnabled(),ui->wideFilterCheckBox);
   setIndex(sensitivity,ui->sensitivityComboBox);
   rebuildModeComboBox();
   setValue(defaultImageFormat,ui->defaultImageFormatComboBox);

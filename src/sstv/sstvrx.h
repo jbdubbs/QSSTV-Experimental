@@ -66,10 +66,15 @@ private:
   void saveImage();
   void advanceBuffers();
   void rewindBuffers(uint rlen);
+  quint16 *modeDemodPtr();
+  void demodSkip(unsigned int n);
+  void demodRewind(unsigned int n);
+  void demodSetReadIndex(unsigned int idx);
 
 
   //  DSPFLOAT rxHoldingBuffer[RXSTRIPE];
   buffer<quint16,22> bufferVideoDemod;  // 2^22= 4194304, divided by samplingrate 12000 gives 349 seconds buffering
+  buffer<quint16,22> bufferVideoDemodWide;  // same samples through the wide video filter, for the fast modes
   //  buffer<quint16,22> bufferSyncDemod;  // 2^22= 4194304, divided by samplingrate 12000 gives 349 seconds buffering
   buffer<DSPFLOAT,22> bufferSync1200Vol;  // 2^22= 4194304, divided by samplingrate 12000 gives 349 seconds buffering
   buffer<DSPFLOAT,22> bufferSync1900Vol;  // 2^22= 4194304, divided by samplingrate 12000 gives 349 seconds buffering
@@ -80,6 +85,8 @@ private:
 
   syncFilter *syncFilterPtr;
   videoFilter *videoFilterPtr;
+  videoFilter *videoFilterWidePtr;
+  bool rxUseWideFilter;       //!< the picture mode being received reads bufferVideoDemodWide
   DSPFLOAT tempBuffer[RXSTRIPE];
   rectConvolution *syncConvolvePtr;
   integrator *volumeIntergratorPtr;

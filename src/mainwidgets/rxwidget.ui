@@ -357,6 +357,19 @@
              </property>
             </widget>
            </item>
+           <item row="5" column="0">
+            <widget class="QCheckBox" name="wideFilterCheckBox">
+             <property name="toolTip">
+              <string>Use a wider video filter for the fast modes (PD120, PD120S, PD120W, JB60): sharper pictures on a clean signal (cable, local VHF/UHF FM, strong signals) but noisier on weak ones, so leave it off for typical HF. Takes effect at the next picture. PD120 only uses it when MMSSTV Core is not handling PD120.</string>
+             </property>
+             <property name="layoutDirection">
+              <enum>Qt::RightToLeft</enum>
+             </property>
+             <property name="text">
+              <string>Wide Video Filter</string>
+             </property>
+            </widget>
+           </item>
            <item row="6" column="0">
             <widget class="QLabel" name="saveLabel">
              <property name="text">

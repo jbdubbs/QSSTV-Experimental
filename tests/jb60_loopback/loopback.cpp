@@ -43,6 +43,7 @@ namespace
     std::string image="0";
     bool ideal=false;      // old baseband path: no audio, no downsampler, no video filter
     bool ssb=false;        // 300-2700 Hz band limit
+    bool wide=false;       // --fir wide: the wide video filter (dsp/filters videoFilter(.., true))
     bool hasSnr=false;
     double snr=0;          // dB in 2.7 kHz, white noise at the receiver input
     double noiseHz=0;      // --ideal only: gaussian noise on the demodulated frequency
@@ -150,11 +151,11 @@ namespace
   }
 
   // audio (48 kHz) -> real downsampler -> real video filter -> 12 kHz demod track (Hz)
-  std::vector<quint16> demodChain(const std::vector<double> &audio)
+  std::vector<quint16> demodChain(const std::vector<double> &audio,bool wide)
   {
     const unsigned block=DOWNSAMPLESIZE;
     downsampleFilter ds(block,true);
-    videoFilter vf(RXSTRIPE);
+    videoFilter vf(RXSTRIPE,wide);
     std::vector<quint16> out;
     std::vector<short> buf(block);
     for(size_t pos=0;pos<audio.size();pos+=block)
@@ -179,20 +180,21 @@ namespace
   }
 
   // delay (12 kHz samples) between a frequency step entering the TX track and its 50% point in the demod track
-  double calibrateDelay()
+  double calibrateDelay(bool wide)
   {
-    static double cached=-1;
-    if(cached>=0) return cached;
+    static double cached[2]={-1,-1};
+    double &c=cached[wide ? 1 : 0];
+    if(c>=0) return c;
     std::vector<float> f(14400,1500.f);
     f.insert(f.end(),14400,2300.f);
     f.insert(f.end(),9600,1500.f);
-    std::vector<quint16> y=demodChain(makeAudio(withTail(f)));
+    std::vector<quint16> y=demodChain(makeAudio(withTail(f)),wide);
     for(size_t n=1500;n<y.size();n++)
       if(y[n]>=1900 && y[n-1]<1900)
         {
           double frac=(1900.-y[n-1])/((double)y[n]-y[n-1]);
-          cached=(n-1+frac)-3600.;
-          return cached;
+          c=(n-1+frac)-3600.;
+          return c;
         }
     fprintf(stderr,"delay calibration failed\n"); exit(3);
   }
@@ -260,8 +262,8 @@ namespace
         if(o.hasSnr) addNoise(audio,o.snr);
         if(o.ssb) bandLimit(audio);
         if(!o.wav.empty()) writeWav(o.wav,audio);
-        res.delay=calibrateDelay()+o.tshift;
-        demod=alignTrack(demodChain(audio),res.delay);
+        res.delay=calibrateDelay(o.wide)+o.tshift;
+        demod=alignTrack(demodChain(audio,o.wide),res.delay);
       }
     for(int i=0;i<24000;i++) demod.push_back(1500);   // tail
 
@@ -294,7 +296,7 @@ namespace
   {
     const metrics::Rect full={0,0,W,H},txt=textRegion(o.image);
     printf("mode %s  image %s  channel %s%s%s\n",txSSTVParam.name.toLatin1().data(),o.image.c_str(),
-           o.ideal?"ideal (baseband)":"real (downsampler+video FIR)",o.hasSnr?QString("  snr %1 dB").arg(o.snr).toLatin1().data():"",o.ssb?"  ssb":"");
+           o.ideal?"ideal (baseband)":(o.wide?"real (downsampler+WIDE video FIR)":"real (downsampler+video FIR)"),o.hasSnr?QString("  snr %1 dB").arg(o.snr).toLatin1().data():"",o.ssb?"  ssb":"");
     printf("  tx %.2f s (table %.2f)  video-path delay %.2f samples  rx result %d, lines %d/%d\n",r.seconds,txSSTVParam.imageTime,r.delay,r.rxResult,r.lines,r.imageLines);
     printf("  PSNR R %.2f G %.2f B %.2f  luma %.2f  all %.2f dB\n",metrics::psnr(src,r.rx,0),metrics::psnr(src,r.rx,1),metrics::psnr(src,r.rx,2),metrics::psnr(src,r.rx,3),metrics::psnr(src,r.rx,4));
     printf("  SSIM full %.3f  text-region %.3f   gradient kept: full %.2f text-region %.2f\n",metrics::ssim(src,r.rx,full),metrics::ssim(src,r.rx,txt),
@@ -326,7 +328,7 @@ namespace
     { o.image="grath"; QImage s=loadImage(o.image); mh=metrics::mtf(runChain(o,s).rx,'h'); }
     { o.image="gratv"; QImage s=loadImage(o.image); mv=metrics::mtf(runChain(o,s).rx,'v'); }
     { o.image="gratd"; QImage s=loadImage(o.image); md=metrics::mtf(runChain(o,s).rx,'d'); }
-    printf("suite  mode %s  channel %s%s%s\n",txSSTVParam.name.toLatin1().data(),o.ideal?"ideal":"real",o.hasSnr?QString("  snr %1 dB").arg(o.snr).toLatin1().data():"",o.ssb?"  ssb":"");
+    printf("suite  mode %s  channel %s%s%s\n",txSSTVParam.name.toLatin1().data(),o.ideal?"ideal":(o.wide?"real, wide FIR":"real"),o.hasSnr?QString("  snr %1 dB").arg(o.snr).toLatin1().data():"",o.ssb?"  ssb":"");
     printf("  card: luma PSNR %.2f dB  SSIM text %.3f full %.3f  text gradient kept %.2f\n",cardYpsnr,cardSsimText,cardSsimFull,cardGrad);
     printf("  edge 10-90%% rise: x %.2f px   y %.2f px\n",riseX,riseY);
     printMtf("horizontal",mh); printMtf("vertical",mv); printMtf("diagonal",md);
@@ -338,7 +340,7 @@ int main(int argc,char**argv)
   Options o;
   if(argc<2) { fprintf(stderr,
       "usage: %s <jb|pd> [--image 0|1|2|card|vedge320|vedge321|hedge248|hedge249|grath|gratv|gratd|file.png]\n"
-      "          [--suite] [--ideal] [--snr dB] [--ssb] [--noise-hz Hz (with --ideal)] [--clock-err frac]\n"
+      "          [--suite] [--ideal] [--fir wide|narrow] [--snr dB] [--ssb] [--noise-hz Hz (with --ideal)] [--clock-err frac]\n"
       "          [--tshift samples] [--out prefix] [--wav file.wav]\n",argv[0]); return 1; }
   o.mode=(!strcmp(argv[1],"pd"))?PD120:JB60;
   for(int i=2;i<argc;i++)
@@ -348,6 +350,7 @@ int main(int argc,char**argv)
       if(a=="--image") o.image=val();
       else if(a=="--ideal") o.ideal=true;
       else if(a=="--ssb") o.ssb=true;
+      else if(a=="--fir") { std::string v=val(); if(v!="wide"&&v!="narrow") { fprintf(stderr,"--fir wide|narrow\n"); return 1; } o.wide=(v=="wide"); }
       else if(a=="--snr") { o.hasSnr=true; o.snr=atof(val()); }
       else if(a=="--noise-hz") o.noiseHz=atof(val());
       else if(a=="--clock-err") o.clockErr=atof(val());

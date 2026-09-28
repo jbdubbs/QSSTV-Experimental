@@ -19,7 +19,7 @@ aa21f70) looked fine in the test and blurry on the air. JB60 now sends one luma 
     QT_QPA_PLATFORM=offscreen ./loopback jb --image card --wav /tmp/jb_card.wav          # 48 kHz mono audio of the image lines
 
 Options: `--image 0|1|2|card|vedge320|vedge321|hedge248|hedge249|grath|gratv|gratd|file.png` (a file is scaled to
-640x496), `--suite`, `--ideal`, `--snr dB` (white noise, dB in 2.7 kHz), `--ssb` (300-2700 Hz, zero phase),
+640x496), `--suite`, `--ideal`, `--fir wide|narrow` (the RX "Wide Video Filter", default narrow), `--snr dB` (white noise, dB in 2.7 kHz), `--ssb` (300-2700 Hz, zero phase),
 `--noise-hz Hz` (with `--ideal`), `--clock-err frac`, `--tshift samples`, `--out prefix`, `--wav file`.
 
 The `--wav` file has no leader or VIS code (the test only sends the picture lines), so it is for other decoders'
@@ -76,3 +76,27 @@ within 0.05 (on the card, and on a photo with text overlay), and at least 2 dB b
   compromise.
 - Companding exponent 0.5-0.7 all score the same; linear (1.0) is clearly worse in noise (card SSIM 0.82 -> 0.79 at 25 dB).
 - Averaging two demod samples per slot beats taking one by 0.06-0.13 dB.
+
+## Wide video filter (`--fir wide`)
+
+`dsp/filters.cpp` `videoFilter(maxLength, true)` is the same demodulator with a Kaiser windowed-sinc low pass at
++/-1000 Hz instead of QSSTV's +/-600 Hz filter (same 181 taps, so the same 90 sample group delay). The app runs it
+alongside the standard one and the fast modes (PD120, PD120S, PD120W, JB60) read it when the RX "Wide Video Filter"
+box is ticked (default off). Real chain, clean, `--suite`:
+
+| | PD120 narrow -> wide | JB60 narrow -> wide |
+|---|---|---|
+| Edge 10-90% rise, x (px) | 4.36 -> 2.60 | 4.30 -> 2.53 |
+| Card luma PSNR (dB) | 21.55 -> 22.46 | 21.48 -> 22.63 |
+| Card SSIM, text region / full | 0.886 -> 0.907 / 0.900 -> 0.919 | 0.869 -> 0.896 / 0.887 -> 0.912 |
+
+The price is noise. JB60 on the card with an SSB-filtered channel, SSIM full narrow -> wide (luma PSNR is better
+down to about 20 dB, but the noise texture in flat areas costs structure well before that):
+
+| SNR in 2.7 kHz | 50 | 40 | 35 | 30 | 25 | 20 | 15 | 10 |
+|---|---|---|---|---|---|---|---|---|
+| SSIM full | .886 -> .910 | .884 -> .902 | .879 -> .883 | .861 -> .843 | .822 -> .750 | .735 -> .600 | .592 -> .441 | .435 -> .316 |
+
+On a photo with a text overlay the crossover is a little lower (at 30 dB: PSNR 24.39 -> 27.02 dB, SSIM 0.879 -> 0.884).
+So the wide filter is a win for clean paths (cable, local VHF/UHF FM, strong signals, about 30-35 dB and better) and
+a loss for typical noisy HF (15-25 dB). CPU cost of the second demodulator: about 0.2% of one core.
