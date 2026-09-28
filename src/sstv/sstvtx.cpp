@@ -156,6 +156,9 @@ bool sstvTx::create(esstvMode m,DSPFLOAT clock)
     currentMode=new modePD(m,TXSTRIPE,true,false);
     break;
 
+  case JB60:
+    currentMode=new modeJB60(m,TXSTRIPE,true,false);
+    break;
   case MP73N:
   case MP110N:
   case MP140N:

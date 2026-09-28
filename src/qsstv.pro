@@ -141,6 +141,7 @@ SOURCES += main.cpp\
     sstv/modes/modebw.cpp \
     sstv/modes/modegbr.cpp \
     sstv/modes/modegbr2.cpp \
+    sstv/modes/modejb60.cpp \
     sstv/modes/modepd.cpp \
     sstv/modes/modergb.cpp \
     sstv/modes/moderobot1.cpp \
@@ -314,6 +315,7 @@ HEADERS  += mainwindow.h \
     sstv/modes/modebw.h \
     sstv/modes/modegbr.h \
     sstv/modes/modegbr2.h \
+    sstv/modes/modejb60.h \
     sstv/modes/modepd.h \
     sstv/modes/modergb.h \
     sstv/modes/moderobot1.h \

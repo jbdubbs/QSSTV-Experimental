@@ -75,6 +75,7 @@ enum esstvMode
   ML240,
   ML280,
   ML320,
+  JB60,
   FAX480,
   AVT24,
   AVT90,

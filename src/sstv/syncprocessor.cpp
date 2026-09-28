@@ -1083,6 +1083,10 @@ bool  syncProcessor::createModeBase()
     // QSSTV-only modes: not in kMmsstvCoreModes, so never deferred to the core engine.
     currentModePtr=new modePD(currentMode,RXSTRIPE,false,false);
     break;
+  case JB60:
+    // QSSTV-only mode: not in kMmsstvCoreModes, so never deferred to the core engine.
+    currentModePtr=new modeJB60(currentMode,RXSTRIPE,false,false);
+    break;
   case MP73N:
   case MP110N:
   case MP140N:

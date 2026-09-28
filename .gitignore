@@ -58,3 +58,4 @@ documentation/manual/manual_html
 # mmsstv-linux-port fork: local build output
 src/build/
 
+tests/jb60_loopback/loopback

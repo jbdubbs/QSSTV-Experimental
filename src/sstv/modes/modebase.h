@@ -124,6 +124,7 @@ protected:
 	unsigned char *yArrayPtr;
 	unsigned char *pixelArrayPtr;
 	unsigned int *pixelPositionTable;
+  unsigned int segmentPixels; //!< pixels in the current sub line (defaults to numberOfPixels, modes with shorter segments override it)
   unsigned int debugState;
   uint avgFreqGap;
   uint avgFreqGapCounter;
@@ -150,6 +151,7 @@ protected:
   virtual embState txSetupLine()=0;
 
   virtual void getLine();
+  imageViewer *txImage() {return txImPtr;}
   void getLineY(bool evenodd);
   void getLineBW();
   int rxSampleCounter;

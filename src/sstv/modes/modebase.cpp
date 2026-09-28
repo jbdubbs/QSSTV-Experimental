@@ -130,6 +130,7 @@ void modeBase::init(DSPFLOAT clk)
   blueArrayPtr=new unsigned char[activeSSTVParam->numberOfPixels];
   redArrayPtr=new unsigned char[activeSSTVParam->numberOfPixels];
   yArrayPtr=new unsigned char[activeSSTVParam->numberOfPixels];
+  segmentPixels=activeSSTVParam->numberOfPixels;
   debugStatePtr=new unsigned int [length];
   for(unsigned int i=0;i<length;i++)
     {
@@ -511,7 +512,7 @@ void modeBase::sendPixelBuffer()
         }
       pixelCounter++;
     }
-  while(pixelCounter<activeSSTVParam->numberOfPixels);
+  while(pixelCounter<segmentPixels);
   //  addToLog(QString("modebase: lpw=%1").arg(sampleCounter),LOGMODES);
 }
 

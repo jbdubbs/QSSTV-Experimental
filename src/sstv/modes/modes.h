@@ -26,6 +26,7 @@
 #include "moderobot1.h"
 #include "moderobot2.h"
 #include "modepd.h"
+#include "modejb60.h"
 #include "modebw.h"
 #include "modeavt.h"
 #endif
