@@ -177,6 +177,14 @@ quint16 *sstvRx::modeDemodPtr()
   return rxUseWideFilter ? bufferVideoDemodWide.readPointer() : bufferVideoDemod.readPointer();
 }
 
+// The wide track alongside modeDemodPtr()'s choice, for modes that pick per segment (JB60's chroma) rather than
+// per picture. Always available since both buffers are always filled (see run()); modeDemodPtr() above still
+// decides the *primary* (narrow, for JB60) buffer passed as process()'s demod argument.
+quint16 *sstvRx::modeDemodWidePtr()
+{
+  return bufferVideoDemodWide.readPointer();
+}
+
 void sstvRx::demodSkip(unsigned int n)
 {
   bufferVideoDemod.skip(n);
@@ -304,6 +312,7 @@ void sstvRx::process()
       syncProcPtr->sampleCounter=block*RXSTRIPE;
       syncProcPtr->currentModePtr->setRxSampleCounter(syncProcPtr->sampleCounter);
       syncProcPtr->currentModePtr->redrawFast(true);
+      syncProcPtr->currentModePtr->setWideDemod(modeDemodWidePtr());
       if(syncProcPtr->currentModePtr->process(modeDemodPtr(),syncPosition-syncProcPtr->sampleCounter,true,syncProcPtr->sampleCounter)!=modeBase::MBRUNNING)
         {
           switchState(END);
@@ -323,6 +332,7 @@ void sstvRx::process()
           demodSkip(RXSTRIPE);
           syncProcPtr->sampleCounter+=RXSTRIPE;
           //          addToLog(QString("loop readIndex: %1,syncProcPtr->sampleCounter: %2").arg(rxHoldingBuffer.getReadIndex()).arg(syncProcPtr->sampleCounter),LOGRXFUNC);
+          syncProcPtr->currentModePtr->setWideDemod(modeDemodWidePtr());
           syncProcPtr->currentModePtr->process(modeDemodPtr(),0,false,syncProcPtr->sampleCounter);
           //      scopeViewerData->addData(SCDATA2,bufferVideoDemod.readPointer(),syncProcPtr->sampleCounter,RXSTRIPE);
 #ifndef QT_NO_DEBUG
@@ -351,6 +361,7 @@ void sstvRx::process()
         }
       else
         {
+          syncProcPtr->currentModePtr->setWideDemod(modeDemodWidePtr());
           if(syncProcPtr->currentModePtr->process(modeDemodPtr(),0,false,syncProcPtr->sampleCounter)!=modeBase::MBRUNNING)
             {
               switchState(END);
@@ -399,12 +410,14 @@ void sstvRx::process()
                 demodSetReadIndex(bufferIdx);
                 while(bufferVideoDemod.getReadIndex()!=currentIdx)
                   {
+                    syncProcPtr->currentModePtr->setWideDemod(modeDemodWidePtr());
                     if(syncProcPtr->currentModePtr->process(modeDemodPtr(),0,false,syncProcPtr->sampleCounter)==modeBase::MBENDOFIMAGE)
                       {
                         switchState(END);
                       }
                     demodSkip(RXSTRIPE);
                   }
+                syncProcPtr->currentModePtr->setWideDemod(modeDemodWidePtr());
                 if(syncProcPtr->currentModePtr->process(modeDemodPtr(),0,false,syncProcPtr->sampleCounter)==modeBase::MBENDOFIMAGE)
                   {
                     switchState(END);

@@ -83,8 +83,12 @@ within 0.05 (on the card, and on a photo with text overlay), and at least 2 dB b
 
 `dsp/filters.cpp` `videoFilter(maxLength, true)` is the same demodulator with a Kaiser windowed-sinc low pass at
 +/-1000 Hz instead of QSSTV's +/-600 Hz filter (same 181 taps, so the same 90 sample group delay). The app runs it
-alongside the standard one and the fast modes (PD120, PD120S, PD120W, JB60) read it when the RX "Wide Video Filter"
-box is ticked (default off). Real chain, clean, `--suite`:
+alongside the standard one, and the RX "Wide Video Filter" checkbox (default off) controls two different things
+depending on mode: PD120/PD120S/PD120W read it for the *whole picture* (`--fir wide` here reproduces that), while
+JB60 reads it for *Cr/Cb only* (`--chroma-wide` here; see the "Chroma-only wide filter for JB60" section below) --
+L/D always stay on the narrow filter for JB60. What follows in this section is the whole-picture measurement
+(`--fir wide`), i.e. what PD120 still does and what JB60 used to do before the per-segment split. Real chain,
+clean, `--suite`:
 
 | | PD120 narrow -> wide | JB60 narrow -> wide |
 |---|---|---|
@@ -102,6 +106,50 @@ down to about 20 dB, but the noise texture in flat areas costs structure well be
 On a photo with a text overlay the crossover is a little lower (at 30 dB: PSNR 24.39 -> 27.02 dB, SSIM 0.879 -> 0.884).
 So the wide filter is a win for clean paths (cable, local VHF/UHF FM, strong signals, about 30-35 dB and better) and
 a loss for typical noisy HF (15-25 dB). CPU cost of the second demodulator: about 0.2% of one core.
+
+## Chroma-only wide filter for JB60 (`--chroma-wide`)
+
+The whole-picture toggle above sharpens L along with Cr/Cb, which is also where nearly all its noise cost comes
+from. JB60 subsamples chroma (2.9-3.6 px/slot) far more than luma (1 px/slot), so its Cr/Cb pay proportionally more
+for the standard filter's ~4.4-slot blur than L does. `modeJB60::getPixels()` reads the wide track (`sampleWide`,
+fed via `modeBase::setWideDemod()`) instead of the narrow one only when `debugState` is Cr or Cb and the same RX
+checkbox is on; L and D never move off the narrow filter regardless. `videoFilterWideSuits()` no longer lists JB60,
+so the old whole-picture path (`modeDemodPtr()`/`rxUseWideFilter`) always gives JB60 the narrow buffer.
+
+Real chain, clean, card image (2026-09-28):
+
+| | chroma-wide off | chroma-wide on |
+|---|---|---|
+| Card PSNR: R / G / B / luma / all (dB) | 18.74 / 19.42 / 18.68 / 21.04 / 18.93 | 19.14 / 19.61 / 19.35 / **21.05** / 19.36 |
+| Card SSIM full / text-region (luma only) | 0.879 / 0.860 | 0.879 / 0.860 |
+| Pure chroma edge (`cedge320/321`) 10-90% rise, B (px) | 15.40 / 15.42 | 10.38 / 10.88 |
+
+Luma PSNR and SSIM are unchanged (as designed -- SSIM is a luma-only metric here, so it can't see a chroma-only
+change at all); the whole-picture toggle's SSIM cost never applies. Confirmed no group-delay/timing shift from
+using a different filter for chroma only: the 50%-crossing point of a real edge moved by at most 0.26 px between
+on and off (measured on `medge321`'s R and B channels), consistent with the two filters' identical 181-tap/90-sample
+group delay -- no `bp`-style correction needed.
+
+Noise crossover, card, SSB-filtered channel (all-channel PSNR dB, off -> on):
+
+| SNR in 2.7 kHz | 40 | 30 | 25 | 20 | 15 | 10 |
+|---|---|---|---|---|---|---|
+| PSNR all channels | 18.85 -> 19.24 | 18.82 -> 19.16 | 18.75 -> 18.99 | 18.54 -> 18.50 | 17.95 -> 17.29 | 16.62 -> 15.00 |
+| SSIM full (luma) | .873 -> .873 | .853 -> .853 | .815 -> .812 | .728 -> .723 | .585 -> .577 | .429 -> .422 |
+
+The crossover (roughly 20-25 dB) isn't dramatically lower than the whole-picture toggle's own PSNR crossover
+(~20 dB) -- the original hypothesis that chroma's noise tolerance would push it much lower wasn't clearly borne
+out. What *is* better than the whole-picture toggle: below the crossover, only chroma gets noisier, never L, so
+the worst case at poor SNR is strictly less damaging than the old all-or-nothing choice (which paid the same noise
+price on text and edge sharpness too). Same default-off recommendation as the whole-picture toggle.
+
+Caveat found while measuring: the mixed luma+colour edge test (`medge320/321`)'s automated B-channel edge-rise
+number is unreliable at some sample alignments -- it can jump by >10x from a real filter overshoot/ringing pattern
+crossing the metric's naive 10-90% thresholds in a non-monotonic way, even when the underlying pixels and PSNR both
+show an improvement (see the `jb60-color-smear-ideas` memory, TX idea 5 section, for the fuller diagnosis of this
+same metric issue). Card PSNR/SSIM and the pure `cedge` bandwidth test are the trustworthy numbers here; treat
+`medge`'s B rise as directional at best, and double check against PSNR and a direct pixel/crossing-position look
+before trusting a large swing in it.
 
 ## The application against this harness
 

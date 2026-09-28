@@ -63,6 +63,7 @@ private:
 
   DSPFLOAT slot;                       //!< duration of one sample slot (in samples of the local clock)
   quint16 prevSample;                  //!< previous demodulator sample (RX slot averaging)
+  quint16 prevSampleWide;              //!< previous wide-filter sample (RX slot averaging, Cr/Cb only)
   float guideLut[256];                 //!< luminance similarity weight for chroma upsampling
   float dDecodeLut[256];               //!< expands a received D level back to a luminance difference
   std::vector<unsigned char> rowY;     //!< reconstructed luminance row

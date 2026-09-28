@@ -13,6 +13,7 @@
 #include "rxwidget.h"
 #include "downsamplefilter.h"
 #include "filters.h"
+#include "videofilterselection.h"
 #include "metrics.h"
 #include <QGuiApplication>
 #include <cstdio>
@@ -289,6 +290,7 @@ namespace
     Result res; res.seconds=f48.size()/txc; res.delay=0;
 
     std::vector<quint16> demod;
+    std::vector<quint16> demodWide;   // JB60's chroma-wide path only (see below); empty means "not used"
     if(o.ideal)
       {
         std::mt19937 rng(1); std::normal_distribution<double> nd(0,1);
@@ -312,12 +314,17 @@ namespace
           }
         res.delay=calibrateDelay(o.wide)+o.tshift;
         demod=alignTrack(demodChain(audio,o.wide),res.delay);
+        // JB60's per-segment chroma-wide path (RX idea #1): a second track through the wide filter, with its
+        // own independently-calibrated delay -- verified equal to the narrow one's, not assumed (see README).
+        if(o.mode==JB60) demodWide=alignTrack(demodChain(audio,true),calibrateDelay(true)+o.tshift);
       }
     for(int i=0;i<24000;i++) demod.push_back(1500);   // tail
+    for(int i=0;i<24000 && !demodWide.empty();i++) demodWide.push_back(1500);
 
     modeBase *rx=(o.mode==JB60)?(modeBase*)new modeJB60(o.mode,demod.size(),false,false):(modeBase*)new modePD(o.mode,demod.size(),false,false);
     rx->init(12000.*(1+o.clockErr));
     rx->setRxSampleCounter(0);
+    if(!demodWide.empty()) rx->setWideDemod(demodWide.data());
     res.rxResult=(int)rx->process(demod.data(),0,false,0);
     res.lines=rx->receivedLines(); res.imageLines=rx->imageLines();
     res.rx=rxIv.img;
@@ -401,7 +408,7 @@ int main(int argc,char**argv)
   Options o;
   if(argc<2) { fprintf(stderr,
       "usage: %s <jb|pd> [--image 0|1|2|card|vedge320|vedge321|hedge248|hedge249|cedge320|cedge321|grath|gratv|gratd|file.png]\n"
-      "          [--suite] [--ideal] [--fir wide|narrow] [--snr dB] [--ssb] [--noise-hz Hz (with --ideal)] [--clock-err frac]\n"
+      "          [--suite] [--ideal] [--fir wide|narrow] [--chroma-wide] [--snr dB] [--ssb] [--noise-hz Hz (with --ideal)] [--clock-err frac]\n"
       "          [--tshift samples] [--out prefix] [--wav file.wav [--vis] [--count N]]\n"          "       %s --compare a.png b.png\n",argv[0],argv[0]); return 1; }
   if(!strcmp(argv[1],"--compare"))
     {
@@ -413,6 +420,7 @@ int main(int argc,char**argv)
       return 0;
     }
   o.mode=(!strcmp(argv[1],"pd"))?PD120:JB60;
+  bool chromaWide=false;
   for(int i=2;i<argc;i++)
     {
       std::string a=argv[i];
@@ -430,8 +438,12 @@ int main(int argc,char**argv)
       else if(a=="--suite") o.suite=true;
       else if(a=="--vis") o.vis=true;
       else if(a=="--count") o.count=std::max(1,atoi(val()));
+      else if(a=="--chroma-wide") chromaWide=true;
       else { fprintf(stderr,"unknown option %s\n",a.c_str()); return 1; }
     }
+  // Deterministic regardless of any real qsstv settings on this machine: off unless --chroma-wide asks for it
+  // (this is what modeJB60::getPixels() reads for its per-segment choice; see RX idea #1 in videofilterselection.h).
+  setWideVideoFilterOverride(chromaWide ? 1 : 0);
   QGuiApplication app(argc,argv);
   if(o.suite) { runSuite(o); return 0; }
   QImage src=loadImage(o.image);

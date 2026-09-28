@@ -41,7 +41,6 @@ bool videoFilterWideSuits(esstvMode mode)
     case PD120:
     case PD120S:
     case PD120W:
-    case JB60:
       return true;
     default:
       return false;

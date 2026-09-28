@@ -78,6 +78,9 @@ public:
 		}
 	void redrawFast(bool r);
   virtual eModeBase process(quint16 *demod, unsigned int syncPos, bool goToSync, unsigned int rxPos);
+  //! Optional second demodulator track (the wide video filter), read alongside `demod` in process() as
+  //! sampleWide. Pass NULL (the default) to leave sampleWide following demod, same as before this existed.
+  void setWideDemod(quint16 *demodWide) { wideDemodPtr=demodWide; }
   void init(DSPFLOAT clk);
   unsigned int *debugStatePtr;
   void abort();
@@ -102,6 +105,8 @@ protected:
 	DSPFLOAT localClock;
 
   quint16 sample;
+  quint16 sampleWide;     //!< same slot's sample through the wide video filter, or ==sample if setWideDemod() was never called
+  quint16 *wideDemodPtr;  //!< set by setWideDemod(); NULL until then
   DSPFLOAT start;
   sSSTVParam *activeSSTVParam;
 

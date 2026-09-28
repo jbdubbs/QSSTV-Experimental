@@ -69,6 +69,7 @@ private:
   void advanceBuffers();
   void rewindBuffers(uint rlen);
   quint16 *modeDemodPtr();
+  quint16 *modeDemodWidePtr();
   void demodSkip(unsigned int n);
   void demodRewind(unsigned int n);
   void demodSetReadIndex(unsigned int idx);

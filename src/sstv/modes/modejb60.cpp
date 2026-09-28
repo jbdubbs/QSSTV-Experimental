@@ -17,6 +17,7 @@
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
 #include "modejb60.h"
+#include "videofilterselection.h"
 #include <algorithm>
 
 namespace
@@ -100,6 +101,7 @@ modeJB60::modeJB60(esstvMode m,unsigned int len,bool tx,bool narrowMode): modeBa
 {
   slot=0;
   prevSample=0;
+  prevSampleWide=0;
   for(int d=0;d<256;d++)
     {
       float x=d/kGuideSigma;
@@ -245,19 +247,26 @@ bool modeJB60::getPixels()
   int color;
   double dev=activeSSTVParam->deviation*2;
   double fc=activeSSTVParam->subcarrier;
+  // Cr/Cb only: when the "Wide Video Filter" setting is on, read the wide-filter track instead of the narrow
+  // one. L and D (any other debugState) always use the narrow, noise-robust track -- see videofilterselection.h.
+  const bool chromaWide=(debugState==stColorLine2 || debugState==stColorLine3) && wideVideoFilterEnabled();
+  const quint16 s=chromaWide ? sampleWide : sample;
+  const quint16 ps=chromaWide ? prevSampleWide : prevSample;
   if(sampleCounter>=pixelPositionTable[pixelCounter]+(slot/2))
     {
-      double avg=((double)sample+(double)prevSample)/2.;
+      double avg=((double)s+(double)ps)/2.;
       color=128+lround((avg-fc)*255./dev);
       if(color<0) color=0;
       if(color>255) color=255;
       pixelArrayPtr[pixelCounter]=(unsigned char)color;
       pixelCounter++;
       prevSample=sample;
+      prevSampleWide=sampleWide;
       if(pixelCounter>=segmentPixels) return true;
       return false;
     }
   prevSample=sample;
+  prevSampleWide=sampleWide;
   return false;
 }
 
