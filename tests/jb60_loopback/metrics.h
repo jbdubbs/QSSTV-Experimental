@@ -144,6 +144,27 @@ namespace metrics
     for(int y=0;y<h;y++) { QRgb *p=(QRgb*)im.scanLine(y); for(int x=0;x<w;x++) p[x]=g(y<y0 ? LO : HI); }
     return im;
   }
+  // Colour step along x: the two sides are matched in luma (~0.3 apart) but R and B are swapped between them,
+  // so the step is invisible to the luma path and isolates the chroma (Cr/Cb) response the way vEdge isolates luma.
+  // Measures the channel's raw chroma bandwidth, independent of any luma-guided TX/RX processing (which has
+  // nothing to guide on here, since there's no coincident luma edge).
+  inline QImage cEdge(int w,int h,int x0)
+  {
+    QImage im(w,h,QImage::Format_RGB32);
+    const QRgb cA=qRgb(200,60,40),cB=qRgb(40,110,200);   // luma 0.299R+0.587G+0.114B: 99.58 vs 99.33
+    for(int y=0;y<h;y++) { QRgb *p=(QRgb*)im.scanLine(y); for(int x=0;x<w;x++) p[x]=(x<x0) ? cA : cB; }
+    return im;
+  }
+  // Mixed step along x: a real luma edge (dark grey -> bright orange, like vEdge's LO/HI) that ALSO carries a
+  // colour change, the way a coloured object or text against a plain background usually does. Unlike cEdge,
+  // luma-guided processing (TX downsample, RX upsample) has something to snap to here.
+  inline QImage mEdge(int w,int h,int x0)
+  {
+    QImage im(w,h,QImage::Format_RGB32);
+    const QRgb cA=qRgb(30,30,30),cB=qRgb(255,120,60);   // luma 30 -> 153.5, plus a strong colour change
+    for(int y=0;y<h;y++) { QRgb *p=(QRgb*)im.scanLine(y); for(int x=0;x<w;x++) p[x]=(x<x0) ? cA : cB; }
+    return im;
+  }
   // kind 'h': vertical stripes (vary along x, 10 row bands), 'v': vary along y (10 column bands), 'd': diagonal
   inline QImage grating(int w,int h,char kind)
   {
@@ -179,6 +200,24 @@ namespace metrics
     for(int c=20;c<W-20;c++) for(int i=0;i<28;i++) prof[i]+=y[(size_t)(y0-14+i)*W+c];
     for(double &v:prof) v/=(W-40);
     (void)H;
+    return rise1090(prof);
+  }
+  // Same as edgeRiseV, but the profile is one RGB channel (0=R,1=G,2=B) instead of luma: for reading the
+  // rise of a cEdge() step, whose two sides are luma-matched so the luma-only edgeRiseV can't see it.
+  inline double edgeRiseChannel(const QImage &rx,int x0,int channel)
+  {
+    std::vector<double> prof(28,0.);
+    const int H=rx.height();
+    for(int r=20;r<H-20;r++)
+      {
+        const QRgb *p=(const QRgb*)rx.constScanLine(r);
+        for(int i=0;i<28;i++)
+          {
+            QRgb v=p[x0-14+i];
+            prof[i]+=(channel==0) ? qRed(v) : (channel==1) ? qGreen(v) : qBlue(v);
+          }
+      }
+    for(double &v:prof) v/=(H-40);
     return rise1090(prof);
   }
   // amplitude ratio (output/input) of the fundamental in each of the 10 bands

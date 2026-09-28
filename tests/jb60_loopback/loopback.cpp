@@ -90,6 +90,10 @@ namespace
     if(name=="vedge321") return metrics::vEdge(W,H,321);
     if(name=="hedge248") return metrics::hEdge(W,H,248);
     if(name=="hedge249") return metrics::hEdge(W,H,249);
+    if(name=="cedge320") return metrics::cEdge(W,H,320);
+    if(name=="cedge321") return metrics::cEdge(W,H,321);
+    if(name=="medge320") return metrics::mEdge(W,H,320);
+    if(name=="medge321") return metrics::mEdge(W,H,321);
     if(name=="grath") return metrics::grating(W,H,'h');
     if(name=="gratv") return metrics::grating(W,H,'v');
     if(name=="gratd") return metrics::grating(W,H,'d');
@@ -349,6 +353,14 @@ namespace
     if(o.image=="vedge321") printf("  edge 10-90%% rise (x): %.2f px\n",metrics::edgeRiseV(r.rx,321));
     if(o.image=="hedge248") printf("  edge 10-90%% rise (y): %.2f px\n",metrics::edgeRiseH(r.rx,248));
     if(o.image=="hedge249") printf("  edge 10-90%% rise (y): %.2f px\n",metrics::edgeRiseH(r.rx,249));
+    if(o.image=="cedge320") printf("  chroma edge 10-90%% rise (x): R %.2f px  B %.2f px\n",metrics::edgeRiseChannel(r.rx,320,0),metrics::edgeRiseChannel(r.rx,320,2));
+    if(o.image=="cedge321") printf("  chroma edge 10-90%% rise (x): R %.2f px  B %.2f px\n",metrics::edgeRiseChannel(r.rx,321,0),metrics::edgeRiseChannel(r.rx,321,2));
+    if(o.image=="medge320"||o.image=="medge321")
+      {
+        int x0=(o.image=="medge320")?320:321;
+        printf("  luma edge 10-90%% rise (x): %.2f px   chroma: R %.2f px  B %.2f px\n",
+               metrics::edgeRiseV(r.rx,x0),metrics::edgeRiseChannel(r.rx,x0,0),metrics::edgeRiseChannel(r.rx,x0,2));
+      }
     if(o.image=="grath") printMtf("horizontal (vertical stripes)",metrics::mtf(r.rx,'h'));
     if(o.image=="gratv") printMtf("vertical (horizontal stripes)",metrics::mtf(r.rx,'v'));
     if(o.image=="gratd") printMtf("diagonal",metrics::mtf(r.rx,'d'));
@@ -358,7 +370,7 @@ namespace
   void runSuite(Options o)
   {
     struct Row { const char *name; };
-    double riseX=0,riseY=0;
+    double riseX=0,riseY=0,riseC=0;
     std::vector<double> mh,mv,md;
     double cardYpsnr=0,cardSsimText=0,cardSsimFull=0,cardGrad=0;
     {
@@ -369,12 +381,17 @@ namespace
     }
     for(const char *n:{"vedge320","vedge321"}) { o.image=n; QImage s=loadImage(o.image); riseX+=metrics::edgeRiseV(runChain(o,s).rx,atoi(n+5))/2; }
     for(const char *n:{"hedge248","hedge249"}) { o.image=n; QImage s=loadImage(o.image); riseY+=metrics::edgeRiseH(runChain(o,s).rx,atoi(n+5))/2; }
+    for(const char *n:{"cedge320","cedge321"})
+      {
+        o.image=n; QImage s=loadImage(o.image); QImage rx=runChain(o,s).rx; int x0=atoi(n+5);
+        riseC+=(metrics::edgeRiseChannel(rx,x0,0)+metrics::edgeRiseChannel(rx,x0,2))/2/2;   // avg R/B, avg over the two images
+      }
     { o.image="grath"; QImage s=loadImage(o.image); mh=metrics::mtf(runChain(o,s).rx,'h'); }
     { o.image="gratv"; QImage s=loadImage(o.image); mv=metrics::mtf(runChain(o,s).rx,'v'); }
     { o.image="gratd"; QImage s=loadImage(o.image); md=metrics::mtf(runChain(o,s).rx,'d'); }
     printf("suite  mode %s  channel %s%s%s\n",txSSTVParam.name.toLatin1().data(),o.ideal?"ideal":(o.wide?"real, wide FIR":"real"),o.hasSnr?QString("  snr %1 dB").arg(o.snr).toLatin1().data():"",o.ssb?"  ssb":"");
     printf("  card: luma PSNR %.2f dB  SSIM text %.3f full %.3f  text gradient kept %.2f\n",cardYpsnr,cardSsimText,cardSsimFull,cardGrad);
-    printf("  edge 10-90%% rise: x %.2f px   y %.2f px\n",riseX,riseY);
+    printf("  edge 10-90%% rise: x %.2f px   y %.2f px   chroma %.2f px\n",riseX,riseY,riseC);
     printMtf("horizontal",mh); printMtf("vertical",mv); printMtf("diagonal",md);
   }
 }
@@ -383,7 +400,7 @@ int main(int argc,char**argv)
 {
   Options o;
   if(argc<2) { fprintf(stderr,
-      "usage: %s <jb|pd> [--image 0|1|2|card|vedge320|vedge321|hedge248|hedge249|grath|gratv|gratd|file.png]\n"
+      "usage: %s <jb|pd> [--image 0|1|2|card|vedge320|vedge321|hedge248|hedge249|cedge320|cedge321|grath|gratv|gratd|file.png]\n"
       "          [--suite] [--ideal] [--fir wide|narrow] [--snr dB] [--ssb] [--noise-hz Hz (with --ideal)] [--clock-err frac]\n"
       "          [--tshift samples] [--out prefix] [--wav file.wav [--vis] [--count N]]\n"          "       %s --compare a.png b.png\n",argv[0],argv[0]); return 1; }
   if(!strcmp(argv[1],"--compare"))

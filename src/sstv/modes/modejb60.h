@@ -56,6 +56,7 @@ protected:
 private:
   void calcPixelPositionTable(unsigned int segment,bool tx);
   void txPairLuma(int pair,unsigned char *l,float *ya,float *yb,float *rBar,float *bBar);
+  void downsampleChroma(const float *pix,const float *lum,unsigned int n,unsigned char *out);
   void upsampleChroma(const unsigned char *y,const unsigned char *c,unsigned int n,unsigned char *out);
   void emitPair(const unsigned char *lPrev,const unsigned char *l,const unsigned char *lNext,
                 const unsigned char *d,const unsigned char *cr,const unsigned char *cb);

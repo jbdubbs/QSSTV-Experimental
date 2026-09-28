@@ -37,6 +37,20 @@ namespace
   const float kGuideSigma=20.0f;   // luminance difference (0..255) that halves the trust in a chroma sample
   const float kGuideFloor=0.02f;   // keeps plain linear interpolation as the fallback
 
+  // transmit: luma guided chroma downsampling. Uses the same guideLut (kGuideSigma) but a much higher floor than
+  // RX's: RX's floor only has to keep two-tap interpolation from collapsing, but TX's floor sets how far one
+  // footprint's output can be pulled from the flat average of its (2-4) pixels, and a straddling footprint's
+  // *rounded byte* is what matters -- pulling it far enough to cross to a different rounded value creates a
+  // steeper inter-slot transition than flat averaging, which the channel's video filter turns into visible
+  // ringing (measured: a real card image and a mixed luma+colour edge test both got a *wider*, not narrower,
+  // 10-90% chroma edge). This is a threshold effect tied to byte rounding, not a smooth trade: a sweep over this
+  // floor (0.02 through 50, loopback --image medge321/card) showed no middle ground -- below about a 1.1:1
+  // weight ratio it reproduces flat averaging almost exactly (no measurable effect either way); above about a
+  // 1.3:1 ratio it reliably provokes the same ringing. TODO(jb60-color-smear phase 1): needs a formulation that
+  // bounds the inter-slot *step*, not just one footprint's own weights, before this is worth shipping -- see the
+  // jb60-color-smear-ideas memory. Left at a safe (near-unity, no measured effect) value for now.
+  const float kDownsampleFloor=10.0f;
+
   /*!
     Columns covered by sample j of n samples across the picture width
   */
@@ -281,7 +295,7 @@ void modeJB60::getLine()
   const int p=(int)lineCounter;
   unsigned char lPrev[kWidth],lCur[kWidth],lNext[kWidth];
   float ya[kWidth],yb[kWidth],rBar[kWidth],bBar[kWidth];
-  float dRes[kWidth],crPix[kWidth],cbPix[kWidth];
+  float dRes[kWidth],crPix[kWidth],cbPix[kWidth],lMean[kWidth];
   unsigned int c,k;
 
   txPairLuma(p-1,lPrev,NULL,NULL,NULL,NULL);
@@ -292,9 +306,9 @@ void modeJB60::getLine()
     {
       yArrayPtr[c]=lCur[c];
       dRes[c]=(ya[c]-yb[c])/2.f-((float)lPrev[c]-(float)lNext[c])/8.f;
-      float lMean=(ya[c]+yb[c])/2.f;
-      crPix[c]=(rBar[c]-lMean)/1.4f+127.5f;      // same definitions as PD: Cr=(R-Y)/1.4+127.5
-      cbPix[c]=(bBar[c]-lMean)/1.78f+127.5f;     //                        Cb=(B-Y)/1.78+127.5
+      lMean[c]=(ya[c]+yb[c])/2.f;
+      crPix[c]=(rBar[c]-lMean[c])/1.4f+127.5f;      // same definitions as PD: Cr=(R-Y)/1.4+127.5
+      cbPix[c]=(bBar[c]-lMean[c])/1.78f+127.5f;     //                        Cb=(B-Y)/1.78+127.5
     }
   // box average over the footprint of each sample
   for(k=0;k<kSegCount[SEG_D];k++)
@@ -305,21 +319,36 @@ void modeJB60::getLine()
       for(c=c0;c<=c1;c++) sum+=dRes[c];
       greenArrayPtr[k]=encodeD(sum/(c1-c0+1));
     }
-  for(k=0;k<kSegCount[SEG_CR];k++)
+  downsampleChroma(crPix,lMean,kSegCount[SEG_CR],redArrayPtr);
+  downsampleChroma(cbPix,lMean,kSegCount[SEG_CB],blueArrayPtr);
+}
+
+/*!
+  Transmit side: one chroma sample is the luma-guided mean of its footprint of source columns, instead of a
+  flat box average. Pixels closer in luminance to the footprint's centre column count more, the same
+  similarity kernel (guideLut/kGuideSigma/kGuideFloor) that upsampleChroma already uses on the way back out.
+  A footprint with uniform luma reduces to the old flat average (every weight equal); one that straddles a
+  real luma edge is pulled toward the colour on the anchor's side instead of blending across the edge, so the
+  channel's fixed time-domain blur smears a value closer to a genuine step rather than an already-blended one.
+*/
+void modeJB60::downsampleChroma(const float *pix,const float *lum,unsigned int n,unsigned char *out)
+{
+  unsigned int c,k;
+  for(k=0;k<n;k++)
     {
       unsigned int c0,c1;
-      float sum=0;
-      columnFootprint(kSegCount[SEG_CR],k,c0,c1);
-      for(c=c0;c<=c1;c++) sum+=crPix[c];
-      redArrayPtr[k]=clampByte(sum/(c1-c0+1));
-    }
-  for(k=0;k<kSegCount[SEG_CB];k++)
-    {
-      unsigned int c0,c1;
-      float sum=0;
-      columnFootprint(kSegCount[SEG_CB],k,c0,c1);
-      for(c=c0;c<=c1;c++) sum+=cbPix[c];
-      blueArrayPtr[k]=clampByte(sum/(c1-c0+1));
+      columnFootprint(n,k,c0,c1);
+      unsigned int cc=(c0+c1)/2;
+      float anchor=lum[cc],sum=0,wsum=0;
+      for(c=c0;c<=c1;c++)
+        {
+          int d=(int)lroundf(fabsf(lum[c]-anchor));
+          if(d>255) d=255;
+          float w=kDownsampleFloor+guideLut[d];
+          sum+=w*pix[c];
+          wsum+=w;
+        }
+      out[k]=clampByte(sum/wsum);
     }
 }
 
