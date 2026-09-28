@@ -35,32 +35,44 @@ colour bars, a diagonal). The "text region" metrics use its rows 120-300.
 - Not modelled: the sync detector. The app aligns lines from sync pulses; here the fixed delay of the video path
   (about 112 samples: 90 for the FIR, the rest downsampler and discriminator) is measured once by sending a step
   through the same chain and the demod track is shifted back by it. `--tshift` moves the sampling point;
-  +/-1.5 samples costs about 0.5 dB or less of luma PSNR on the card.
+  +/-1.5 samples costs about 0.5 dB or less of luma PSNR for both PD120 and JB60 on the card.
 - Not modelled: real radio paths (fading, AGC, clock drift beyond `--clock-err`), and slant correction.
 
 ## Reference numbers
 
-Real chain, clean, `--suite` (recorded 2026-09-28). JB60 here is the quincunx layout of commit aa21f70.
+Real chain, clean, `--suite` (recorded 2026-09-28). "quincunx" is the old JB60 (aa21f70), kept for comparison.
 
-| | PD120 | JB60 quincunx |
-|---|---|---|
-| Edge 10-90% rise, x (px) | 4.36 | 8.46 |
-| Edge 10-90% rise, y (px) | 0.80 | 1.37 |
-| MTF horizontal, period 16 / 12 / 8 px | 0.87 / 0.73 / 0.36 | 0.37 / 0.08 / 0.00 |
-| MTF vertical, period 8 / 5 / 4 px | 0.99 / 0.99 / 1.01 | 0.90 / 0.83 / 0.63 |
-| Card luma PSNR (dB) | 21.55 | 18.56 |
-| Card SSIM, text region / full | 0.886 / 0.900 | 0.823 / 0.801 |
-| Card gradient kept, text region | 0.60 | 0.40 |
+| | PD120 | JB60 quincunx | JB60 (luma + difference) |
+|---|---|---|---|
+| Edge 10-90% rise, x (px) | 4.36 | 8.46 | 4.30 |
+| Edge 10-90% rise, y (px) | 0.80 | 1.37 | 0.80 |
+| MTF horizontal, period 16 / 12 / 8 px | 0.87 / 0.73 / 0.36 | 0.37 / 0.08 / 0.00 | 0.88 / 0.74 / 0.38 |
+| MTF vertical, period 8 / 5 / 4 px | 0.99 / 0.99 / 1.01 | 0.90 / 0.83 / 0.63 | 0.99 / 1.00 / 1.00 |
+| Card luma PSNR (dB) | 21.55 | 18.56 | 21.48 |
+| Card SSIM, text region / full | 0.886 / 0.900 | 0.823 / 0.801 | 0.869 / 0.887 |
+| Card gradient kept, text region | 0.60 | 0.40 | 0.52 |
 
-Ideal (baseband) channel, same suite, for comparison: PD120 x edge 1.87 px, card luma 23.91 dB; JB60 x edge
+Ideal (baseband) channel, same suite, for comparison: PD120 x edge 1.87 px, card luma 23.91 dB; quincunx JB60 x edge
 2.74 px, card luma 20.27 dB.
 
 Card with noise and SSB band limit (luma PSNR dB / SSIM full):
 
-| | PD120 | JB60 quincunx |
-|---|---|---|
-| 25 dB | 21.37 / 0.831 | 18.90 / 0.766 |
-| 15 dB | 20.78 / 0.596 | 18.73 / 0.573 |
+| | PD120 | JB60 quincunx | JB60 (luma + difference) |
+|---|---|---|---|
+| 25 dB | 21.37 / 0.831 | 18.90 / 0.766 | 21.28 / 0.822 |
+| 15 dB | 20.78 / 0.596 | 18.73 / 0.573 | 20.63 / 0.592 |
 
-The horizontal MTF of JB60 is one octave worse than PD120's: the quincunx puts two picture pixels in every slot, so
-the video filter's ~4.4 slot smear becomes ~8.5 px.
+Acceptance gate used when JB60 was redesigned: through the real filter, luma PSNR within 1 dB of PD120 and text SSIM
+within 0.05 (on the card, and on a photo with text overlay), and at least 2 dB better than the quincunx JB60.
+
+## JB60 design notes (from the parameter sweep)
+
+- Per line pair: L 640 + D 144 + Cr 224 + Cb 176 = 1184 slots (61.27 s), same line time as the quincunx JB60.
+- Horizontal MTF equals PD120's exactly (L is one slot per pixel); vertical MTF equals PD120's (D carries the
+  vertical detail). What JB60 gives up relative to PD120 is chroma resolution: about 2.9 px (Cr) and 3.6 px (Cb) per
+  slot against PD120's 1 px, so saturated colour edges bleed more than PD120's.
+- D is cheap: with 64 slots luma PSNR is only ~0.1 dB below 192 slots. Slots moved from D to chroma raise colour PSNR
+  a little (card all-channel 19.05 -> 19.16 dB) for ~0.03 dB luma. The split is a flat optimum; 144/224/176 is a
+  compromise.
+- Companding exponent 0.5-0.7 all score the same; linear (1.0) is clearly worse in noise (card SSIM 0.82 -> 0.79 at 25 dB).
+- Averaging two demod samples per slot beats taking one by 0.06-0.13 dB.

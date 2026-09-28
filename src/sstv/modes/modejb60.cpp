@@ -24,25 +24,23 @@ namespace
   const unsigned int kWidth=640;
 
   // sub line (segment) layout of one line pair, in sample slots
-  enum {SEG_Y0,SEG_Y1,SEG_CR,SEG_CB,NUMSEGS};
-  const unsigned int kSegCount[NUMSEGS]={320,320,320,224};
-  const unsigned int kSegOffset[NUMSEGS]={0,320,640,960};
+  enum {SEG_L,SEG_D,SEG_CR,SEG_CB,NUMSEGS};
+  const unsigned int kSegCount[NUMSEGS]={640,144,224,176};
+  const unsigned int kSegOffset[NUMSEGS]={0,640,784,1008};
   const unsigned int kTotalSlots=1184;
 
-  const unsigned int kLumaSamples=kWidth/2;
+  // vertical detail channel: level = 128 + sign(d)*kDMax*(|d|/kDMax)^kDGamma, so small differences get more of the swing
+  const float kDMax=127.0f;
+  const float kDGamma=0.6f;
 
-  // transmit prefilter: 5 tap diamond, removes the diagonal detail the quincunx lattice can't carry
-  const float kPrefCentre=0.5f;
-  const float kPrefSide=0.125f;
-
-  // receive: edge directed luma interpolation and luma guided chroma upsampling
+  // receive: luma guided chroma upsampling
   const float kGuideSigma=20.0f;   // luminance difference (0..255) that halves the trust in a chroma sample
   const float kGuideFloor=0.02f;   // keeps plain linear interpolation as the fallback
 
   /*!
-    Columns covered by chroma sample j of n samples across the picture width
+    Columns covered by sample j of n samples across the picture width
   */
-  void chromaFootprint(unsigned int n,unsigned int j,unsigned int &c0,unsigned int &c1)
+  void columnFootprint(unsigned int n,unsigned int j,unsigned int &c0,unsigned int &c1)
   {
     double pw=(double)kWidth/(double)n;
     c0=(unsigned int)floor(j*pw+1e-9);
@@ -57,6 +55,31 @@ namespace
     int i=(int)lroundf(v);
     return (unsigned char)(i<0 ? 0 : (i>255 ? 255 : i));
   }
+
+  inline unsigned char encodeD(float d)
+  {
+    float a=fabsf(d);
+    if(a>kDMax) a=kDMax;
+    float v=kDMax*powf(a/kDMax,kDGamma);
+    return clampByte(128.f+(d<0 ? -v : v));
+  }
+
+  /*!
+    Linear interpolation of n samples (sample j centred at (j+0.5)*width/n) at column x
+  */
+  inline float interpolate(const float *s,unsigned int n,unsigned int x)
+  {
+    double pw=(double)kWidth/(double)n;
+    double jf=(x+0.5)/pw-0.5;
+    int j0=(int)floor(jf);
+    float t=(float)(jf-j0);
+    int j1=j0+1;
+    if(j0<0) j0=0;
+    if(j0>(int)n-1) j0=(int)n-1;
+    if(j1<0) j1=0;
+    if(j1>(int)n-1) j1=(int)n-1;
+    return s[j0]*(1.f-t)+s[j1]*t;
+  }
 }
 
 modeJB60::modeJB60(esstvMode m,unsigned int len,bool tx,bool narrowMode): modeBase(m,len,tx,narrowMode)
@@ -67,6 +90,11 @@ modeJB60::modeJB60(esstvMode m,unsigned int len,bool tx,bool narrowMode): modeBa
     {
       float x=d/kGuideSigma;
       guideLut[d]=expf(-x*x);
+      float u=(d-128)/kDMax;
+      if(u>1.f) u=1.f;
+      if(u<-1.f) u=-1.f;
+      float v=kDMax*powf(fabsf(u),1.f/kDGamma);
+      dDecodeLut[d]=(u<0) ? -v : v;
     }
 }
 
@@ -81,12 +109,13 @@ void modeJB60::setupParams(double clock)
   // (re)initialise the receive state: init() is called again after a slant correction and the
   // picture is replayed from the start
   rowY.assign(kWidth,128);
-  curY0.assign(kSegCount[SEG_Y0],128);
-  curY1.assign(kSegCount[SEG_Y1],128);
+  curL.assign(kSegCount[SEG_L],128);
+  curD.assign(kSegCount[SEG_D],128);
   curCr.assign(kSegCount[SEG_CR],128);
   curCb.assign(kSegCount[SEG_CB],128);
-  prevY0=curY0;
-  prevY1=curY1;
+  prevL=curL;
+  prev2L=curL;
+  prevD=curD;
   prevCr=curCr;
   prevCb=curCb;
 }
@@ -115,14 +144,14 @@ modeBase::embState modeJB60::rxSetupLine()
       return MBRXWAIT;
     case 1:
       debugState=stColorLine0;
-      calcPixelPositionTable(SEG_Y0,false);
-      markerFloat+=kSegCount[SEG_Y0]*slot;
+      calcPixelPositionTable(SEG_L,false);
+      markerFloat+=kSegCount[SEG_L]*slot;
       pixelArrayPtr=yArrayPtr;
       return MBPIXELS;
     case 2:
       debugState=stColorLine1;
-      calcPixelPositionTable(SEG_Y1,false);
-      markerFloat+=kSegCount[SEG_Y1]*slot;
+      calcPixelPositionTable(SEG_D,false);
+      markerFloat+=kSegCount[SEG_D]*slot;
       pixelArrayPtr=greenArrayPtr;
       return MBPIXELS;
     case 3:
@@ -159,11 +188,11 @@ modeBase::embState modeJB60::txSetupLine()
   switch(subLine)
     {
     case 0:
-      calcPixelPositionTable(SEG_Y0,true);
+      calcPixelPositionTable(SEG_L,true);
       pixelArrayPtr=yArrayPtr;
       return MBPIXELS;
     case 1:
-      calcPixelPositionTable(SEG_Y1,true);
+      calcPixelPositionTable(SEG_D,true);
       pixelArrayPtr=greenArrayPtr;
       return MBPIXELS;
     case 2:
@@ -219,66 +248,68 @@ bool modeJB60::getPixels()
 }
 
 /*!
-  Transmit side: takes pair p=lineCounter (image rows 2p and 2p+1).
+  Transmit side helper: the rows 2*pair and 2*pair+1 of the picture (a pair outside the picture repeats the
+  edge pair). Fills the quantized mean luminance l (what the receiver will see as L), and, when not NULL,
+  the luminance of both rows and the mean red and blue.
+*/
+void modeJB60::txPairLuma(int pair,unsigned char *l,float *ya,float *yb,float *rBar,float *bBar)
+{
+  const int lastPair=(int)activeSSTVParam->numberOfDataLines-1;
+  if(pair<0) pair=0;
+  if(pair>lastPair) pair=lastPair;
+  unsigned int *rowA=txImage()->getScanLineAddress(2*pair);
+  unsigned int *rowB=txImage()->getScanLineAddress(2*pair+1);
+  for(unsigned int c=0;c<kWidth;c++)
+    {
+      unsigned int ta=rowA[c],tb=rowB[c];
+      float a=(59*qGreen(ta)+30*qRed(ta)+11*qBlue(ta))/100.f;
+      float b=(59*qGreen(tb)+30*qRed(tb)+11*qBlue(tb))/100.f;
+      l[c]=clampByte((a+b)/2.f);
+      if(ya) ya[c]=a;
+      if(yb) yb[c]=b;
+      if(rBar) rBar[c]=(qRed(ta)+qRed(tb))/2.f;
+      if(bBar) bBar[c]=(qBlue(ta)+qBlue(tb))/2.f;
+    }
+}
+
+/*!
+  Transmit side, takes pair p=lineCounter (image rows 2p and 2p+1). D is coded against the prediction
+  the receiver will make from the quantized L of the pairs on either side, so both ends use the same numbers.
 */
 void modeJB60::getLine()
 {
-  const unsigned int p=lineCounter;
-  const int lastRow=(int)activeSSTVParam->numberOfDisplayLines-1;
-  unsigned int *line[4];
-  float lum[4][kWidth];
+  const int p=(int)lineCounter;
+  unsigned char lPrev[kWidth],lCur[kWidth],lNext[kWidth];
+  float ya[kWidth],yb[kWidth],rBar[kWidth],bBar[kWidth];
+  float dRes[kWidth],crPix[kWidth],cbPix[kWidth];
   unsigned int c,k;
-  int i;
 
-  // rows 2p-1 .. 2p+2, rows outside the picture repeat the edge row
-  for(i=0;i<4;i++)
-    {
-      int r=(int)(2*p)-1+i;
-      if(r<0) r=0;
-      if(r>lastRow) r=lastRow;
-      line[i]=txImage()->getScanLineAddress(r);
-      for(c=0;c<kWidth;c++)
-        {
-          unsigned int t=line[i][c];
-          lum[i][c]=(59*qGreen(t)+30*qRed(t)+11*qBlue(t))/100.f;
-        }
-    }
+  txPairLuma(p-1,lPrev,NULL,NULL,NULL,NULL);
+  txPairLuma(p+1,lNext,NULL,NULL,NULL,NULL);
+  txPairLuma(p,lCur,ya,yb,rBar,bBar);
 
-  // luminance: quincunx samples of the prefiltered picture (even columns on row 2p, odd on row 2p+1)
-  for(i=0;i<2;i++)
-    {
-      unsigned char *out=(i==0) ? yArrayPtr : greenArrayPtr;
-      const float *above=lum[i];
-      const float *cur=lum[i+1];
-      const float *below=lum[i+2];
-      for(k=0;k<kLumaSamples;k++)
-        {
-          unsigned int col=2*k+i;
-          unsigned int cw=(col>0) ? col-1 : 0;
-          unsigned int ce=(col<kWidth-1) ? col+1 : kWidth-1;
-          out[k]=clampByte(kPrefCentre*cur[col]+kPrefSide*(above[col]+below[col]+cur[cw]+cur[ce]));
-        }
-    }
-
-  // chrominance: same definitions as PD (Cr=(R-Y)/1.4+127.5, Cb=(B-Y)/1.78+127.5) on the row pair,
-  // box averaged over the footprint of each sample
-  float crPix[kWidth];
-  float cbPix[kWidth];
   for(c=0;c<kWidth;c++)
     {
-      unsigned int te=line[1][c];
-      unsigned int to=line[2][c];
-      float ybar=(lum[1][c]+lum[2][c])/2.f;
-      float rbar=(qRed(te)+qRed(to))/2.f;
-      float bbar=(qBlue(te)+qBlue(to))/2.f;
-      crPix[c]=(rbar-ybar)/1.4f+127.5f;
-      cbPix[c]=(bbar-ybar)/1.78f+127.5f;
+      yArrayPtr[c]=lCur[c];
+      dRes[c]=(ya[c]-yb[c])/2.f-((float)lPrev[c]-(float)lNext[c])/8.f;
+      float lMean=(ya[c]+yb[c])/2.f;
+      crPix[c]=(rBar[c]-lMean)/1.4f+127.5f;      // same definitions as PD: Cr=(R-Y)/1.4+127.5
+      cbPix[c]=(bBar[c]-lMean)/1.78f+127.5f;     //                        Cb=(B-Y)/1.78+127.5
+    }
+  // box average over the footprint of each sample
+  for(k=0;k<kSegCount[SEG_D];k++)
+    {
+      unsigned int c0,c1;
+      float sum=0;
+      columnFootprint(kSegCount[SEG_D],k,c0,c1);
+      for(c=c0;c<=c1;c++) sum+=dRes[c];
+      greenArrayPtr[k]=encodeD(sum/(c1-c0+1));
     }
   for(k=0;k<kSegCount[SEG_CR];k++)
     {
       unsigned int c0,c1;
       float sum=0;
-      chromaFootprint(kSegCount[SEG_CR],k,c0,c1);
+      columnFootprint(kSegCount[SEG_CR],k,c0,c1);
       for(c=c0;c<=c1;c++) sum+=crPix[c];
       redArrayPtr[k]=clampByte(sum/(c1-c0+1));
     }
@@ -286,63 +317,19 @@ void modeJB60::getLine()
     {
       unsigned int c0,c1;
       float sum=0;
-      chromaFootprint(kSegCount[SEG_CB],k,c0,c1);
+      columnFootprint(kSegCount[SEG_CB],k,c0,c1);
       for(c=c0;c<=c1;c++) sum+=cbPix[c];
       blueArrayPtr[k]=clampByte(sum/(c1-c0+1));
     }
 }
 
 /*!
-  Rebuild a full luminance row from its own quincunx samples (columns 2k+parity) and the samples of the
-  rows above and below (opposite parity). A missing pixel has sampled neighbours W,E (same row) and N,S
-  (adjacent rows); the two directions are blended by how similar their pair is, so edges are followed
-  instead of smeared. A missing row (image edge) mirrors the other one.
-*/
-void modeJB60::reconstructLuma(unsigned char *out,const std::vector<unsigned char> &own,unsigned int parity,
-                               const std::vector<unsigned char> *up,const std::vector<unsigned char> *down)
-{
-  if(!up) up=down;
-  if(!down) down=up;
-  for(unsigned int c=0;c<kWidth;c++)
-    {
-      if((c&1)==parity)
-        {
-          out[c]=own[c>>1];
-          continue;
-        }
-      int wi,ei;
-      if(parity==0)
-        {
-          wi=(int)(c>>1);
-          ei=wi+1;
-        }
-      else
-        {
-          ei=(int)(c>>1);
-          wi=ei-1;
-        }
-      if(wi<0) wi=ei;
-      if(ei>=(int)kLumaSamples) ei=wi;
-      float w=own[wi];
-      float e=own[ei];
-      float n=(*up)[c>>1];
-      float s=(*down)[c>>1];
-      float dh=fabsf(w-e)+1.f;
-      float dv=fabsf(n-s)+1.f;
-      float wh=1.f/(dh*dh);
-      float wv=1.f/(dv*dv);
-      out[c]=clampByte((wh*(w+e)*0.5f+wv*(n+s)*0.5f)/(wh+wv));
-    }
-}
-
-/*!
-  Upsample one chroma component (c.size() samples) to the full row. Between the two nearest chroma
+  Upsample one chroma component (n samples) to the full row. Between the two nearest chroma
   samples the linear weight is multiplied by how well the pixel's luminance matches the mean
   luminance under each sample, so chroma edges snap to luminance edges.
 */
-void modeJB60::upsampleChroma(const unsigned char *y,const std::vector<unsigned char> &c,unsigned char *out)
+void modeJB60::upsampleChroma(const unsigned char *y,const unsigned char *c,unsigned int n,unsigned char *out)
 {
-  const unsigned int n=(unsigned int)c.size();
   float yb[kWidth];
   const double pw=(double)kWidth/(double)n;
   unsigned int j,x;
@@ -350,7 +337,7 @@ void modeJB60::upsampleChroma(const unsigned char *y,const std::vector<unsigned 
     {
       unsigned int c0,c1;
       unsigned int sum=0;
-      chromaFootprint(n,j,c0,c1);
+      columnFootprint(n,j,c0,c1);
       for(x=c0;x<=c1;x++) sum+=y[x];
       yb[j]=(float)sum/(float)(c1-c0+1);
     }
@@ -374,47 +361,63 @@ void modeJB60::upsampleChroma(const unsigned char *y,const std::vector<unsigned 
     }
 }
 
-void modeJB60::emitRow(const std::vector<unsigned char> &own,unsigned int parity,
-                       const std::vector<unsigned char> *up,const std::vector<unsigned char> *down,
-                       const std::vector<unsigned char> &cr,const std::vector<unsigned char> &cb)
+/*!
+  Rebuild the two rows of one pair. lPrev and lNext are the L lines of the pairs before and after (the
+  pair itself at the picture edges); the vertical detail is the transmitted residual plus the prediction
+  from them. Writes the rows at displayLineCounter through yuvConversion.
+*/
+void modeJB60::emitPair(const unsigned char *lPrev,const unsigned char *l,const unsigned char *lNext,
+                        const unsigned char *d,const unsigned char *cr,const unsigned char *cb)
 {
-  reconstructLuma(rowY.data(),own,parity,up,down);
-  upsampleChroma(rowY.data(),cr,redArrayPtr);
-  upsampleChroma(rowY.data(),cb,blueArrayPtr);
-  yuvConversion(rowY.data());   // writes the row at displayLineCounter and advances it
+  float dExp[kSegCount[SEG_D]];
+  float dFull[kWidth];
+  unsigned int c,k;
+  for(k=0;k<kSegCount[SEG_D];k++) dExp[k]=dDecodeLut[d[k]];
+  for(c=0;c<kWidth;c++)
+    {
+      dFull[c]=interpolate(dExp,kSegCount[SEG_D],c)+((float)lPrev[c]-(float)lNext[c])/8.f;
+    }
+  for(int row=0;row<2;row++)
+    {
+      for(c=0;c<kWidth;c++)
+        {
+          rowY[c]=clampByte((row==0) ? l[c]+dFull[c] : l[c]-dFull[c]);
+        }
+      upsampleChroma(rowY.data(),cr,kSegCount[SEG_CR],redArrayPtr);
+      upsampleChroma(rowY.data(),cb,kSegCount[SEG_CB],blueArrayPtr);
+      yuvConversion(rowY.data());   // writes the row at displayLineCounter and advances it
+    }
 }
 
 /*!
-  Receive side, called once per line pair. A row can only be finished once the rows above and below it
-  are known, so the picture trails the received data by one row: pair p finishes rows 2p-1 and 2p (and
-  row 0 / the last row at the picture edges).
+  Receive side, called once per line pair. A pair can only be finished once the L line of the next pair is
+  known, so the picture trails the received data by one pair: pair p finishes pair p-1 (and, at the end of
+  the picture, itself as well).
 */
 void modeJB60::showLine()
 {
   const unsigned int p=lineCounter;
   const bool last=(p+1>=activeSSTVParam->numberOfDataLines);
 
-  curY0.assign(yArrayPtr,yArrayPtr+kSegCount[SEG_Y0]);
-  curY1.assign(greenArrayPtr,greenArrayPtr+kSegCount[SEG_Y1]);
+  curL.assign(yArrayPtr,yArrayPtr+kSegCount[SEG_L]);
+  curD.assign(greenArrayPtr,greenArrayPtr+kSegCount[SEG_D]);
   curCr.assign(redArrayPtr,redArrayPtr+kSegCount[SEG_CR]);
   curCb.assign(blueArrayPtr,blueArrayPtr+kSegCount[SEG_CB]);
 
-  if(p==0)
+  if(p>0)
     {
-      emitRow(curY0,0,NULL,&curY1,curCr,curCb);
-    }
-  else
-    {
-      emitRow(prevY1,1,&prevY0,&curY0,prevCr,prevCb);
-      emitRow(curY0,0,&prevY1,&curY1,curCr,curCb);
+      // finish pair p-1; before the first pair there is nothing above it, so it repeats its own L
+      emitPair((p>1) ? prev2L.data() : prevL.data(),prevL.data(),curL.data(),prevD.data(),prevCr.data(),prevCb.data());
     }
   if(last)
     {
-      emitRow(curY1,1,&curY0,NULL,curCr,curCb);
+      // nothing follows the last pair: it repeats its own L below
+      emitPair((p>0) ? prevL.data() : curL.data(),curL.data(),curL.data(),curD.data(),curCr.data(),curCb.data());
     }
 
-  prevY0.swap(curY0);
-  prevY1.swap(curY1);
+  prev2L.swap(prevL);
+  prevL.swap(curL);
+  prevD.swap(curD);
   prevCr.swap(curCr);
   prevCb.swap(curCb);
 }

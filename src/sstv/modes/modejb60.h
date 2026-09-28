@@ -23,16 +23,23 @@
 #include <vector>
 
 /*!
-  JB60 sends 640x496 pictures in 248 line pairs at PD120's pixel rate (190 us/slot, so the same
-  audio bandwidth) but with about half the samples:
+  JB60 sends 640x496 pictures in 248 line pairs at PD120's pixel rate (190 us/slot, so the same audio
+  bandwidth) with about half the samples of PD120. The saving is vertical, never horizontal: the receive
+  video filter smears every slot over about four slots in time, so a slot that covers more than one
+  picture pixel makes the picture blurrier in proportion. Each line pair is:
 
-  - Y0 (row 2p) and Y1 (row 2p+1) carry luminance on a quincunx lattice: 320 samples per row,
-    even columns on the even row and odd columns on the odd row. The receiver rebuilds the
-    missing pixels with edge directed interpolation.
-  - Cr (320 samples) and Cb (224 samples) are shared by both rows of the pair. The receiver
-    upsamples them guided by the reconstructed luminance.
+  - L  (640 slots): the mean luminance of the two rows, one slot per pixel exactly as PD120 sends a row.
+  - D  (144 slots): the vertical detail (row 2p minus row 2p+1, halved), sent as a residual against the
+    prediction (L(p-1)-L(p+1))/8 that the receiver makes from the neighbouring L lines, box averaged
+    horizontally and companded. Vertical detail is small except at horizontal edges, which extend
+    horizontally, so the coarse horizontal sampling costs little.
+  - Cr (224 slots) and Cb (176 slots): chrominance of the pair, defined as in PD. The receiver upsamples
+    them guided by the luminance.
 
-  Line layout (trailing sync like PD): bp, Y0, Y1, Cr, Cb, fp, sync.
+  The receiver rebuilds rows 2p and 2p+1 as L +/- D. A pair needs the L lines on both sides, so the
+  picture trails the received data by one pair.
+
+  Line layout (trailing sync like PD): bp, L, D, Cr, Cb, fp, sync.
 */
 class modeJB60 : public modeBase
 {
@@ -48,19 +55,19 @@ protected:
   void getLine();
 private:
   void calcPixelPositionTable(unsigned int segment,bool tx);
-  void reconstructLuma(unsigned char *out,const std::vector<unsigned char> &own,unsigned int parity,
-                       const std::vector<unsigned char> *up,const std::vector<unsigned char> *down);
-  void upsampleChroma(const unsigned char *y,const std::vector<unsigned char> &c,unsigned char *out);
-  void emitRow(const std::vector<unsigned char> &own,unsigned int parity,
-               const std::vector<unsigned char> *up,const std::vector<unsigned char> *down,
-               const std::vector<unsigned char> &cr,const std::vector<unsigned char> &cb);
+  void txPairLuma(int pair,unsigned char *l,float *ya,float *yb,float *rBar,float *bBar);
+  void upsampleChroma(const unsigned char *y,const unsigned char *c,unsigned int n,unsigned char *out);
+  void emitPair(const unsigned char *lPrev,const unsigned char *l,const unsigned char *lNext,
+                const unsigned char *d,const unsigned char *cr,const unsigned char *cb);
 
   DSPFLOAT slot;                       //!< duration of one sample slot (in samples of the local clock)
   quint16 prevSample;                  //!< previous demodulator sample (RX slot averaging)
   float guideLut[256];                 //!< luminance similarity weight for chroma upsampling
+  float dDecodeLut[256];               //!< expands a received D level back to a luminance difference
   std::vector<unsigned char> rowY;     //!< reconstructed luminance row
-  std::vector<unsigned char> curY0,curY1,curCr,curCb;
-  std::vector<unsigned char> prevY0,prevY1,prevCr,prevCb;
+  std::vector<unsigned char> curL,curD,curCr,curCb;
+  std::vector<unsigned char> prevL,prevD,prevCr,prevCb;
+  std::vector<unsigned char> prev2L;
 };
 
 #endif
