@@ -6,8 +6,19 @@
 
 #include <QSettings>
 
+namespace
+{
+  int wideFilterOverride=-1;
+}
+
+void setWideVideoFilterOverride(int override)
+{
+  wideFilterOverride=override;
+}
+
 bool wideVideoFilterEnabled()
 {
+  if(wideFilterOverride>=0) return wideFilterOverride==1;
   QSettings qSettings;
   qSettings.beginGroup("RX");
   bool enabled=qSettings.value("wideVideoFilter",false).toBool();

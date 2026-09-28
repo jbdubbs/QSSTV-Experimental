@@ -28,6 +28,8 @@ public:
   ~rxWidget();
   void readSettings();
   void writeSettings();
+  //! select the RX mode by short name ("PD120", "JB60" ...) or "auto"; false if there is no such mode
+  bool setRxModeByName(const QString &name);
   void startRX(bool st);
   rxFunctions *functionsPtr() {return rxFunctionsPtr;}
   imageViewer *getImageViewerPtr(){ return imageViewerPtr;}
@@ -53,6 +55,7 @@ private slots:
   void slotStart();
   void slotStop();
   void slotResync();
+  void slotDecodeFile();
   void slotGetParams();
   void slotEngineChanged(bool checked);
   void slotTransmissionMode(int rxtxMode);

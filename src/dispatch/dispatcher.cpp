@@ -38,6 +38,7 @@ It also starts, stops and synchronizes the threads.
 #include "logbook.h"
 #include "dirdialog.h"
 #include "ftpfunctions.h"
+#include "filedecoder.h"
 
 #include <QSettings>
 #include <QMessageBox>
@@ -114,7 +115,12 @@ void dispatcher::customEvent( QEvent * e )
       }
       break;
     case endSSTVImageRX:
-      if(autoSave)
+      if(fileDecoderPtr && fileDecoderPtr->isBatch())
+        {
+          // headless decode from file: just keep the picture, none of the gallery / repeater / FTP handling
+          fileDecoderPtr->imageDecoded(((endImageSSTVRXEvent*)e)->getMode());
+        }
+      else if(autoSave)
         {
           addToLog("dispatcher:endImage savingRxImage",LOGDISPATCH);
           saveRxSSTVImage(((endImageSSTVRXEvent*)e)->getMode());
@@ -250,6 +256,11 @@ void dispatcher::customEvent( QEvent * e )
       break;
 
     case displayMBox:
+      if(fileDecoderPtr && fileDecoderPtr->isBatch())
+        {
+          fileDecoderPtr->reportError(((displayMBoxEvent*)e)->getTitle(),((displayMBoxEvent*)e)->getStr());
+          break;
+        }
       if(mbox==NULL) delete mbox;
       mbox = new QMessageBox(mainWindowPtr);
       mbox->setWindowTitle(((displayMBoxEvent*)e)->getTitle());

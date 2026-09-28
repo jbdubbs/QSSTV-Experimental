@@ -23,6 +23,7 @@
 #include "appglobal.h"
 #include "logging.h"
 #include "dispatch/dispatcher.h"
+#include "dispatch/filedecoder.h"
 #include "ui_mainwindow.h"
 #include "soundpulse.h"
 #ifndef __APPLE__
@@ -122,6 +123,7 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
   else  soundIOPtr=new soundAlsa;
 #endif
   dispatcherPtr=new dispatcher;
+  fileDecoderPtr=new fileDecoder(this);
   waterfallPtr=new waterfallText;
   xmlIntfPtr=new xmlInterface;
   logBookPtr=new logBook;
@@ -129,6 +131,7 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
   // setup connections
 
   connect(ui->actionSaveWaterfallImage,SIGNAL(triggered()),this, SLOT(slotSaveWaterfallImage()));
+  connect(ui->actionDecodeFromFile,SIGNAL(triggered()),this, SLOT(slotDecodeFromFile()));
   connect(ui->actionExit,SIGNAL(triggered()),this, SLOT(slotExit()));
   connect(ui->actionConfigure,SIGNAL(triggered()),this, SLOT(slotConfigure()));
   connect(ui->actionCalibrate,SIGNAL(triggered()),this, SLOT(slotCalibrate()));
@@ -196,10 +199,13 @@ mainWindow::~mainWindow()
  */
 void mainWindow::init()
 {
-  cleanUpCache(rxSSTVImagesPath);
-  cleanUpCache(rxDRMImagesPath);
-  cleanUpCache(txSSTVImagesPath);
-  cleanUpCache(txDRMImagesPath);
+  if(!fileDecoderPtr->isBatch()) // a headless decode must not prune the user's image caches
+    {
+      cleanUpCache(rxSSTVImagesPath);
+      cleanUpCache(rxDRMImagesPath);
+      cleanUpCache(txSSTVImagesPath);
+      cleanUpCache(txDRMImagesPath);
+    }
   //start rx and tx threads
   rxWidgetPtr->functionsPtr()->start();
   txWidgetPtr->functionsPtr()->start();
@@ -252,10 +258,15 @@ void mainWindow::restartSound(bool inStartUp)
 }
 
 
-void mainWindow::startRunning()
+void mainWindow::startRunning(bool startCardRx)
 {
   inStartup=false;
-  dispatcherPtr->startRX();
+  if(startCardRx) dispatcherPtr->startRX();
+}
+
+void mainWindow::slotDecodeFromFile()
+{
+  fileDecoderPtr->chooseAndDecode(this);
 }
 
 
@@ -355,15 +366,24 @@ void mainWindow::slotExit()
 
   if(exit==QMessageBox::Ok)
     {
-      statusBarPtr->showMessage("Cleaning up...");
-      dispatcherPtr->idleAll();
-      rxWidgetPtr->setOnlineStatus(false);
-      rxWidgetPtr->functionsPtr()->stopThread();
-      txWidgetPtr->functionsPtr()->stopThread();
-      if(soundIOPtr) soundIOPtr->stopSoundThread();
-      writeSettings();
+      shutdown(true);
       QApplication::quit();
     }
+}
+
+/*!
+  Stop the receiver, transmitter and sound threads. interactive==false (the headless batch decode) leaves the
+  settings file and the FTP "offline" notice alone.
+*/
+void mainWindow::shutdown(bool interactive)
+{
+  statusBarPtr->showMessage("Cleaning up...");
+  dispatcherPtr->idleAll();
+  if(interactive) rxWidgetPtr->setOnlineStatus(false);
+  rxWidgetPtr->functionsPtr()->stopThread();
+  txWidgetPtr->functionsPtr()->stopThread();
+  if(soundIOPtr) soundIOPtr->stopSoundThread();
+  if(interactive) writeSettings();
 }
 
 void  mainWindow::closeEvent ( QCloseEvent *e )

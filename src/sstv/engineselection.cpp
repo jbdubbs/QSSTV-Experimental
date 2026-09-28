@@ -50,8 +50,18 @@ void setSelectedEngine(esstvMode mode, eEngine engine)
 	qSettings.endGroup();
 }
 
+namespace {
+int rxEngineOverride = -1;
+}
+
+void setRxEngineOverride(int override)
+{
+	rxEngineOverride = override;
+}
+
 bool rxPreferCoreEngine()
 {
+	if (rxEngineOverride >= 0) return rxEngineOverride == 1;
 	QSettings qSettings;
 	qSettings.beginGroup("RX");
 	bool prefer = qSettings.value("useMmsstvCoreEngine", true).toBool();

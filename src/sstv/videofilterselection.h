@@ -18,6 +18,10 @@
 bool wideVideoFilterEnabled();
 void setWideVideoFilterEnabled(bool enabled);
 
+// In-memory override of wideVideoFilterEnabled() for the running process only (never persisted):
+// -1 = none (use the setting), 0 = off, 1 = on. Used by the command line (--wide-filter).
+void setWideVideoFilterOverride(int override);
+
 // Modes with a 190 us (or faster) pixel or slot time, the ones the wide filter is meant for.
 bool videoFilterWideSuits(esstvMode mode);
 

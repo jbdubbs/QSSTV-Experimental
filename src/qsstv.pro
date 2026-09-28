@@ -67,6 +67,7 @@ SOURCES += main.cpp\
     editor/graphicitems.cpp \
     widgets/textdisplay.cpp \
     dispatch/dispatcher.cpp \
+    dispatch/filedecoder.cpp \
     drmrx/bits2bytes.cpp \
     drmrx/channeldecode.cpp \
     drmrx/crc16_bytewise.cpp \
@@ -244,6 +245,7 @@ HEADERS  += mainwindow.h \
     editor/graphicitems.h \
     widgets/textdisplay.h \
     dispatch/dispatcher.h \
+    dispatch/filedecoder.h \
     dispatch/dispatchevents.h \
     drmrx/demodulator.h \
     drmrx/drm.h \

@@ -22,7 +22,8 @@ public:
   explicit mainWindow(QWidget *parent = 0);
   ~mainWindow();
   void init();
-  void startRunning();
+  void startRunning(bool startCardRx=true);
+  void shutdown(bool interactive);
   void setNewFont();
   void setPTT(bool p);
   void setSSTVDRMPushButton(bool inDRM);
@@ -31,6 +32,7 @@ public:
 private slots:
   void slotConfigure();
   void slotSaveWaterfallImage();
+  void slotDecodeFromFile();
   void slotExit();
   void slotResetLog();
   void slotLogSettings();

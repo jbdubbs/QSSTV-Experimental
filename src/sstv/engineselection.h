@@ -57,4 +57,9 @@ void setSelectedEngine(esstvMode mode, eEngine engine);
 bool rxPreferCoreEngine();
 void setRxPreferCoreEngine(bool prefer);
 
+// In-memory override of rxPreferCoreEngine() for the running process only (never persisted, unlike the setter
+// above): -1 = none (use the setting), 0 = QSSTV's own engine for every mode, 1 = mmsstv-core. Used by the
+// command line (--engine) so scripted decodes can pick an engine without touching the user's settings.
+void setRxEngineOverride(int override);
+
 #endif // ENGINESELECTION_H

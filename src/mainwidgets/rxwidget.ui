@@ -111,6 +111,23 @@
           </widget>
          </item>
          <item>
+          <widget class="QToolButton" name="decodeFileToolButton">
+           <property name="toolTip">
+            <string>Decode SSTV from an audio file</string>
+           </property>
+           <property name="statusTip">
+            <string>Decode SSTV from an audio file</string>
+           </property>
+           <property name="text">
+            <string>...</string>
+           </property>
+           <property name="icon">
+            <iconset resource="../qsstv.qrc">
+             <normaloff>:/icons/fileopen.png</normaloff>:/icons/fileopen.png</iconset>
+           </property>
+          </widget>
+         </item>
+         <item>
           <widget class="QToolButton" name="saveToolButton">
            <property name="toolTip">
             <string>Save image</string>
@@ -357,7 +374,7 @@
              </property>
             </widget>
            </item>
-           <item row="5" column="0">
+           <item row="7" column="0">
             <widget class="QCheckBox" name="wideFilterCheckBox">
              <property name="toolTip">
               <string>Use a wider video filter for the fast modes (PD120, PD120S, PD120W, JB60): sharper pictures on a clean signal (cable, local VHF/UHF FM, strong signals) but noisier on weak ones, so leave it off for typical HF. Takes effect at the next picture. PD120 only uses it when MMSSTV Core is not handling PD120.</string>

@@ -16,6 +16,7 @@
 #include "ftpthread.h"
 #include "engineselection.h"
 #include "videofilterselection.h"
+#include "dispatch/filedecoder.h"
 
 
 rxWidget::rxWidget(QWidget *parent):QWidget(parent),ui(new Ui::rxWidget)
@@ -74,6 +75,7 @@ void rxWidget::init()
   connect(ui->startToolButton, SIGNAL(clicked()),SLOT(slotStart()));
   connect(ui->stopToolButton, SIGNAL(clicked()),SLOT(slotStop()));
   connect(ui->resyncToolButton,SIGNAL(clicked()),SLOT(slotResync()));
+  connect(ui->decodeFileToolButton,SIGNAL(clicked()),SLOT(slotDecodeFile()));
   connect(ui->autoSaveCheckBox,SIGNAL(clicked()),SLOT(slotGetParams()));
   connect(ui->autoSlantAdjustCheckBox,SIGNAL(clicked()),SLOT(slotGetParams()));
   connect(ui->wideFilterCheckBox,SIGNAL(clicked()),SLOT(slotGetParams()));
@@ -196,6 +198,30 @@ void rxWidget::rebuildModeComboBox()
   ui->sstvModeComboBox->blockSignals(false);
 }
 
+bool rxWidget::setRxModeByName(const QString &name)
+{
+  esstvMode mode=NOTVALID;   // NOTVALID = Auto
+  if(name.compare("auto",Qt::CaseInsensitive)!=0)
+    {
+      for(int i=0;i<NUMSSTVMODES;i++)
+        {
+          if(getSSTVModeNameShort((esstvMode)i).compare(name,Qt::CaseInsensitive)==0)
+            {
+              mode=(esstvMode)i;
+              break;
+            }
+        }
+      if(mode==NOTVALID) return false;
+    }
+  int idx=rxModeList.indexOf(mode);
+  if(idx<0) return false;
+  ui->sstvModeComboBox->blockSignals(true);
+  ui->sstvModeComboBox->setCurrentIndex(idx);
+  ui->sstvModeComboBox->blockSignals(false);
+  sstvModeIndexRx=(mode==NOTVALID) ? (esstvMode)0 : (esstvMode)((int)mode+1);
+  return true;
+}
+
 void rxWidget::slotEngineChanged(bool checked)
 {
   setRxPreferCoreEngine(checked);
@@ -221,6 +247,11 @@ void rxWidget::slotStop()
 {
   getParams();
   dispatcherPtr->idleAll();
+}
+
+void rxWidget::slotDecodeFile()
+{
+  fileDecoderPtr->chooseAndDecode(this);
 }
 
 void rxWidget::slotResync()
