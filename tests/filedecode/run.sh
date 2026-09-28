@@ -35,6 +35,7 @@ for m in jb pd; do
   eval "harness_$m=$(awk '/PSNR/{print $9}' "$T/$m.harness")"
 done
 "$LB" jb --image card --vis --count 2 --wav "$T/jb2.wav" > /dev/null
+"$LB" jb --image card --fir wide --vis --wav "$T/jbw.wav" --out "$T/jbw" > /dev/null
 
 echo "== decode, QSSTV engine (VIS detection + sync through the real app)"
 declare -A MODE=([jb]=JB60 [pd]=PD120)
@@ -44,12 +45,33 @@ for m in jb pd; do
   png="$T/o_$m/${m}_1_${MODE[$m]}.png"
   if [ -f "$png" ]; then
     l=$(luma "$T/${m}_src.png" "$png"); h=$(eval echo \$harness_$m)
-    # the application samples about 2 samples later than the harness's calibrated timing, which costs ~0.3-0.7 dB
-    ge "$l" "$(awk -v h="$h" 'BEGIN{print h-1.5}')" && ok "$m: luma PSNR $l dB (harness $h dB)" || bad "$m: luma PSNR $l dB, harness $h dB"
+    ge "$l" "$(awk -v h="$h" 'BEGIN{print h-1.0}')" && ok "$m: luma PSNR $l dB (harness $h dB)" || bad "$m: luma PSNR $l dB, harness $h dB"
   else
     bad "$m: no ${MODE[$m]} picture written"
   fi
 done
+
+echo "== JB60 receive-timing regression"
+# JB60's RX back porch (src/sstv/sstvparam.cpp) trims out the ~2.5 sample (12 kHz) lag between the sync
+# detector's filter chain and the video filter's, measured by comparing the application's own decode against
+# the loopback harness's calibrated-delay reference (tests/jb60_loopback/README.md "The application against
+# this harness"). Un-trimmed it was ~31.7 dB against that reference (narrow filter) and ~28 dB (wide filter,
+# which is more sensitive to the offset); trimmed it is 40+ dB either way. 35 dB leaves headroom for machine
+# to machine filter-arithmetic noise while still catching a real regression (a reintroduced ~2 sample offset
+# lands at 25-30 dB, well below the guard).
+timing_check() {
+  local label=$1 ref=$2 png=$3
+  if [ -f "$png" ]; then
+    local l=$(luma "$ref" "$png")
+    ge "$l" 35 && ok "$label: matches the harness's ideal timing, luma PSNR $l dB" \
+                || bad "$label: matches the harness's ideal timing, luma PSNR $l dB (want >= 35 dB)"
+  else
+    bad "$label: no picture to check"
+  fi
+}
+timing_check "jb narrow filter" "$T/jb_rx.png" "$T/o_jb/jb_1_JB60.png"
+run --engine qsstv --wide-filter on -o "$T/o_jbw" "$T/jbw.wav"
+timing_check "jb wide filter" "$T/jbw_rx.png" "$T/o_jbw/jbw_1_JB60.png"
 
 echo "== options"
 run --engine qsstv --mode PD120 -o "$T/o_mode" "$T/pd.wav"; expect_exit "forced correct mode" 0 $?

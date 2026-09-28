@@ -344,7 +344,15 @@ sSSTVParam SSTVTable[NUMSSTVMODES+1]=
   {"ML240"     ,"ML240",  ML240,   239.7328 ,640,496,496,0x8623,0.00900,0.00050,0.00050,0.00050,0.00900,0.00000,0.00100,0.00000,0.,1900,400 },
   {"ML280"     ,"ML280",  ML280,   280.4060 ,640,496,496,0x8923,0.00900,0.00000,0.00100,0.00000,0.00900,0.00000,0.00100,0.00000,0.,1900,400 },
   {"ML320"     ,"ML320",  ML320,   320.0910 ,640,496,496,0x8A23,0.00900,0.00000,0.00100,0.00000,0.00900,0.00000,0.00100,0.00000,0.,1900,400 },
-  {"JB60"      ,"JB60",   JB60,     61.26592,640,496,248,0x66  ,0.02000,0.00000,0.00208,0.00000,0.02000,0.00000,0.00208,0.00000,0.,1900,400 },
+  // RX bp (0.00187) is deliberately shorter than TX bpt (0.00208): the sync detector and the video
+  // demodulator are separate filter chains with different group delays, so a receiver that times pixels
+  // purely from the detected sync position needs its own porch value to land on the right sample -- the
+  // same reason PD's tables above use a longer TX bp than RX bp, just applied on the other side here since
+  // JB60 has no other decoder to stay compatible with. Found and measured with tests/jb60_loopback and
+  // tests/filedecode (see the "receive-timing regression" check and the loopback README's "the application
+  // against this harness" section); 0.00208 both sides (the original value) cost about 0.6 dB and undid most
+  // of the wide video filter's gain.
+  {"JB60"      ,"JB60",   JB60,     61.26592,640,496,248,0x66  ,0.02000,0.00000,0.00187,0.00000,0.02000,0.00000,0.00208,0.00000,0.,1900,400 },
   {"FAX480"    ,"FAX480", FAX480,  133.63300,512,500,500,0x00  ,0.00512,0.00000,0.00000,0.00000,0.00512,0.00000,0.00000,0.00000,0.,1900,400 },
   {"AVT24"     ,"AVT24",  AVT24,    22.50160,128,120,120,0xc0  ,0.00500,0.00080,0.00050,0.00050,0.00500,0.00080,0.00000,0.00050,0.,1900,400 },
   {"AVT90"     ,"AVT90",  AVT90,    90.00450,320,240,240,0x44  ,0.00500,0.00080,0.00050,0.00050,0.00500,0.00080,0.00000,0.00050,0.,1900,400 },

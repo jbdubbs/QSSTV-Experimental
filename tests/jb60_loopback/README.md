@@ -106,16 +106,23 @@ a loss for typical noisy HF (15-25 dB). CPU cost of the second demodulator: abou
 ## The application against this harness
 
 Decoding these recordings with the real application (`qsstv --batch`, real VIS detection and sync) gives pictures that
-match the harness output at a sampling shift of **+2 samples** (12 kHz), to 54 dB PSNR / SSIM 1.000 for both PD120 and
-JB60: the application samples the picture about 2 samples (167 us, 0.9 of a 190 us slot) later than the harness's
-calibrated delay. The cost on the test card (luma PSNR, harness at shift 0 against shift +2):
+match the harness output at a sampling shift of **+2 to +2.5 samples** (12 kHz): the application's video demodulator and
+its sync detector are separate filter chains with different group delays, so a receiver that times pixels purely from
+the detected sync position samples about 2.5 samples (208 us, 1.1 of a 190 us slot) later than the harness's own
+calibrated-delay reference. The cost on the test card (luma PSNR, harness at shift 0 against shift +2):
 
-| | shift 0 | shift +2 (the application) |
+| | shift 0 | shift +2 (before the fix below) |
 |---|---|---|
 | JB60, standard filter | 21.48 | 20.87 |
 | JB60, wide filter | 22.63 | 21.01 |
 | PD120, standard filter | 21.55 | 21.28 |
 
-So the late sampling costs JB60 about 0.6 dB and cancels almost all of the wide filter's gain (the sharper filter is more
-sensitive to where in a slot it is sampled). PD120 probably hides part of it: its transmitter porch is 0.22 ms longer
-than its receiver's, which is worth about 2.6 samples in the other direction (JB60's transmit and receive porches are equal).
+**Fixed for JB60** (`src/sstv/sstvparam.cpp`): its RX back porch (`bp`) is trimmed by 2.5 samples (0.00208 s -> 0.00187 s)
+relative to its TX porch (`bpt`, left at 0.00208 s, so nothing about the transmitted signal changes). That shifts every
+pixel-sampling position in the received line earlier by the same amount, which is exactly the compensation needed.
+Verified by comparing the real application's decode against this harness's own ideal-timing (shift 0) reference,
+sweeping candidate porch values in steps of one 12 kHz sample: match quality rises from 31.7 dB (broken) to a flat
+peak of 40-42 dB around -2.5 to -3 samples. The `tests/filedecode` "receive-timing regression" check asserts this
+stays above 35 dB. PD120's tables already do the equivalent compensation, on the other side: its transmitter porch is
+0.22 ms (2.6 samples) longer than its receiver's, which is why it showed a smaller residual error above. PD120 was
+left alone here since it wasn't part of this fix; its own small residual gap (about 0.3 dB) is unchanged.
