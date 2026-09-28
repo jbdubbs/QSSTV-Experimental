@@ -1,6 +1,34 @@
 # QSSTV
 QSSTV is a program for receiving and transmitting SSTV and HAMDRM (sometimes called DSSTV). It is compatible with most of MMSSTV and EasyPal
 
+## Decoding an SSTV recording from a file
+
+**In the program:** *File > Decode SSTV From File...* (Ctrl+O), or the folder button next to Start/Stop on the Receive tab.
+Pick one or more WAV files. They play through the normal receiver at about ten times real time (you watch the picture
+build up), pictures are saved as usual when *Autosave* is on, and the sound card receiver resumes when the last file is done.
+The Stop button cancels. Any WAV works: 8/16/24/32 bit PCM or float, mono or stereo (the first channel is used), any sample
+rate (it is resampled to 48 kHz). A picture that is still being received when the recording ends is kept if enough of it
+arrived (*Save if Complete*).
+
+**From the command line:**
+
+	qsstv --decode recording.wav              # window opens, you watch it decode, then the sound card receiver resumes
+	qsstv recording.wav                       # same
+	qsstv --batch -o pictures/ a.wav b.wav    # headless: no window, no sound card needed
+
+`--batch` saves every picture as `<file>_<n>_<MODE>.png` in the output directory (default: the current directory), prints one
+line per picture on stdout, reports problems on stderr and exits with a code you can script on:
+0 = every file gave a picture, 1 = some file gave none, 2 = unusable file or bad option, 3 = timeout. It decodes much faster than real time,
+uses Qt's offscreen platform so it also works over ssh, reads your settings but never writes them, and does not prune your image caches.
+
+Options: `--mode PD120` (receive only that mode instead of auto detection; `--list-modes` shows the names),
+`--engine qsstv|core|auto` (which receive engine, for this run only), `--wide-filter on|off|auto` (the wide video filter for the fast
+modes, for this run only), `--timeout SECONDS` (batch: per-file limit, default the file's length + 30 s), `--help`.
+For a completely clean run use a throw-away configuration: `HOME=$(mktemp -d) qsstv --batch ...`.
+
+`tests/filedecode/run.sh` decodes generated recordings with the built program and checks pictures, exit codes and file formats
+(needs the loopback harness in `tests/jb60_loopback`; ffmpeg is optional and adds the sample-rate and format variants).
+
 ## Installation
 
 ### Dependencies 

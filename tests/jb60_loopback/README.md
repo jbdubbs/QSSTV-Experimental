@@ -20,11 +20,13 @@ aa21f70) looked fine in the test and blurry on the air. JB60 now sends one luma 
 
 Options: `--image 0|1|2|card|vedge320|vedge321|hedge248|hedge249|grath|gratv|gratd|file.png` (a file is scaled to
 640x496), `--suite`, `--ideal`, `--fir wide|narrow` (the RX "Wide Video Filter", default narrow), `--snr dB` (white noise, dB in 2.7 kHz), `--ssb` (300-2700 Hz, zero phase),
-`--noise-hz Hz` (with `--ideal`), `--clock-err frac`, `--tshift samples`, `--out prefix`, `--wav file`.
+`--noise-hz Hz` (with `--ideal`), `--clock-err frac`, `--tshift samples`, `--out prefix`, `--wav file`
+(`--vis` adds the real transmitter preamble and VIS code so the application can detect the mode, `--count N` puts N
+pictures in the file). `./loopback --compare a.png b.png` prints PSNR and SSIM of two pictures.
 
-The `--wav` file has no leader or VIS code (the test only sends the picture lines), so it is for other decoders'
-line-sync paths. For a live check of VIS detection and sync in the app, transmit with QSSTV itself (sound output to
-file) and receive that file.
+Without `--vis` the `--wav` file holds only the picture lines (no leader or VIS code), which is enough for decoders that
+lock on sync alone. With `--vis` it is a complete recording that `qsstv --batch` decodes end to end (see
+`tests/filedecode/run.sh`).
 
 `images/card.png` is a fixed text-and-graphics card (colour-on-colour text from 52 px down to 10 px, 1 px lines,
 colour bars, a diagonal). The "text region" metrics use its rows 120-300.
@@ -100,3 +102,20 @@ down to about 20 dB, but the noise texture in flat areas costs structure well be
 On a photo with a text overlay the crossover is a little lower (at 30 dB: PSNR 24.39 -> 27.02 dB, SSIM 0.879 -> 0.884).
 So the wide filter is a win for clean paths (cable, local VHF/UHF FM, strong signals, about 30-35 dB and better) and
 a loss for typical noisy HF (15-25 dB). CPU cost of the second demodulator: about 0.2% of one core.
+
+## The application against this harness
+
+Decoding these recordings with the real application (`qsstv --batch`, real VIS detection and sync) gives pictures that
+match the harness output at a sampling shift of **+2 samples** (12 kHz), to 54 dB PSNR / SSIM 1.000 for both PD120 and
+JB60: the application samples the picture about 2 samples (167 us, 0.9 of a 190 us slot) later than the harness's
+calibrated delay. The cost on the test card (luma PSNR, harness at shift 0 against shift +2):
+
+| | shift 0 | shift +2 (the application) |
+|---|---|---|
+| JB60, standard filter | 21.48 | 20.87 |
+| JB60, wide filter | 22.63 | 21.01 |
+| PD120, standard filter | 21.55 | 21.28 |
+
+So the late sampling costs JB60 about 0.6 dB and cancels almost all of the wide filter's gain (the sharper filter is more
+sensitive to where in a slot it is sampled). PD120 probably hides part of it: its transmitter porch is 0.22 ms longer
+than its receiver's, which is worth about 2.6 samples in the other direction (JB60's transmit and receive porches are equal).

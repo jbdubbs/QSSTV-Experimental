@@ -51,6 +51,8 @@ namespace
     double tshift=0;       // extra timing shift (12 kHz samples)
     std::string out,wav;
     bool suite=false;
+    bool vis=false;        // --vis: --wav gets the leader/VIS header the real transmitter sends, so the app can detect the mode
+    int count=1;           // --count N: N pictures in the --wav file
   };
 
   const int W=640,H=496;
@@ -102,12 +104,14 @@ namespace
   // ------------------------------------------------------------------ channel
   const double kAudioAmp=8000.;      // what synthesizer::nextSample produces
 
+  // a frequency of 0 means silence
   std::vector<double> makeAudio(const std::vector<float> &f48)
   {
     std::vector<double> a(f48.size());
     double ph=0;
     for(size_t i=0;i<f48.size();i++)
       {
+        if(f48[i]<=0) { a[i]=0; continue; }
         ph+=2*M_PI*f48[i]/48000.;
         if(ph>2*M_PI) ph-=2*M_PI;
         a[i]=kAudioAmp*sin(ph);
@@ -170,6 +174,40 @@ namespace
         out.insert(out.end(),vf.demodPtr,vf.demodPtr+RXSTRIPE);
       }
     return out;
+  }
+
+  void tone(std::vector<float> &t,double seconds,double freq)
+  {
+    t.insert(t.end(),(size_t)lround(seconds*48000.),(float)freq);
+  }
+
+  // What sstvTx::sendPreamble() and sendVIS() send before the picture (src/sstv/sstvtx.cpp), which is what
+  // the receiver needs to recognise the mode. Kept in step with those two functions by hand.
+  std::vector<float> visHeader(esstvMode mode)
+  {
+    std::vector<float> t;
+    static const double pre[8]={1900,1500,1900,1500,2300,1500,2300,1500};
+    for(double f:pre) tone(t,0.1,f);
+    tone(t,0.3,1900); tone(t,0.01,1200); tone(t,0.3,1900);
+    int code=SSTVTable[mode].VISCode;
+    tone(t,0.030,1200);                                   // start bit
+    for(int i=0;i<8;i++) { tone(t,0.030,(code&1) ? 1100 : 1300); code>>=1; }
+    tone(t,0.030,1200);                                   // stop bit
+    return t;
+  }
+
+  // header + picture, `count` times, with silence in front and between (a recording, not a bare picture)
+  std::vector<float> recordingTrack(const std::vector<float> &picture,esstvMode mode,bool vis,int count)
+  {
+    std::vector<float> t;
+    tone(t,0.5,0);
+    for(int k=0;k<count;k++)
+      {
+        if(vis) { std::vector<float> h=visHeader(mode); t.insert(t.end(),h.begin(),h.end()); }
+        t.insert(t.end(),picture.begin(),picture.end());
+        tone(t,1.0,0);
+      }
+    return t;
   }
 
   std::vector<float> withTail(std::vector<float> f48)
@@ -261,7 +299,13 @@ namespace
         std::vector<double> audio=makeAudio(withTail(f48));
         if(o.hasSnr) addNoise(audio,o.snr);
         if(o.ssb) bandLimit(audio);
-        if(!o.wav.empty()) writeWav(o.wav,audio);
+        if(!o.wav.empty())
+          {
+            std::vector<double> rec=makeAudio(withTail(recordingTrack(f48,o.mode,o.vis,o.count)));
+            if(o.hasSnr) addNoise(rec,o.snr);
+            if(o.ssb) bandLimit(rec);
+            writeWav(o.wav,rec);
+          }
         res.delay=calibrateDelay(o.wide)+o.tshift;
         demod=alignTrack(demodChain(audio,o.wide),res.delay);
       }
@@ -341,7 +385,16 @@ int main(int argc,char**argv)
   if(argc<2) { fprintf(stderr,
       "usage: %s <jb|pd> [--image 0|1|2|card|vedge320|vedge321|hedge248|hedge249|grath|gratv|gratd|file.png]\n"
       "          [--suite] [--ideal] [--fir wide|narrow] [--snr dB] [--ssb] [--noise-hz Hz (with --ideal)] [--clock-err frac]\n"
-      "          [--tshift samples] [--out prefix] [--wav file.wav]\n",argv[0]); return 1; }
+      "          [--tshift samples] [--out prefix] [--wav file.wav [--vis] [--count N]]\n"          "       %s --compare a.png b.png\n",argv[0],argv[0]); return 1; }
+  if(!strcmp(argv[1],"--compare"))
+    {
+      if(argc<4) { fprintf(stderr,"--compare a.png b.png\n"); return 1; }
+      QGuiApplication capp(argc,argv);
+      QImage a=QImage(argv[2]).convertToFormat(QImage::Format_RGB32),b=QImage(argv[3]).convertToFormat(QImage::Format_RGB32);
+      if(a.isNull()||b.isNull()||a.size()!=b.size()) { fprintf(stderr,"cannot compare: unreadable or different size\n"); return 2; }
+      printf("PSNR luma %.2f dB  all %.2f dB  SSIM %.3f\n",metrics::psnr(a,b,3),metrics::psnr(a,b,4),metrics::ssim(a,b,{0,0,a.width(),a.height()}));
+      return 0;
+    }
   o.mode=(!strcmp(argv[1],"pd"))?PD120:JB60;
   for(int i=2;i<argc;i++)
     {
@@ -358,6 +411,8 @@ int main(int argc,char**argv)
       else if(a=="--out") o.out=val();
       else if(a=="--wav") o.wav=val();
       else if(a=="--suite") o.suite=true;
+      else if(a=="--vis") o.vis=true;
+      else if(a=="--count") o.count=std::max(1,atoi(val()));
       else { fprintf(stderr,"unknown option %s\n",a.c_str()); return 1; }
     }
   QGuiApplication app(argc,argv);
