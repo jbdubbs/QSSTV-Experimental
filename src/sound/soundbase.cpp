@@ -1,4 +1,5 @@
 #include "soundbase.h"
+#include "engineselection.h"
 #include "logging.h"
 #include "configparams.h"
 #include "arraydumper.h"
@@ -39,6 +40,12 @@ soundBase::soundBase(QObject *parent) : QThread(parent)
 {
   captureState=CPINIT;
   playbackState=PBINIT;
+  fileSource=false;
+  fileEof=false;
+  fileCancelled=false;
+  filePaced=false;
+  fileTailLeft=0;
+  fileNoiseState=12345;
   downsampleFilterPtr=new downsampleFilter(DOWNSAMPLESIZE,true);
 
 }
@@ -146,11 +153,54 @@ void soundBase::run()
     }
 }
 
+// seconds of low level noise fed after the end of a decoded file
+#define FILETAILSECONDS 5
+
+/*!
+  One block of the file source: the next DOWNSAMPLESIZE samples of the recording, then (after the end of the file)
+  low level noise. Sets endAfterBlock once the noise tail has been delivered.
+*/
+int soundBase::readFileBlock(bool &endAfterBlock)
+{
+  int got=0;
+  if(!fileEof)
+    {
+      got=fileReader.read(tempRXBuffer,DOWNSAMPLESIZE);
+      if(got<DOWNSAMPLESIZE) fileEof=true;
+    }
+  if(fileEof)
+    {
+      for(int i=got;i<DOWNSAMPLESIZE;i++)
+        {
+          fileNoiseState=fileNoiseState*1664525u+1013904223u;
+          tempRXBuffer[i]=(qint16)((int)((fileNoiseState>>16)%7)-3);
+        }
+      fileTailLeft-=DOWNSAMPLESIZE-got;
+      if(fileTailLeft<=0) endAfterBlock=true;
+      got=DOWNSAMPLESIZE;
+    }
+  return got;
+}
+
 int soundBase::capture()
 {
   int count=0;
+  bool endAfterBlock=false;
   if(rxBuffer.spaceLeft()<RXSTRIPE) return 0;
-  if(soundRoutingInput==SNDINFROMFILE)
+  // The raw (undecimated) tap for mmsstv-core fills four times faster than rxBuffer and is written without a check.
+  // A live capture never gets far ahead of the receiver, but reading a file can. With mmsstv-core in use wait for
+  // room; without it nobody reads the tap, so just empty it.
+  if(fileSource && rawRxBuffer.spaceLeft()<DOWNSAMPLESIZE)
+    {
+      if(!mmsstvCoreActiveForAnyMode()) rawRxBuffer.reset();
+      else return 0;
+    }
+  if(fileSource)
+    {
+      count=readFileBlock(endAfterBlock);
+      if(filePaced) msleep((100*count)/BASESAMPLERATE); // about 10 times real time, so the picture builds up visibly
+    }
+  else if(soundRoutingInput==SNDINFROMFILE)
     {
       count=waveIn.read((qint16*)tempRXBuffer,DOWNSAMPLESIZE);
       //delay to give realtime feeling
@@ -199,6 +249,7 @@ int soundBase::capture()
   volume=downsampleFilterPtr->avgVolumeDb;
   rxBuffer.putNoCheck(downsampleFilterPtr->filteredDataPtr(),RXSTRIPE);
   rxVolumeBuffer.putNoCheck(downsampleFilterPtr->getVolumePtr(),RXSTRIPE);
+  if(endAfterBlock) switchCaptureState(CPEND);
   return count;
 }
 
@@ -315,6 +366,7 @@ void soundBase::idleTX()
 
 void soundBase::idleRX()
 {
+  if(fileSource && captureState!=CPINIT) fileCancelled=true;   // stopped before the end of the file
   captureState=CPINIT;
 
 
@@ -379,6 +431,36 @@ bool soundBase::startCapture()
     }
   switchCaptureState(CPSTARTING);
   return true;
+}
+
+bool soundBase::startFileCapture(const QString &path,bool realtimePacing,QString &error)
+{
+  switchPlaybackState(PBINIT);
+  soundIOPtr->rxBuffer.reset();
+  rawRxBuffer.reset();
+  downsampleFilterPtr->init();
+  storedFrames=0;
+  fileReader.close();
+  if(!fileReader.open(path,error))
+    {
+      fileSource=false;
+      return false;
+    }
+  fileSource=true;
+  fileEof=false;
+  fileCancelled=false;
+  filePaced=realtimePacing;
+  fileTailLeft=(long)FILETAILSECONDS*BASESAMPLERATE;
+  switchCaptureState(CPSTARTING);
+  return true;
+}
+
+void soundBase::clearFileSource()
+{
+  fileReader.close();
+  fileSource=false;
+  fileEof=false;
+  fileCancelled=false;
 }
 
 int soundBase::play()

@@ -35,6 +35,7 @@ public:
   sstvRx  *sstvRxPtr;
   void stopThread();
   bool rxBusy();
+  bool isIdle() const {return rxState==RXIDLE;}
 
 #ifndef QT_NO_DEBUG
   unsigned int setOffset(unsigned int offset,bool ask);

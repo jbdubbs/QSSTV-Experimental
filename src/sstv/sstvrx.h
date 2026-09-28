@@ -29,6 +29,8 @@ public:
   ~sstvRx();
   void init();
   void setFilters();
+  //! end of a decoded file: save the picture that is still being received (if it is complete enough)
+  void finishInput();
   void run(DSPFLOAT *dataPtr, DSPFLOAT *volumePtr);
   void eraseImage();
   syncProcessor syncNarrowProc;

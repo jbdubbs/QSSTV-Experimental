@@ -69,6 +69,10 @@ public:
 	// (MMSSTV)" status every buffer.
 	bool isTrackingImage() const { return trackingImage; }
 
+	// RX-thread side of "decode from file": the recording (and its trailing noise) has ended while a picture
+	// was still being tracked, so end it now (autosave applies) instead of dropping it.
+	void finishImage();
+
 	// Tells this engine whether QSSTV's own engine is mid-picture (set by
 	// rxfunctions.cpp before each processSamples() call). Modes that only
 	// QSSTV's engine decodes (e.g. PD120S/PD120W) still run through this

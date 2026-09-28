@@ -465,6 +465,11 @@ void sstvRx::switchState(eSSTVState  newState)
   SSTVState=newState;
 }
 
+void sstvRx::finishInput()
+{
+  if(syncProcPtr && isReceivingImage()) saveImage();
+}
+
 void sstvRx::eraseImage()
 {
   switchState(RESTART);

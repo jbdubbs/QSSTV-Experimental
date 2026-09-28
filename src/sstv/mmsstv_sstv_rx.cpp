@@ -115,6 +115,13 @@ MmsstvSstvRx::~MmsstvSstvRx()
 	delete dem;
 }
 
+void MmsstvSstvRx::finishImage()
+{
+	if (!trackingImage) return;
+	QApplication::postEvent(dispatcherPtr, new endImageSSTVRXEvent(trackingMode));
+	trackingImage = false;
+}
+
 bool MmsstvSstvRx::serviceAbort()
 {
 	if (!abortRequested.exchange(false)) return false;

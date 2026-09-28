@@ -59,6 +59,12 @@ void rxFunctions::run()
               msleep((250*RXSTRIPE)/rxClock);
               if(!soundIOPtr->isCapturing())
                 {
+                  if(soundIOPtr->fileSourceActive() && !soundIOPtr->fileSourceCancelled() && (transmissionModeIndex==TRXSSTV))
+                    {
+                      // end of a decoded file: a picture still in progress would be dropped by the init below
+                      sstvRxPtr->finishInput();
+                      mmsstvRxPtr->finishImage();
+                    }
                   switchRxState(RXINIT);
                 }
             }

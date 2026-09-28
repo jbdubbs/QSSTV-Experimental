@@ -43,6 +43,7 @@ SOURCES += main.cpp\
     appglobal.cpp \
     utils/supportfunctions.cpp \
     sound/wavio.cpp \
+    sound/wavreader.cpp \
     config/directoriesconfig.cpp \
     config/configdialog.cpp \
     sound/soundbase.cpp \
@@ -216,6 +217,7 @@ HEADERS  += mainwindow.h \
     utils/vector.h \
     utils/buffermanag.h \
     sound/wavio.h \
+    sound/wavreader.h \
     config/directoriesconfig.h \
     appdefs.h \
     config/configdialog.h \

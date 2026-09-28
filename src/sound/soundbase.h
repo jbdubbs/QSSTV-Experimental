@@ -3,6 +3,7 @@
 
 #include "appglobal.h"
 #include "wavio.h"
+#include "wavreader.h"
 #include "buffermanag.h"
 #include "downsamplefilter.h"
 
@@ -50,6 +51,16 @@ public:
 
   bool startCapture();
   bool startPlayback();
+
+  // "Decode from file": a one-shot file source, independent of the persisted soundRoutingInput.
+  // The recording is read as mono 48 kHz (see wavReader), followed by a few seconds of low level noise so the
+  // receiver sees the signal disappear (which is what saves a picture that was still being received).
+  bool startFileCapture(const QString &path,bool realtimePacing,QString &error);
+  void clearFileSource();
+  bool fileSourceActive() const {return fileSource;}
+  bool fileDecodeFinished() const {return fileSource && fileEof && captureState==CPINIT;}
+  bool fileSourceCancelled() const {return fileCancelled;}   //!< the capture was stopped before the file was finished
+  int fileProgressPercent() const {return fileReader.progressPercent();}
   buffer<FILTERPARAMTYPE,BYTESPOWER> rxBuffer;
   buffer<FILTERPARAMTYPE,BYTESPOWER> rxVolumeBuffer;
   // mmsstv-linux-port Step 7: raw, un-decimated capture samples (same
@@ -101,6 +112,14 @@ protected:
 
   wavIO waveIn;
   wavIO waveOut;
+  wavReader fileReader;
+  bool fileSource;
+  bool fileEof;
+  bool fileCancelled;
+  bool filePaced;
+  long fileTailLeft;
+  unsigned int fileNoiseState;
+  int readFileBlock(bool &endAfterBlock);
   void errorHandler(QString title,QString info);
   void switchCaptureState(ecaptureState cs);
   void switchPlaybackState(eplaybackState ps);
