@@ -364,6 +364,26 @@ namespace
     return {0,0,W,H};
   }
 
+  // Idea 9 probe: prints the true (linear-light) luma at both plateaus of a chroma edge, plus any
+  // overshoot/undershoot the transition band shows beyond them -- overshoot/undershoot is evidence of
+  // chroma-smear-driven brightness leakage that a constant-luminance transform would prevent; if the
+  // profile stays within [min(plateaus),max(plateaus)], there's nothing here for CL to fix.
+  void reportTrueLumaLeak(const QImage &rx,int x0)
+  {
+    const int half=48,plateauN=10;              // see trueLumaProfile()'s comment on why +-48
+    std::vector<double> tl=metrics::trueLumaProfile(rx,x0,half);
+    double loP=0,hiP=0;
+    for(int i=0;i<plateauN;i++) { loP+=tl[i]; hiP+=tl[tl.size()-1-i]; }
+    loP/=plateauN; hiP/=plateauN;
+    // interior = everything except the two plateau margins themselves, so the overshoot/undershoot
+    // search can't just be re-detecting the plateau average it was computed from.
+    double mn=*std::min_element(tl.begin()+plateauN,tl.end()-plateauN);
+    double mx=*std::max_element(tl.begin()+plateauN,tl.end()-plateauN);
+    double lo=std::min(loP,hiP),hi=std::max(loP,hiP);
+    printf("  true (linear-light) luma at plateaus: %.2f / %.2f   overshoot %.2f  undershoot %.2f  (idea 9 CL-leakage probe)\n",
+           loP,hiP,std::max(0.,mx-hi),std::max(0.,lo-mn));
+  }
+
   void printMtf(const char *label,const std::vector<double> &m)
   {
     printf("  MTF %s (period px:",label);
@@ -387,13 +407,19 @@ namespace
     if(o.image=="hedge248") printf("  edge 10-90%% rise (y): %.2f px\n",metrics::edgeRiseH(r.rx,248));
     if(o.image=="hedge249") printf("  edge 10-90%% rise (y): %.2f px\n",metrics::edgeRiseH(r.rx,249));
     if(o.image=="cedge320")
-      printf("  chroma edge 10-90%% rise (x): R %.2f px  B %.2f px   50%% crossing: R %.3f px  B %.3f px\n",
-             metrics::edgeRiseChannel(r.rx,320,0),metrics::edgeRiseChannel(r.rx,320,2),
-             metrics::edgeCrossChannel(r.rx,320,0),metrics::edgeCrossChannel(r.rx,320,2));
+      {
+        printf("  chroma edge 10-90%% rise (x): R %.2f px  B %.2f px   50%% crossing: R %.3f px  B %.3f px\n",
+               metrics::edgeRiseChannel(r.rx,320,0),metrics::edgeRiseChannel(r.rx,320,2),
+               metrics::edgeCrossChannel(r.rx,320,0),metrics::edgeCrossChannel(r.rx,320,2));
+        reportTrueLumaLeak(r.rx,320);
+      }
     if(o.image=="cedge321")
-      printf("  chroma edge 10-90%% rise (x): R %.2f px  B %.2f px   50%% crossing: R %.3f px  B %.3f px\n",
-             metrics::edgeRiseChannel(r.rx,321,0),metrics::edgeRiseChannel(r.rx,321,2),
-             metrics::edgeCrossChannel(r.rx,321,0),metrics::edgeCrossChannel(r.rx,321,2));
+      {
+        printf("  chroma edge 10-90%% rise (x): R %.2f px  B %.2f px   50%% crossing: R %.3f px  B %.3f px\n",
+               metrics::edgeRiseChannel(r.rx,321,0),metrics::edgeRiseChannel(r.rx,321,2),
+               metrics::edgeCrossChannel(r.rx,321,0),metrics::edgeCrossChannel(r.rx,321,2));
+        reportTrueLumaLeak(r.rx,321);
+      }
     if(o.image=="medge320"||o.image=="medge321")
       {
         int x0=(o.image=="medge320")?320:321;

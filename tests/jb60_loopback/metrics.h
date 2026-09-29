@@ -25,6 +25,37 @@ namespace metrics
 
   inline double psnrFromMse(double mse) { return mse<=0 ? 99. : 10*log10(255.*255./mse); }
 
+  // Idea 9 (jb60-color-smear-ideas, "constant luminance"): the app's Y'=0.3R'+0.59G'+0.11B' above is
+  // computed from gamma-encoded (sRGB) R'G'B', the classic non-constant-luminance (NCL) definition.
+  // trueLuma() instead linearizes first, combines with Rec.709 linear-light weights, then re-encodes --
+  // i.e. it's the Y'c a constant-luminance transform would protect. Comparing luma() and trueLuma() at a
+  // chroma-only edge (cEdge/medge, luma-matched by construction) shows whether the channel's chroma
+  // smear leaks into true brightness even though it provably can't move gamma-domain luma (JB60's decode
+  // solves the third RGB channel from the luma equation, which pins Y' exactly regardless of Cr/Cb).
+  inline double srgbToLinear(double v255) { double v=v255/255.; return v<=0.04045 ? v/12.92 : pow((v+0.055)/1.055,2.4); }
+  inline double linearToSrgb(double v) { return 255.*(v<=0.0031308 ? v*12.92 : 1.055*pow(v,1/2.4)-0.055); }
+  inline double trueLuma(QRgb p)
+  {
+    double L=0.2126*srgbToLinear(qRed(p))+0.7152*srgbToLinear(qGreen(p))+0.0722*srgbToLinear(qBlue(p));
+    return linearToSrgb(L);
+  }
+  // trueLuma() profile across a 2*halfWidth window centred at x0 (wider than edgeRiseChannel's fixed
+  // 28px -- JB60's own B-channel smear measures ~14.75px 10-90% rise, so a +-14px window sits inside the
+  // transition instead of clear of it; +-48px leaves >30px of settled plateau on each side of the worst
+  // measured smear for the leakage probe below to average over).
+  inline std::vector<double> trueLumaProfile(const QImage &rx,int x0,int halfWidth=48)
+  {
+    std::vector<double> prof(2*halfWidth,0.);
+    const int H=rx.height();
+    for(int r=20;r<H-20;r++)
+      {
+        const QRgb *p=(const QRgb*)rx.constScanLine(r);
+        for(int i=0;i<2*halfWidth;i++) prof[i]+=trueLuma(p[x0-halfWidth+i]);
+      }
+    for(double &v:prof) v/=(H-40);
+    return prof;
+  }
+
   // channel: 0..2 = R,G,B, 3 = luma, 4 = all channels
   inline double psnr(const QImage &a,const QImage &b,int channel)
   {
