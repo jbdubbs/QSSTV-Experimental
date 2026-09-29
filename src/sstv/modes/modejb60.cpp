@@ -21,6 +21,7 @@
 #include "chromadeconvolution.h"
 #include "chromaedgeboost.h"
 #include "chromagridphase.h"
+#include "chromacompanding.h"
 #include <algorithm>
 #include <vector>
 
@@ -214,6 +215,51 @@ namespace
         for(unsigned int t=1;t<=kDeconvHalfTaps;t++)
           v+=kDeconvKernel[t]*(at((int)k-(int)t)+at((int)k+(int)t));
         arr[k]=clampByte(v);
+      }
+  }
+
+  // TX idea 14 (jb60-color-smear-ideas memory): joint, hue-preserving magnitude companding of Cr/Cb,
+  // mirroring D's own kDGamma compander but for the 2D (Cr,Cb) chroma vector instead of a 1D residual.
+  // Runs at full 640-column resolution (getLine()/emitPair()), *before* downsampleChroma()'s decimation
+  // and *after* upsampleChroma()'s reconstruction -- Cr and Cb are decimated to different slot counts
+  // (224/176), so their slot indices don't share a column; only at full resolution do dCr[c]/dCb[c] refer
+  // to the same physical column, which a hue-preserving joint transform requires. Scales the deviation
+  // vector (dCr,dCb)=(Cr-127.5,Cb-127.5) by a magnitude-only factor, so hue (the vector's angle) is exactly
+  // unchanged by construction -- addresses the "coupled clamping can shift hue" risk independent per-
+  // channel companding would have. gamma=1.0 is an exact identity (kMagMax cancels), matching every other
+  // opt-in idea's no-op-by-default invariant.
+  const float kMagMax=127.5f*1.41421356f;   // sqrt(2), a safe upper bound on joint (Cr,Cb) deviation magnitude
+  const float kMagEps=1e-3f;
+
+  void companChromaMagnitude(float *crPix,float *cbPix,unsigned int n,float gamma)
+  {
+    if(gamma==1.0f) return;   // exact no-op, no float round-trip error even for the "disabled" case
+    for(unsigned int c=0;c<n;c++)
+      {
+        float dCr=crPix[c]-127.5f,dCb=cbPix[c]-127.5f;
+        float mag=sqrtf(dCr*dCr+dCb*dCb);
+        if(mag<=kMagEps) continue;
+        float magC=kMagMax*powf(mag/kMagMax,gamma);
+        float scale=magC/mag;
+        crPix[c]=127.5f+dCr*scale;
+        cbPix[c]=127.5f+dCb*scale;
+      }
+  }
+
+  // Inverse of companChromaMagnitude(), applied to already-reconstructed (unsigned char) Cr/Cb rows.
+  void decompandChromaMagnitude(unsigned char *crRow,unsigned char *cbRow,unsigned int n,float gamma)
+  {
+    if(gamma==1.0f) return;
+    const float invGamma=1.0f/gamma;
+    for(unsigned int c=0;c<n;c++)
+      {
+        float dCr=(float)crRow[c]-127.5f,dCb=(float)cbRow[c]-127.5f;
+        float magC=sqrtf(dCr*dCr+dCb*dCb);
+        if(magC<=kMagEps) continue;
+        float mag=kMagMax*powf(magC/kMagMax,invGamma);
+        float scale=mag/magC;
+        crRow[c]=clampByte(127.5f+dCr*scale);
+        cbRow[c]=clampByte(127.5f+dCb*scale);
       }
   }
 
@@ -465,6 +511,7 @@ void modeJB60::getLine()
       crPix[c]=(rBar[c]-lMean[c])/1.4f+127.5f;      // same definitions as PD: Cr=(R-Y)/1.4+127.5
       cbPix[c]=(bBar[c]-lMean[c])/1.78f+127.5f;     //                        Cb=(B-Y)/1.78+127.5
     }
+  companChromaMagnitude(crPix,cbPix,kWidth,chromaCompandGamma());   // idea 14, no-op at gamma=1.0
   // box average over the footprint of each sample
   for(k=0;k<kSegCount[SEG_D];k++)
     {
@@ -584,6 +631,7 @@ void modeJB60::emitPair(const unsigned char *lPrev,const unsigned char *l,const 
         }
       upsampleChroma(rowY.data(),cr,kSegCount[SEG_CR],redArrayPtr);
       upsampleChroma(rowY.data(),cb,kSegCount[SEG_CB],blueArrayPtr);
+      decompandChromaMagnitude(redArrayPtr,blueArrayPtr,kWidth,chromaCompandGamma());   // idea 14
       yuvConversion(rowY.data());   // writes the row at displayLineCounter and advances it
     }
 }

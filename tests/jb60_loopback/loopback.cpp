@@ -17,6 +17,7 @@
 #include "chromadeconvolution.h"
 #include "chromaedgeboost.h"
 #include "chromagridphase.h"
+#include "chromacompanding.h"
 #include "metrics.h"
 #include <QGuiApplication>
 #include <cstdio>
@@ -515,7 +516,7 @@ int main(int argc,char**argv)
   Options o;
   if(argc<2) { fprintf(stderr,
       "usage: %s <jb|pd> [--image 0|1|2|card|vedge320|vedge321|hedge248|hedge249|cedge320|cedge321|medge320|medge321|dedge320|dedge321|grath|gratv|gratd|file.png]\n"
-      "          [--suite] [--ideal] [--fir wide|narrow] [--chroma-wide] [--chroma-deconv] [--chroma-edge-boost] [--chroma-grid-phase f] [--snr dB] [--ssb] [--noise-hz Hz (with --ideal)] [--clock-err frac]\n"
+      "          [--suite] [--ideal] [--fir wide|narrow] [--chroma-wide] [--chroma-deconv] [--chroma-edge-boost] [--chroma-grid-phase f] [--chroma-compand-gamma g] [--snr dB] [--ssb] [--noise-hz Hz (with --ideal)] [--clock-err frac]\n"
       "          [--tshift samples] [--out prefix] [--wav file.wav [--vis] [--count N]] [--dump-slots cr|cb|both]\n"          "       %s --compare a.png b.png\n",argv[0],argv[0]); return 1; }
   if(!strcmp(argv[1],"--compare"))
     {
@@ -529,6 +530,7 @@ int main(int argc,char**argv)
   o.mode=(!strcmp(argv[1],"pd"))?PD120:JB60;
   bool chromaWide=false,chromaDeconv=false,chromaEdgeBoost=false;
   double gridPhase=0.0;
+  double compandGamma=1.0;
   std::string dumpSlotsChannel;
   for(int i=2;i<argc;i++)
     {
@@ -551,6 +553,7 @@ int main(int argc,char**argv)
       else if(a=="--chroma-deconv") chromaDeconv=true;
       else if(a=="--chroma-edge-boost") chromaEdgeBoost=true;
       else if(a=="--chroma-grid-phase") gridPhase=atof(val());
+      else if(a=="--chroma-compand-gamma") compandGamma=atof(val());
       else if(a=="--dump-slots") dumpSlotsChannel=val();
       else { fprintf(stderr,"unknown option %s\n",a.c_str()); return 1; }
     }
@@ -563,6 +566,8 @@ int main(int argc,char**argv)
   setChromaEdgeBoostOverride(chromaEdgeBoost ? 1 : 0);
   // idea 12 attempt 3 (chromagridphase.h): 0.0 by default, bit-identical to the fixed grid.
   setChromaGridPhase((float)gridPhase);
+  // idea 14 (chromacompanding.h): 1.0 by default, an exact identity.
+  setChromaCompandGamma((float)compandGamma);
   QGuiApplication app(argc,argv);
   if(!dumpSlotsChannel.empty()) { dumpSlots(o,dumpSlotsChannel); return 0; }
   if(o.suite) { runSuite(o); return 0; }
