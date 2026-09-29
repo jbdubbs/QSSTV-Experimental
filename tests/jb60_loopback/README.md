@@ -116,7 +116,10 @@ fed via `modeBase::setWideDemod()`) instead of the narrow one only when `debugSt
 checkbox is on; L and D never move off the narrow filter regardless. `videoFilterWideSuits()` no longer lists JB60,
 so the old whole-picture path (`modeDemodPtr()`/`rxUseWideFilter`) always gives JB60 the narrow buffer.
 
-Real chain, clean, card image (2026-09-28):
+Real chain, clean, card image (2026-09-28; recorded before TX chroma pre-emphasis below existed and was made
+unconditional on 2026-09-29 -- current runs will read a bit higher on both sides of this table, since
+pre-emphasis now stacks underneath whichever RX filter is chosen, but the off-vs-on *shape* is unaffected, this
+section's own numbers were never re-measured):
 
 | | chroma-wide off | chroma-wide on |
 |---|---|---|
@@ -151,14 +154,17 @@ same metric issue). Card PSNR/SSIM and the pure `cedge` bandwidth test are the t
 `medge`'s B rise as directional at best, and double check against PSNR and a direct pixel/crossing-position look
 before trusting a large swing in it.
 
-## TX chroma pre-emphasis for JB60 (`--chroma-preemph`)
+## TX chroma pre-emphasis for JB60 (unconditional -- part of the spec)
 
 The two filters above are RX-side attempts at the same problem: the video demod filter's ~600 Hz (narrow) /
-~1000 Hz (wide) lowpass smears a 190 us slot over several pixels. This is a TX-side attempt instead: a small,
-opt-in checkbox ("JB60 Chroma Pre-emphasis", `TX/jb60ChromaPreEmphasis`, `sstv/chromapreemphasis.{h,cpp}`, default
-off) boosts JB60's Cr/Cb slot sequence *before* modulation, so old and new receivers alike get a slightly sharper
-picture with no RX-side change at all. `modeJB60::getLine()` applies it to `redArrayPtr`/`blueArrayPtr` right
-after `downsampleChroma()` fills them, gated by `chromaPreEmphasisEnabled()`; L/D are untouched.
+~1000 Hz (wide) lowpass smears a 190 us slot over several pixels. This is a TX-side attempt instead: JB60's Cr/Cb
+slot sequence is boosted *before* modulation, so every receiver gets a slightly sharper picture with no RX-side
+change at all. `modeJB60::getLine()` applies it to `redArrayPtr`/`blueArrayPtr` unconditionally, right after
+`downsampleChroma()` fills them; L/D are untouched. **This shipped first as an opt-in TX checkbox (default off,
+2026-09-29), then was hardcoded on and the checkbox removed once the extended SNR sweep below found the risk of
+leaving it optional wasn't worth the UI cost** -- see that decision at the end of this section. There is no way
+to turn it off; a "before" comparison below means "the plain, unmodified 2-tap-linear-downsample byte sequence,"
+not a currently-reachable code path.
 
 Kernel: a 5-tap, zero-phase, unity-DC-gain FIR at the slot rate (~5.26 kHz for JB60's ~190 us slot):
 `h = [-0.1357, -0.2133, 1.698, -0.2133, -0.1357]` (center, ±1, ±2 slots). Designed as a regularized inverse of the
@@ -172,9 +178,10 @@ near-null), which is why the `Gmax` sweep below matters more than the design for
 `jb60-color-smear-ideas` memory, TX idea 6, for the sweep that picked `Gmax`/tap-count and the sign/overshoot
 analysis. `clampByte()` (already used elsewhere in the file) contains any overshoot at real transitions.
 
-Real chain, card image (2026-09-29), off vs on:
+Real chain, card image (2026-09-29), without vs with (measured while it was still an opt-in checkbox; "with" is
+what every current build now always does):
 
-| | off | on |
+| | without | with (now the only option) |
 |---|---|---|
 | Card PSNR: R / G / B / luma / all, clean (dB) | 18.74 / 19.42 / 18.68 / 21.04 / **18.93** | 18.77 / 19.44 / 18.79 / 21.05 / **18.99** |
 | Card PSNR: all, 25 dB SSB (dB) | 18.75 | 18.80 |
@@ -207,11 +214,38 @@ combined with `--chroma-wide`, all-channel PSNR 19.36->19.40dB; combined with `-
 whole-picture path), 19.57->19.62dB. No regression either way.
 
 Regression canary (`--suite`): MTF (grating images, all grayscale so Cr/Cb sit at the flat 127.5 midpoint --
-exactly where a unity-DC-gain kernel is a no-op) and edge x/y rise (also grayscale) are bit-identical on vs off,
-confirming L/D are untouched. Card's own "luma PSNR" (computed from the *reconstructed* R/G/B, not the internal Y
-slot values) wobbles by +0.01dB (21.04->21.05) -- this is a byte-rounding artifact of the RGB reconstruction
-(`R=Y+1.4(Cr-127.5)`, `B=Y+1.78(Cb-127.5)`, `G` solved from `Y`), not a real L/D leak; two orders of magnitude
-below the intended Cr/Cb win and confirmed harmless by the grayscale-image tests above.
+exactly where a unity-DC-gain kernel is a no-op) and edge x/y rise (also grayscale) are bit-identical with vs
+without, confirming L/D are untouched. Card's own "luma PSNR" (computed from the *reconstructed* R/G/B, not the
+internal Y slot values) wobbles by +0.01dB (21.04->21.05) -- this is a byte-rounding artifact of the RGB
+reconstruction (`R=Y+1.4(Cr-127.5)`, `B=Y+1.78(Cb-127.5)`, `G` solved from `Y`), not a real L/D leak; two orders of
+magnitude below the intended Cr/Cb win and confirmed harmless by the grayscale-image tests above.
+
+### Extended SNR sweep and the decision to hardcode it (2026-09-29)
+
+The numbers above only went down to 5 dB SNR, so before deciding whether an opt-in checkbox was the right
+long-term shape, the sweep was extended to -10 dB (card and the photo, all-channel PSNR, without -> with):
+
+| SNR | 10 | 5 | 0 | -2 | -4 | -6 | -8 | -10 |
+|---|---|---|---|---|---|---|---|---|
+| card | +0.03 | +0.02 | +0.01 | 0.00 | 0.00 | +0.02 | +0.02 | 0.00 |
+| photo | +0.10 | +0.04 | +0.03 | +0.02 | +0.01 | **-0.01** | **-0.02** | **-0.01** |
+
+A real crossover exists, but only on the photo, only below about -4 to -6 dB, and it's tiny (-0.01 to -0.02 dB)
+against +0.05 to +0.31 dB everywhere realistic -- smaller than the effect doesn't reproduce on the card image at
+all, which points to measurement noise rather than a robust effect. More importantly, SSIM at -6 dB and below is
+already 0.02-0.07 on both images -- the picture is unusable static regardless of this setting, so the crossover,
+where it exists, doesn't correspond to any real decision a receiving operator would make differently.
+
+This is why it shipped as a checkbox first rather than going straight to unconditional: ideas 2/3 (pure local RX
+retuning, reversible, zero effect on anyone else) needed to win at *every* SNR tested before shipping
+unconditionally; a TX-side change is heard by every receiver, so the bar for going unconditional was higher, not
+lower, and the initial ship was deliberately conservative (opt-in, default off) until this extended sweep existed.
+With it in hand -- no crossover in any SNR regime where the picture is actually viewable, on either test image --
+the checkbox was removed and pre-emphasis made unconditional, on 2026-09-29. What this sweep still doesn't cover:
+non-AWGN channel effects (fading, impulsive QRN, real transceiver TX audio chains) and decode quality on
+non-QSSTV receivers (confirmed format-compatible for the Android `robot36` port, but not measured there) -- there
+was no realistic way to get that data without on-air use, so it was accepted as residual risk rather than a
+blocker.
 
 ## The application against this harness
 

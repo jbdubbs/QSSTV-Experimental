@@ -18,7 +18,6 @@
  ***************************************************************************/
 #include "modejb60.h"
 #include "videofilterselection.h"
-#include "chromapreemphasis.h"
 #include <algorithm>
 #include <vector>
 
@@ -76,8 +75,11 @@ namespace
   // TX idea 6: cap-and-hold regularized-inverse pre-emphasis for the narrow RX video filter,
   // slot-domain (~5.26 kHz), 5 taps, unity DC gain by construction. Gmax=6dB, fc~600Hz (matches
   // the narrow filter's own -6dB point). See jb60-color-smear-ideas memory, TX idea 6, for the
-  // derivation and the real-chain sweep that picked this Gmax/length. Opt-in, gated by
-  // chromaPreEmphasisEnabled() (TX "JB60 Chroma Pre-emphasis" checkbox, default off).
+  // derivation and the real-chain sweep that picked this Gmax/length. Unconditional -- part of
+  // JB60's spec, not a setting: shipped first as an opt-in checkbox, then hardcoded on once an
+  // extended SNR sweep (5 dB down to -10 dB, two images) found only a trivial, image-inconsistent
+  // regression (-0.01 to -0.02 dB) confined to SNRs where the picture is already unusable static
+  // (SSIM<0.1 on either test image), against a real win (+0.05 to +0.31 dB) everywhere realistic.
   const float kPreEmphH0=1.698f, kPreEmphH1=-0.2133f, kPreEmphH2=-0.1357f;
 
   void applyChromaPreEmphasis(unsigned char *arr,unsigned int n)
@@ -358,11 +360,8 @@ void modeJB60::getLine()
     }
   downsampleChroma(crPix,lMean,kSegCount[SEG_CR],redArrayPtr);
   downsampleChroma(cbPix,lMean,kSegCount[SEG_CB],blueArrayPtr);
-  if(chromaPreEmphasisEnabled())
-    {
-      applyChromaPreEmphasis(redArrayPtr,kSegCount[SEG_CR]);
-      applyChromaPreEmphasis(blueArrayPtr,kSegCount[SEG_CB]);
-    }
+  applyChromaPreEmphasis(redArrayPtr,kSegCount[SEG_CR]);
+  applyChromaPreEmphasis(blueArrayPtr,kSegCount[SEG_CB]);
 }
 
 /*!
