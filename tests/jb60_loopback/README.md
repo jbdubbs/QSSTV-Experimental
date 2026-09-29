@@ -247,6 +247,141 @@ non-QSSTV receivers (confirmed format-compatible for the Android `robot36` port,
 was no realistic way to get that data without on-air use, so it was accepted as residual risk rather than a
 blocker.
 
+## RX idea 4: regularized chroma deconvolution for JB60 (`--chroma-deconv`)
+
+The three sections above either widen the RX filter (at a noise cost) or boost chroma before
+modulation (no RX cost, but only helps pictures this app's own TX actually sends). This is the
+last RX-only idea from the `jb60-color-smear-ideas` brainstorm: a short, opt-in, *regularized*
+inverse filter applied to Cr/Cb right after RX capture (`modeJB60::showLine()`, before
+`emitPair()`/`upsampleChroma()`), gated by a new "JB60 Chroma Deconvolution" checkbox
+(`RX/chromaDeconvolution`, default off, `src/sstv/chromadeconvolution.{h,cpp}`, same
+override-for-testing pattern as the wide-filter checkbox). It only ever touches `curCr`/`curCb`
+when the Cr/Cb wide-filter track is *not* in use (`!wideVideoFilterEnabled()`); the UI also grays
+the checkbox out in that case, since the kernel is matched to the narrow filter only.
+
+**Design-target decision:** TX chroma pre-emphasis above is unconditional, so every picture this
+app now transmits already arrives partially corrected. This filter is designed against that
+*combined* (pre-emphasis + channel) response, not the plain channel alone -- optimal for pictures
+sent by this app (the common case going forward), a known, uncharacterized mismatch for older
+recordings or other encoders' output that never had pre-emphasis applied.
+
+### Measuring the combined response (`--dump-slots`)
+
+No committed tool previously measured the slot-domain frequency response directly (TX idea 6's own
+measurement was done out of band and never checked in). `loopback --dump-slots cr|cb|both` fixes
+that: it runs the real TX -> channel -> RX chain on a purpose-built image and prints the resulting
+`modeJB60::lastCr()`/`lastCb()` slot arrays (the last line pair's demodulated, pre-deconvolution
+Cr/Cb -- `showLine()` swaps its freshly-`assign()`'d arrays into `prevCr`/`prevCb` before
+returning, so these hold exactly that pair's capture right after any `process()` call).
+
+The test image is a **Y-luma-held-constant step**: flat `(128,128,128)` background, the last line
+pair's right half set to `(255,87,0)` (R and B pushed hard in opposite directions -- Cr and Cb
+both get a large excitation -- while G is chosen so luma stays ~128 on both sides, within 0.2
+counts). Holding luma constant collapses `downsampleChroma()`'s luma-guided weights to a flat box
+average across the transition (no coincident luma edge to guide on, so every footprint weight is
+uniform), turning the whole TX+channel+RX path into a plain LTI system for this measurement -- and
+because 224 and 176 both divide 640 evenly, the step lands exactly on a footprint boundary, so the
+*known* (box-average-only, no pre-emphasis) input signal is a perfect single-sample impulse. That
+makes the *measured* output's discrete derivative directly proportional to the combined system's
+impulse response, with far better SNR than exciting a literal one-column impulse in the image (the
+same script tried that first: peak deviation ~9 counts out of 255, versus ~90 counts for the step,
+about 10x better dynamic range against the demodulator's own rounding noise).
+
+Two real artifacts had to be found and worked around, both segment-boundary effects, not bugs: (1)
+the very end of Cb's array droops because Cb is immediately followed by `fp`/sync (a fixed, very
+different tone) in transmission time, and the channel's finite-length smearing bleeds that boundary
+backward into Cb's last ~10 slots; (2) the very start of Cb's array is contaminated the same way
+from the *other* side, because Cr and Cb are each an independent full-640-column box average of
+the same row resampled to their own slot count -- adjacent in transmission time (segment order
+`L,D,Cr,Cb`), not in column space -- so Cr ending at the high plateau (its last slots cover columns
+near 640, past the step) walks straight into Cb starting at the low plateau (its first slots cover
+columns near 0, before the step), a real ~90-count content discontinuity at that boundary. Cr has a
+smaller version of the same tail artifact from the same Cr->Cb boundary. Both are masked (replaced
+with the nearby true plateau value) before differencing; the actual transition of interest sits
+comfortably inside each array, well clear of either masked region.
+
+### Wiener design
+
+`Hinv(f) = |H(f)| / (|H(f)|^2 + K)`, phase forced to zero (measured phase is small, <5 degrees, up
+to about 800 Hz, then noise-dominated past the filter's own -15dB@804Hz/null~1150Hz -- consistent
+with the narrow filter's already-documented shape). Two refinements over a naive flat-K fit, both
+found necessary by inspecting the first candidates' taps and PSNR, not assumed up front:
+
+- **DC pinned to an exact 1.0**, not the Wiener-shrunk value. The measured combined response's own
+  DC gain is already ~1.0 (0.991 Cr, 1.003 Cb) -- flat, already-correct colour passes through the
+  real chain essentially unchanged, so there's no regularization risk at f=0 and a flat `K` was
+  unnecessarily shrinking it anyway (down to 0.91 at `K=0.1`), which *desaturates* flat regions,
+  the opposite of the goal. The fitted FIR enforces this exactly too (an equality-constrained
+  least-squares projection onto `h0 + 2*sum(h_t) = 1`), not just the continuous target curve.
+- **Target held flat past 1100 Hz** rather than fit all the way to the 2631 Hz slot Nyquist, since
+  the measurement itself is noise-dominated up there (erratic phase, non-monotonic magnitude) --
+  fitting that region would inject measurement noise into the filter, not signal.
+
+Fit to a short symmetric (zero group delay) FIR by weighted least squares over the cosine basis
+(`Hfir(f) = h0 + 2*sum h_t*cos(2*pi*f*t/fs)`, `fs≈5262 Hz`), DC bin weighted heavily to make the
+equality projection well conditioned.
+
+Tap-count sweep (`K=0.1`, card and a hard-edged colour-bars/circles image standing in for a real
+photo -- no photo is committed to this repo; TX idea 6's own sweep used one that lives only on the
+machine it was measured on):
+
+| L (taps) | 3 | 5 | 7 | 9 |
+|---|---|---|---|---|
+| Card PSNR, all (dB) | 18.99 | 19.01 | 19.03 | 19.04 |
+| Hard-edge image PSNR, all (dB) | 13.54 | 13.54 | 13.55 | 13.56 |
+
+Diminishing returns past 7, matching TX idea 6's own tap-count finding. `K` sweep at 7 taps (same
+two images, clean):
+
+| K | 0.5 | 0.3 | 0.2 | 0.15 | 0.1 | 0.07 | 0.05 | 0.03 | 0.02 | 0.01 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Card PSNR, all (dB) | 18.86 | 18.92 | 18.97 | 19.00 | 19.03 | **19.05** | **19.06** | 19.04 | 18.99 | 18.87 |
+| Hard-edge PSNR, all (dB) | 13.51 | 13.53 | 13.54 | 13.55 | 13.55 | 13.55 | 13.55 | 13.54 | 13.52 | 13.48 |
+
+A broad flat optimum at 0.05-0.1, regressing below the off baseline (18.99 clean, from the TX
+pre-emphasis section's own current-code numbers) outside about 0.02-0.5 -- the same "broad
+optimum, regression at both
+extremes" shape TX idea 6's `Gmax` sweep found, for the same reason (too little correction leaves
+gain on the table; too much starts amplifying error/noise faster than it restores signal).
+**Shipped: 7 taps, `K=0.07`** -- close to the 0.05 peak (0.01 dB difference on the card) but with a
+smaller centre tap (1.19 vs 1.49 at K=0.05), preferred for slightly less noise-amplification risk
+at equal clean-signal gain. Taps: `[1.186478, 0.040282, -0.025199, -0.108322]` (centre, ±1, ±2, ±3
+slots).
+
+### Validation
+
+Regression canary (`--suite`): luma PSNR, all three MTF curves, and x/y edge rise (all grayscale,
+Cr/Cb pinned at the flat 127.5 midpoint) bit-identical with vs without -- confirms no L/D leak.
+Pure chroma edge (`cedge320/321`) B rise narrowed slightly (14.75/14.79px on -> 14.04/14.19px), a
+small genuine sharpening, consistent with whole-card PSNR also improving (not the "sharper metric,
+worse image" trap flagged repeatedly elsewhere in this file). Group delay
+(`metrics::edgeCrossChannel()` on `cedge320/321`'s B channel): -0.019px / -0.031px, both well
+inside the ≤0.08px bar used for TX idea 6 -- no RX timing correction needed, as expected for a
+symmetric (zero group delay) FIR. Wide-filter interaction: `--chroma-wide` alone and
+`--chroma-wide --chroma-deconv` together give identical PSNR (19.40 dB both) -- the code-level
+guard is working as designed.
+
+`medge320`'s automated B-channel rise metric jumped from 0.91px to 15.01px on -> off -- this is the
+same known-unreliable-metric artifact documented for the chroma-wide-filter section above and TX
+idea 5 (a real filter ringing/overshoot pattern crossing the naive 10-90% threshold algorithm
+non-monotonically), not evidence of real damage: whole-card and `cedge` PSNR both improved at the
+same settings. Treat any lone `medge` swing as unreliable; trust card/`cedge` PSNR first.
+
+SNR sweep (card and the hard-edge image, `--ssb`, all-channel PSNR, without -> with):
+
+| SNR (dB) | 40 | 30 | 25 | 24 | 23 | 22 | 21 | 20 | 15 | 10 | 5 | 0 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Card | 18.90->18.96 | 18.87->18.92 | 18.80->18.83 | 18.77->18.79 | 18.74->18.75 | 18.70->18.69 | 18.65->18.62 | 18.59->18.54 | 18.00->17.79 | 16.65->16.20 | 14.19->13.50 | 10.35->9.82 |
+| Hard-edge | 13.47->13.49 | 13.47->13.48 | 13.45->13.45 | -- | -- | 13.42->13.41 | -- | 13.38->13.37 | 13.21->13.14 | 12.73->12.53 | 11.48->11.06 | 8.84->8.45 |
+
+A real crossover, around **22-25 dB SNR** on both images -- small, growing losses below it (-0.7dB
+by 5dB on the card), small, consistent gains above (+0.03 to +0.06dB). Unlike TX idea 6, this *is*
+an RX-side filter and so pays the noise-amplification tax its own original risk framing predicted;
+the crossover sits close to the chroma-only wide-filter section's own ~20-25dB finding above, which
+makes sense (same mechanism: an RX-side operation on the already-noisy demodulated Cr/Cb, not a
+before-the-channel TX boost). **Shipped default: off**, same reasoning as the wide-filter checkbox
+-- the RX tooltip says "leave it off for typical HF" and names ~25 dB.
+
 ## The application against this harness
 
 Decoding these recordings with the real application (`qsstv --batch`, real VIS detection and sync) gives pictures that

@@ -400,6 +400,19 @@
            <item row="6" column="2">
             <widget class="QSpinBox" name="completeSpinBox"/>
            </item>
+           <item row="8" column="0">
+            <widget class="QCheckBox" name="chromaDeconvolutionCheckBox">
+             <property name="toolTip">
+              <string>JB60 only: sharpen received Cr/Cb with a regularized inverse of the video filter's blur, matched to how this app's own transmit chroma pre-emphasis plus the channel actually shape the signal. Amplifies noise along with edges below about 25 dB SNR -- leave it off for typical HF. Best matched to pictures sent by this app; other encoders' output or older recordings may not benefit as much. Has no effect while Wide Video Filter is also checked. Takes effect at the next picture.</string>
+             </property>
+             <property name="layoutDirection">
+              <enum>Qt::RightToLeft</enum>
+             </property>
+             <property name="text">
+              <string>JB60 Chroma Deconvolution</string>
+             </property>
+            </widget>
+           </item>
           </layout>
          </item>
          <item>

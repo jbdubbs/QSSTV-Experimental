@@ -47,6 +47,13 @@ public:
   modeJB60(esstvMode m, unsigned int len, bool tx, bool narrowMode);
   ~modeJB60();
   bool getPixels();
+  // Diagnostic accessors, not used by the app itself: the most recently RX-captured (post-demod,
+  // pre-deconvolution) Cr/Cb slot arrays. showLine() swaps its freshly assign()'d curCr/curCb into
+  // prevCr/prevCb before returning, so immediately after any process() call these hold exactly the
+  // last line pair's demodulated chroma -- used by tests/jb60_loopback's --dump-slots to measure
+  // the real chain's slot-domain response for RX idea 4's deconvolution filter design.
+  const std::vector<unsigned char>& lastCr() const { return prevCr; }
+  const std::vector<unsigned char>& lastCb() const { return prevCb; }
 protected:
   embState rxSetupLine();
   embState txSetupLine();

@@ -14,6 +14,7 @@
 #include "downsamplefilter.h"
 #include "filters.h"
 #include "videofilterselection.h"
+#include "chromadeconvolution.h"
 #include "metrics.h"
 #include <QGuiApplication>
 #include <cstdio>
@@ -270,10 +271,29 @@ namespace
     fclose(f);
   }
 
+  // A single-column colour impulse in the last line pair (the rest of the picture flat grey), used
+  // to measure the real chain's slot-domain Cr/Cb impulse response for RX idea 4's filter design
+  // (--dump-slots). JB60's chroma for pair p depends only on pair p's own two rows (see getLine()),
+  // so placing the impulse in the LAST pair and reading back lastCr()/lastCb() right after
+  // process() returns isolates exactly that one pair's response, uncontaminated by any other pair.
+  QImage impulseImage(int x0,int width,QColor fg,QColor bg=QColor(128,128,128))
+  {
+    QImage im(W,H,QImage::Format_RGB32);
+    im.fill(bg.rgb());
+    for(int y=H-2;y<H;y++)
+      for(int x=x0;x<x0+width && x<W;x++)
+        im.setPixel(x,y,fg.rgb());
+    return im;
+  }
+
   // ------------------------------------------------------------------ one TX -> channel -> RX pass
   struct Result { QImage rx; double seconds; int rxResult; int lines,imageLines; double delay; };
 
-  Result runChain(const Options &o,const QImage &src)
+  // outCr/outCb, when non-null and o.mode==JB60: filled with the last line pair's demodulated,
+  // pre-deconvolution Cr/Cb slot arrays (modeJB60::lastCr()/lastCb()) before rx is deleted --
+  // used only by --dump-slots.
+  Result runChain(const Options &o,const QImage &src,
+                   std::vector<unsigned char> *outCr=nullptr,std::vector<unsigned char> *outCb=nullptr)
   {
     initializeSSTVParametersIndex(o.mode,true);
     initializeSSTVParametersIndex(o.mode,false);
@@ -328,6 +348,12 @@ namespace
     res.rxResult=(int)rx->process(demod.data(),0,false,0);
     res.lines=rx->receivedLines(); res.imageLines=rx->imageLines();
     res.rx=rxIv.img;
+    if(o.mode==JB60 && (outCr||outCb))
+      {
+        modeJB60 *rxJb=static_cast<modeJB60*>(rx);
+        if(outCr) *outCr=rxJb->lastCr();
+        if(outCb) *outCb=rxJb->lastCb();
+      }
     delete tx; delete rx;
     return res;
   }
@@ -407,6 +433,35 @@ namespace
     printf("  edge 10-90%% rise: x %.2f px   y %.2f px   chroma %.2f px\n",riseX,riseY,riseC);
     printMtf("horizontal",mh); printMtf("vertical",mv); printMtf("diagonal",md);
   }
+
+  // RX idea 4 design tool: dumps the real chain's Cr/Cb slot-domain impulse response (a flat-
+  // background run and a one-column-impulse run, both through the *current* Options -- e.g. pass
+  // --chroma-wide to measure the wide filter's response instead of the narrow one) as plain text
+  // on stdout, for offline FFT/Wiener-inverse design. See tests/jb60_loopback/README.md, RX idea 4.
+  void dumpSlots(const Options &o,const std::string &channel)
+  {
+    QImage flat=impulseImage(320,0,QColor(128,128,128));   // width 0: no impulse, pure background
+    QImage imp=impulseImage(320,1,QColor(255,0,0));        // one saturated column: excites both Cr and Cb
+    // Y-held-(near)constant step (128,128,128) -> (255,87,0): R 128->255 and B 128->0 push Cr/Cb hard in
+    // opposite directions while G is chosen so luma stays ~128 on both sides (127.8 vs 128.0, <1 count off,
+    // rounds to the same guideLut[0] bucket) -- so downsampleChroma()'s luma-guided weights stay uniform
+    // across the transition and this is effectively a plain linear box-average + pre-emphasis + channel
+    // system being step-excited, at full swing (much better SNR than the single-column impulse above) for
+    // deriving the impulse response by differencing. See tests/jb60_loopback/README.md, RX idea 4.
+    QImage step=impulseImage(320,320,QColor(255,87,0));
+    std::vector<unsigned char> crF,cbF,crI,cbI,crS,cbS;
+    runChain(o,flat,&crF,&cbF);
+    runChain(o,imp,&crI,&cbI);
+    runChain(o,step,&crS,&cbS);
+    auto dump=[&](const char *tag,const std::vector<unsigned char> &v)
+      {
+        printf("%s:",tag);
+        for(unsigned char b:v) printf(" %d",(int)b);
+        printf("\n");
+      };
+    if(channel=="cr"||channel=="both") { dump("cr_flat",crF); dump("cr_impulse",crI); dump("cr_step",crS); }
+    if(channel=="cb"||channel=="both") { dump("cb_flat",cbF); dump("cb_impulse",cbI); dump("cb_step",cbS); }
+  }
 }
 
 int main(int argc,char**argv)
@@ -414,8 +469,8 @@ int main(int argc,char**argv)
   Options o;
   if(argc<2) { fprintf(stderr,
       "usage: %s <jb|pd> [--image 0|1|2|card|vedge320|vedge321|hedge248|hedge249|cedge320|cedge321|grath|gratv|gratd|file.png]\n"
-      "          [--suite] [--ideal] [--fir wide|narrow] [--chroma-wide] [--snr dB] [--ssb] [--noise-hz Hz (with --ideal)] [--clock-err frac]\n"
-      "          [--tshift samples] [--out prefix] [--wav file.wav [--vis] [--count N]]\n"          "       %s --compare a.png b.png\n",argv[0],argv[0]); return 1; }
+      "          [--suite] [--ideal] [--fir wide|narrow] [--chroma-wide] [--chroma-deconv] [--snr dB] [--ssb] [--noise-hz Hz (with --ideal)] [--clock-err frac]\n"
+      "          [--tshift samples] [--out prefix] [--wav file.wav [--vis] [--count N]] [--dump-slots cr|cb|both]\n"          "       %s --compare a.png b.png\n",argv[0],argv[0]); return 1; }
   if(!strcmp(argv[1],"--compare"))
     {
       if(argc<4) { fprintf(stderr,"--compare a.png b.png\n"); return 1; }
@@ -426,7 +481,8 @@ int main(int argc,char**argv)
       return 0;
     }
   o.mode=(!strcmp(argv[1],"pd"))?PD120:JB60;
-  bool chromaWide=false;
+  bool chromaWide=false,chromaDeconv=false;
+  std::string dumpSlotsChannel;
   for(int i=2;i<argc;i++)
     {
       std::string a=argv[i];
@@ -445,12 +501,17 @@ int main(int argc,char**argv)
       else if(a=="--vis") o.vis=true;
       else if(a=="--count") o.count=std::max(1,atoi(val()));
       else if(a=="--chroma-wide") chromaWide=true;
+      else if(a=="--chroma-deconv") chromaDeconv=true;
+      else if(a=="--dump-slots") dumpSlotsChannel=val();
       else { fprintf(stderr,"unknown option %s\n",a.c_str()); return 1; }
     }
   // Deterministic regardless of any real qsstv settings on this machine: off unless --chroma-wide asks for it
   // (this is what modeJB60::getPixels() reads for its per-segment choice; see RX idea #1 in videofilterselection.h).
   setWideVideoFilterOverride(chromaWide ? 1 : 0);
+  // Same idea, RX idea #4 (chromadeconvolution.h): off unless --chroma-deconv asks for it.
+  setChromaDeconvolutionOverride(chromaDeconv ? 1 : 0);
   QGuiApplication app(argc,argv);
+  if(!dumpSlotsChannel.empty()) { dumpSlots(o,dumpSlotsChannel); return 0; }
   if(o.suite) { runSuite(o); return 0; }
   QImage src=loadImage(o.image);
   Result r=runChain(o,src);
