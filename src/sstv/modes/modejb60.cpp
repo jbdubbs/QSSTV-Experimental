@@ -19,6 +19,7 @@
 #include "modejb60.h"
 #include "videofilterselection.h"
 #include "chromadeconvolution.h"
+#include "chromaedgeboost.h"
 #include <algorithm>
 #include <vector>
 
@@ -100,6 +101,59 @@ namespace
                +kPreEmphH2*(at((int)k-2)+at((int)k+2));
         arr[k]=clampByte(v);   // contains any overshoot -- the idea-5-precedent safety net
       }
+  }
+
+  // TX idea 12: edge-triggered double-pass chroma pre-emphasis (jb60-color-smear-ideas memory, idea 12).
+  // Detects, from the slot sequence TX already has noise-free, slots sitting near a real Cr/Cb transition
+  // and blends toward a SECOND cascaded application of the *same*, already-unconditional idea-6 filter
+  // exactly there -- two cascaded 6dB shelves multiply in the frequency domain to roughly a 12dB shelf,
+  // coincidentally the point idea 6's own Gmax sweep found *uniform* application starts to regress
+  // (18.93->18.84dB by 12dB, see idea 6's writeup); content-gating specifically avoids paying that tax
+  // on non-edge content, which is what idea 6 alone cannot do (it's a fixed, position-blind LTI filter).
+  // Weight tapered by a smoothing pass (not a hard threshold) so no slot sees a sudden jump in filtering
+  // strength -- the direct fix for TX idea 5's failure mode (an unconstrained per-slot choice creating a
+  // bigger inter-slot step than flat averaging ever produced, which the channel read as more ringing).
+  // Opt-in (chromaEdgeBoostEnabled()), applied after idea 6's unconditional pass, never instead of it.
+  const float kEdgeBoostThreshold=15.0f;      // slot-to-slot (2-apart) jump, in counts, treated as "a real edge"
+  const unsigned int kEdgeBoostSmoothHalf=2;  // triangular smoothing half-width on the edge-weight itself
+
+  void applyChromaEdgeBoost(unsigned char *arr,unsigned int n)
+  {
+    if(n<2) return;
+    std::vector<float> single(arr,arr+n);   // idea 6's own output, already run once by the caller
+    std::vector<float> dbl(n);
+    auto at=[&](const std::vector<float> &v,int i)->float
+      {
+        if(i<0) i=0;
+        if(i>=(int)n) i=(int)n-1;
+        return v[i];
+      };
+    for(unsigned int k=0;k<n;k++)
+      dbl[k]=kPreEmphH0*at(single,(int)k)
+            +kPreEmphH1*(at(single,(int)k-1)+at(single,(int)k+1))
+            +kPreEmphH2*(at(single,(int)k-2)+at(single,(int)k+2));
+
+    std::vector<float> rawW(n,0.f);
+    for(unsigned int k=0;k<n;k++)
+      {
+        float d=fabsf(at(single,(int)k+1)-at(single,(int)k-1));
+        rawW[k]=d/kEdgeBoostThreshold;
+        if(rawW[k]>1.f) rawW[k]=1.f;
+      }
+    std::vector<float> w(n,0.f);
+    for(unsigned int k=0;k<n;k++)
+      {
+        float sum=0.f,wsum=0.f;
+        for(int t=-(int)kEdgeBoostSmoothHalf;t<=(int)kEdgeBoostSmoothHalf;t++)
+          {
+            float tw=(float)(kEdgeBoostSmoothHalf+1-abs(t));   // triangular taper
+            sum+=tw*at(rawW,(int)k+t);
+            wsum+=tw;
+          }
+        w[k]=sum/wsum;
+      }
+    for(unsigned int k=0;k<n;k++)
+      arr[k]=clampByte((1.f-w[k])*single[k]+w[k]*dbl[k]);
   }
 
   // RX idea 4: regularized (Wiener-style) inverse of the combined TX-pre-emphasis + channel slot-
@@ -408,6 +462,11 @@ void modeJB60::getLine()
   downsampleChroma(cbPix,lMean,kSegCount[SEG_CB],blueArrayPtr);
   applyChromaPreEmphasis(redArrayPtr,kSegCount[SEG_CR]);
   applyChromaPreEmphasis(blueArrayPtr,kSegCount[SEG_CB]);
+  if(chromaEdgeBoostEnabled())
+    {
+      applyChromaEdgeBoost(redArrayPtr,kSegCount[SEG_CR]);
+      applyChromaEdgeBoost(blueArrayPtr,kSegCount[SEG_CB]);
+    }
 }
 
 /*!
