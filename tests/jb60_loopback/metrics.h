@@ -220,6 +220,42 @@ namespace metrics
     for(double &v:prof) v/=(H-40);
     return rise1090(prof);
   }
+  // Absolute x position (sub-pixel) where a cEdge()/vEdge()-style step's channel value crosses `frac` of
+  // the way from its low plateau to its high plateau -- same windowed profile as edgeRiseChannel(), but a
+  // position, not a width, so two runs (e.g. a TX-side change on vs off) can be compared for a group-delay
+  // shift on a real transmitted edge. See the loopback README's chroma pre-emphasis section (TX idea 6) --
+  // calibrateDelay() alone can't see a TX-side change since its synthetic step bypasses the mode's TX code.
+  inline double edgeCrossChannel(const QImage &rx,int x0,int channel,double frac=0.5)
+  {
+    std::vector<double> prof(28,0.);
+    const int H=rx.height();
+    for(int r=20;r<H-20;r++)
+      {
+        const QRgb *p=(const QRgb*)rx.constScanLine(r);
+        for(int i=0;i<28;i++)
+          {
+            QRgb v=p[x0-14+i];
+            prof[i]+=(channel==0) ? qRed(v) : (channel==1) ? qGreen(v) : qBlue(v);
+          }
+      }
+    for(double &v:prof) v/=(H-40);
+    double lo=0,hi=0;
+    for(int i=0;i<5;i++) { lo+=prof[i]; hi+=prof[prof.size()-1-i]; }
+    lo/=5; hi/=5;
+    if(hi-lo<1) return -1;
+    for(size_t i=0;i<prof.size();i++)
+      {
+        double q=(prof[i]-lo)/(hi-lo);
+        if(q>=frac)
+          {
+            if(i==0) return (double)(x0-14);
+            double qp=(prof[i-1]-lo)/(hi-lo);
+            return (double)(x0-14)+(double)(i-1)+(frac-qp)/(q-qp);
+          }
+      }
+    return (double)(x0-14+(int)prof.size());
+  }
+
   // amplitude ratio (output/input) of the fundamental in each of the 10 bands
   inline std::vector<double> mtf(const QImage &rx,char kind)
   {

@@ -1306,6 +1306,19 @@
          </property>
         </widget>
        </item>
+       <item row="2" column="0" colspan="2">
+        <widget class="QCheckBox" name="jb60ChromaPreEmphasisCheckBox">
+         <property name="toolTip">
+          <string>Boost JB60 Cr/Cb before transmission to compensate for the receive video filter's blur (JB60 only, opt-in)</string>
+         </property>
+         <property name="statusTip">
+          <string>Boost JB60 Cr/Cb before transmission to compensate for the receive video filter's blur</string>
+         </property>
+         <property name="text">
+          <string>JB60 Chroma Pre-emphasis</string>
+         </property>
+        </widget>
+       </item>
       </layout>
      </item>
      <item>

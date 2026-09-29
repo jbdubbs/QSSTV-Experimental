@@ -18,7 +18,9 @@
  ***************************************************************************/
 #include "modejb60.h"
 #include "videofilterselection.h"
+#include "chromapreemphasis.h"
 #include <algorithm>
+#include <vector>
 
 namespace
 {
@@ -69,6 +71,32 @@ namespace
   {
     int i=(int)lroundf(v);
     return (unsigned char)(i<0 ? 0 : (i>255 ? 255 : i));
+  }
+
+  // TX idea 6: cap-and-hold regularized-inverse pre-emphasis for the narrow RX video filter,
+  // slot-domain (~5.26 kHz), 5 taps, unity DC gain by construction. Gmax=6dB, fc~600Hz (matches
+  // the narrow filter's own -6dB point). See jb60-color-smear-ideas memory, TX idea 6, for the
+  // derivation and the real-chain sweep that picked this Gmax/length. Opt-in, gated by
+  // chromaPreEmphasisEnabled() (TX "JB60 Chroma Pre-emphasis" checkbox, default off).
+  const float kPreEmphH0=1.698f, kPreEmphH1=-0.2133f, kPreEmphH2=-0.1357f;
+
+  void applyChromaPreEmphasis(unsigned char *arr,unsigned int n)
+  {
+    if(n<1) return;
+    std::vector<unsigned char> src(arr,arr+n);   // read from a copy, not partially-overwritten neighbours
+    auto at=[&](int i)->float
+      {
+        if(i<0) i=0;
+        if(i>=(int)n) i=(int)n-1;
+        return (float)src[i];
+      };
+    for(unsigned int k=0;k<n;k++)
+      {
+        float v=kPreEmphH0*at((int)k)
+               +kPreEmphH1*(at((int)k-1)+at((int)k+1))
+               +kPreEmphH2*(at((int)k-2)+at((int)k+2));
+        arr[k]=clampByte(v);   // contains any overshoot -- the idea-5-precedent safety net
+      }
   }
 
   inline unsigned char encodeD(float d)
@@ -330,6 +358,11 @@ void modeJB60::getLine()
     }
   downsampleChroma(crPix,lMean,kSegCount[SEG_CR],redArrayPtr);
   downsampleChroma(cbPix,lMean,kSegCount[SEG_CB],blueArrayPtr);
+  if(chromaPreEmphasisEnabled())
+    {
+      applyChromaPreEmphasis(redArrayPtr,kSegCount[SEG_CR]);
+      applyChromaPreEmphasis(blueArrayPtr,kSegCount[SEG_CB]);
+    }
 }
 
 /*!

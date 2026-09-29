@@ -22,6 +22,7 @@
 #include "imageviewer.h"
 #include "testpatternselection.h"
 #include "sstv/engineselection.h"
+#include "sstv/chromapreemphasis.h"
 
 
 txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
@@ -56,6 +57,7 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   connect(ui->refreshPushButton,SIGNAL(clicked()),SLOT(slotGetParams()));
   connect(ui->cwCheckBox,SIGNAL(toggled(bool)),SLOT(slotGetTXParams()));
   connect(ui->voxCheckBox,SIGNAL(toggled(bool)),SLOT(slotGetTXParams()));
+  connect(ui->jb60ChromaPreEmphasisCheckBox,SIGNAL(toggled(bool)),SLOT(slotGetTXParams()));
   connect(ui->toCallLineEdit,SIGNAL(editingFinished ()),SLOT(slotGetParams()));
   connect(ui->operatorLineEdit,SIGNAL(editingFinished ()),SLOT(slotGetParams()));
   connect(ui->rsvLineEdit,SIGNAL(editingFinished ()),SLOT(slotGetParams()));
@@ -208,6 +210,9 @@ void txWidget::slotGetTXParams()
   sstvModeIndexTx=txModeList[temp];
   getValue(useVOX,ui->voxCheckBox);
   getValue(useCW,ui->cwCheckBox);
+  bool jb60ChromaPreEmphasis;
+  getValue(jb60ChromaPreEmphasis,ui->jb60ChromaPreEmphasisCheckBox);
+  setChromaPreEmphasisEnabled(jb60ChromaPreEmphasis);
   getIndex(drmParams.bandwith,ui->drmTxBandwidthComboBox);
   getIndex(drmParams.interleaver,ui->drmTxInterleaveComboBox);
   getIndex(drmParams.protection,ui->drmTxProtectionComboBox);
@@ -258,6 +263,7 @@ void txWidget::setParams()
   ui->templatesComboBox->blockSignals(false);
   setValue(useVOX,ui->voxCheckBox);
   setValue(useCW,ui->cwCheckBox);
+  setValue(chromaPreEmphasisEnabled(),ui->jb60ChromaPreEmphasisCheckBox);
   setValue(useHybrid,ui->hybridCheckBox);
   setIndex(drmParams.bandwith,ui->drmTxBandwidthComboBox);
   setIndex(drmParams.interleaver,ui->drmTxInterleaveComboBox);

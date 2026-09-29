@@ -14,6 +14,7 @@
 #include "downsamplefilter.h"
 #include "filters.h"
 #include "videofilterselection.h"
+#include "chromapreemphasis.h"
 #include "metrics.h"
 #include <QGuiApplication>
 #include <cstdio>
@@ -360,8 +361,14 @@ namespace
     if(o.image=="vedge321") printf("  edge 10-90%% rise (x): %.2f px\n",metrics::edgeRiseV(r.rx,321));
     if(o.image=="hedge248") printf("  edge 10-90%% rise (y): %.2f px\n",metrics::edgeRiseH(r.rx,248));
     if(o.image=="hedge249") printf("  edge 10-90%% rise (y): %.2f px\n",metrics::edgeRiseH(r.rx,249));
-    if(o.image=="cedge320") printf("  chroma edge 10-90%% rise (x): R %.2f px  B %.2f px\n",metrics::edgeRiseChannel(r.rx,320,0),metrics::edgeRiseChannel(r.rx,320,2));
-    if(o.image=="cedge321") printf("  chroma edge 10-90%% rise (x): R %.2f px  B %.2f px\n",metrics::edgeRiseChannel(r.rx,321,0),metrics::edgeRiseChannel(r.rx,321,2));
+    if(o.image=="cedge320")
+      printf("  chroma edge 10-90%% rise (x): R %.2f px  B %.2f px   50%% crossing: R %.3f px  B %.3f px\n",
+             metrics::edgeRiseChannel(r.rx,320,0),metrics::edgeRiseChannel(r.rx,320,2),
+             metrics::edgeCrossChannel(r.rx,320,0),metrics::edgeCrossChannel(r.rx,320,2));
+    if(o.image=="cedge321")
+      printf("  chroma edge 10-90%% rise (x): R %.2f px  B %.2f px   50%% crossing: R %.3f px  B %.3f px\n",
+             metrics::edgeRiseChannel(r.rx,321,0),metrics::edgeRiseChannel(r.rx,321,2),
+             metrics::edgeCrossChannel(r.rx,321,0),metrics::edgeCrossChannel(r.rx,321,2));
     if(o.image=="medge320"||o.image=="medge321")
       {
         int x0=(o.image=="medge320")?320:321;
@@ -408,7 +415,7 @@ int main(int argc,char**argv)
   Options o;
   if(argc<2) { fprintf(stderr,
       "usage: %s <jb|pd> [--image 0|1|2|card|vedge320|vedge321|hedge248|hedge249|cedge320|cedge321|grath|gratv|gratd|file.png]\n"
-      "          [--suite] [--ideal] [--fir wide|narrow] [--chroma-wide] [--snr dB] [--ssb] [--noise-hz Hz (with --ideal)] [--clock-err frac]\n"
+      "          [--suite] [--ideal] [--fir wide|narrow] [--chroma-wide] [--chroma-preemph] [--snr dB] [--ssb] [--noise-hz Hz (with --ideal)] [--clock-err frac]\n"
       "          [--tshift samples] [--out prefix] [--wav file.wav [--vis] [--count N]]\n"          "       %s --compare a.png b.png\n",argv[0],argv[0]); return 1; }
   if(!strcmp(argv[1],"--compare"))
     {
@@ -421,6 +428,7 @@ int main(int argc,char**argv)
     }
   o.mode=(!strcmp(argv[1],"pd"))?PD120:JB60;
   bool chromaWide=false;
+  bool chromaPreEmph=false;
   for(int i=2;i<argc;i++)
     {
       std::string a=argv[i];
@@ -439,11 +447,14 @@ int main(int argc,char**argv)
       else if(a=="--vis") o.vis=true;
       else if(a=="--count") o.count=std::max(1,atoi(val()));
       else if(a=="--chroma-wide") chromaWide=true;
+      else if(a=="--chroma-preemph") chromaPreEmph=true;
       else { fprintf(stderr,"unknown option %s\n",a.c_str()); return 1; }
     }
   // Deterministic regardless of any real qsstv settings on this machine: off unless --chroma-wide asks for it
   // (this is what modeJB60::getPixels() reads for its per-segment choice; see RX idea #1 in videofilterselection.h).
   setWideVideoFilterOverride(chromaWide ? 1 : 0);
+  // Same, for TX idea #6's chroma pre-emphasis (chromapreemphasis.h) -- off unless --chroma-preemph asks for it.
+  setChromaPreEmphasisOverride(chromaPreEmph ? 1 : 0);
   QGuiApplication app(argc,argv);
   if(o.suite) { runSuite(o); return 0; }
   QImage src=loadImage(o.image);

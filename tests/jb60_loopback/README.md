@@ -151,6 +151,68 @@ same metric issue). Card PSNR/SSIM and the pure `cedge` bandwidth test are the t
 `medge`'s B rise as directional at best, and double check against PSNR and a direct pixel/crossing-position look
 before trusting a large swing in it.
 
+## TX chroma pre-emphasis for JB60 (`--chroma-preemph`)
+
+The two filters above are RX-side attempts at the same problem: the video demod filter's ~600 Hz (narrow) /
+~1000 Hz (wide) lowpass smears a 190 us slot over several pixels. This is a TX-side attempt instead: a small,
+opt-in checkbox ("JB60 Chroma Pre-emphasis", `TX/jb60ChromaPreEmphasis`, `sstv/chromapreemphasis.{h,cpp}`, default
+off) boosts JB60's Cr/Cb slot sequence *before* modulation, so old and new receivers alike get a slightly sharper
+picture with no RX-side change at all. `modeJB60::getLine()` applies it to `redArrayPtr`/`blueArrayPtr` right
+after `downsampleChroma()` fills them, gated by `chromaPreEmphasisEnabled()`; L/D are untouched.
+
+Kernel: a 5-tap, zero-phase, unity-DC-gain FIR at the slot rate (~5.26 kHz for JB60's ~190 us slot):
+`h = [-0.1357, -0.2133, 1.698, -0.2133, -0.1357]` (center, ±1, ±2 slots). Designed as a regularized inverse of the
+*narrow* video filter's measured magnitude response (`Ginv(f)=min(1/A(f), Gmax)`, `Gmax=6dB`, `fc≈599Hz` -- the
+narrow filter's own -6dB point), realized as identity plus a DC-leak-corrected `firwin2` fit so `sum(h)=1.0`
+exactly. Not designed against the wide filter (see spot check below). A short symmetric FIR can only realize a
+*monotonic* high-shelf, not the originally-intended "boost then roll back to unity" bump -- verified: even at 13
+taps, a frequency-sampling fit of that bump shape only reached ~55-60% of target gain and never returned to 0dB.
+So the shipped shape is cap-and-hold (flat at `Gmax` out to the slot Nyquist, not rolled back above the filter's
+near-null), which is why the `Gmax` sweep below matters more than the design formula alone -- see the
+`jb60-color-smear-ideas` memory, TX idea 6, for the sweep that picked `Gmax`/tap-count and the sign/overshoot
+analysis. `clampByte()` (already used elsewhere in the file) contains any overshoot at real transitions.
+
+Real chain, card image (2026-09-29), off vs on:
+
+| | off | on |
+|---|---|---|
+| Card PSNR: R / G / B / luma / all, clean (dB) | 18.74 / 19.42 / 18.68 / 21.04 / **18.93** | 18.77 / 19.44 / 18.79 / 21.05 / **18.99** |
+| Card PSNR: all, 25 dB SSB (dB) | 18.75 | 18.80 |
+| Card PSNR: all, 15 dB SSB (dB) | 17.95 | 18.00 |
+| Pure chroma edge (`cedge320/321`) 10-90% rise, B (px) | 15.40 / 15.42 | 14.75 / 14.79 |
+
+On a real photo (not synthetic -- a saturated-colour cat photo) the win is bigger, not smaller: all-channel PSNR
+23.95->24.26 dB clean, 23.49->23.75 dB at 25 dB SSB, 21.73->21.90 dB at 15 dB SSB, **and it's still a (smaller)
+win at 5 dB SSB: 15.43->15.47 dB** -- no crossover found from 5-40 dB SNR on either test image, unlike the two
+RX-side filters above (~20-25 dB crossover) or RX idea 4's expected one. This matches the textbook pre-emphasis
+argument: boosting happens *before* the channel adds noise, so it doesn't trade sharpness for noise robustness
+the way RX-side sharpening does.
+
+`Gmax` sweep (5-tap, card, real chain) found a broad flat PSNR optimum at 5-7dB, turning over by 8-9dB and
+**regressing below baseline by 12dB** (18.93->18.84dB clean) -- while the naive `cedge` B-rise metric kept
+improving monotonically the whole way to 12dB. Same "sharper single-edge metric, worse real image" trap already
+flagged for TX idea 5 and RX idea 3, live here too: trust card PSNR/SSIM to pick `Gmax`, never a lone edge-rise
+number. Kernel-length check at Gmax=6dB: 3 taps -> +0.03dB clean, 5 taps -> +0.06dB (about double), 7 taps ->
++0.08dB (smaller further gain) -- 5 taps shipped as the simplicity/benefit balance.
+
+Group-delay: `calibrateDelay()` (used by the two RX-side filters above) is **structurally blind** to this change,
+since its synthetic step bypasses `modeJB60::getLine()` entirely -- confirmed identical "video-path delay" across
+every `Gmax` tested. The real check is a direct 50%-crossing measurement on a transmitted `cedge320/321` edge
+(`metrics::edgeCrossChannel()`, printed by `--image cedge320`/`cedge321`'s report line): B channel moved by
+**-0.08px** (cedge320) and **+0.01px** (cedge321) with pre-emphasis on, both well inside the wide-filter section's
+own accepted ≤0.26px precedent above -- no `bp`-style RX timing correction needed.
+
+Wide-filter spot check (designed against narrow only, per the jb60-color-smear-ideas memory's scoping decision):
+combined with `--chroma-wide`, all-channel PSNR 19.36->19.40dB; combined with `--fir wide` (the legacy
+whole-picture path), 19.57->19.62dB. No regression either way.
+
+Regression canary (`--suite`): MTF (grating images, all grayscale so Cr/Cb sit at the flat 127.5 midpoint --
+exactly where a unity-DC-gain kernel is a no-op) and edge x/y rise (also grayscale) are bit-identical on vs off,
+confirming L/D are untouched. Card's own "luma PSNR" (computed from the *reconstructed* R/G/B, not the internal Y
+slot values) wobbles by +0.01dB (21.04->21.05) -- this is a byte-rounding artifact of the RGB reconstruction
+(`R=Y+1.4(Cr-127.5)`, `B=Y+1.78(Cb-127.5)`, `G` solved from `Y`), not a real L/D leak; two orders of magnitude
+below the intended Cr/Cb win and confirmed harmless by the grayscale-image tests above.
+
 ## The application against this harness
 
 Decoding these recordings with the real application (`qsstv --batch`, real VIS detection and sync) gives pictures that
