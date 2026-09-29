@@ -103,40 +103,47 @@ namespace
       }
   }
 
-  // TX idea 12: edge-triggered double-pass chroma pre-emphasis (jb60-color-smear-ideas memory, idea 12).
-  // Detects, from the slot sequence TX already has noise-free, slots sitting near a real Cr/Cb transition
-  // and blends toward a SECOND cascaded application of the *same*, already-unconditional idea-6 filter
-  // exactly there -- two cascaded 6dB shelves multiply in the frequency domain to roughly a 12dB shelf,
-  // coincidentally the point idea 6's own Gmax sweep found *uniform* application starts to regress
-  // (18.93->18.84dB by 12dB, see idea 6's writeup); content-gating specifically avoids paying that tax
-  // on non-edge content, which is what idea 6 alone cannot do (it's a fixed, position-blind LTI filter).
-  // Weight tapered by a smoothing pass (not a hard threshold) so no slot sees a sudden jump in filtering
-  // strength -- the direct fix for TX idea 5's failure mode (an unconstrained per-slot choice creating a
-  // bigger inter-slot step than flat averaging ever produced, which the channel read as more ringing).
-  // Opt-in (chromaEdgeBoostEnabled()), applied after idea 6's unconditional pass, never instead of it.
+  // TX idea 12, attempt 2 (jb60-color-smear-ideas memory, idea 12): attempt 1 (cascading idea 6's own
+  // filter with itself at detected edges) was a clean no-win -- measuring the raw channel response fresh
+  // (tests/jb60_loopback --dump-slots, pre-emphasis disabled) and re-running idea 6's own cap-and-hold
+  // design at higher Gmax shows *why*: step-response overshoot grows almost linearly with Gmax regardless
+  // of tap count (6dB~0.42, 8dB~0.62, 10dB~0.87, 12dB~1.19 of the step height) -- a cascade of two 6dB
+  // passes (~12dB combined) was never going to avoid that, since the overshoot is intrinsic to demanding
+  // that much gain from a cap-and-hold shelf, not an artifact of cascading specifically.
+  //
+  // Attempt 2 instead fits a fresh, independent, properly-designed kernel at a real (not doubled) target
+  // Gmax, applied to the SAME raw (pre-idea-6) box-averaged slot sequence idea 6 itself starts from --
+  // not cascaded on top of idea 6's own output -- and blends it against idea 6's baseline output per-slot
+  // by the same smoothly-tapered edge-detection weight as attempt 1, so a slot with no real transition
+  // nearby still reduces to exactly today's shipped behaviour. Gmax=10dB, 7 taps (L=3), fit by the exact
+  // method documented for idea 6/4 (equality-constrained weighted least squares against
+  // min(1/|H(f)|,Gmax), DC pinned to 1.0, target held flat past ~1100Hz where the measurement is
+  // noise-dominated) -- see tests/jb60_loopback/README.md for a from-scratch reproduction script if this
+  // needs re-deriving.
+  const float kEdgeH0=2.7535f, kEdgeH1=-0.3808f, kEdgeH2=-0.3047f, kEdgeH3=-0.1913f;
   const float kEdgeBoostThreshold=15.0f;      // slot-to-slot (2-apart) jump, in counts, treated as "a real edge"
   const unsigned int kEdgeBoostSmoothHalf=2;  // triangular smoothing half-width on the edge-weight itself
 
-  void applyChromaEdgeBoost(unsigned char *arr,unsigned int n)
+  void applyChromaEdgeBoost(const unsigned char *raw,unsigned char *arr,unsigned int n)
   {
     if(n<2) return;
-    std::vector<float> single(arr,arr+n);   // idea 6's own output, already run once by the caller
-    std::vector<float> dbl(n);
-    auto at=[&](const std::vector<float> &v,int i)->float
+    auto at=[&](int i)->float
       {
         if(i<0) i=0;
         if(i>=(int)n) i=(int)n-1;
-        return v[i];
+        return (float)raw[i];
       };
+    std::vector<float> boosted(n);
     for(unsigned int k=0;k<n;k++)
-      dbl[k]=kPreEmphH0*at(single,(int)k)
-            +kPreEmphH1*(at(single,(int)k-1)+at(single,(int)k+1))
-            +kPreEmphH2*(at(single,(int)k-2)+at(single,(int)k+2));
+      boosted[k]=kEdgeH0*at((int)k)
+                +kEdgeH1*(at((int)k-1)+at((int)k+1))
+                +kEdgeH2*(at((int)k-2)+at((int)k+2))
+                +kEdgeH3*(at((int)k-3)+at((int)k+3));
 
     std::vector<float> rawW(n,0.f);
     for(unsigned int k=0;k<n;k++)
       {
-        float d=fabsf(at(single,(int)k+1)-at(single,(int)k-1));
+        float d=fabsf(at((int)k+1)-at((int)k-1));
         rawW[k]=d/kEdgeBoostThreshold;
         if(rawW[k]>1.f) rawW[k]=1.f;
       }
@@ -147,13 +154,14 @@ namespace
         for(int t=-(int)kEdgeBoostSmoothHalf;t<=(int)kEdgeBoostSmoothHalf;t++)
           {
             float tw=(float)(kEdgeBoostSmoothHalf+1-abs(t));   // triangular taper
-            sum+=tw*at(rawW,(int)k+t);
+            int i=(int)k+t; if(i<0) i=0; if(i>=(int)n) i=(int)n-1;
+            sum+=tw*rawW[i];
             wsum+=tw;
           }
         w[k]=sum/wsum;
       }
     for(unsigned int k=0;k<n;k++)
-      arr[k]=clampByte((1.f-w[k])*single[k]+w[k]*dbl[k]);
+      arr[k]=clampByte((1.f-w[k])*(float)arr[k]+w[k]*boosted[k]);
   }
 
   // RX idea 4: regularized (Wiener-style) inverse of the combined TX-pre-emphasis + channel slot-
@@ -460,12 +468,18 @@ void modeJB60::getLine()
     }
   downsampleChroma(crPix,lMean,kSegCount[SEG_CR],redArrayPtr);
   downsampleChroma(cbPix,lMean,kSegCount[SEG_CB],blueArrayPtr);
+  std::vector<unsigned char> rawCr,rawCb;   // idea 12's own kernel starts from the same raw input idea 6 does
+  if(chromaEdgeBoostEnabled())
+    {
+      rawCr.assign(redArrayPtr,redArrayPtr+kSegCount[SEG_CR]);
+      rawCb.assign(blueArrayPtr,blueArrayPtr+kSegCount[SEG_CB]);
+    }
   applyChromaPreEmphasis(redArrayPtr,kSegCount[SEG_CR]);
   applyChromaPreEmphasis(blueArrayPtr,kSegCount[SEG_CB]);
   if(chromaEdgeBoostEnabled())
     {
-      applyChromaEdgeBoost(redArrayPtr,kSegCount[SEG_CR]);
-      applyChromaEdgeBoost(blueArrayPtr,kSegCount[SEG_CB]);
+      applyChromaEdgeBoost(rawCr.data(),redArrayPtr,kSegCount[SEG_CR]);
+      applyChromaEdgeBoost(rawCb.data(),blueArrayPtr,kSegCount[SEG_CB]);
     }
 }
 
