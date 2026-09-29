@@ -96,6 +96,8 @@ namespace
     if(name=="cedge321") return metrics::cEdge(W,H,321);
     if(name=="medge320") return metrics::mEdge(W,H,320);
     if(name=="medge321") return metrics::mEdge(W,H,321);
+    if(name=="dedge320") return metrics::dEdge(W,H,320);
+    if(name=="dedge321") return metrics::dEdge(W,H,321);
     if(name=="grath") return metrics::grating(W,H,'h');
     if(name=="gratv") return metrics::grating(W,H,'v');
     if(name=="gratd") return metrics::grating(W,H,'d');
@@ -426,6 +428,8 @@ namespace
         printf("  luma edge 10-90%% rise (x): %.2f px   chroma: R %.2f px  B %.2f px\n",
                metrics::edgeRiseV(r.rx,x0),metrics::edgeRiseChannel(r.rx,x0,0),metrics::edgeRiseChannel(r.rx,x0,2));
       }
+    if(o.image=="dedge320") printf("  D edge 10-90%% rise (x): %.2f px\n",metrics::edgeRiseD(r.rx,320));
+    if(o.image=="dedge321") printf("  D edge 10-90%% rise (x): %.2f px\n",metrics::edgeRiseD(r.rx,321));
     if(o.image=="grath") printMtf("horizontal (vertical stripes)",metrics::mtf(r.rx,'h'));
     if(o.image=="gratv") printMtf("vertical (horizontal stripes)",metrics::mtf(r.rx,'v'));
     if(o.image=="gratd") printMtf("diagonal",metrics::mtf(r.rx,'d'));
@@ -494,7 +498,7 @@ int main(int argc,char**argv)
 {
   Options o;
   if(argc<2) { fprintf(stderr,
-      "usage: %s <jb|pd> [--image 0|1|2|card|vedge320|vedge321|hedge248|hedge249|cedge320|cedge321|grath|gratv|gratd|file.png]\n"
+      "usage: %s <jb|pd> [--image 0|1|2|card|vedge320|vedge321|hedge248|hedge249|cedge320|cedge321|medge320|medge321|dedge320|dedge321|grath|gratv|gratd|file.png]\n"
       "          [--suite] [--ideal] [--fir wide|narrow] [--chroma-wide] [--chroma-deconv] [--snr dB] [--ssb] [--noise-hz Hz (with --ideal)] [--clock-err frac]\n"
       "          [--tshift samples] [--out prefix] [--wav file.wav [--vis] [--count N]] [--dump-slots cr|cb|both]\n"          "       %s --compare a.png b.png\n",argv[0],argv[0]); return 1; }
   if(!strcmp(argv[1],"--compare"))

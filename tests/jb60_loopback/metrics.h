@@ -138,7 +138,14 @@ namespace metrics
     double lo=0,hi=0;
     for(int i=0;i<5;i++) { lo+=p[i]; hi+=p[p.size()-1-i]; }
     lo/=5; hi/=5;
-    if(hi-lo<1) return -1;
+    // fabs(), not a plain <1: a *falling* edge (hi<lo, e.g. cEdge's R channel, which runs 200->40 while
+    // its B channel runs 40->200) is still a perfectly valid transition -- q=(p[i]-lo)/(hi-lo) increases
+    // 0->1 monotonically from the lo-plateau to the hi-plateau either way, so only a genuinely flat
+    // profile (no transition in either direction) should bail out here. Before this fix, every falling
+    // channel silently read as the -1 "invalid" sentinel forever (found while checking idea 8's R-channel
+    // cost in jb60-color-smear-ideas -- R had never actually been edge-width-measured on cEdge/medge,
+    // only tracked via whole-image PSNR, for any idea in that whole investigation).
+    if(fabs(hi-lo)<1) return -1;
     auto cross=[&](double t)
     {
       for(size_t i=0;i<p.size();i++)
@@ -196,6 +203,23 @@ namespace metrics
     for(int y=0;y<h;y++) { QRgb *p=(QRgb*)im.scanLine(y); for(int x=0;x<w;x++) p[x]=(x<x0) ? cA : cB; }
     return im;
   }
+  // D-edge (jb60-color-smear-ideas, idea 7): isolates JB60's vertical-detail (D) channel the way cEdge
+  // isolates chroma. Left of x0, both rows of every pair are flat at 128 (no vertical detail); right of
+  // x0, rows alternate LO/HI (mean 127.5, near-matched to the left side's 128 so L's own smear can't leak
+  // into the reading, the same isolation trick cEdge uses for chroma). Vertical detail is (HI-LO)/2 on
+  // the right, zero on the left -- a clean step in D alone.
+  inline QImage dEdge(int w,int h,int x0)
+  {
+    QImage im(w,h,QImage::Format_RGB32);
+    for(int y=0;y<h;y++)
+      {
+        QRgb *p=(QRgb*)im.scanLine(y);
+        bool odd=(y&1);
+        for(int x=0;x<w;x++) p[x]=(x<x0) ? g(128) : g(odd?LO:HI);
+      }
+    return im;
+  }
+
   // kind 'h': vertical stripes (vary along x, 10 row bands), 'v': vary along y (10 column bands), 'd': diagonal
   inline QImage grating(int w,int h,char kind)
   {
@@ -273,7 +297,7 @@ namespace metrics
     double lo=0,hi=0;
     for(int i=0;i<5;i++) { lo+=prof[i]; hi+=prof[prof.size()-1-i]; }
     lo/=5; hi/=5;
-    if(hi-lo<1) return -1;
+    if(fabs(hi-lo)<1) return -1;   // see rise1090()'s comment: a falling edge is still a valid one
     for(size_t i=0;i<prof.size();i++)
       {
         double q=(prof[i]-lo)/(hi-lo);
@@ -285,6 +309,29 @@ namespace metrics
           }
       }
     return (double)(x0-14+(int)prof.size());
+  }
+
+  // Profile of |row(y)-row(y+1)| across x0+-halfWidth, averaged over row-pairs -- reads D's own
+  // horizontal-sampling response the way edgeRiseChannel reads Cr/Cb's, on a dEdge() target. Default
+  // window widened to +-48px per the idea-9 lesson: a naive +-14px window can sit inside JB60's own
+  // (comparably-coarse-slotted) smear instead of clear of it.
+  inline double edgeRiseD(const QImage &rx,int x0,int halfWidth=48)
+  {
+    std::vector<double> y=luma(rx);
+    const int W=rx.width(),H=rx.height();
+    std::vector<double> prof(2*halfWidth,0.);
+    int n=0;
+    for(int r=20;r+1<H-20;r+=2)   // row pairs, matching JB60's own L/D pairing
+      {
+        for(int i=0;i<2*halfWidth;i++)
+          {
+            int x=x0-halfWidth+i;
+            prof[i]+=fabs(y[(size_t)r*W+x]-y[(size_t)(r+1)*W+x]);
+          }
+        n++;
+      }
+    for(double &v:prof) v/=n;
+    return rise1090(prof);
   }
 
   // amplitude ratio (output/input) of the fundamental in each of the 10 bands
