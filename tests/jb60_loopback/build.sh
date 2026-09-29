@@ -17,6 +17,6 @@ g++ -O2 -fPIC -std=gnu++17 -w -DQT_NO_DEBUG -DIMAGE_DIR="\"$HERE/images\"" \
     -I"$QT" -I"$QT/QtCore" -I"$QT/QtGui" -I"$QT/QtWidgets" \
     -o "$HERE/loopback" "$HERE/loopback.cpp" \
     sstv/modes/modebase.cpp sstv/modes/modejb60.cpp sstv/modes/modepd.cpp sstv/sstvparam.cpp \
-    sstv/videofilterselection.cpp sstv/chromadeconvolution.cpp sstv/chromaedgeboost.cpp sstv/chromagridphase.cpp sstv/chromacompanding.cpp \
+    sstv/videofilterselection.cpp sstv/chromadeconvolution.cpp sstv/chromaedgeboost.cpp sstv/chromagridphase.cpp sstv/chromacompanding.cpp sstv/chromapseudoluma.cpp \
     dsp/downsamplefilter.cpp dsp/filters.cpp dsp/filter.cpp dsp/filterparam.cpp \
     -lQt6Widgets -lQt6Gui -lQt6Core

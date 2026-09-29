@@ -22,6 +22,7 @@
 #include "chromaedgeboost.h"
 #include "chromagridphase.h"
 #include "chromacompanding.h"
+#include "chromapseudoluma.h"
 #include <algorithm>
 #include <vector>
 
@@ -261,6 +262,66 @@ namespace
         crRow[c]=clampByte(127.5f+dCr*scale);
         cbRow[c]=clampByte(127.5f+dCb*scale);
       }
+  }
+
+  // TX idea 16 (jb60-color-smear-ideas memory): deliberate pseudo-luma edge cue ("pseudo-colour
+  // enhancement", a real analog-TV technique) at a detected chroma-only edge -- a real colour transition
+  // with no coincident luma change, which today's L channel (transmitted at full 640-slot resolution)
+  // carries no information about at all, leaving edge sharpness entirely up to the much coarser chroma
+  // channel. Deliberately injects a small, fake brightness perturbation there, betting human vision's
+  // much higher luma acuity reads it as a sharper transition than chroma alone can transmit. Unlike every
+  // other idea in this investigation, this does NOT preserve the "L/D stay untouched" invariant on
+  // purpose -- see the memory for why the usual PSNR bar doesn't apply and this is judged visually.
+  //
+  // Fires only at a local peak of the chroma-jump magnitude (one kick per genuine transition, however
+  // many columns wide, not an uncontrolled sum of overlapping windows), gated by wLuma so it's near-zero
+  // wherever a real luma edge already carries the transition.
+  //
+  // Approximation accepted for this prototype: the kick only touches *this* pair's transmitted L
+  // (yArrayPtr), not the lPrev/lNext neighbour lookups txPairLuma() already made for D's own prediction
+  // term -- so if a neighbouring pair also gets a kick, D's residual is computed against a slightly
+  // stale (un-kicked) prediction. Bounded by the kick amplitude (small by construction) and attenuated
+  // 8x by the prediction term itself; a fully self-consistent version would need txPairLuma() to compute
+  // the same kick for neighbour pairs too. Not attempted here since this idea is judged by eye, not by
+  // metric, and isn't a candidate to ship as-is regardless.
+  const float kPseudoLumaChromaThresh=20.0f;   // chroma jump (counts, over a 4-column window) treated as "a real colour edge"
+  const float kPseudoLumaLumaThresh=6.0f;      // luma jump (counts, same window) above which it's NOT a "pure" chroma edge
+
+  void applyPseudoLumaCue(unsigned char *y,const float *crPix,const float *cbPix,const float *lMean,
+                          unsigned int n,float amplitude)
+  {
+    if(amplitude<=0.f || n<7) return;
+    auto clampf=[](float v,float lo,float hi){ return v<lo?lo:(v>hi?hi:v); };
+    std::vector<float> chromaMag(n,0.f),lumaMag(n,0.f);
+    for(unsigned int c=2;c+2<n;c++)
+      {
+        float crJump=crPix[c+2]-crPix[c-2],cbJump=cbPix[c+2]-cbPix[c-2];
+        chromaMag[c]=sqrtf(crJump*crJump+cbJump*cbJump);
+        lumaMag[c]=fabsf(lMean[c+2]-lMean[c-2]);
+      }
+    std::vector<float> kick(n,0.f);
+    int lastFired=-1000;
+    const int kMinSpacing=5;   // a perfect step's +-2-window jump is a *plateau* of tied values, not a
+                                // single peak -- ties pass the local-peak test below, so without a
+                                // minimum spacing a wide/flat transition fires several adjacent, opposite-
+                                // signed kicks that largely cancel each other out (found by testing on
+                                // cEdge, the primary target case, before trusting any visual result)
+    for(unsigned int c=3;c+3<n;c++)
+      {
+        if(chromaMag[c]<chromaMag[c-1] || chromaMag[c]<chromaMag[c+1]) continue;   // local peak (ties pass)
+        if((int)c-lastFired<kMinSpacing) continue;                                 // already fired nearby
+        float wChroma=clampf(chromaMag[c]/kPseudoLumaChromaThresh,0.f,1.f);
+        float wLuma=clampf(1.f-lumaMag[c]/kPseudoLumaLumaThresh,0.f,1.f);
+        float w=wChroma*wLuma;
+        if(w<=0.f) continue;
+        float crJump=crPix[c+2]-crPix[c-2],cbJump=cbPix[c+2]-cbPix[c-2];
+        float sign=(crJump+cbJump>=0.f) ? 1.f : -1.f;   // arbitrary but deterministic -- no "correct" direction
+        kick[c-1]-=sign*amplitude*w*0.5f;   // dip just before the edge...
+        kick[c+1]+=sign*amplitude*w*0.5f;   // ...and a rise just after it
+        lastFired=(int)c;
+      }
+    for(unsigned int c=0;c<n;c++)
+      if(kick[c]!=0.f) y[c]=clampByte((float)y[c]+kick[c]);
   }
 
   inline unsigned char encodeD(float d)
@@ -512,6 +573,7 @@ void modeJB60::getLine()
       cbPix[c]=(bBar[c]-lMean[c])/1.78f+127.5f;     //                        Cb=(B-Y)/1.78+127.5
     }
   companChromaMagnitude(crPix,cbPix,kWidth,chromaCompandGamma());   // idea 14, no-op at gamma=1.0
+  applyPseudoLumaCue(yArrayPtr,crPix,cbPix,lMean,kWidth,chromaPseudoLumaAmplitude());   // idea 16, no-op at 0.0
   // box average over the footprint of each sample
   for(k=0;k<kSegCount[SEG_D];k++)
     {
