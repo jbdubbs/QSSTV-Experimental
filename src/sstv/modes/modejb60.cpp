@@ -23,6 +23,7 @@
 #include "chromagridphase.h"
 #include "chromacompanding.h"
 #include "chromapseudoluma.h"
+#include "chromatriangledecimation.h"
 #include <algorithm>
 #include <vector>
 
@@ -583,8 +584,16 @@ void modeJB60::getLine()
       for(c=c0;c<=c1;c++) sum+=dRes[c];
       greenArrayPtr[k]=encodeD(sum/(c1-c0+1));
     }
-  downsampleChroma(crPix,lMean,kSegCount[SEG_CR],redArrayPtr);
-  downsampleChroma(cbPix,lMean,kSegCount[SEG_CB],blueArrayPtr);
+  if(chromaTriangleDecimationEnabled())
+    {
+      downsampleChromaTriangle(crPix,lMean,kSegCount[SEG_CR],redArrayPtr);
+      downsampleChromaTriangle(cbPix,lMean,kSegCount[SEG_CB],blueArrayPtr);
+    }
+  else
+    {
+      downsampleChroma(crPix,lMean,kSegCount[SEG_CR],redArrayPtr);
+      downsampleChroma(cbPix,lMean,kSegCount[SEG_CB],blueArrayPtr);
+    }
   std::vector<unsigned char> rawCr,rawCb;   // idea 12's own kernel starts from the same raw input idea 6 does
   if(chromaEdgeBoostEnabled())
     {
@@ -627,6 +636,44 @@ void modeJB60::downsampleChroma(const float *pix,const float *lum,unsigned int n
           wsum+=w;
         }
       out[k]=clampByte(sum/wsum);
+    }
+}
+
+/*!
+  Idea 13 (jb60-color-smear-ideas memory): same luma-guided weighting as downsampleChroma(), but over an
+  OVERLAPPING triangle (tent) window spanning two slot-widths instead of a disjoint box footprint -- a
+  box window's frequency response is a sinc with poor sidelobe suppression (a mediocre anti-aliasing
+  prefilter); a triangle is the classic sinc^2 step up ("joint chroma downsampling/upsampling"
+  literature). Pure TX-side change: RX's upsampleChroma() reconstruction is unchanged and only needs to
+  know where each slot's centre sits, not how TX derived its value. A uniform-luma, uniform-colour region
+  still reduces to that flat colour either way (tent or box), same invariant as downsampleChroma().
+*/
+void modeJB60::downsampleChromaTriangle(const float *pix,const float *lum,unsigned int n,unsigned char *out)
+{
+  const double pw=(double)kWidth/(double)n;
+  const double phase=chromaGridPhase();
+  for(unsigned int k=0;k<n;k++)
+    {
+      double center=((double)k+0.5+phase)*pw;
+      int c0=(int)floor(center-pw+0.5),c1=(int)floor(center+pw-0.5);   // full tent width = 2*pw
+      if(c0<0) c0=0;
+      if(c1>(int)kWidth-1) c1=(int)kWidth-1;
+      if(c1<c0) c1=c0;
+      int cc=(int)lroundf((float)center);
+      if(cc<0) cc=0;
+      if(cc>(int)kWidth-1) cc=(int)kWidth-1;
+      float anchor=lum[cc],sum=0,wsum=0;
+      for(int c=c0;c<=c1;c++)
+        {
+          float tri=1.0f-(float)fabs((c+0.5-center)/pw);
+          if(tri<0.f) tri=0.f;
+          int d=(int)lroundf(fabsf(lum[c]-anchor));
+          if(d>255) d=255;
+          float w=tri*(kDownsampleFloor+guideLut[d]);
+          sum+=w*pix[c];
+          wsum+=w;
+        }
+      out[k]=clampByte(wsum>1e-6f ? sum/wsum : pix[cc]);
     }
 }
 

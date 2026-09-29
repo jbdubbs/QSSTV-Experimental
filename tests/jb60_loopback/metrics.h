@@ -359,4 +359,65 @@ namespace metrics
       }
     return out;
   }
+
+  // Chroma grating (idea 13, jb60-color-smear-ideas): isolates chroma's own MTF the way grath/gratv
+  // isolate luma's -- Cb oscillates sinusoidally per band/period while Y and Cr stay flat at 128, the
+  // same one-axis-at-a-time isolation cEdge/dEdge already use. grath/gratv can't reveal a chroma
+  // decimation-filter difference at all (Cr/Cb sit flat throughout those). Same coefficients as
+  // yuvConversion() (Y=0.3R+0.59G+0.11B, Cr=(R-Y)/1.4+127.5, Cb=(B-Y)/1.78+127.5), inverted to build the
+  // source image; since Y and Cr are held flat, R stays exactly 128 and only B (== Cb's own excursion,
+  // up to the fixed 1.78 scale) carries the oscillation, so mtfChannel(rx,kind,2) reads its MTF directly.
+  inline QImage chromaGrating(int w,int h,char kind)
+  {
+    QImage im(w,h,QImage::Format_RGB32);
+    const double amp=60.;
+    for(int y=0;y<h;y++)
+      {
+        QRgb *p=(QRgb*)im.scanLine(y);
+        for(int x=0;x<w;x++)
+          {
+            int band=(kind=='v') ? std::min(x/(w/10),9) : std::min(y/(h/10),9);
+            double per=kPeriods[band],ph;
+            if(kind=='h') ph=x/per; else if(kind=='v') ph=y/per; else ph=(x+y)/(per*M_SQRT2);
+            double cb=128.+amp*sin(2*M_PI*ph);
+            double b=128.+1.78*(cb-127.5);   // Y=Cr=128 flat -> R stays 128, G solved to match
+            double r=128.;
+            double gg=(128.-0.3*r-0.11*b)/0.59;
+            auto cl=[](double v){ int i=(int)lround(v); return i<0?0:(i>255?255:i); };
+            p[x]=qRgb(cl(r),cl(gg),cl(b));
+          }
+      }
+    return im;
+  }
+
+  // amplitude ratio (output/input) of the fundamental in each of the 10 bands, for one raw RGB channel
+  // (0=R,1=G,2=B) instead of luma -- see chromaGrating()'s comment for why B isolates Cb's own MTF here.
+  inline std::vector<double> mtfChannel(const QImage &rx,char kind,int channel)
+  {
+    const int W=rx.width(),H=rx.height();
+    std::vector<double> out;
+    for(int b=0;b<10;b++)
+      {
+        const double per=kPeriods[b];
+        std::complex<double> acc(0,0); long n=0;
+        int x0=40,x1=W-40,y0=40,y1=H-40;
+        if(kind=='v') { x0=b*(W/10)+8; x1=(b+1)*(W/10)-8; }
+        else { y0=b*(H/10)+8; y1=(b+1)*(H/10)-8; }
+        if(kind=='h') x1=x0+(int)((x1-x0)/kPeriods[b])*kPeriods[b];
+        if(kind=='v') y1=y0+(int)((y1-y0)/kPeriods[b])*kPeriods[b];
+        for(int r=y0;r<y1;r++)
+          {
+            const QRgb *p=(const QRgb*)rx.constScanLine(r);
+            for(int c=x0;c<x1;c++)
+              {
+                double ph;
+                if(kind=='h') ph=c/per; else if(kind=='v') ph=r/per; else ph=(c+r)/(per*M_SQRT2);
+                double v=(channel==0)?qRed(p[c]):(channel==1)?qGreen(p[c]):qBlue(p[c]);
+                acc+=v*std::polar(1.,-2*M_PI*ph); n++;
+              }
+          }
+        out.push_back(std::abs(acc)/n*2/60.);
+      }
+    return out;
+  }
 }

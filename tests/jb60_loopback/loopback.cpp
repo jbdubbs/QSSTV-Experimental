@@ -19,6 +19,7 @@
 #include "chromagridphase.h"
 #include "chromacompanding.h"
 #include "chromapseudoluma.h"
+#include "chromatriangledecimation.h"
 #include "metrics.h"
 #include <QGuiApplication>
 #include <cstdio>
@@ -110,6 +111,8 @@ namespace
     if(name=="grath") return metrics::grating(W,H,'h');
     if(name=="gratv") return metrics::grating(W,H,'v');
     if(name=="gratd") return metrics::grating(W,H,'d');
+    if(name=="cgrath") return metrics::chromaGrating(W,H,'h');
+    if(name=="cgratv") return metrics::chromaGrating(W,H,'v');
     QString path=(name=="card") ? QString(IMAGE_DIR)+"/card.png" : QString::fromStdString(name);
     QImage im(path);
     if(im.isNull()) { fprintf(stderr,"cannot load image %s\n",path.toLatin1().data()); exit(2); }
@@ -451,6 +454,8 @@ namespace
     if(o.image=="grath") printMtf("horizontal (vertical stripes)",metrics::mtf(r.rx,'h'));
     if(o.image=="gratv") printMtf("vertical (horizontal stripes)",metrics::mtf(r.rx,'v'));
     if(o.image=="gratd") printMtf("diagonal",metrics::mtf(r.rx,'d'));
+    if(o.image=="cgrath") printMtf("chroma horizontal (vertical stripes)",metrics::mtfChannel(r.rx,'h',2));
+    if(o.image=="cgratv") printMtf("chroma vertical (horizontal stripes)",metrics::mtfChannel(r.rx,'v',2));
   }
 
   // fixed set of targets: the table in README.md
@@ -516,8 +521,8 @@ int main(int argc,char**argv)
 {
   Options o;
   if(argc<2) { fprintf(stderr,
-      "usage: %s <jb|pd> [--image 0|1|2|card|vedge320|vedge321|hedge248|hedge249|cedge320|cedge321|medge320|medge321|dedge320|dedge321|grath|gratv|gratd|file.png]\n"
-      "          [--suite] [--ideal] [--fir wide|narrow] [--chroma-wide] [--chroma-deconv] [--chroma-edge-boost] [--chroma-grid-phase f] [--chroma-compand-gamma g] [--chroma-pseudo-luma f] [--snr dB] [--ssb] [--noise-hz Hz (with --ideal)] [--clock-err frac]\n"
+      "usage: %s <jb|pd> [--image 0|1|2|card|vedge320|vedge321|hedge248|hedge249|cedge320|cedge321|medge320|medge321|dedge320|dedge321|grath|gratv|gratd|cgrath|cgratv|file.png]\n"
+      "          [--suite] [--ideal] [--fir wide|narrow] [--chroma-wide] [--chroma-deconv] [--chroma-edge-boost] [--chroma-grid-phase f] [--chroma-compand-gamma g] [--chroma-pseudo-luma f] [--chroma-triangle] [--snr dB] [--ssb] [--noise-hz Hz (with --ideal)] [--clock-err frac]\n"
       "          [--tshift samples] [--out prefix] [--wav file.wav [--vis] [--count N]] [--dump-slots cr|cb|both]\n"          "       %s --compare a.png b.png\n",argv[0],argv[0]); return 1; }
   if(!strcmp(argv[1],"--compare"))
     {
@@ -529,7 +534,7 @@ int main(int argc,char**argv)
       return 0;
     }
   o.mode=(!strcmp(argv[1],"pd"))?PD120:JB60;
-  bool chromaWide=false,chromaDeconv=false,chromaEdgeBoost=false;
+  bool chromaWide=false,chromaDeconv=false,chromaEdgeBoost=false,chromaTriangle=false;
   double gridPhase=0.0;
   double compandGamma=1.0;
   double pseudoLumaAmp=0.0;
@@ -557,6 +562,7 @@ int main(int argc,char**argv)
       else if(a=="--chroma-grid-phase") gridPhase=atof(val());
       else if(a=="--chroma-compand-gamma") compandGamma=atof(val());
       else if(a=="--chroma-pseudo-luma") pseudoLumaAmp=atof(val());
+      else if(a=="--chroma-triangle") chromaTriangle=true;
       else if(a=="--dump-slots") dumpSlotsChannel=val();
       else { fprintf(stderr,"unknown option %s\n",a.c_str()); return 1; }
     }
@@ -573,6 +579,8 @@ int main(int argc,char**argv)
   setChromaCompandGamma((float)compandGamma);
   // idea 16 (chromapseudoluma.h): 0.0 by default (off).
   setChromaPseudoLumaAmplitude((float)pseudoLumaAmp);
+  // idea 13 (chromatriangledecimation.h): off unless --chroma-triangle asks for it.
+  setChromaTriangleDecimationOverride(chromaTriangle ? 1 : 0);
   QGuiApplication app(argc,argv);
   if(!dumpSlotsChannel.empty()) { dumpSlots(o,dumpSlotsChannel); return 0; }
   if(o.suite) { runSuite(o); return 0; }
