@@ -20,6 +20,7 @@
 #include "videofilterselection.h"
 #include "chromadeconvolution.h"
 #include "chromaedgeboost.h"
+#include "chromagridphase.h"
 #include <algorithm>
 #include <vector>
 
@@ -56,16 +57,23 @@ namespace
   const float kDownsampleFloor=10.0f;
 
   /*!
-    Columns covered by sample j of n samples across the picture width
+    Columns covered by sample j of n samples across the picture width. `phase` (default 0, slot widths)
+    shifts the whole grid -- idea 12 attempt 3's experiment (chromagridphase.h); every other caller
+    (D's box average, L) passes the default and is completely unaffected.
   */
-  void columnFootprint(unsigned int n,unsigned int j,unsigned int &c0,unsigned int &c1)
+  void columnFootprint(unsigned int n,unsigned int j,unsigned int &c0,unsigned int &c1,double phase=0.0)
   {
     double pw=(double)kWidth/(double)n;
-    c0=(unsigned int)floor(j*pw+1e-9);
-    int e=(int)ceil((j+1)*pw-1e-9)-1;
+    double jf=(double)j+phase;
+    int s=(int)floor(jf*pw+1e-9);
+    int e=(int)ceil((jf+1)*pw-1e-9)-1;
+    if(s<0) s=0;
+    if(s>(int)kWidth-1) s=(int)kWidth-1;
+    if(e<0) e=0;
     if(e>(int)kWidth-1) e=(int)kWidth-1;
+    if(e<s) e=s;
+    c0=(unsigned int)s;
     c1=(unsigned int)e;
-    if(c1<c0) c1=c0;
   }
 
   inline unsigned char clampByte(float v)
@@ -494,10 +502,11 @@ void modeJB60::getLine()
 void modeJB60::downsampleChroma(const float *pix,const float *lum,unsigned int n,unsigned char *out)
 {
   unsigned int c,k;
+  const double phase=chromaGridPhase();   // idea 12 attempt 3: 0.0 (default) is bit-identical to before
   for(k=0;k<n;k++)
     {
       unsigned int c0,c1;
-      columnFootprint(n,k,c0,c1);
+      columnFootprint(n,k,c0,c1,phase);
       unsigned int cc=(c0+c1)/2;
       float anchor=lum[cc],sum=0,wsum=0;
       for(c=c0;c<=c1;c++)
@@ -521,18 +530,19 @@ void modeJB60::upsampleChroma(const unsigned char *y,const unsigned char *c,unsi
 {
   float yb[kWidth];
   const double pw=(double)kWidth/(double)n;
+  const double phase=chromaGridPhase();   // must match downsampleChroma()'s phase -- same grid, both ends
   unsigned int j,x;
   for(j=0;j<n;j++)
     {
       unsigned int c0,c1;
       unsigned int sum=0;
-      columnFootprint(n,j,c0,c1);
+      columnFootprint(n,j,c0,c1,phase);
       for(x=c0;x<=c1;x++) sum+=y[x];
       yb[j]=(float)sum/(float)(c1-c0+1);
     }
   for(x=0;x<kWidth;x++)
     {
-      double jf=(x+0.5)/pw-0.5;
+      double jf=(x+0.5)/pw-0.5-phase;
       int j0=(int)floor(jf);
       float t=(float)(jf-j0);
       int j1=j0+1;

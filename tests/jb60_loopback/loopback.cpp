@@ -16,6 +16,7 @@
 #include "videofilterselection.h"
 #include "chromadeconvolution.h"
 #include "chromaedgeboost.h"
+#include "chromagridphase.h"
 #include "metrics.h"
 #include <QGuiApplication>
 #include <cstdio>
@@ -99,6 +100,11 @@ namespace
     if(name=="medge321") return metrics::mEdge(W,H,321);
     if(name=="dedge320") return metrics::dEdge(W,H,320);
     if(name=="dedge321") return metrics::dEdge(W,H,321);
+    // Generic cedge<NNN>/dedge<NNN> fallback (idea 12 attempt 3's sub-slot-phase sweep needs more than
+    // the two hardcoded positions above) -- report() prints just the edge-width line for these, not the
+    // full cedge320/321-style report.
+    if(name.rfind("cedge",0)==0 && name.size()>5) return metrics::cEdge(W,H,atoi(name.c_str()+5));
+    if(name.rfind("dedge",0)==0 && name.size()>5) return metrics::dEdge(W,H,atoi(name.c_str()+5));
     if(name=="grath") return metrics::grating(W,H,'h');
     if(name=="gratv") return metrics::grating(W,H,'v');
     if(name=="gratd") return metrics::grating(W,H,'d');
@@ -431,6 +437,15 @@ namespace
       }
     if(o.image=="dedge320") printf("  D edge 10-90%% rise (x): %.2f px\n",metrics::edgeRiseD(r.rx,320));
     if(o.image=="dedge321") printf("  D edge 10-90%% rise (x): %.2f px\n",metrics::edgeRiseD(r.rx,321));
+    if(o.image.rfind("cedge",0)==0 && o.image!="cedge320" && o.image!="cedge321")
+      {
+        int x0=atoi(o.image.c_str()+5);
+        printf("  chroma edge 10-90%% rise (x): R %.2f px  B %.2f px   50%% crossing: R %.3f px  B %.3f px\n",
+               metrics::edgeRiseChannel(r.rx,x0,0),metrics::edgeRiseChannel(r.rx,x0,2),
+               metrics::edgeCrossChannel(r.rx,x0,0),metrics::edgeCrossChannel(r.rx,x0,2));
+      }
+    if(o.image.rfind("dedge",0)==0 && o.image!="dedge320" && o.image!="dedge321")
+      printf("  D edge 10-90%% rise (x): %.2f px\n",metrics::edgeRiseD(r.rx,atoi(o.image.c_str()+5)));
     if(o.image=="grath") printMtf("horizontal (vertical stripes)",metrics::mtf(r.rx,'h'));
     if(o.image=="gratv") printMtf("vertical (horizontal stripes)",metrics::mtf(r.rx,'v'));
     if(o.image=="gratd") printMtf("diagonal",metrics::mtf(r.rx,'d'));
@@ -500,7 +515,7 @@ int main(int argc,char**argv)
   Options o;
   if(argc<2) { fprintf(stderr,
       "usage: %s <jb|pd> [--image 0|1|2|card|vedge320|vedge321|hedge248|hedge249|cedge320|cedge321|medge320|medge321|dedge320|dedge321|grath|gratv|gratd|file.png]\n"
-      "          [--suite] [--ideal] [--fir wide|narrow] [--chroma-wide] [--chroma-deconv] [--chroma-edge-boost] [--snr dB] [--ssb] [--noise-hz Hz (with --ideal)] [--clock-err frac]\n"
+      "          [--suite] [--ideal] [--fir wide|narrow] [--chroma-wide] [--chroma-deconv] [--chroma-edge-boost] [--chroma-grid-phase f] [--snr dB] [--ssb] [--noise-hz Hz (with --ideal)] [--clock-err frac]\n"
       "          [--tshift samples] [--out prefix] [--wav file.wav [--vis] [--count N]] [--dump-slots cr|cb|both]\n"          "       %s --compare a.png b.png\n",argv[0],argv[0]); return 1; }
   if(!strcmp(argv[1],"--compare"))
     {
@@ -513,6 +528,7 @@ int main(int argc,char**argv)
     }
   o.mode=(!strcmp(argv[1],"pd"))?PD120:JB60;
   bool chromaWide=false,chromaDeconv=false,chromaEdgeBoost=false;
+  double gridPhase=0.0;
   std::string dumpSlotsChannel;
   for(int i=2;i<argc;i++)
     {
@@ -534,6 +550,7 @@ int main(int argc,char**argv)
       else if(a=="--chroma-wide") chromaWide=true;
       else if(a=="--chroma-deconv") chromaDeconv=true;
       else if(a=="--chroma-edge-boost") chromaEdgeBoost=true;
+      else if(a=="--chroma-grid-phase") gridPhase=atof(val());
       else if(a=="--dump-slots") dumpSlotsChannel=val();
       else { fprintf(stderr,"unknown option %s\n",a.c_str()); return 1; }
     }
@@ -544,6 +561,8 @@ int main(int argc,char**argv)
   setChromaDeconvolutionOverride(chromaDeconv ? 1 : 0);
   // Same idea, TX idea 12 (chromaedgeboost.h): off unless --chroma-edge-boost asks for it.
   setChromaEdgeBoostOverride(chromaEdgeBoost ? 1 : 0);
+  // idea 12 attempt 3 (chromagridphase.h): 0.0 by default, bit-identical to the fixed grid.
+  setChromaGridPhase((float)gridPhase);
   QGuiApplication app(argc,argv);
   if(!dumpSlotsChannel.empty()) { dumpSlots(o,dumpSlotsChannel); return 0; }
   if(o.suite) { runSuite(o); return 0; }
