@@ -409,7 +409,7 @@
               <enum>Qt::RightToLeft</enum>
              </property>
              <property name="text">
-              <string>JB60 Chroma Deconvolution</string>
+              <string>JB60 Chroma Sharpening</string>
              </property>
             </widget>
            </item>
