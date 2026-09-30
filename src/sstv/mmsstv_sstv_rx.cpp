@@ -129,6 +129,8 @@ bool MmsstvSstvRx::serviceAbort()
 	trackingImage = false;
 	trackingMode = NOTVALID;
 	decodedRows = 0;
+	slantTracker.reset();
+	resamplePhase = 0.0;
 	// CSSTVDEM never drops m_Sync on its own; a stale lock would hide the
 	// next picture's 0->1 lock edge from processSamples(). Stop() puts it
 	// back to hunting for a VIS (without recreating it -- see the ctor).
@@ -136,137 +138,201 @@ bool MmsstvSstvRx::serviceAbort()
 	return true;
 }
 
+// QSSTV's sensitivityComboBox runs Low(0)/Normal(1)/High(2)/DX(3), least to
+// most tolerant of a weak/noisy signal (see sensitivityArray in
+// syncprocessor.cpp). CSSTVDEM's own m_SenseLvl runs the other way: 0
+// (its hardcoded construction-time default) is its most sensitive/lowest-
+// threshold setting, 3 its least sensitive (SetSenseLvl(), sstv.cpp) --
+// so DX (most tolerant) maps to Core's 0, Low (least tolerant) to Core's
+// 3. There's no exact correspondence (QSSTV's own DX level also loosens
+// separate out-of-sync-tolerance behaviour Core has no equivalent knob
+// for), but this preserves the UI's least-to-most-sensitive ordering.
+void MmsstvSstvRx::syncSensitivity()
+{
+	int level = 3 - sensitivity;
+	if (level < 0) level = 0;
+	if (level > 3) level = 3;
+	if (level == appliedSenseLvl) return;
+	appliedSenseLvl = level;
+	dem->m_SenseLvl = level;
+	dem->SetSenseLvl();
+}
+
 void MmsstvSstvRx::processSamples(const double *samples, int count)
 {
 	serviceAbort();
+	syncSensitivity();
+
+	if (!(mmsstvSlantActive() && trackingImage)) {
+		// Feature off (or not currently tracking a picture): exact
+		// passthrough, not just numerically close -- no resampler state
+		// touched beyond staying primed to resume cleanly if slant turns
+		// on mid-stream.
+		for (int i = 0; i < count; i++) feedSample(samples[i]);
+		resamplePhase = 0.0;
+		if (count > 0) lastRawSample = samples[count - 1];
+		return;
+	}
+
+	// Real-time slant/clock-drift correction (see mmsstvslant.h): feed
+	// dem->Do() through a linearly-interpolating fractional-phase
+	// resampler driven by the tracker's current correction ratio, instead
+	// of raw samples straight in.
 	for (int i = 0; i < count; i++) {
-		bool wasSync = dem->m_Sync != 0;
-		dem->Do(samples[i]);
-
-		if (!wasSync && dem->m_Sync) {
-			// Just locked sync -- CSSTVDEM's VIS scanner recognizes any
-			// MMSSTV mode, not just the ones this class has a decoder for.
-			decodedRows = 0;
-			esstvMode lockedMode = mapMmsstvCoreMode(SSTVSET.m_Mode);
-			trackingMode = lockedMode;
-			trackingImage = (lockedMode != NOTVALID) && rxPreferCoreEngine() && !qsstvBusy;
-			if (trackingImage) {
-				int width, height;
-				getModeDimensions(lockedMode, width, height); // trackingImage implies this succeeds
-				QApplication::postEvent(dispatcherPtr, new rxSSTVStatusEvent(QString("Receiving ") + getSSTVModeNameLong(lockedMode) + " (MMSSTV)"));
-				bool done = false;
-				startImageRXEvent *ce = new startImageRXEvent(QSize(width, height));
-				ce->waitFor(&done);
-				QApplication::postEvent(dispatcherPtr, ce);
-				while (!done) {
-					QApplication::processEvents();
-				}
-			}
-		} else if (wasSync && !dem->m_Sync && trackingImage) {
-			// Lost sync mid-picture.
-			QApplication::postEvent(dispatcherPtr, new endImageSSTVRXEvent(trackingMode));
-			trackingImage = false;
+		double s0 = (i == 0) ? lastRawSample : samples[i - 1];
+		double s1 = samples[i];
+		while (resamplePhase < 1.0) {
+			double ratio = slantTracker.correctionRatio();
+			feedSample(s0 + (s1 - s0) * resamplePhase);
+			resamplePhase += ratio;
 		}
+		resamplePhase -= 1.0;
+	}
+	if (count > 0) lastRawSample = samples[count - 1];
+}
 
-		while (dem->m_rPage != dem->m_wPage) {
-			if (trackingImage) {
-				int width, height;
-				getModeDimensions(trackingMode, width, height);
-				if (decodedRows < height) {
-					short *ip = &dem->m_Buf[dem->m_rPage * dem->m_BWidth];
-					unsigned char rgbRow[kMaxWidth * 3];
-					unsigned char rgbRowOdd[kMaxWidth * 3];
-					// Robot 24 transmits at half vertical resolution (120 real
-					// lines) -- each decode call's row is duplicated into two
-					// consecutive output rows, matching Main.cpp's gp/gp2
-					// row-doubling exactly (see pixelconv.h's
-					// CRobotChromaRxDecoder comment for how this was confirmed).
-					// The PD family (Step 12) also produces two output rows per
-					// call, but for a genuinely different reason -- both rows
-					// carry distinct luma sharing one chroma pair -- so
-					// CPDRxDecoder::DecodeLine fills rgbRow/rgbRowOdd directly
-					// with two different rows, rather than one row duplicated.
-					// MP73-175 (Step 16) share this exact PD RX shape (and
-					// CPDRxDecoder itself) -- confirmed by direct read of
-					// Main.cpp, MP falls into PD's identical RX segment block
-					// -- and sit immediately after PD290 in QSSTV's esstvMode
-					// enum (sstvparam.h), so the range check below extends
-					// cleanly to include them.
-					bool isInterlacedYuv = (trackingMode >= PD50) && (trackingMode <= MP175);
-					int rowsThisCall = (trackingMode == R24 || isInterlacedYuv) ? 2 : 1;
-					switch (trackingMode) {
-					case M1:
-				case M2:
-					// Both share one decoder instance -- confirmed in
-					// Main.cpp both smMRT1/smMRT2 fall into the same
-					// generic RGB decode branch. See pixelconv.h/cpp.
-					martinDecoder.DecodeLine(ip, width, rgbRow);
+void MmsstvSstvRx::feedSample(double sample)
+{
+	bool wasSync = dem->m_Sync != 0;
+	dem->Do(sample);
+
+	if (!wasSync && dem->m_Sync) {
+		// Just locked sync -- CSSTVDEM's VIS scanner recognizes any
+		// MMSSTV mode, not just the ones this class has a decoder for.
+		decodedRows = 0;
+		slantTracker.reset();
+		resamplePhase = 0.0;
+		esstvMode lockedMode = mapMmsstvCoreMode(SSTVSET.m_Mode);
+		trackingMode = lockedMode;
+		// sstvModeIndexRx encodes "real mode + 1, 0 = Auto" (see
+		// rxwidget.cpp's rebuildModeComboBox() comment) -- honour a
+		// forced mode selection the same way QSSTV's own engine does
+		// (syncprocessor.cpp restricts idxStart/idxEnd to it), rather
+		// than locking onto any VIS code regardless of it.
+		bool modeAllowed = (int)sstvModeIndexRx == 0
+			|| (int)sstvModeIndexRx == (int)lockedMode + 1;
+		trackingImage = (lockedMode != NOTVALID) && modeAllowed && rxPreferCoreEngine() && !qsstvBusy;
+		if (trackingImage) {
+			int width, height;
+			getModeDimensions(lockedMode, width, height); // trackingImage implies this succeeds
+			QApplication::postEvent(dispatcherPtr, new rxSSTVStatusEvent(QString("Receiving ") + getSSTVModeNameLong(lockedMode) + " (MMSSTV)"));
+			bool done = false;
+			startImageRXEvent *ce = new startImageRXEvent(QSize(width, height));
+			ce->waitFor(&done);
+			QApplication::postEvent(dispatcherPtr, ce);
+			while (!done) {
+				QApplication::processEvents();
+			}
+		}
+	} else if (wasSync && !dem->m_Sync && trackingImage) {
+		// Lost sync mid-picture.
+		QApplication::postEvent(dispatcherPtr, new endImageSSTVRXEvent(trackingMode));
+		trackingImage = false;
+	}
+
+	while (dem->m_rPage != dem->m_wPage) {
+		if (trackingImage) {
+			int width, height;
+			getModeDimensions(trackingMode, width, height);
+			if (decodedRows < height) {
+				short *ip = &dem->m_Buf[dem->m_rPage * dem->m_BWidth];
+				// Real-time slant/clock-drift correction (mmsstvslant.h):
+				// feed this raw line's demodulated-sample slice (the
+				// same data used for pixel decode below) to the
+				// tracker before it's used for anything else.
+				slantTracker.observeLine(ip, SSTVSET.m_WD);
+				unsigned char rgbRow[kMaxWidth * 3];
+				unsigned char rgbRowOdd[kMaxWidth * 3];
+				// Robot 24 transmits at half vertical resolution (120 real
+				// lines) -- each decode call's row is duplicated into two
+				// consecutive output rows, matching Main.cpp's gp/gp2
+				// row-doubling exactly (see pixelconv.h's
+				// CRobotChromaRxDecoder comment for how this was confirmed).
+				// The PD family (Step 12) also produces two output rows per
+				// call, but for a genuinely different reason -- both rows
+				// carry distinct luma sharing one chroma pair -- so
+				// CPDRxDecoder::DecodeLine fills rgbRow/rgbRowOdd directly
+				// with two different rows, rather than one row duplicated.
+				// MP73-175 (Step 16) share this exact PD RX shape (and
+				// CPDRxDecoder itself) -- confirmed by direct read of
+				// Main.cpp, MP falls into PD's identical RX segment block
+				// -- and sit immediately after PD290 in QSSTV's esstvMode
+				// enum (sstvparam.h), so the range check below extends
+				// cleanly to include them.
+				bool isInterlacedYuv = (trackingMode >= PD50) && (trackingMode <= MP175);
+				int rowsThisCall = (trackingMode == R24 || isInterlacedYuv) ? 2 : 1;
+				switch (trackingMode) {
+				case M1:
+			case M2:
+				// Both share one decoder instance -- confirmed in
+				// Main.cpp both smMRT1/smMRT2 fall into the same
+				// generic RGB decode branch. See pixelconv.h/cpp.
+				martinDecoder.DecodeLine(ip, width, rgbRow);
+				break;
+				case S1:
+				case S2:
+				case SDX:
+					// All three Scottie variants share one decoder instance --
+					// CScottieRxDecoder is mode-aware internally (SSTVSET.m_Mode
+					// picks GetPixelLevel vs GetPictureLevel for SDX), not
+					// per-instance. See pixelconv.h/cpp.
+					scottieDecoder.DecodeLine(ip, width, rgbRow);
 					break;
-					case S1:
-					case S2:
-					case SDX:
-						// All three Scottie variants share one decoder instance --
-						// CScottieRxDecoder is mode-aware internally (SSTVSET.m_Mode
-						// picks GetPixelLevel vs GetPictureLevel for SDX), not
-						// per-instance. See pixelconv.h/cpp.
-						scottieDecoder.DecodeLine(ip, width, rgbRow);
-						break;
-					case R36:
-						robot36Decoder.DecodeLine(ip, width, rgbRow);
-						break;
-					case R72:
-					case R24:
-					case ML180:
-					case ML240:
-					case ML280:
-					case ML320:
-					case MR73:
-					case MR90:
-					case MR115:
-					case MR140:
-					case MR175:
-						// All share one decoder instance -- CRobotChromaRxDecoder
-						// only ever reads generic SSTVSET.* fields, already correct
-						// per-mode. ML/MR share Robot 72/24's exact RX segment case
-						// block in Main.cpp (confirmed directly, not assumed from
-						// the "ML/MR family" framing -- see pixelconv.h's
-						// EncodeMLLine comment for the one place ML/MR's wire format
-						// actually differs, which is TX-only). See pixelconv.h/cpp.
-						robotChromaDecoder.DecodeLine(ip, width, rgbRow);
-						break;
-					default:
-						// PD50-290 and MP73-175 (Step 16) both land here --
-						// CPDRxDecoder handles either, distinguished only by
-						// SSTVSET's already-correct per-mode timing.
-						if (isInterlacedYuv) {
-							pdDecoder.DecodeLine(ip, width, rgbRow, rgbRowOdd);
-						}
-						break; // otherwise can't happen: trackingImage implies a mapped mode
+				case R36:
+					robot36Decoder.DecodeLine(ip, width, rgbRow);
+					break;
+				case R72:
+				case R24:
+				case ML180:
+				case ML240:
+				case ML280:
+				case ML320:
+				case MR73:
+				case MR90:
+				case MR115:
+				case MR140:
+				case MR175:
+					// All share one decoder instance -- CRobotChromaRxDecoder
+					// only ever reads generic SSTVSET.* fields, already correct
+					// per-mode. ML/MR share Robot 72/24's exact RX segment case
+					// block in Main.cpp (confirmed directly, not assumed from
+					// the "ML/MR family" framing -- see pixelconv.h's
+					// EncodeMLLine comment for the one place ML/MR's wire format
+					// actually differs, which is TX-only). See pixelconv.h/cpp.
+					robotChromaDecoder.DecodeLine(ip, width, rgbRow);
+					break;
+				default:
+					// PD50-290 and MP73-175 (Step 16) both land here --
+					// CPDRxDecoder handles either, distinguished only by
+					// SSTVSET's already-correct per-mode timing.
+					if (isInterlacedYuv) {
+						pdDecoder.DecodeLine(ip, width, rgbRow, rgbRowOdd);
 					}
+					break; // otherwise can't happen: trackingImage implies a mapped mode
+				}
 
-					QRgb *pixels = rxWidgetPtr->getImageViewerPtr()->getScanLineAddress(decodedRows);
+				QRgb *pixels = rxWidgetPtr->getImageViewerPtr()->getScanLineAddress(decodedRows);
+				for (int x = 0; x < width; x++) {
+					pixels[x] = qRgb(rgbRow[x * 3 + 0], rgbRow[x * 3 + 1], rgbRow[x * 3 + 2]);
+				}
+				QApplication::postEvent(dispatcherPtr, new lineDisplayEvent(decodedRows));
+				if (rowsThisCall == 2 && decodedRows + 1 < height) {
+					const unsigned char *secondRow = isInterlacedYuv ? rgbRowOdd : rgbRow;
+					QRgb *pixels2 = rxWidgetPtr->getImageViewerPtr()->getScanLineAddress(decodedRows + 1);
 					for (int x = 0; x < width; x++) {
-						pixels[x] = qRgb(rgbRow[x * 3 + 0], rgbRow[x * 3 + 1], rgbRow[x * 3 + 2]);
+						pixels2[x] = qRgb(secondRow[x * 3 + 0], secondRow[x * 3 + 1], secondRow[x * 3 + 2]);
 					}
-					QApplication::postEvent(dispatcherPtr, new lineDisplayEvent(decodedRows));
-					if (rowsThisCall == 2 && decodedRows + 1 < height) {
-						const unsigned char *secondRow = isInterlacedYuv ? rgbRowOdd : rgbRow;
-						QRgb *pixels2 = rxWidgetPtr->getImageViewerPtr()->getScanLineAddress(decodedRows + 1);
-						for (int x = 0; x < width; x++) {
-							pixels2[x] = qRgb(secondRow[x * 3 + 0], secondRow[x * 3 + 1], secondRow[x * 3 + 2]);
-						}
-						QApplication::postEvent(dispatcherPtr, new lineDisplayEvent(decodedRows + 1));
-					}
-					decodedRows += rowsThisCall;
+					QApplication::postEvent(dispatcherPtr, new lineDisplayEvent(decodedRows + 1));
+				}
+				decodedRows += rowsThisCall;
 
-					if (decodedRows >= height) {
-						QApplication::postEvent(dispatcherPtr, new endImageSSTVRXEvent(trackingMode));
-						trackingImage = false;
-					}
+				if (decodedRows >= height) {
+					QApplication::postEvent(dispatcherPtr, new endImageSSTVRXEvent(trackingMode));
+					trackingImage = false;
 				}
 			}
-			dem->m_rPage++;
-			if (dem->m_rPage >= SSTVDEMBUFMAX) dem->m_rPage = 0;
 		}
+		dem->m_rPage++;
+		if (dem->m_rPage >= SSTVDEMBUFMAX) dem->m_rPage = 0;
 	}
 }

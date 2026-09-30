@@ -216,6 +216,7 @@ set(QSSTV_SOURCES
     sstv/sstvtx.cpp
     sstv/mmsstv_sstv_tx.cpp
     sstv/mmsstv_sstv_rx.cpp
+    sstv/mmsstvslant.cpp
     sstv/engineselection.cpp
     sstv/videofilterselection.cpp
     sstv/chromadeconvolution.cpp

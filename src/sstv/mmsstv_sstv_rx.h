@@ -34,6 +34,7 @@
 #include "pixelconv.h"
 #include "sstv.h"
 #include "sstvparam.h"
+#include "mmsstvslant.h"
 
 // Only meaningful to feed samples to when rxPreferCoreEngine() ("MMSSTV
 // Core As Default") is on -- the caller (rxFunctions::run()) is
@@ -126,6 +127,36 @@ private:
 	bool trackingImage = false;
 	std::atomic<bool> abortRequested{false};
 	int decodedRows = 0;
+
+	// Mirrors QSSTV's own RX sensitivity setting (rxwidget.cpp's
+	// sensitivityComboBox / the global `sensitivity`) onto CSSTVDEM's own
+	// equivalent (dem->m_SenseLvl/SetSenseLvl()), which otherwise stays at
+	// its hardcoded construction-time default forever. -1 so the first
+	// processSamples() call always applies it at least once.
+	int appliedSenseLvl = -1;
+	void syncSensitivity();
+
+	// The per-raw-sample body processSamples() used to run directly, now
+	// called once per sample *emitted by the resampler* below (which may
+	// differ from the count of samples processSamples() was handed).
+	void feedSample(double sample);
+
+	// Real-time slant/clock-drift correction -- see mmsstvslant.h. Feeds
+	// dem->Do() through a small fractional-phase *linearly-interpolating*
+	// resampler driven by slantTracker.correctionRatio() -- interpolation,
+	// not sample drop/repeat, matters here: SSTV FM-modulates a carrier,
+	// so a dropped or repeated sample is a genuine waveform discontinuity
+	// that reads as a real (if brief) frequency error to the demodulator,
+	// corrupting decode even when the correction needed is tiny (the same
+	// mechanism documented for a different feature in this codebase's own
+	// history -- "even one transient, sub-LSB perturbation... integrates
+	// into a permanent phase offset that cascades through every sample
+	// after it"). resamplePhase/lastRawSample persist across
+	// processSamples() calls (audio arrives in fixed-size chunks from a
+	// continuous stream).
+	MmsstvSlantTracker slantTracker;
+	double resamplePhase = 0.0;
+	double lastRawSample = 0.0;
 };
 
 #endif // MMSSTV_SSTV_RX_H

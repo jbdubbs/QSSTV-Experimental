@@ -39,6 +39,7 @@
 #include "sstv/engineselection.h"
 #include "sstv/sstvparam.h"
 #include "sstv/videofilterselection.h"
+#include "sstv/mmsstvslant.h"
 
 
 QSplashScreen *splash;
@@ -112,9 +113,10 @@ int main( int argc, char ** argv )
   QCommandLineOption modeOpt(QStringList() << "m" << "mode","Receive only this mode (short name as in --list-modes, e.g. PD120, JB60) instead of auto detection.","mode");
   QCommandLineOption engineOpt("engine","Receive engine for this run: auto (your setting), qsstv (QSSTV-Experimental's own for every mode) or core (mmsstv-core where it supports the mode).","auto|qsstv|core");
   QCommandLineOption wideOpt("wide-filter","Wide video filter for the fast modes for this run: auto (your setting), on or off.","auto|on|off");
+  QCommandLineOption slantOpt("slant","Auto Slant on the MMSSTV Core engine for this run: auto (your setting), on or off.","auto|on|off");
   QCommandLineOption timeoutOpt("timeout","With --batch: give up on a file after this many seconds (default: its length + 30 s).","seconds");
   QCommandLineOption listOpt("list-modes","Print the mode names that --mode accepts and exit.");
-  parser.addOptions(QList<QCommandLineOption>() << helpOpt << versionOpt << decodeOpt << batchOpt << outDirOpt << modeOpt << engineOpt << wideOpt << timeoutOpt << listOpt);
+  parser.addOptions(QList<QCommandLineOption>() << helpOpt << versionOpt << decodeOpt << batchOpt << outDirOpt << modeOpt << engineOpt << wideOpt << slantOpt << timeoutOpt << listOpt);
   parser.addPositionalArgument("file.wav","SSTV recordings to decode (same as --decode).","[file.wav ...]");
   if(!parser.parse(app.arguments()))
     {
@@ -166,6 +168,18 @@ int main( int argc, char ** argv )
           return fileDecoder::EXIT_BADFILE;
         }
     }
+  int slantOverride=-1;
+  if(parser.isSet(slantOpt))
+    {
+      QString v=parser.value(slantOpt).toLower();
+      if(v=="on") slantOverride=1;
+      else if(v=="off") slantOverride=0;
+      else if(v!="auto")
+        {
+          fprintf(stderr,"--slant must be auto, on or off\n");
+          return fileDecoder::EXIT_BADFILE;
+        }
+    }
   bool timeoutOk=true;
   int timeoutSeconds=parser.isSet(timeoutOpt) ? parser.value(timeoutOpt).toInt(&timeoutOk) : 0;
   if(!timeoutOk || timeoutSeconds<0)
@@ -175,6 +189,7 @@ int main( int argc, char ** argv )
     }
   setRxEngineOverride(engineOverride);
   setWideVideoFilterOverride(wideOverride);
+  setMmsstvSlantOverride(slantOverride);
 
   QPixmap pixmap(":/icons/qsstvsplash.png");
   QSplashScreen splash(pixmap,Qt::WindowStaysOnTopHint);
