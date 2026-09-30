@@ -2,8 +2,7 @@
 #define LOGBOOK_H
 
 #include <QString>
-
-class ipcMessage;
+#include <QUdpSocket>
 
 #define NUMLOGPARAMS 21
 
@@ -25,7 +24,9 @@ private:
   void getFrequency();
   double frequency;
   void setParam(eIndex tag,QString value);
-  ipcMessage *ipcQueue;
+  QString buildADIFRecord() const;
+  QUdpSocket udpSocket;
+  quint16 udpPort;
 };
 
 #endif // LOGBOOK_H

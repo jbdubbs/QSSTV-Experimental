@@ -205,7 +205,6 @@ set(QSSTV_SOURCES
     utils/qurlinfo.cpp
     utils/reedsolomoncoder.cpp
     utils/rs.cpp
-    xmlrpc/ipcmessage.cpp
     xmlrpc/maiaFault.cpp
     xmlrpc/maiaObject.cpp
     xmlrpc/maiaXmlRpcClient.cpp
