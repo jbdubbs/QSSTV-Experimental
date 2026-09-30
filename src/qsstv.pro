@@ -157,6 +157,11 @@ SOURCES += main.cpp\
     sstv/engineselection.cpp \
     sstv/videofilterselection.cpp \
     sstv/chromadeconvolution.cpp \
+    sstv/chromacompanding.cpp \
+    sstv/chromaedgeboost.cpp \
+    sstv/chromagridphase.cpp \
+    sstv/chromapseudoluma.cpp \
+    sstv/chromatriangledecimation.cpp \
     sstv/syncprocessor.cpp \
     utils/qurlinfo.cpp \
     utils/reedsolomoncoder.cpp \
@@ -336,6 +341,11 @@ HEADERS  += mainwindow.h \
     sstv/engineselection.h \
     sstv/videofilterselection.h \
     sstv/chromadeconvolution.h \
+    sstv/chromacompanding.h \
+    sstv/chromaedgeboost.h \
+    sstv/chromagridphase.h \
+    sstv/chromapseudoluma.h \
+    sstv/chromatriangledecimation.h \
     sstv/syncprocessor.h \
     utils/qurlinfo.h \
     utils/reedsolomoncoder.h \
