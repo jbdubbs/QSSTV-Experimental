@@ -2,7 +2,27 @@
 #define APPDEFS_H
 #include <stdint.h>
 #include <complex>
-using namespace std; /* Because of the library: "complex" */
+#include <string>
+#include <vector>
+#include <set>
+#include <ostream>
+#include <limits>
+#include <sstream>
+// Only pull in the specific names actually used unqualified throughout this codebase
+// (bare complex<...>/string/vector, mostly in the vendored DRM/DABMOT code) rather than
+// the whole std namespace: `using namespace std;` here used to make std::byte visible
+// unqualified too, which is an enum class since C++17 and collides with MinGW's Windows
+// headers' own unscoped `typedef unsigned char byte;` (rpcndr.h, pulled in by Qt's
+// Windows-only COM headers) -- "reference to 'byte' is ambiguous", Windows-only since
+// those headers only exist on that platform. Nothing in this codebase wants std::byte
+// unqualified, so it's simply never added to this list.
+using std::complex;
+using std::string;
+using std::vector;
+using std::set;
+using std::ostream;
+using std::numeric_limits;
+using std::stringstream;
 
 #define SOUNDFRAME  quint32
 

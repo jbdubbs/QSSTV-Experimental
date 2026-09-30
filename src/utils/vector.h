@@ -31,7 +31,9 @@
 
 //#include "drmtx/common/GlobalDefinitions.h"
 #include "appdefs.h"
-using namespace std; /* Because of the library: "complex" */
+// see appdefs.h for why not "using namespace std;" -- its using std::complex/string/
+// vector already covers this file's own (and its many downstream includers') need for
+// those three unqualified
 #include <string>
 #include <stdio.h>
 #include <math.h>

@@ -34,52 +34,90 @@ For a completely clean run use a throw-away configuration: `HOME=$(mktemp -d) qs
 
 ## Installation
 
-### Dependencies 
+The build is CMake-based (`src/CMakeLists.txt`) and needs **Qt6** — Qt5 is no longer
+supported. Audio and webcam capture go through Qt Multimedia now, so unlike older
+QSSTV forks, **no PulseAudio, ALSA or V4L2 development packages are needed at all**,
+on any OS.
 
-For apt based distros you can install dependencies as follows:
+### Linux dependencies
 
+Fedora:
 ```
-apt install pkg-config g++ libfftw3-dev qtbase5-dev qtchooser qt5-qmake qtbase5-dev-tools libqt5svg5-dev libhamlib++-dev libasound2-dev libpulse-dev libopenjp2-7 libopenjp2-7-dev libv4l-dev build-essential
+sudo dnf install cmake gcc-c++ pkgconf-pkg-config qt6-qtbase-devel qt6-qtmultimedia-devel \
+    qt6-qtserialport-devel fftw-devel openjpeg-devel hamlib-devel
 ```
 
-### macOS Dependencies
+Debian/Ubuntu (24.04+ / bookworm+, for Qt6 packaging):
+```
+sudo apt install cmake pkg-config g++ qt6-base-dev qt6-base-dev-tools qt6-multimedia-dev \
+    qt6-serialport-dev libfftw3-dev libopenjp2-7-dev libhamlib-dev
+```
 
-For macOS users, you can install dependencies using Homebrew:
+If your distro's hamlib package is too old (or missing), build it from source and point
+CMake at it with `-DHAMLIB_ROOT=/path/to/hamlib/install` instead — see `tools/build-hamlib-win64.sh`
+for the same idea applied to a Windows cross-build.
+
+### macOS dependencies
 
 ```bash
-brew install qt@5 fftw hamlib openjpeg pulseaudio qwt pkg-config
+brew install qt@6 fftw hamlib openjpeg pkg-config
 ```
 
-**Note:** You must have PulseAudio running for sound to work:
-```bash
-brew services start pulseaudio
+(No PulseAudio to install or start any more — Qt Multimedia uses CoreAudio directly.)
+
+### Windows
+
+There is no Windows installer released yet, but the app **does build and link
+correctly** for 64-bit Windows via MinGW cross-compilation from Linux, verified on
+Fedora:
+
+```
+sudo dnf install mingw64-gcc mingw64-gcc-c++ mingw64-binutils mingw64-winpthreads \
+    mingw64-qt6-qtbase mingw64-qt6-qtmultimedia mingw64-qt6-qtserialport \
+    mingw64-fftw mingw64-openjpeg mingw64-libusb1
+
+# Hamlib is vendored, not taken from a system package -- see tools/build-hamlib-win64.sh
+# (needs ~/projects/hamlib-upstream-sstv or HAMLIB_SRC pointed at a Hamlib checkout).
+tools/build-hamlib-win64.sh
+
+cmake -S src -B build-mingw64 \
+    -DCMAKE_TOOLCHAIN_FILE=/usr/share/mingw/toolchain-mingw64.cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DPKG_CONFIG_EXECUTABLE=/usr/bin/x86_64-w64-mingw32-pkg-config \
+    -DHAMLIB_ROOT="$PWD/third_party/hamlib-win64"
+cmake --build build-mingw64 -j$(nproc)
+
+# Package it (ZIP always; also an NSIS installer if `sudo dnf install mingw64-nsis`
+# is installed first):
+cd build-mingw64 && cpack -G ZIP
 ```
 
-### Compile and Install
-	mkdir src/build
-	cd src/build
-	# For Linux
-	qmake ..
-	# For macOS
-	/opt/homebrew/opt/qt@5/bin/qmake ..
-	
-	make -j2
-	sudo make install
+This produces a self-contained `qsstv-9.0-win64.zip` (exe + all required Qt/MinGW/
+FFTW/OpenJPEG/libusb/Hamlib DLLs and Qt plugins, verified complete against
+`objdump -p qsstv.exe`'s actual dependency list). What hasn't been verified yet:
+actually *running* it — this dev environment's Wine install hangs indefinitely on
+first-run initialization regardless of this project, so real execution testing needs
+an actual Windows machine or VM. MSYS2 (building natively on Windows instead of
+cross-compiling) should work the same way with `mingw-w64-x86_64-`-prefixed package
+names, but that path hasn't been tried by anyone working on this fork yet either.
 
-Note: make -j2, 2 is the number of cores to be used for parallel compiling. If you have more cores, use a higher number.
+### Compile and Install (Linux/macOS)
+
+	cmake -S src -B build -DCMAKE_BUILD_TYPE=Release
+	cmake --build build -j$(nproc)
+	sudo cmake --install build
+
+If Qt6, FFTW or OpenJPEG aren't found automatically, or you're using a from-source
+Hamlib (see above), pass `-DCMAKE_PREFIX_PATH=...` / `-DHAMLIB_ROOT=...` to the first
+command.
 
 ### Debug Compile
 If you have problems compiling the software, please give as much information as possible but at least:
-* Linux Distribution and Version (e.g. Ubuntu 18.04)
-* QT Version (e.g. Qt 5.4.1)
-* Screen dump of the compile process showing the error
+* OS and version (e.g. Fedora 44, Ubuntu 24.04, Windows 11)
+* Qt version (e.g. Qt 6.11)
+* The actual compiler/linker error, not just "it doesn't build"
 
-If you want to be able to debug the program, the simplest way is to install QtCreator and from within QtCreator open a new project and point to the qsstv.pro file. Note: you will need to install doxygen and libqwt
-
-`sudo apt-get install doxygen libqwt-qt5-dev`
-
-You can also run qmake with the following attributes:
-
-`qmake CONFIG+=debug`
-
-and use an external debugger (such as gdb)
+QtCreator can open `src/CMakeLists.txt` directly as a project. The debug build also
+needs Qwt for the oscilloscope panel (`qwt-qt6-devel` / `libqwt-qt6-dev` /
+`brew install qwt`) — pass `-DCMAKE_BUILD_TYPE=Debug` and use an external debugger
+(such as gdb) as usual.

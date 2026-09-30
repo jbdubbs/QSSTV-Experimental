@@ -24,6 +24,10 @@
 #include <QtGui>
 #include <QCommandLineParser>
 #include <cstdio>
+
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 #include "appglobal.h"
 #include "mainwindow.h"
 #include <QPixmap>
@@ -38,6 +42,27 @@
 
 
 QSplashScreen *splash;
+
+#ifdef Q_OS_WIN
+/*!
+  The Windows build is a GUI-subsystem executable (see CMakeLists.txt's
+  WIN32_EXECUTABLE) so double-clicking qsstv.exe from Explorer never flashes a console
+  window behind the GUI -- but this app also has real CLI/--batch functionality (see
+  chooseHeadlessPlatform() below) that needs its printf/fprintf output to actually reach
+  a terminal when launched from one. Attaching to the launching console (if any) and
+  redirecting the standard streams to it is the standard fix for that combination; it's a
+  no-op that fails silently when there's no parent console (i.e. launched from Explorer).
+*/
+static void attachParentConsoleIfAny()
+{
+  if(AttachConsole(ATTACH_PARENT_PROCESS))
+    {
+      freopen("CONOUT$","w",stdout);
+      freopen("CONOUT$","w",stderr);
+      freopen("CONIN$","r",stdin);
+    }
+}
+#endif
 
 /*!
   Options that print something or run without a window must not need a display: choose Qt's offscreen platform
@@ -64,6 +89,9 @@ int main( int argc, char ** argv )
   QTimer tm;
   tm.setSingleShot(true);
 
+#ifdef Q_OS_WIN
+  attachParentConsoleIfAny();
+#endif
   chooseHeadlessPlatform(argc,argv);
   QCoreApplication::setOrganizationName(ORGANIZATION);
   QCoreApplication::setApplicationName(APPLICATION);

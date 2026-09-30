@@ -33,8 +33,14 @@ pkg_check_modules(OPENJP2 REQUIRED IMPORTED_TARGET libopenjp2)
 # hamlib.pc (e.g. a real distro package).
 set(HAMLIB_ROOT "" CACHE PATH "Prefix of a from-source Hamlib install (skips pkg-config)")
 if(HAMLIB_ROOT)
-  find_path(HAMLIB_INCLUDE_DIR NAMES hamlib/rig.h HINTS "${HAMLIB_ROOT}/include" NO_DEFAULT_PATH)
-  find_library(HAMLIB_LIBRARY NAMES hamlib HINTS "${HAMLIB_ROOT}/lib" NO_DEFAULT_PATH)
+  # NO_CMAKE_FIND_ROOT_PATH: when cross-compiling (see cmake/ toolchain files),
+  # CMAKE_FIND_ROOT_PATH_MODE_INCLUDE/LIBRARY are ONLY, which would otherwise restrict
+  # this search to the mingw sysroot -- but HAMLIB_ROOT deliberately points outside it,
+  # at this repo's own vendored build (see tools/build-hamlib-win64.sh).
+  find_path(HAMLIB_INCLUDE_DIR NAMES hamlib/rig.h HINTS "${HAMLIB_ROOT}/include"
+    NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
+  find_library(HAMLIB_LIBRARY NAMES hamlib HINTS "${HAMLIB_ROOT}/lib"
+    NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
   if(NOT HAMLIB_INCLUDE_DIR OR NOT HAMLIB_LIBRARY)
     message(FATAL_ERROR "HAMLIB_ROOT=${HAMLIB_ROOT} was set but hamlib/rig.h or libhamlib was not found under it")
   endif()
@@ -42,6 +48,23 @@ if(HAMLIB_ROOT)
   set_target_properties(hamlib::hamlib PROPERTIES
     IMPORTED_LOCATION "${HAMLIB_LIBRARY}"
     INTERFACE_INCLUDE_DIRECTORIES "${HAMLIB_INCLUDE_DIR}")
+  # This vendored build is static, and a static archive doesn't carry its own transitive
+  # link dependencies the way a shared lib's SONAME chain does -- tools/build-hamlib-win64.sh
+  # picked up mingw64-libusb1 automatically (for the USB-CAT rig backends, e.g. FiFi-SDR/
+  # FUNcube), so anything linking hamlib::hamlib needs libusb-1.0 explicitly too.
+  pkg_check_modules(LIBUSB1 QUIET IMPORTED_TARGET libusb-1.0)
+  set(_hamlib_extra_libs "")
+  if(LIBUSB1_FOUND)
+    list(APPEND _hamlib_extra_libs PkgConfig::LIBUSB1)
+  endif()
+  if(WIN32)
+    # hamlib's network.c uses GetAdaptersAddresses() (IP Helper API) for interface
+    # detection -- another static-archive transitive dependency our own link needs too.
+    list(APPEND _hamlib_extra_libs iphlpapi)
+  endif()
+  if(_hamlib_extra_libs)
+    set_target_properties(hamlib::hamlib PROPERTIES INTERFACE_LINK_LIBRARIES "${_hamlib_extra_libs}")
+  endif()
   get_filename_component(QSSTV_HAMLIB_LIBDIR "${HAMLIB_LIBRARY}" DIRECTORY)
 else()
   pkg_check_modules(HAMLIB REQUIRED IMPORTED_TARGET hamlib)
@@ -313,6 +336,13 @@ endif()
 
 add_executable(qsstv ${QSSTV_SOURCES} ${QSSTV_FORMS} qsstv.qrc)
 
+if(WIN32)
+  # GUI subsystem, not console -- double-clicking qsstv.exe shouldn't flash a console
+  # window. main.cpp's attachParentConsoleIfAny() is what keeps --batch/--decode's
+  # output reaching a terminal when launched from one despite this.
+  set_target_properties(qsstv PROPERTIES WIN32_EXECUTABLE TRUE)
+endif()
+
 target_include_directories(qsstv PRIVATE
     config dispatch drmrx drmtx dsp editor logbook mainwidgets
     rig scope sound sstv utils widgets xmlrpc videocapt
@@ -337,9 +367,11 @@ target_link_libraries(qsstv PRIVATE
     mmsstv_core
 )
 
-if(NOT APPLE)
-  # v4l2/v4lconvert are gone with videocapt's old V4L2 backend (Phase 5); -lrt is
-  # unrelated (soundbase.cpp's clock_gettime(), needed on older glibc) and stays.
+if(UNIX AND NOT APPLE)
+  # soundbase.cpp's clock_gettime(), needed on older glibc where it lived in librt before
+  # merging into libc (glibc 2.34+); Windows has no -lrt and doesn't need one, and this
+  # was wrongly `if(NOT APPLE)` before Phase 7's Windows cross-build caught it (that
+  # condition also matches Windows, which promptly failed to link).
   target_link_libraries(qsstv PRIVATE rt)
 endif()
 
@@ -355,10 +387,82 @@ if(QSSTV_HAMLIB_LIBDIR)
     INSTALL_RPATH "${QSSTV_HAMLIB_LIBDIR}")
 endif()
 
-# --- Install (Linux desktop integration; full packaging is Phase 7) -----------------
+# --- Install --------------------------------------------------------------------------
 include(GNUInstallDirs)
-install(TARGETS qsstv RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+if(WIN32)
+  # The exe must sit next to its DLLs and plugin folders (platforms/, multimedia/, ...
+  # below) -- Windows' DLL search checks the executable's own directory first, not a
+  # bin/ subfolder one level up. CMAKE_INSTALL_BINDIR (bin/) is right for Linux/macOS,
+  # where RPATH/install_name handle this instead, but would silently produce a package
+  # that fails to launch with missing-DLL errors on Windows.
+  install(TARGETS qsstv RUNTIME DESTINATION .)
+else()
+  install(TARGETS qsstv RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
 if(UNIX AND NOT APPLE)
   install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../qsstv.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications")
   install(FILES icons/qsstv.png DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/128x128/apps")
 endif()
+
+if(WIN32)
+  # No windeployqt available for this cross-compiled target (Fedora's mingw64-qt6-qttools
+  # doesn't ship a working one, since it's a native-PE tool meant to run on the target
+  # OS) -- list the runtime DLLs and Qt plugins this app actually needs explicitly
+  # instead, verified against `objdump -p qsstv.exe`'s real "DLL Name" list. Keep this in
+  # sync if dependencies change (a new Qt module, a new plugin the code starts using).
+  list(GET CMAKE_FIND_ROOT_PATH 0 MINGW_SYSROOT)
+  set(QSSTV_WIN_RUNTIME_DLLS
+    libgcc_s_seh-1.dll
+    libwinpthread-1.dll
+    libstdc++-6.dll
+    libfftw3-3.dll
+    libfftw3f-3.dll
+    libopenjp2.dll
+    libusb-1.0.dll
+    libjpeg-62.dll
+    Qt6Core.dll
+    Qt6Gui.dll
+    Qt6Multimedia.dll
+    Qt6Network.dll
+    Qt6SerialPort.dll
+    Qt6Widgets.dll
+    Qt6Xml.dll
+  )
+  foreach(_dll ${QSSTV_WIN_RUNTIME_DLLS})
+    install(FILES "${MINGW_SYSROOT}/bin/${_dll}" DESTINATION .)
+  endforeach()
+
+  # Qt loads plugins from <appdir>/<plugin-subdir>/ automatically (the same layout
+  # windeployqt would produce), no qt.conf needed. qwindows.dll is required for any
+  # window at all; the rest match what this app actually exercises: the camera backend
+  # (Phase 5), JPEG save/load (snapshots, received/sent pictures), and a native-looking
+  # widget style instead of Qt's generic fallback.
+  install(FILES "${MINGW_SYSROOT}/lib/qt6/plugins/platforms/qwindows.dll" DESTINATION platforms)
+  install(FILES "${MINGW_SYSROOT}/lib/qt6/plugins/multimedia/windowsmediaplugin.dll" DESTINATION multimedia)
+  install(FILES "${MINGW_SYSROOT}/lib/qt6/plugins/imageformats/qjpeg.dll" DESTINATION imageformats)
+  install(FILES "${MINGW_SYSROOT}/lib/qt6/plugins/styles/qmodernwindowsstyle.dll" DESTINATION styles)
+endif()
+
+# --- CPack ------------------------------------------------------------------------------
+# One packaging mechanism for all three OSes instead of hand-rolled per-OS rules: ZIP
+# everywhere (always available, no extra tool needed) plus NSIS on Windows -- a proper
+# installer wizard instead of just a folder to unzip -- when makensis is present
+# (Fedora: mingw64-nsis; not installed on this dev box as of this writing, so only
+# verified with the ZIP generator so far).
+set(CPACK_PACKAGE_NAME "qsstv")
+set(CPACK_PACKAGE_VENDOR "QSSTV-Experimental")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "SSTV and HamDRM transceiver")
+set(CPACK_PACKAGE_VERSION "9.0")
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "QSSTV-Experimental")
+set(CPACK_GENERATOR "ZIP")
+if(WIN32)
+  find_program(MAKENSIS_EXECUTABLE makensis)
+  if(MAKENSIS_EXECUTABLE)
+    list(APPEND CPACK_GENERATOR "NSIS")
+    set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
+    set(CPACK_NSIS_MODIFY_PATH OFF)
+  else()
+    message(STATUS "makensis not found (Fedora: mingw64-nsis) -- CPack will only produce a ZIP, not an NSIS installer")
+  endif()
+endif()
+include(CPack)

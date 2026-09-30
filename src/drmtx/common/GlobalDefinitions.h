@@ -236,8 +236,8 @@ public:
 class CGenErr
 {
 public:
-	CGenErr(string strNE) : strError(strNE) {}
-	string strError;
+	CGenErr(std::string strNE) : strError(strNE) {}
+	std::string strError;
 };
 
 // FIXME something nicer than using "MAX_NUM_TAPS_DRM_CHAN"
@@ -268,7 +268,7 @@ void DebugError(const char* pchErDescr, const char* pchPar1Descr,
 				const double dPar1, const char* pchPar2Descr,
 				const double dPar2);
 
-void ErrorMessage(string strErrorString);
+void ErrorMessage(std::string strErrorString);
 
 
 /* Global functions ***********************************************************/

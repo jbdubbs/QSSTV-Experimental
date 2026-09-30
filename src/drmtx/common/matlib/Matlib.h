@@ -31,7 +31,7 @@
 #include <cstdlib>
 #include <math.h>
 #include <complex>
-using namespace std;
+using std::complex; // see appdefs.h for why not "using namespace std;"
 #include "../GlobalDefinitions.h"
 
 
