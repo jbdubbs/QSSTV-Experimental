@@ -59,8 +59,13 @@ void rigConfig::readSettings()
 {
   cp=rigController->params();
   QSettings qSettings;
+#ifdef Q_OS_WIN
+  const QString defaultSerialPort("COM1");
+#else
+  const QString defaultSerialPort("/dev/ttyS0");
+#endif
   qSettings.beginGroup(cp->configLabel);
-  cp->serialPort=qSettings.value("serialPort","/dev/ttyS0").toString();
+  cp->serialPort=qSettings.value("serialPort",defaultSerialPort).toString();
   cp->radioModel=qSettings.value("radioModel","dummy").toString();
   cp->civAddress=qSettings.value("civAddress","").toString();
   cp->baudrate=qSettings.value("baudrate",9600).toInt();
@@ -70,7 +75,7 @@ void rigConfig::readSettings()
   cp->handshake=qSettings.value("handshake","None").toString();
   cp->enableCAT=qSettings.value("enableCAT",0).toBool();
   cp->enableSerialPTT=qSettings.value("enableSerialPTT",0).toBool();
-  cp->pttSerialPort=qSettings.value("pttSerialPort","/dev/ttyS0").toString();
+  cp->pttSerialPort=qSettings.value("pttSerialPort",defaultSerialPort).toString();
   cp->activeRTS=qSettings.value("activeRTS",1).toBool();
   cp->activeDTR=qSettings.value("activeDTR",0).toBool();
   cp->nactiveRTS=qSettings.value("nactiveRTS",1).toBool();

@@ -289,62 +289,13 @@ void deleteFiles(QString dirPath,QString extension)
 
 bool trash(QString filename,bool forceDelete)
 {
-  QString tmp;
-  QFile orgFile(filename);
-  QFileInfo modifiedFileInfo(filename);
-  QFileInfo info(filename);
-  QFile infoFile;
-  QFile modifiedFile;
-  QDir trDir;
-  QDir infoDir;
-  QDir filesDir;
-  QString infoTxt;
-  trDir.setPath(getenv("XDG_DATA_HOME"));
-  if (trDir.path().isEmpty())  trDir.setPath(QDir::homePath()+"/.local/share/Trash");
-  infoDir.setPath(trDir.path()+"/info");
-  filesDir.setPath(trDir.path()+"/files");
-  infoFile.setFileName(infoDir.path()+"/"+info.fileName()+".trashinfo");
-  modifiedFile.setFileName(filesDir.path()+"/"+modifiedFileInfo.fileName());
-  int counter=0;
-  do
-    {
-      if(!modifiedFile.exists()) break;
-      counter++;
-      tmp=QString("%1/%2_%3.%4").arg(filesDir.path()).arg(modifiedFileInfo.completeBaseName()).arg(QString::number(counter)).arg(modifiedFileInfo.suffix());
-      modifiedFile.setFileName(tmp);
-      tmp=QString("%1/%2_%3.%4").arg(infoDir.path()).arg(modifiedFileInfo.completeBaseName()).arg(QString::number(counter)).arg(modifiedFileInfo.suffix());
-      infoFile.setFileName(tmp+".trashinfo");
-    }
-  while(1);
-
-  infoTxt=QString("[Trash Info]\nPath=%1\nDeletionDate=%2")
-      .arg(filename).arg(QDateTime::currentDateTime().toString(Qt::ISODate));
-
-  if((!trDir.exists()) || (!infoDir.exists()) || (!filesDir.exists()))
-    {
-      errorOut() << "Trash folder or one of its components does not exist";
-      if(forceDelete) orgFile.remove();
-      return false;
-    }
-
-  if(!infoFile.open(QIODevice::WriteOnly))
-  {
-   errorOut() << QString("Trash folder: can't open %1 for writing").arg(infoFile.fileName());
-    if(forceDelete) orgFile.remove();
-    return false;
-  }
-  infoFile.write(infoTxt.toLatin1().data());
-  infoFile.close();
-  QFile trashFile(info.absoluteFilePath());
-  QString target;
-  target=QString("%1").arg(modifiedFile.fileName());
-  if(!trashFile.rename(filename,target))
-  {
-    errorOut() << QString("Trash folder: can't rename %1 to %2").arg(filename).arg(target);
-    if(forceDelete) orgFile.remove();
-    return false;
-  }
-  return true;
+  // QFile::moveToTrash() (Qt 5.15+) replaces the freedesktop-trash-spec code this used to
+  // hand-roll (~/.local/share/Trash, XDG_DATA_HOME): that only ever worked on Linux, while
+  // this is portable and uses the real Recycle Bin on Windows and Trash on macOS too.
+  if(QFile::moveToTrash(filename)) return true;
+  errorOut() << QString("Could not move %1 to the trash").arg(filename);
+  if(forceDelete) QFile::remove(filename);
+  return false;
 }
 
 

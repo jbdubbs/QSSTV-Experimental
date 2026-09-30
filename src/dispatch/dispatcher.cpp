@@ -40,6 +40,8 @@ It also starts, stops and synchronizes the threads.
 #include "ftpfunctions.h"
 #include "filedecoder.h"
 
+#include <QDir>
+
 #include <QSettings>
 #include <QMessageBox>
 
@@ -465,7 +467,7 @@ void dispatcher::saveImage(QString fileName, QString infotext)
 {
   // filename is the name of the original file in hybrid mode
   QFileInfo info(fileName);
-  QString fn="/tmp/"+info.baseName()+"."+ftpDefaultImageFormat;
+  QString fn=QDir::tempPath()+"/"+info.baseName()+"."+ftpDefaultImageFormat;
   galleryWidgetPtr->putRxImage(fileName);
   txWidgetPtr->setPreviewWidget(fileName);
   if(enableFTP)

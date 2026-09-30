@@ -22,6 +22,8 @@
 #include "directoriesconfig.h"
 #include "ui_directoriesconfig.h"
 
+#include <QStandardPaths>
+
 
 QString rxSSTVImagesPath;
 QString rxDRMImagesPath;
@@ -57,14 +59,18 @@ directoriesConfig::~directoriesConfig()
 void directoriesConfig::readSettings()
 {
   QSettings qSettings;
+  // getenv("HOME") isn't reliably set on Windows; QStandardPaths::AppDataLocation is the
+  // portable equivalent of the old "$HOME/qsstv/..." tree (it's already namespaced by the
+  // organization/application name set in main.cpp, so the "qsstv" segment is dropped here).
+  QString appDataPath=QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
   qSettings.beginGroup("DIRECTORIES");
-  rxSSTVImagesPath=qSettings.value("rxSSTVImagesPath",QString(getenv("HOME"))+"/qsstv/rx_sstv/").toString();
-  rxDRMImagesPath=qSettings.value("rxDRMImagesPath",QString(getenv("HOME"))+"/qsstv/rx_drm/").toString();
-  txSSTVImagesPath=qSettings.value("txSSTVImagesPath",QString(getenv("HOME"))+"/qsstv/tx_sstv/").toString();
-  txDRMImagesPath=qSettings.value("txDRMImagesPath",QString(getenv("HOME"))+"/qsstv/tx_drm/").toString();
-  txStockImagesPath=qSettings.value("txStockImagesPath",QString(getenv("HOME"))+"/qsstv/tx_stock/").toString();
-  templatesPath=qSettings.value("templatesPath",QString(getenv("HOME"))+"/qsstv/templates/").toString();
-  audioPath=qSettings.value("audioPath",QString(getenv("HOME"))+"/qsstv/audio/").toString();
+  rxSSTVImagesPath=qSettings.value("rxSSTVImagesPath",appDataPath+"/rx_sstv/").toString();
+  rxDRMImagesPath=qSettings.value("rxDRMImagesPath",appDataPath+"/rx_drm/").toString();
+  txSSTVImagesPath=qSettings.value("txSSTVImagesPath",appDataPath+"/tx_sstv/").toString();
+  txDRMImagesPath=qSettings.value("txDRMImagesPath",appDataPath+"/tx_drm/").toString();
+  txStockImagesPath=qSettings.value("txStockImagesPath",appDataPath+"/tx_stock/").toString();
+  templatesPath=qSettings.value("templatesPath",appDataPath+"/templates/").toString();
+  audioPath=qSettings.value("audioPath",appDataPath+"/audio/").toString();
   docURL=qSettings.value("docURL","https://www.qsl.net/o/on4qz/qsstv/manual").toString();
   saveTXimages=qSettings.value("saveTXimages",false).toBool();
   recursiveScanDirs=qSettings.value("recursiveScanDirs",false).toBool();
