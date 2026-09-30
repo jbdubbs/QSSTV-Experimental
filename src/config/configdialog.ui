@@ -259,6 +259,31 @@
        </item>
       </layout>
      </widget>
+     <widget class="QWidget" name="modeOptionsTab">
+      <attribute name="title">
+       <string>Mode Options</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_13">
+       <property name="spacing">
+        <number>1</number>
+       </property>
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="modeOptionsConfig" name="modeOptionsWidget" native="true"/>
+       </item>
+      </layout>
+     </widget>
      <widget class="QWidget" name="hybridTab">
       <attribute name="title">
        <string>Hybrid</string>
@@ -407,6 +432,12 @@
    <class>hybridConfig</class>
    <extends>QWidget</extends>
    <header>hybridconfig.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>modeOptionsConfig</class>
+   <extends>QWidget</extends>
+   <header>modeoptionsconfig.h</header>
    <container>1</container>
   </customwidget>
   <customwidget>

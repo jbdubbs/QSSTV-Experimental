@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>modeOptionsConfig</class>
+ <widget class="QWidget" name="modeOptionsConfig">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>744</width>
+    <height>558</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QCheckBox" name="wideFilterCheckBox">
+     <property name="toolTip">
+      <string>Use a wider video filter for the fast modes (PD120, PD120S, PD120W, JB60): sharper pictures on a clean signal (cable, local VHF/UHF FM, strong signals) but noisier on weak ones, so leave it off for typical HF. Takes effect at the next picture. PD120 only uses it when MMSSTV Core is not handling PD120.</string>
+     </property>
+     <property name="text">
+      <string>Wide Video Filter</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="chromaDeconvolutionCheckBox">
+     <property name="toolTip">
+      <string>JB60 only: sharpen received Cr/Cb with a regularized inverse of the video filter's blur, matched to how this app's own transmit chroma pre-emphasis plus the channel actually shape the signal. Amplifies noise along with edges below about 25 dB SNR -- leave it off for typical HF. Best matched to pictures sent by this app; other encoders' output or older recordings may not benefit as much. Has no effect while Wide Video Filter is also checked. Takes effect at the next picture.</string>
+     </property>
+     <property name="text">
+      <string>JB60 Chroma Sharpening</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+</ui>

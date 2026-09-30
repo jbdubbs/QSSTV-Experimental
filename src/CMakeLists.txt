@@ -248,6 +248,7 @@ set(QSSTV_SOURCES
     config/hybridconfig.cpp
     config/repeaterconfig.cpp
     config/waterfallconfig.cpp
+    config/modeoptionsconfig.cpp
     utils/hybridcrypt.cpp
     sstv/visfskid.cpp
     dsp/filters.cpp
@@ -311,6 +312,7 @@ set(QSSTV_FORMS
     config/hybridconfig.ui
     config/repeaterconfig.ui
     config/waterfallconfig.ui
+    config/modeoptionsconfig.ui
     drmtx/bsrform.ui
     mainwidgets/gallerywidget.ui
     mainwidgets/rxwidget.ui

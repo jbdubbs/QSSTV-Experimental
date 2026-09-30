@@ -15,8 +15,6 @@
 #include "configparams.h"
 #include "ftpthread.h"
 #include "engineselection.h"
-#include "videofilterselection.h"
-#include "chromadeconvolution.h"
 #include "dispatch/filedecoder.h"
 
 
@@ -79,14 +77,6 @@ void rxWidget::init()
   connect(ui->decodeFileToolButton,SIGNAL(clicked()),SLOT(slotDecodeFile()));
   connect(ui->autoSaveCheckBox,SIGNAL(clicked()),SLOT(slotGetParams()));
   connect(ui->autoSlantAdjustCheckBox,SIGNAL(clicked()),SLOT(slotGetParams()));
-  connect(ui->wideFilterCheckBox,SIGNAL(clicked()),SLOT(slotGetParams()));
-  connect(ui->chromaDeconvolutionCheckBox,SIGNAL(clicked()),SLOT(slotGetParams()));
-  // Gray out when Wide Video Filter is on -- the deconvolution kernel is matched only to the
-  // narrow filter, so it's inert whenever Cr/Cb come from the wide track instead (modejb60.cpp
-  // has the matching behavioral guard). toggled fires on both user clicks and setChecked() during
-  // settings load, so this stays correct on startup too (setParams() below also sets it
-  // explicitly, since relying on signal timing alone at construction is fragile).
-  connect(ui->wideFilterCheckBox,SIGNAL(toggled(bool)),ui->chromaDeconvolutionCheckBox,SLOT(setDisabled(bool)));
   connect(ui->engineCheckBox,SIGNAL(clicked(bool)),SLOT(slotEngineChanged(bool))); // clicked, not toggled: only a user click aborts RX, not settings load
 
 
@@ -154,12 +144,6 @@ void rxWidget::getParams()
   bool preferCore;
   getValue(preferCore,ui->engineCheckBox);
   setRxPreferCoreEngine(preferCore);
-  bool wideFilter;
-  getValue(wideFilter,ui->wideFilterCheckBox);
-  setWideVideoFilterEnabled(wideFilter);
-  bool chromaDeconv;
-  getValue(chromaDeconv,ui->chromaDeconvolutionCheckBox);
-  setChromaDeconvolutionEnabled(chromaDeconv);
   getValue(defaultImageFormat,ui->defaultImageFormatComboBox);
   getValue(minCompletion,ui->completeSpinBox);
 }
@@ -168,9 +152,6 @@ void rxWidget::setParams()
 {
   setValue(autoSlantAdjust,ui->autoSlantAdjustCheckBox);
   setValue(autoSave,ui->autoSaveCheckBox);
-  setValue(wideVideoFilterEnabled(),ui->wideFilterCheckBox);
-  setValue(chromaDeconvolutionEnabled(),ui->chromaDeconvolutionCheckBox);
-  ui->chromaDeconvolutionCheckBox->setDisabled(wideVideoFilterEnabled());
   setIndex(sensitivity,ui->sensitivityComboBox);
   rebuildModeComboBox();
   setValue(defaultImageFormat,ui->defaultImageFormatComboBox);
