@@ -375,8 +375,11 @@
         </attribute>
         <layout class="QVBoxLayout" name="verticalLayout_3">
          <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_4">
-           <item>
+          <!-- A grid (not the old per-row HBoxLayout+spacer idiom) so Mode/MMSSTV Core/resize
+               share one right-aligned label column and one value column, the same way the RX
+               SSTV tab's gridLayout_2 lines its labels and checkboxes up with its combo boxes. -->
+          <layout class="QGridLayout" name="gridLayout_4">
+           <item row="0" column="0" rowspan="4">
             <spacer name="horizontalSpacer_6">
              <property name="orientation">
               <enum>Qt::Horizontal</enum>
@@ -389,7 +392,7 @@
              </property>
             </spacer>
            </item>
-           <item>
+           <item row="0" column="1">
             <widget class="QLabel" name="modeLabel">
              <property name="text">
               <string>Mode</string>
@@ -402,7 +405,7 @@
              </property>
             </widget>
            </item>
-           <item>
+           <item row="0" column="3">
             <widget class="QComboBox" name="sstvModeComboBox">
              <property name="toolTip">
               <string>Transmit mode</string>
@@ -412,25 +415,8 @@
              </property>
             </widget>
            </item>
-          </layout>
-         </item>
-         <!-- Built upon the original QSSTV 9.5.11 by Johan Maes, ON4QZ (https://www.qsl.net/o/on4qz) -->
-         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_11">
-           <item>
-            <spacer name="horizontalSpacer_7">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>40</width>
-               <height>20</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
-           <item>
+           <!-- Built upon the original QSSTV 9.5.11 by Johan Maes, ON4QZ (https://www.qsl.net/o/on4qz) -->
+           <item row="1" column="1">
             <widget class="QCheckBox" name="engineCheckBox">
              <property name="toolTip">
               <string>Use the ported mmsstv-core engine; Mode above lists only what it supports.</string>
@@ -443,37 +429,20 @@
              </property>
             </widget>
            </item>
-          </layout>
-         </item>
-         <item>
-          <spacer name="verticalSpacer_2">
-           <property name="orientation">
-            <enum>Qt::Vertical</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>20</width>
-             <height>19</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_10">
-           <item>
-            <spacer name="horizontalSpacer_2">
+           <item row="2" column="3">
+            <spacer name="verticalSpacer_2">
              <property name="orientation">
-              <enum>Qt::Horizontal</enum>
+              <enum>Qt::Vertical</enum>
              </property>
              <property name="sizeHint" stdset="0">
               <size>
-               <width>40</width>
-               <height>20</height>
+               <width>20</width>
+               <height>19</height>
               </size>
              </property>
             </spacer>
            </item>
-           <item>
+           <item row="3" column="3">
             <widget class="QComboBox" name="sstvResizeComboBox"/>
            </item>
           </layout>
