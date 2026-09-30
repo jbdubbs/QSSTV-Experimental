@@ -433,7 +433,7 @@
            <item>
             <widget class="QCheckBox" name="engineCheckBox">
              <property name="toolTip">
-              <string>When checked, the Mode dropdown above only lists modes the mmsstv-core engine (ported from MMSSTV) supports, and picking one uses that engine. When unchecked, every mode is listed and uses QSSTV-Experimental's own engine.</string>
+              <string>Use the ported mmsstv-core engine; Mode above lists only what it supports.</string>
              </property>
              <property name="layoutDirection">
               <enum>Qt::RightToLeft</enum>
