@@ -18,7 +18,7 @@ endif()
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network Xml)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network Xml SerialPort)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(FFTW3 REQUIRED IMPORTED_TARGET fftw3 fftw3f)
@@ -340,7 +340,7 @@ target_compile_definitions(qsstv PRIVATE QT_DEPRECATED_WARNINGS)
 target_compile_options(qsstv PRIVATE -Wno-implicit-fallthrough -Wno-psabi)
 
 target_link_libraries(qsstv PRIVATE
-    Qt6::Core Qt6::Widgets Qt6::Network Qt6::Xml
+    Qt6::Core Qt6::Widgets Qt6::Network Qt6::Xml Qt6::SerialPort
     PkgConfig::FFTW3
     PkgConfig::OPENJP2
     hamlib::hamlib

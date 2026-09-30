@@ -30,9 +30,7 @@
 #include <QSplashScreen>
 #include <QMessageBox>
 #include <QApplication>
-#include <sys/ioctl.h>
-#include <unistd.h>
-#include <fcntl.h>
+#include <QSerialPort>
 
 
 #define MAXCONFLEN 128
@@ -59,7 +57,7 @@ rigControl::rigControl(int radioIndex)
   catParams.configLabel=QString("radio%1").arg(radioIndex);
   rig_set_debug(RIG_DEBUG_NONE);
   getRadioList();
-  serialP=0;
+  pttSerialPortPtr=nullptr;
   lastFrequency=0.0;
   xmlModes<<"USB"<<"LSB"<<"FM"<<"AM";
 }
@@ -68,6 +66,7 @@ rigControl::~rigControl()
 {
   rig_close(my_rig); /* close port */
   rig_cleanup(my_rig); /* if you care about memory */
+  delete pttSerialPortPtr; // closes the port too, if still open
 }
 
 bool rigControl::init()
@@ -384,56 +383,41 @@ bool model_Sort(const rig_caps *caps1,const rig_caps *caps2)
   return false;
 }
 
+// DTR/RTS are independently configurable as active-high (activeDTR/activeRTS) or
+// active-low (nactiveDTR/nactiveRTS) for PTT keying -- rigConfig::checkPTT() keeps each
+// pair mutually exclusive in the UI, so at most one of the two is ever set per line.
+// A line whose pair is both unset is left untouched, matching the pre-QSerialPort code.
+void rigControl::setSerialPTTLines(bool b)
+{
+  if(catParams.activeDTR) pttSerialPortPtr->setDataTerminalReady(b);
+  else if(catParams.nactiveDTR) pttSerialPortPtr->setDataTerminalReady(!b);
+
+  if(catParams.activeRTS) pttSerialPortPtr->setRequestToSend(b);
+  else if(catParams.nactiveRTS) pttSerialPortPtr->setRequestToSend(!b);
+}
+
 void rigControl::activatePTT(bool b)
 {
-  int modemlines;
   if(catParams.enableSerialPTT)
     {
       if (catParams.pttSerialPort.isEmpty()) return;
-      if(serialP==0)
+      if(pttSerialPortPtr==nullptr)
         {
-          serialP=::open(catParams.pttSerialPort.toLatin1().data(),O_RDWR|O_NONBLOCK);
-          if (serialP<=0)
+          pttSerialPortPtr=new QSerialPort(catParams.pttSerialPort,this);
+          if(!pttSerialPortPtr->open(QIODevice::ReadWrite))
             {
               QMessageBox::warning(txWidgetPtr,"Serial Port Error",
                                    QString("Unable to open serial port %1\ncheck Options->Configuration\n"
                                            "make sure that you have read/write permission\nIf you do not have a serial port,\n"
                                            "then disable -Serial PTT- option in the configuration").arg(catParams.pttSerialPort) ,
                                    QMessageBox::Ok);
+              delete pttSerialPortPtr;
+              pttSerialPortPtr=nullptr;
               return;
             }
-          else
-            {
-              ioctl(serialP,TIOCMGET,&modemlines);
-              if(catParams.activeDTR) modemlines &= ~TIOCM_DTR;
-              if(catParams.activeRTS)modemlines &= ~TIOCM_RTS;
-              if(catParams.nactiveDTR) modemlines |= ~TIOCM_DTR;
-              if(catParams.nactiveRTS)modemlines |= ~TIOCM_RTS;
-              ioctl(serialP,TIOCMSET,&modemlines);
-            }
+          setSerialPTTLines(false); // idle (PTT-off) state as soon as the port is opened
         }
-      if(serialP>0)
-        {
-          if(b)
-            {
-              ioctl(serialP,TIOCMGET,&modemlines);
-              if(catParams.activeDTR) modemlines |= TIOCM_DTR;
-              if(catParams.activeRTS)modemlines |= TIOCM_RTS;
-              if(catParams.nactiveDTR) modemlines &= ~TIOCM_DTR;
-              if(catParams.nactiveRTS)modemlines &= ~TIOCM_RTS;
-              ioctl(serialP,TIOCMSET,&modemlines);
-              //ioctl(serial,TIOCMBIS,&t);
-            }
-          else
-            {
-              ioctl(serialP,TIOCMGET,&modemlines);
-              if(catParams.activeDTR) modemlines &= ~TIOCM_DTR;
-              if(catParams.activeRTS) modemlines &= ~TIOCM_RTS;
-              if(catParams.nactiveDTR) modemlines |= ~TIOCM_DTR;
-              if(catParams.nactiveRTS)modemlines |= ~TIOCM_RTS;
-              ioctl(serialP,TIOCMSET,&modemlines);
-            }
-        }
+      setSerialPTTLines(b);
     }
   else if(catParams.enableXMLRPC)
     {

@@ -7,6 +7,7 @@
 
 #include <QObject>
 #include <QComboBox>
+#include <QSerialPort>
 
 extern "C" int write_block(hamlib_port_t *p, const char *txbuffer, size_t count);
 extern "C" int read_block(hamlib_port_t *p, char *rxbuffer, size_t count);
@@ -79,7 +80,8 @@ private:
   void errorMessage(int errorCode,QString command);
   void getRadioList();
   scatParams catParams;
-  int serialP;
+  QSerialPort *pttSerialPortPtr;
+  void setSerialPTTLines(bool b);
   bool setPTT(bool On);
   double lastFrequency;
   QStringList xmlModes;
