@@ -408,8 +408,15 @@ if(WIN32)
   # No windeployqt available for this cross-compiled target (Fedora's mingw64-qt6-qttools
   # doesn't ship a working one, since it's a native-PE tool meant to run on the target
   # OS) -- list the runtime DLLs and Qt plugins this app actually needs explicitly
-  # instead, verified against `objdump -p qsstv.exe`'s real "DLL Name" list. Keep this in
-  # sync if dependencies change (a new Qt module, a new plugin the code starts using).
+  # instead. This list is the full *recursive* dependency closure (qsstv.exe's own
+  # imports, plus every bundled DLL's and plugin's own imports, walked to a fixed point)
+  # -- checking only qsstv.exe's and the plugins' own direct imports, as an earlier pass
+  # here did, misses things like Qt6Gui/Qt6Network's own transitive pulls (ICU,
+  # fontconfig/freetype/harfbuzz for text shaping, OpenSSL for TLS, pcre2, zlib, ...),
+  # which don't show up until something using them actually runs -- which is exactly
+  # what happened: "icui18n77.dll was not found" on first real Windows execution.
+  # Re-run tools/check-win-deps.py after any Qt/mingw package update to re-verify this
+  # list instead of trusting it blindly again.
   list(GET CMAKE_FIND_ROOT_PATH 0 MINGW_SYSROOT)
   set(QSSTV_WIN_RUNTIME_DLLS
     libgcc_s_seh-1.dll
@@ -427,6 +434,24 @@ if(WIN32)
     Qt6SerialPort.dll
     Qt6Widgets.dll
     Qt6Xml.dll
+    # Found only by walking the transitive closure (see tools/check-win-deps.py) --
+    # Qt6Core's ICU/pcre2/zlib, Qt6Gui's font-shaping stack, Qt6Network's OpenSSL.
+    iconv.dll
+    icudata77.dll
+    icui18n77.dll
+    icuuc77.dll
+    libbz2-1.dll
+    libcrypto-3-x64.dll
+    libexpat-1.dll
+    libfontconfig-1.dll
+    libfreetype-6.dll
+    libglib-2.0-0.dll
+    libharfbuzz-0.dll
+    libintl-8.dll
+    libpcre2-16-0.dll
+    libpcre2-8-0.dll
+    libpng16-16.dll
+    zlib1.dll
   )
   foreach(_dll ${QSSTV_WIN_RUNTIME_DLLS})
     install(FILES "${MINGW_SYSROOT}/bin/${_dll}" DESTINATION .)
