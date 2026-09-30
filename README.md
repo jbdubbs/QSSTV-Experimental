@@ -1,5 +1,8 @@
-# QSSTV
-QSSTV is a program for receiving and transmitting SSTV and HAMDRM (sometimes called DSSTV). It is compatible with most of MMSSTV and EasyPal
+# QSSTV-Experimental
+
+QSSTV-Experimental is a program for receiving and transmitting SSTV and HAMDRM (sometimes called DSSTV). It is compatible with
+most of MMSSTV and EasyPal. It began as a fork of QSSTV but has since diverged substantially — new SSTV modes, an alternate
+decode engine, decode-from-file support, and ongoing image-quality work.
 
 ## Decoding an SSTV recording from a file
 
