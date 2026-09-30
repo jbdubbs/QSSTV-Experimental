@@ -700,7 +700,9 @@ void txWidget::slotResizeChanged(int i)
 
 void txWidget::slotSnapshot()
 {
-#ifndef __APPLE__
+  // Qt Multimedia camera capture (Phase 5 of the cross-platform plan) works on every OS,
+  // so this is no longer __APPLE__-gated -- it also finally brings webcam capture to
+  // macOS, which the old V4L2-only backend never supported.
   QImage *im;
   cameraDialog camera;
   if(camera.exec()==QDialog::Accepted)
@@ -716,7 +718,6 @@ void txWidget::slotSnapshot()
           galleryWidgetPtr->txStockImageChanged();
         }
     }
-#endif // __APPLE__
 }
 
 

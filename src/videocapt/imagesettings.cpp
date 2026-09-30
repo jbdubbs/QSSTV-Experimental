@@ -17,73 +17,26 @@
 *   along with this program; if not, write to the                         *
 *   Free Software Foundation, Inc.,                                       *
 *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
-*                                                                         *
-*                                                                         *
-*                                                                         *
-* Part of this software has been copied from examples of the Qt Toolkit.  *
-**
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
-**
-** This file is part of the examples of the Qt Toolkit.
-**
-** $QT_BEGIN_LICENSE:BSD$
-** You may use this file under the terms of the BSD license as follows:
-**
-** "Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions are
-** met:
-**   * Redistributions of source code must retain the above copyright
-**     notice, this list of conditions and the following disclaimer.
-**   * Redistributions in binary form must reproduce the above copyright
-**     notice, this list of conditions and the following disclaimer in
-**     the documentation and/or other materials provided with the
-**     distribution.
-**   * Neither the name of Digia Plc and its Subsidiary(-ies) nor the names
-**     of its contributors may be used to endorse or promote products derived
-**     from this software without specific prior written permission.
-**
-**
-** THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-** "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-** LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-** A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-** OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-** SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-** LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-** OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+***************************************************************************/
 
 #include "imagesettings.h"
 #include "ui_imagesettings.h"
-#include "v4l2control.h"
 
+#include <QFormLayout>
 #include <QComboBox>
-#include <QDebug>
-#include <libv4l2.h>
-#include <fcntl.h>
-#include <sys/ioctl.h>
-#include <cerrno>
-#include <QMessageBox>
+#include <QSlider>
 #include <QLabel>
-#include <QScrollArea>
+#include <QPushButton>
 
-
-imageSettings::imageSettings(QString cameraDevice, QWidget *parent) :   QDialog(parent)
+imageSettings::imageSettings(QCamera *camera, QWidget *parent) :
+  QDialog(parent),
+  ui(new Ui::imageSettingsUi),
+  cameraPtr(camera)
 {
-  camDev=cameraDevice.toLatin1();
-  ui= new Ui::imageSettingsUi;
   ui->setupUi(this);
-  gridLayout=NULL;
-  loadCapabilities();
   ui->buttonBox->button(QDialogButtonBox::Ok)->setDefault(false);
   ui->buttonBox->button(QDialogButtonBox::Cancel)->setDefault(false);
+  loadCapabilities();
 }
 
 imageSettings::~imageSettings()
@@ -91,169 +44,96 @@ imageSettings::~imageSettings()
   delete ui;
 }
 
-
-
-bool imageSettings::loadCapabilities()
+void imageSettings::loadCapabilities()
 {
-  int fd;
-  struct v4l2_capability cap;
-  struct v4l2_queryctrl ctrl;
-  row=0;
-  fd = v4l2_open(camDev, O_RDWR, 0);
-  if(fd < 0)
-    {
-      QString msg=QString("Unable to open file %1\n%2").arg(camDev.constData()).arg(strerror(errno));
-      (void)QMessageBox::warning(NULL, "v4l2ucp: Unable to open file", msg,
-                                 QMessageBox::Ok, QMessageBox::Ok);
-      return false;
-    }
+  if(!cameraPtr) return;
+  QCameraDevice cd=cameraPtr->cameraDevice();
+  ui->cardLabel->setText(cd.description());
+  ui->deviceLabel->setText(QString::fromUtf8(cd.id()));
+  ui->driverLabel->setText(cd.isDefault() ? "Yes" : "No");
+  QString posStr="Unspecified";
+  if(cd.position()==QCameraDevice::FrontFace) posStr="Front";
+  else if(cd.position()==QCameraDevice::BackFace) posStr="Back";
+  ui->busLabel->setText(posStr);
 
-  if(v4l2_ioctl(fd, VIDIOC_QUERYCAP, &cap) == -1) {
-      QString msg;
-      msg=QString("%1 is not a V4L2 device").arg(camDev.constData());
-      (void)QMessageBox::warning(NULL, "v4l2ucp: Not a V4L2 device", msg,
-                                 QMessageBox::Ok, QMessageBox::Ok);
-      return false;
-    }
-  ui->driverLabel->setText((const char *)cap.driver);
-  ui->cardLabel->setText((const char *)cap.card);
-  ui->busLabel->setText((const char *)cap.bus_info);
-  ui->deviceLabel->setText(camDev.constData());
-
-#ifdef V4L2_CTRL_FLAG_NEXT_CTRL
-  /* Try the extended control API first */
-  ctrl.id = V4L2_CTRL_FLAG_NEXT_CTRL;
-  if(v4l2_ioctl (fd, VIDIOC_QUERYCTRL, &ctrl)==0)
-    {
-      do
-        {
-          addControl(ctrl, fd);
-          ctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
-        }
-      while(v4l2_ioctl (fd, VIDIOC_QUERYCTRL, &ctrl)==0);
-    }
-  else
-#endif
-    {
-      /* Fall back on the standard API */
-      /* Check all the standard controls */
-      for(int i=V4L2_CID_BASE; i<V4L2_CID_LASTP1; i++) {
-          ctrl.id = i;
-          if(v4l2_ioctl(fd, VIDIOC_QUERYCTRL, &ctrl) == 0) {
-              addControl(ctrl, fd);
-            }
-        }
-
-      /* Check any custom controls */
-      for(int i=V4L2_CID_PRIVATE_BASE; ; i++) {
-          ctrl.id = i;
-          if(v4l2_ioctl(fd, VIDIOC_QUERYCTRL, &ctrl) == 0) {
-              addControl(ctrl, fd);
-            } else {
-              break;
-            }
-        }
-    }
-  return true;
-}
-
-void imageSettings::addControl(struct v4l2_queryctrl &ctrl, int fd)
-{
-  QWidget *w = NULL;
-
-  if(ctrl.flags & V4L2_CTRL_FLAG_DISABLED) return;
-  if((ctrl.type!=V4L2_CTRL_TYPE_CTRL_CLASS) && (gridLayout==NULL))
-     {
-      addNewTab("Controls");
-    }
-
-  switch(ctrl.type)
-    {
-    case V4L2_CTRL_TYPE_INTEGER:
-      w = new V4L2IntegerControl(fd, ctrl, grid);
-      break;
-    case V4L2_CTRL_TYPE_BOOLEAN:
-      w = new V4L2BooleanControl(fd, ctrl, grid);
-      break;
-    case V4L2_CTRL_TYPE_MENU:
-      w = new V4L2MenuControl(fd, ctrl, grid);
-      break;
-    case V4L2_CTRL_TYPE_BUTTON:
-      w = new V4L2ButtonControl(fd, ctrl, grid);
-      break;
-
-    case V4L2_CTRL_TYPE_CTRL_CLASS:
-      {
-        addNewTab(QString((const char *)ctrl.name));
-        return;
-      }
-    case V4L2_CTRL_TYPE_INTEGER64:
-    default:
-      break;
-    }
-
-  if(!w) {
-      new QLabel("Unknown control", grid);
-      new QLabel(grid);
-      new QLabel(grid);
-      return;
-    }
-  QLabel *l = new QLabel((const char *)ctrl.name, grid);
-  gridLayout->addWidget(l,row,0);
-  gridLayout->addWidget(w,row,1);
-  if(ctrl.flags & V4L2_CTRL_FLAG_GRABBED)
-    {
-      w->setEnabled(false);
-    }
-  else
-    {
-      w->setEnabled(true);
-    }
-
-  QPushButton *pb;
-  pb = new QPushButton("Update", grid);
-  gridLayout->addWidget(pb,row,2);
-  QObject::connect( pb, SIGNAL(clicked()), w, SLOT(updateStatus()) );
-
-  if(ctrl.type == V4L2_CTRL_TYPE_BUTTON)
-    {
-      l = new QLabel(grid);
-      gridLayout->addWidget(l,row,3);
-    }
-  else
-    {
-      pb = new QPushButton("Reset", grid);
-      gridLayout->addWidget(pb,row,3);
-      QObject::connect(pb, SIGNAL(clicked()), w, SLOT(resetToDefault()) );
-
-    }
-  row++;
-}
-
-void imageSettings::addNewTab(QString tabName)
-{
-  QVBoxLayout *vLayout;
+  bool haveAny=false;
   QWidget *tab=new QWidget();
-  vLayout = new QVBoxLayout(tab);
-  QScrollArea *scrollArea = new QScrollArea(tab);
-  scrollArea->setWidgetResizable(true);
-  grid = new QWidget();
-  grid->setGeometry(QRect(0, 0, 592, 100));
-  scrollArea->setWidget(grid);
-  vLayout->addWidget(scrollArea);
-  ui->tabWidget->addTab(tab, tabName);
-  gridLayout = new QGridLayout();
-  grid->setLayout(gridLayout);
-  gridLayout->setSpacing(0);
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-  gridLayout->setMargin(1);
-#endif
-  gridLayout->setContentsMargins(0, 0, 0, 0);
+  QFormLayout *form=new QFormLayout(tab);
+
+  if(cameraPtr->supportedFeatures().testFlag(QCamera::Feature::ExposureCompensation))
+    {
+      haveAny=true;
+      QSlider *sl=new QSlider(Qt::Horizontal,tab);
+      sl->setRange(-20,20); // -2.0 .. +2.0 EV in 0.1 steps -- QCamera has no queryable range
+      sl->setValue(qRound(cameraPtr->exposureCompensation()*10));
+      connect(sl,&QSlider::valueChanged,this,&imageSettings::slotExposureChanged);
+      form->addRow("Exposure compensation:",sl);
+    }
+
+  if(cameraPtr->maximumZoomFactor()>cameraPtr->minimumZoomFactor())
+    {
+      haveAny=true;
+      QSlider *sl=new QSlider(Qt::Horizontal,tab);
+      sl->setRange(qRound(cameraPtr->minimumZoomFactor()*10),qRound(cameraPtr->maximumZoomFactor()*10));
+      sl->setValue(qRound(cameraPtr->zoomFactor()*10));
+      connect(sl,&QSlider::valueChanged,this,&imageSettings::slotZoomChanged);
+      form->addRow("Zoom:",sl);
+    }
+
+  static const struct { QCamera::WhiteBalanceMode mode; const char *label; } wbModes[] =
+  {
+    {QCamera::WhiteBalanceAuto,"Auto"},
+    {QCamera::WhiteBalanceSunlight,"Sunlight"},
+    {QCamera::WhiteBalanceCloudy,"Cloudy"},
+    {QCamera::WhiteBalanceShade,"Shade"},
+    {QCamera::WhiteBalanceTungsten,"Tungsten"},
+    {QCamera::WhiteBalanceFluorescent,"Fluorescent"},
+    {QCamera::WhiteBalanceFlash,"Flash"},
+    {QCamera::WhiteBalanceSunset,"Sunset"},
+  };
+  QComboBox *wbCombo=nullptr;
+  for(const auto &w : wbModes)
+    {
+      if(!cameraPtr->isWhiteBalanceModeSupported(w.mode)) continue;
+      if(!wbCombo) wbCombo=new QComboBox(tab);
+      wbCombo->addItem(w.label,(int)w.mode);
+    }
+  if(wbCombo && wbCombo->count()>1) // "Auto" alone isn't a meaningful choice
+    {
+      haveAny=true;
+      int cur=wbCombo->findData((int)cameraPtr->whiteBalanceMode());
+      wbCombo->setCurrentIndex(cur>=0 ? cur : 0);
+      connect(wbCombo,QOverload<int>::of(&QComboBox::currentIndexChanged),this,&imageSettings::slotWhiteBalanceChanged);
+      form->addRow("White balance:",wbCombo);
+    }
+  else
+    {
+      delete wbCombo;
+    }
+
+  if(haveAny)
+    {
+      ui->tabWidget->addTab(tab,"Controls");
+    }
+  else
+    {
+      delete tab;
+      ui->generalTab->layout()->addWidget(new QLabel("This camera does not report any adjustable properties.",ui->generalTab));
+    }
 }
 
-void imageSettings::showEvent(QShowEvent * event)
+void imageSettings::slotExposureChanged(int sliderValue)
 {
-  ui->buttonBox->button(QDialogButtonBox::Ok)->setDefault(false);
-  ui->buttonBox->button(QDialogButtonBox::Cancel)->setDefault(false);
-  QDialog::showEvent(event);
+  if(cameraPtr) cameraPtr->setExposureCompensation(sliderValue/10.0f);
+}
+
+void imageSettings::slotZoomChanged(int sliderValue)
+{
+  if(cameraPtr) cameraPtr->setZoomFactor(sliderValue/10.0f);
+}
+
+void imageSettings::slotWhiteBalanceChanged(int index)
+{
+  QComboBox *cb=qobject_cast<QComboBox*>(sender());
+  if(cameraPtr && cb) cameraPtr->setWhiteBalanceMode((QCamera::WhiteBalanceMode)cb->itemData(index).toInt());
 }

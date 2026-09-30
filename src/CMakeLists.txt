@@ -244,21 +244,15 @@ set(QSSTV_SOURCES
     utils/ftpfunctions.cpp
     editor/basegraphicitem.cpp
     editor/templateviewer.cpp
-)
-
-# Video capture is Linux/macOS-only V4L2 today (excluded on macOS via the original qmake
-# !macx: gate) -- Phase 5 of the cross-platform plan replaces it with a Qt Multimedia
-# camera backend that will work on Windows too. Audio (Phase 4) already made that switch:
-# sound/soundqtmultimedia.cpp above is unconditional, replacing both soundpulse.cpp and
-# soundalsa.cpp on every OS instead of joining this bucket.
-if(NOT APPLE)
-  list(APPEND QSSTV_SOURCES
     videocapt/cameradialog.cpp
     videocapt/imagesettings.cpp
-    videocapt/v4l2control.cpp
-    videocapt/videocapture.cpp
-  )
-endif()
+)
+
+# Video capture used to be Linux/macOS-only V4L2 (excluded on macOS via the original
+# qmake !macx: gate); Phase 5 of the cross-platform plan replaced it with a Qt Multimedia
+# camera backend (QCamera/QMediaCaptureSession/QVideoSink) that works on every OS, same
+# as audio (Phase 4, sound/soundqtmultimedia.cpp) already did -- so both are unconditional
+# now instead of gated source lists.
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   list(APPEND QSSTV_SOURCES
@@ -307,14 +301,9 @@ set(QSSTV_FORMS
     editor/canvassizeform.ui
     widgets/testpatternselection.ui
     editor/templateviewer.ui
-)
-
-if(NOT APPLE)
-  list(APPEND QSSTV_FORMS
     videocapt/cameradialog.ui
     videocapt/imagesettings.ui
-  )
-endif()
+)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   list(APPEND QSSTV_FORMS
@@ -350,7 +339,9 @@ target_link_libraries(qsstv PRIVATE
 )
 
 if(NOT APPLE)
-  target_link_libraries(qsstv PRIVATE v4l2 v4lconvert rt)
+  # v4l2/v4lconvert are gone with videocapt's old V4L2 backend (Phase 5); -lrt is
+  # unrelated (soundbase.cpp's clock_gettime(), needed on older glibc) and stays.
+  target_link_libraries(qsstv PRIVATE rt)
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")

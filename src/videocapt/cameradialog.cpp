@@ -23,318 +23,163 @@
 #include "ui_cameradialog.h"
 
 #include "appglobal.h"
-#include <libv4l2.h>
 #include "imagesettings.h"
-#include "videocapture.h"
-#include <fcntl.h>
-#include <sys/ioctl.h>
-#include <cerrno>
-#include <cstring>
 
-
+#include <QMediaDevices>
+#include <QVideoFrameFormat>
 #include <QMessageBox>
-#include <QPalette>
-//#include <QtWidgets>
-//#include <QDebug>
-#define NUMRES 5
-
-//standard resolutions
-int standardResolution[NUMRES][2]=
-{
-  //  {1920,1080},
-  {1280,720},
-  {800,600},
-  {640,480},
-  {320,240},
-  {160,120}
-};
-
 
 cameraDialog::cameraDialog(QWidget *parent) :
   QDialog(parent),
-  ui(new Ui::cameraDialog)
+  ui(new Ui::cameraDialog),
+  cameraPtr(nullptr)
 {
   ui->setupUi(this);
-  cameraActive=false;
-  videoCapturePtr=NULL;
+  captureSession.setVideoSink(&videoSink);
+  // Populate everything and pick the initial device/format/size *before* wiring up the
+  // combo box signals below, same as the pre-Qt-Multimedia code did -- so populating the
+  // combo boxes here can't trigger a premature restartCapturing() before exec() ever
+  // deliberately starts capturing.
   listCameraDevices();
-  if(cameraList.count()==0)
-    {
-      return;
-    }
+  if(cameraList.count()==0) return;
   connect(ui->settingsButton,SIGNAL(clicked()),SLOT(slotSettings()));
-  ui->devicesComboBox->setCurrentIndex(0);
-  imageSettings settingsDialog(cameraList.at(0).deviceName);
-
-  videoCapturePtr=new videoCapture;
   connect(ui->devicesComboBox,SIGNAL(currentIndexChanged(int)),SLOT(slotDeviceChanged(int)));
   connect(ui->formatsComboBox,SIGNAL(currentIndexChanged(int)),SLOT(slotFormatChanged(int)));
   connect(ui->sizeComboBox,SIGNAL(currentIndexChanged(int)),SLOT(slotSizeChanged(int)));
-  timerID=0;
-
+  connect(&videoSink,&QVideoSink::videoFrameChanged,this,&cameraDialog::slotVideoFrameChanged);
 }
 
 cameraDialog::~cameraDialog()
 {
+  delete cameraPtr;
   delete ui;
 }
 
 int cameraDialog::exec()
 {
-  if(!restartCapturing(true))
+  if(!restartCapturing())
     {
       QMessageBox::warning(this,"Capturing","Unable to start capturing");
       return QDialog::Rejected;
     }
-  int result;
   addToLog("cameracontrol exec",LOGCAM);
-  result=QDialog::exec();
-  deactivateTimer();
-  videoCapturePtr->stopStreaming();
-  videoCapturePtr->close();
+  int result=QDialog::exec();
+  if(cameraPtr) cameraPtr->stop();
   if(result==QDialog::Accepted) return true;
   return false;
 }
 
-
-void cameraDialog::deactivateTimer()
-{
-  if(timerID) killTimer(timerID);
-  timerID=0;
-}
-
-void cameraDialog::timerEvent(QTimerEvent *)
-{
-  int ret;
-  ret=videoCapturePtr->getFrame();
-  if(ret>0)
-    {
-
-      ui->viewFinder->openImage(*videoCapturePtr->getImage());
-    }
-  else if(ret==0)
-    {
-      return;
-    }
-  else
-    {
-      deactivateTimer();
-      videoCapturePtr->stopStreaming();
-      videoCapturePtr->close();
-      QMessageBox::critical(this,"Capture error",videoCapturePtr->getErrorString());
-    }
-}
-
-
-
 QImage *cameraDialog::getImage()
 {
-  return videoCapturePtr->getImage();
+  return lastImage.isNull() ? nullptr : &lastImage;
 }
 
-
-
+void cameraDialog::slotVideoFrameChanged(const QVideoFrame &frame)
+{
+  if(!frame.isValid()) return;
+  lastImage=frame.toImage();
+  ui->viewFinder->openImage(lastImage);
+}
 
 void cameraDialog::slotSettings()
 {
-  imageSettings settingsDialog(cameraList.at(ui->devicesComboBox->currentIndex()).deviceName);
+  if(!cameraPtr) return;
+  imageSettings settingsDialog(cameraPtr,this);
   settingsDialog.exec();
 }
 
 void cameraDialog::listCameraDevices()
 {
-  int i;
-  cameraList.clear();
-  QDir devDir("/dev");
-  QStringList devList;
-  devDir.setFilter(QDir::System| QDir::NoSymLinks);
-  devDir.setSorting(QDir::Name);
-  devDir.setNameFilters(QStringList("video*"));
-  devList=devDir.entryList();
-  getCameraInfo(devList);
-  for(i=0;i<cameraList.count();i++)
-    {
-      ui->devicesComboBox->addItem(cameraList.at(i).deviceDescription);
-    }
+  cameraList=QMediaDevices::videoInputs();
+  for(const QCameraDevice &d : cameraList) ui->devicesComboBox->addItem(d.description());
   if(cameraList.count()>0) setupFormatComboBox(cameraList.at(0));
 }
 
-
-void cameraDialog::setupFormatComboBox(scameraDevice cd)
+void cameraDialog::setupFormatComboBox(const QCameraDevice &cd)
 {
-  int i;
   ui->formatsComboBox->blockSignals(true);
   ui->formatsComboBox->clear();
-  for(i=0;i<cd.formats.count();i++)
+  QList<int> seen;
+  for(const QCameraFormat &f : cd.videoFormats())
     {
-      ui->formatsComboBox->addItem(cd.formats.at(i).description);
+      int pf=(int)f.pixelFormat();
+      if(seen.contains(pf)) continue;
+      seen.append(pf);
+      ui->formatsComboBox->addItem(QVideoFrameFormat::pixelFormatToString(f.pixelFormat()),pf);
     }
-  ui->formatsComboBox->setCurrentIndex(cd.formatIdx);
+  if(ui->formatsComboBox->count()>0) ui->formatsComboBox->setCurrentIndex(0);
   ui->formatsComboBox->blockSignals(false);
-  setupSizeComboBox(cd.formats.at(cd.formatIdx));
+  if(ui->formatsComboBox->count()>0) setupSizeComboBox(cd,ui->formatsComboBox->itemData(0).toInt());
 }
 
-void cameraDialog::setupSizeComboBox(sformats frmat)
+void cameraDialog::setupSizeComboBox(const QCameraDevice &cd,int pixelFormat)
 {
-  int i;
   ui->sizeComboBox->blockSignals(true);
   ui->sizeComboBox->clear();
-  for(i=0;i<frmat.cameraSizes.count();i++)
+  QList<QSize> seen;
+  for(const QCameraFormat &f : cd.videoFormats())
     {
-      ui->sizeComboBox->addItem(frmat.cameraSizes.at(i).description);
+      if((int)f.pixelFormat()!=pixelFormat) continue;
+      if(seen.contains(f.resolution())) continue;
+      seen.append(f.resolution());
+      ui->sizeComboBox->addItem(QString("%1x%2").arg(f.resolution().width()).arg(f.resolution().height()),f.resolution());
     }
-  ui->sizeComboBox->setCurrentIndex(frmat.sizeIdx);
+  if(ui->sizeComboBox->count()>0) ui->sizeComboBox->setCurrentIndex(0);
   ui->sizeComboBox->blockSignals(false);
 }
 
-
-void cameraDialog::getCameraInfo(QStringList devList)
+QCameraFormat cameraDialog::selectedFormat() const
 {
-  int fd;
-  int i;
-  bool ok=true;
-  QString camDev;
-
-  QList <sformats> formats;
-
-  for(i=0;i<devList.count();i++)
-    {
-      ok=true;
-      struct v4l2_capability cap;
-      memset(&cap, 0, sizeof(cap));
-      camDev=QString("/dev/")+devList.at(i);
-      fd = v4l2_open(camDev.toLatin1().data(), O_RDWR, 0);
-      if(fd < 0)
-        {
-          QString msg=QString("Unable to open file %1\n%2").arg(camDev).arg(strerror(errno));
-          (void)QMessageBox::warning(this,"v4l2ucp: Unable to open file", msg,
-                                     QMessageBox::Ok, QMessageBox::Ok);
-          continue;
-        }
-
-      if(v4l2_ioctl(fd, VIDIOC_QUERYCAP, &cap) == -1)
-        {
-          QString msg=QString("%1 is not a V4L2 device").arg(camDev);
-          (void)QMessageBox::warning(this, "Camera selection error", msg,
-                                     QMessageBox::Ok, QMessageBox::Ok);
-          ok=false;
-        }
-      formats=getFormatList(fd);
-      if(ok)
-        {
-          if (formats.count() > 0)
-            cameraList.append(scameraDevice(camDev,(const char *)cap.card,(const char *)cap.driver,(const char *)cap.bus_info,formats));
-        }
-      v4l2_close(fd);
-    }
+  int devIdx=ui->devicesComboBox->currentIndex();
+  if(devIdx<0 || devIdx>=cameraList.count()) return QCameraFormat();
+  int pixelFormat=ui->formatsComboBox->currentData().toInt();
+  QSize size=ui->sizeComboBox->currentData().toSize();
+  for(const QCameraFormat &f : cameraList.at(devIdx).videoFormats())
+    if((int)f.pixelFormat()==pixelFormat && f.resolution()==size) return f;
+  return QCameraFormat();
 }
-
-QString cameraDialog::pixelFormatStr(int pixelFormat)
-{
-  QString t;
-  t= QChar((uchar)(pixelFormat&0xFF));
-  t+=QChar((uchar)((pixelFormat>>8)&0xFF));
-  t+=QChar((uchar)((pixelFormat>>16)&0xFF));
-  t+=QChar((uchar)((pixelFormat>>24)&0xFF));
-  return t;
-}
-
-QList<sformats> cameraDialog::getFormatList(int fd)
-{
-  int j,ret;
-  unsigned int resx,resy;
-  QList<sformats> formatsList;
-  v4l2_frmsizeenum frm;
-  struct v4l2_fmtdesc fmt;
-  QList<scameraSizes> scsList;
-
-  int i = 0;
-  do
-    {
-      scsList.clear();
-      memset(&fmt, 0, sizeof fmt);
-      fmt.index = i;
-      fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-      if ((ret = v4l2_ioctl(fd, VIDIOC_ENUM_FMT, &fmt)) < 0)
-        break;
-      else
-        {
-          frm.index=0;
-          frm.pixel_format=fmt.pixelformat;
-          while(v4l2_ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &frm) >=0)
-            {
-              if(frm.type==V4L2_FRMSIZE_TYPE_DISCRETE)
-                {
-                  scsList.append(scameraSizes(frm.discrete.width,frm.discrete.height,QString("%1x%2").arg(frm.discrete.width).arg(frm.discrete.height)));
-                }
-              else // we have a stepwise resolution
-                {
-                  // scsList.append(scameraSizes(frm.stepwise.max_width,frm.stepwise.max_height,QString("%1x%2").arg(frm.stepwise.max_width).arg(frm.stepwise.max_height)));
-                  for(j=0;j<NUMRES;j++)
-                    {
-                      resx=standardResolution[j][0];
-                      resy=standardResolution[j][1];
-                      if((resx<=frm.stepwise.max_width) && (resy<=frm.stepwise.max_height) && (resx>=frm.stepwise.min_width) && (resy>=frm.stepwise.min_height))
-                        scsList.append(scameraSizes(resx,resy,QString("%1x%2").arg(resx).arg(resy)));
-                    }
-                }
-
-              frm.index++;
-            }
-          formatsList.append(sformats(fmt.pixelformat,pixelFormatStr(fmt.pixelformat),scsList));
-        }
-      i++;
-    }
-  while (ret != EINVAL);
-  return formatsList;
-}
-
 
 void cameraDialog::slotDeviceChanged(int idx)
 {
+  if(idx<0 || idx>=cameraList.count()) return;
   setupFormatComboBox(cameraList.at(idx));
-  slotFormatChanged(cameraList.at(idx).formatIdx);
+  restartCapturing();
 }
 
 void cameraDialog::slotFormatChanged(int idx)
 {
-  setupSizeComboBox(cameraList.at(ui->devicesComboBox->currentIndex()).formats.at(idx));
-  slotSizeChanged(cameraList.at(ui->devicesComboBox->currentIndex()).formats.at(idx).sizeIdx);
-  cameraList[(ui->devicesComboBox->currentIndex())].formatIdx=idx;
-
+  int devIdx=ui->devicesComboBox->currentIndex();
+  if(idx<0 || devIdx<0 || devIdx>=cameraList.count()) return;
+  setupSizeComboBox(cameraList.at(devIdx),ui->formatsComboBox->itemData(idx).toInt());
+  restartCapturing();
 }
 
 void cameraDialog::slotSizeChanged(int idx)
 {
-  cameraList[ui->devicesComboBox->currentIndex()].formats[ui->formatsComboBox->currentIndex()].sizeIdx=idx;
+  Q_UNUSED(idx);
   restartCapturing();
 }
 
-bool cameraDialog::restartCapturing(bool first)
+bool cameraDialog::restartCapturing()
 {
-  int ret;
-  if(!videoCapturePtr) return false;
-  if(!first)
+  int devIdx=ui->devicesComboBox->currentIndex();
+  if(devIdx<0 || devIdx>=cameraList.count()) return false;
+
+  if(cameraPtr)
     {
-      deactivateTimer();
-      videoCapturePtr->stopStreaming();
-      videoCapturePtr->close();
+      cameraPtr->stop();
+      delete cameraPtr;
+      cameraPtr=nullptr;
     }
-  ret=videoCapturePtr->open(cameraList.at(ui->devicesComboBox->currentIndex()).deviceName);
-  if(ret<0)
+  cameraPtr=new QCamera(cameraList.at(devIdx),this);
+  captureSession.setCamera(cameraPtr);
+  QCameraFormat fmt=selectedFormat();
+  if(!fmt.isNull()) cameraPtr->setCameraFormat(fmt);
+  cameraPtr->start();
+  if(cameraPtr->error()!=QCamera::NoError)
     {
+      addToLog(QString("camera error: %1").arg(cameraPtr->errorString()),LOGCAM);
       return false;
     }
-  if(!videoCapturePtr->init(cameraList.at(ui->devicesComboBox->currentIndex()).formats.at(ui->formatsComboBox->currentIndex()).format,
-                            cameraList.at(ui->devicesComboBox->currentIndex()).formats.at(ui->formatsComboBox->currentIndex()).cameraSizes.at(ui->sizeComboBox->currentIndex()).width,
-                            cameraList.at(ui->devicesComboBox->currentIndex()).formats.at(ui->formatsComboBox->currentIndex()).cameraSizes.at(ui->sizeComboBox->currentIndex()).height))
-    {
-      return false;
-    }
-  cameraActive=true;
-  videoCapturePtr->startSnapshots();
-  timerID=startTimer(50);
   return true;
 }
-
-
