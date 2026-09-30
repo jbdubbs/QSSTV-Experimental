@@ -59,3 +59,11 @@ documentation/manual/manual_html
 src/build/
 
 tests/jb60_loopback/loopback
+
+# cross-platform plan: vendored Windows Hamlib build output (regenerate with
+# tools/build-hamlib-win64.sh; not committed, same as any other build directory)
+/third_party/
+
+# ...but the script itself is source, not output -- *build-* above would otherwise catch
+# its own filename.
+!/tools/build-hamlib-win64.sh
