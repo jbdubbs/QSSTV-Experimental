@@ -23,11 +23,7 @@
 #include "ui_soundconfig.h"
 #include "configparams.h"
 #include "supportfunctions.h"
-#ifdef __APPLE__
-#  include "soundbase.h"
-#else
-#  include "soundalsa.h"
-#endif
+#include "soundqtmultimedia.h"
 
 #include <QSettings>
 
@@ -53,13 +49,16 @@ soundConfig::soundConfig(QWidget *parent) :  baseConfig(parent), ui(new Ui::soun
 {
   QStringList inputPCMList, outputPCMList;
   ui->setupUi(this);
-#ifdef __APPLE__
-  ui->alsaRadioButton->setCheckable(false);
-#else
   getCardList(inputPCMList, outputPCMList);
-#endif
   ui->inputPCMNameComboBox->addItems(inputPCMList);
   ui->outputPCMNameComboBox->addItems(outputPCMList);
+  // ALSA vs PulseAudio was a Linux-only choice from before the Qt Multimedia backend
+  // unified all three OSes onto one audio path (Phase 4 of the cross-platform plan); the
+  // radio buttons no longer select anything, so hide them rather than leave them looking
+  // functional. pulseSelected/alsaSelected stay readable/writable in QSettings so an
+  // existing config file round-trips harmlessly.
+  ui->alsaRadioButton->hide();
+  ui->pulseRadioButton->hide();
 }
 
 

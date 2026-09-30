@@ -18,7 +18,7 @@ endif()
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network Xml SerialPort)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network Xml SerialPort Multimedia)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(FFTW3 REQUIRED IMPORTED_TARGET fftw3 fftw3f)
@@ -86,7 +86,7 @@ set(QSSTV_SOURCES
     config/directoriesconfig.cpp
     config/configdialog.cpp
     sound/soundbase.cpp
-    sound/soundpulse.cpp
+    sound/soundqtmultimedia.cpp
     widgets/spectrumwidget.cpp
     widgets/vumeter.cpp
     widgets/fftdisplay.cpp
@@ -246,11 +246,13 @@ set(QSSTV_SOURCES
     editor/templateviewer.cpp
 )
 
-# Linux-only today (excluded on macOS via the original qmake !macx: gate). Windows gets
-# its own Qt Multimedia based backend in Phase 4/5 rather than joining this bucket.
+# Video capture is Linux/macOS-only V4L2 today (excluded on macOS via the original qmake
+# !macx: gate) -- Phase 5 of the cross-platform plan replaces it with a Qt Multimedia
+# camera backend that will work on Windows too. Audio (Phase 4) already made that switch:
+# sound/soundqtmultimedia.cpp above is unconditional, replacing both soundpulse.cpp and
+# soundalsa.cpp on every OS instead of joining this bucket.
 if(NOT APPLE)
   list(APPEND QSSTV_SOURCES
-    sound/soundalsa.cpp
     videocapt/cameradialog.cpp
     videocapt/imagesettings.cpp
     videocapt/v4l2control.cpp
@@ -340,17 +342,15 @@ target_compile_definitions(qsstv PRIVATE QT_DEPRECATED_WARNINGS)
 target_compile_options(qsstv PRIVATE -Wno-implicit-fallthrough -Wno-psabi)
 
 target_link_libraries(qsstv PRIVATE
-    Qt6::Core Qt6::Widgets Qt6::Network Qt6::Xml Qt6::SerialPort
+    Qt6::Core Qt6::Widgets Qt6::Network Qt6::Xml Qt6::SerialPort Qt6::Multimedia
     PkgConfig::FFTW3
     PkgConfig::OPENJP2
     hamlib::hamlib
     mmsstv_core
-    pulse
-    pulse-simple
 )
 
 if(NOT APPLE)
-  target_link_libraries(qsstv PRIVATE asound v4l2 v4lconvert rt)
+  target_link_libraries(qsstv PRIVATE v4l2 v4lconvert rt)
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
