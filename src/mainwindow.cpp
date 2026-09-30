@@ -346,7 +346,9 @@ void mainWindow::slotExit()
   int exit=QMessageBox::Ok;
   if(confirmClose)
     {
-      exit=QMessageBox::information(nullptr, tr("Quit..."),tr("Do you really want to quit QSSTV?"), QMessageBox::Ok, QMessageBox::Cancel);
+      // "QSSTV" here is this fork's continued reference to the original QSSTV 9.5.11 by
+      // Johan Maes, ON4QZ (https://www.qsl.net/o/on4qz), renamed QSSTV-Experimental below.
+      exit=QMessageBox::information(nullptr, tr("Quit..."),tr("Do you really want to quit QSSTV-Experimental?"), QMessageBox::Ok, QMessageBox::Cancel);
     }
 
   if(exit==QMessageBox::Ok)
@@ -412,8 +414,11 @@ void mainWindow::slotDocumentation()
 
 void mainWindow::slotAboutQSSTV()
 {
-  QString temp=tr("QSSTV\nVersion: ") + MAJORVERSION + MINORVERSION;
-  temp += "\n https://www.qsl.net/o/on4qz \n(c) 2000-2019 -- Johan Maes - ON4QZ\n HAMDRM Software based on RX/TXAMADRM\n from PA0MBO";
+  // QSSTV-Experimental is built upon the original QSSTV 9.5.11 by Johan Maes, ON4QZ
+  // (https://www.qsl.net/o/on4qz) -- credited below, ahead of this fork's own info.
+  QString temp=tr("QSSTV-Experimental\nVersion ") + MAJORVERSION + MINORVERSION;
+  temp += "\nhttps://github.com/jbdubbs/QSSTV-Experimental\nJason Weisberger - NT0Y";
+  temp += "\n\nBuilt upon the original:\nQSSTV\nVersion 9.5.11\nhttps://www.qsl.net/o/on4qz\nCopyright 2000-2019 - Johan Maes - ON4QZ\nHAMDRM Software based on RX/TXAMADRM - PA0MBO";
   QMessageBox::about(this,tr("About..."),temp);
 
 }

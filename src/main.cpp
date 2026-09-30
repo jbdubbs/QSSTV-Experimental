@@ -98,7 +98,9 @@ int main( int argc, char ** argv )
   QApplication app( argc, argv );
 
   QCommandLineParser parser;
-  parser.setApplicationDescription("QSSTV: receive and transmit SSTV. Recordings (WAV files) can be decoded from the command line.");
+  // QSSTV-Experimental is built upon the original QSSTV 9.5.11 by Johan Maes, ON4QZ
+  // (https://www.qsl.net/o/on4qz).
+  parser.setApplicationDescription("QSSTV-Experimental: receive and transmit SSTV. Recordings (WAV files) can be decoded from the command line.");
   QCommandLineOption helpOpt(QStringList() << "h" << "help","Show this help.");
   QCommandLineOption versionOpt(QStringList() << "v" << "version","Show the version.");
   QCommandLineOption decodeOpt(QStringList() << "d" << "decode","Decode the SSTV recording <file> (repeatable; bare arguments are files too). "
@@ -108,7 +110,7 @@ int main( int argc, char ** argv )
                               "Your settings are read but never written.");
   QCommandLineOption outDirOpt(QStringList() << "o" << "out-dir","With --batch: directory for the pictures, named <file>_<n>_<MODE>.png (default: current directory).","dir");
   QCommandLineOption modeOpt(QStringList() << "m" << "mode","Receive only this mode (short name as in --list-modes, e.g. PD120, JB60) instead of auto detection.","mode");
-  QCommandLineOption engineOpt("engine","Receive engine for this run: auto (your setting), qsstv (QSSTV's own for every mode) or core (mmsstv-core where it supports the mode).","auto|qsstv|core");
+  QCommandLineOption engineOpt("engine","Receive engine for this run: auto (your setting), qsstv (QSSTV-Experimental's own for every mode) or core (mmsstv-core where it supports the mode).","auto|qsstv|core");
   QCommandLineOption wideOpt("wide-filter","Wide video filter for the fast modes for this run: auto (your setting), on or off.","auto|on|off");
   QCommandLineOption timeoutOpt("timeout","With --batch: give up on a file after this many seconds (default: its length + 30 s).","seconds");
   QCommandLineOption listOpt("list-modes","Print the mode names that --mode accepts and exit.");

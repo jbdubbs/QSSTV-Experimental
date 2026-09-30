@@ -277,9 +277,10 @@
     <string>Reset Log</string>
    </property>
   </action>
+  <!-- Built upon the original QSSTV 9.5.11 by Johan Maes, ON4QZ (https://www.qsl.net/o/on4qz) -->
   <action name="actionAboutQSSTV">
    <property name="text">
-    <string>About QSSTV</string>
+    <string>About QSSTV-Experimental</string>
    </property>
   </action>
   <action name="actionAboutQt">

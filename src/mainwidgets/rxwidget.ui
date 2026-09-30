@@ -361,10 +361,11 @@
              </property>
             </widget>
            </item>
+           <!-- Built upon the original QSSTV 9.5.11 by Johan Maes, ON4QZ (https://www.qsl.net/o/on4qz) -->
            <item row="4" column="0">
             <widget class="QCheckBox" name="engineCheckBox">
              <property name="toolTip">
-              <string>When checked, the mmsstv-core engine (ported from MMSSTV) is used to receive any mode it supports; modes it doesn't support still use QSSTV's own engine automatically. When unchecked, QSSTV's own engine is used for every mode.</string>
+              <string>When checked, the mmsstv-core engine (ported from MMSSTV) is used to receive any mode it supports; modes it doesn't support still use QSSTV-Experimental's own engine automatically. When unchecked, QSSTV-Experimental's own engine is used for every mode.</string>
              </property>
              <property name="layoutDirection">
               <enum>Qt::RightToLeft</enum>

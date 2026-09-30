@@ -476,10 +476,12 @@ endif()
 # installer wizard instead of just a folder to unzip -- when makensis is present
 # (Fedora: mingw64-nsis; not installed on this dev box as of this writing, so only
 # verified with the ZIP generator so far).
-set(CPACK_PACKAGE_NAME "qsstv")
+# QSSTV-Experimental is built upon the original QSSTV 9.5.11 by Johan Maes, ON4QZ
+# (https://www.qsl.net/o/on4qz).
+set(CPACK_PACKAGE_NAME "QSSTV-Experimental")
 set(CPACK_PACKAGE_VENDOR "QSSTV-Experimental")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "SSTV and HamDRM transceiver")
-set(CPACK_PACKAGE_VERSION "9.0")
+set(CPACK_PACKAGE_VERSION "10.0-Pre1")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "QSSTV-Experimental")
 set(CPACK_GENERATOR "ZIP")
 if(WIN32)
