@@ -371,7 +371,7 @@
               <enum>Qt::RightToLeft</enum>
              </property>
              <property name="text">
-              <string>MMSSTV Core As Default</string>
+              <string>MMSSTV Core</string>
              </property>
             </widget>
            </item>

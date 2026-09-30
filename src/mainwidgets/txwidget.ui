@@ -416,14 +416,34 @@
          </item>
          <!-- Built upon the original QSSTV 9.5.11 by Johan Maes, ON4QZ (https://www.qsl.net/o/on4qz) -->
          <item>
-          <widget class="QCheckBox" name="engineCheckBox">
-           <property name="toolTip">
-            <string>When checked, the Mode dropdown above only lists modes the mmsstv-core engine (ported from MMSSTV) supports, and picking one uses that engine. When unchecked, every mode is listed and uses QSSTV-Experimental's own engine.</string>
-           </property>
-           <property name="text">
-            <string>Use MMSSTV Core engine</string>
-           </property>
-          </widget>
+          <layout class="QHBoxLayout" name="horizontalLayout_11">
+           <item>
+            <spacer name="horizontalSpacer_7">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="engineCheckBox">
+             <property name="toolTip">
+              <string>When checked, the Mode dropdown above only lists modes the mmsstv-core engine (ported from MMSSTV) supports, and picking one uses that engine. When unchecked, every mode is listed and uses QSSTV-Experimental's own engine.</string>
+             </property>
+             <property name="layoutDirection">
+              <enum>Qt::RightToLeft</enum>
+             </property>
+             <property name="text">
+              <string>MMSSTV Core</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
          </item>
          <item>
           <spacer name="verticalSpacer_2">
