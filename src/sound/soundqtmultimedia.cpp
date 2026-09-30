@@ -76,12 +76,18 @@ bool soundQtMultimedia::init(int samplerate)
   inFormat.setSampleRate(sampleRate);
   inFormat.setChannelCount(MONOCHANNEL);
   inFormat.setSampleFormat(QAudioFormat::Int16);
+  // isFormatSupported() is only advisory here, not a real capability probe: it can say no
+  // for a format the device (or the backend underneath it) will happily deliver once
+  // actually opened. Concretely, under Wine, mmdevapi/winepulse cache a device's WASAPI
+  // engine mix format -- always 32-bit float, since PipeWire's internal graph is float --
+  // and reject any request that doesn't match it exactly, even though the real Windows
+  // WASAPI shared-mode engine (and PulseAudio itself, once a stream is opened) freely
+  // converts sample format for you. So log a mismatch instead of treating it as fatal, and
+  // let the QAudioSource::start() result below -- an actual open attempt, not a metadata
+  // query -- be what decides whether this is really a failure.
   if(!inDev.isFormatSupported(inFormat))
-    {
-      errorHandler("Audio input error",
-                   QString("%1 does not support %2 Hz mono 16-bit capture").arg(inDev.description()).arg(sampleRate));
-      return false;
-    }
+    addToLog(QString("%1 reports no support for %2 Hz mono 16-bit capture; trying anyway")
+             .arg(inDev.description()).arg(sampleRate),LOGSOUND);
 
   // Playback is stereo -- tempTXBuffer packs one interleaved L+R Int16 pair per quint32
   // entry (see soundbase.h), matching what soundPulse already sends.
@@ -90,11 +96,8 @@ bool soundQtMultimedia::init(int samplerate)
   outFormat.setChannelCount(STEREOCHANNEL);
   outFormat.setSampleFormat(QAudioFormat::Int16);
   if(!outDev.isFormatSupported(outFormat))
-    {
-      errorHandler("Audio output error",
-                   QString("%1 does not support %2 Hz stereo 16-bit playback").arg(outDev.description()).arg(sampleRate));
-      return false;
-    }
+    addToLog(QString("%1 reports no support for %2 Hz stereo 16-bit playback; trying anyway")
+             .arg(outDev.description()).arg(sampleRate),LOGSOUND);
 
   delete audioSourcePtr; // restartSound() calls init() again on an already-initialized backend
   delete audioSinkPtr;
