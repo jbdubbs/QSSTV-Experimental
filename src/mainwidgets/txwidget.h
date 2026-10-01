@@ -37,6 +37,8 @@ public:
   explicit txWidget(QWidget *parent = 0);
   ~txWidget();
   void init();
+  //! only the tab of mode "busy" stays selectable (-1: all tabs)
+  void setModeLock(int busy);
 //  void startTX(bool st, bool check=true);
   void prepareTx();
   void prepareTxComplete(bool ok);

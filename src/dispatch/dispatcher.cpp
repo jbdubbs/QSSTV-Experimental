@@ -336,12 +336,14 @@ void dispatcher::startTX(txFunctions::etxState state)
 
 void dispatcher::startDRMFIXTx(QByteArray ba)
 {
+  if(mainWindowPtr->busyMode()>=0) return;
   if(!txWidgetPtr->functionsPtr()->prepareFIX(ba)) return;
   startTX(txFunctions::TXSENDDRMFIX);
 }
 
 void dispatcher::startDRMTxBinary()
 {
+  if(mainWindowPtr->busyMode()>=0) return;
   //TODO: this whole thing should probably live in txWidget::slotBinary
   QFileInfo finfo;
   int sizeOfFile;

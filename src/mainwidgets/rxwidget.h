@@ -51,6 +51,10 @@ public:
   void setSettingsTab();
   void changeTransmissionMode(int rxtxMode);
   bool rxBusy();
+  //! only the tab of mode "busy" stays selectable (-1: all tabs)
+  void setModeLock(int busy);
+  //! put the tab bar back on mode m without triggering a mode change
+  void syncModeTab(int m);
 private slots:
   void slotStart();
   void slotStop();

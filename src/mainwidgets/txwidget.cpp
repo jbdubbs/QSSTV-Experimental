@@ -321,6 +321,7 @@ void  txWidget::setPreviewWidget(QString fn)
 
 void txWidget::slotStart()
 {
+  if(mainWindowPtr->busyMode()>=0) return;
   if(imageViewerPtr->hasValidImage())
     {
       doTx=TXNORMAL;
@@ -443,6 +444,7 @@ void txWidget::startTxImage()
 
 void txWidget::sendBSR()
 {
+  if(mainWindowPtr->busyMode()>=0) return;
   QByteArray *p;
   bsrForm::eResult res;
   bsrForm bsrf;
@@ -775,6 +777,15 @@ void txWidget::slotSizeApply()
   QApplication::restoreOverrideCursor();
 }
 
+void txWidget::setModeLock(int busy)
+{
+  int i;
+  for(i=0;i<TRXNOMODE;i++)
+    {
+      ui->settingsTableWidget->setTabEnabled(i,(busy<0)||(i==busy));
+    }
+}
+
 void txWidget::slotTransmissionMode(int rxtxMode)
 {
   emit modeSwitch(rxtxMode);
@@ -860,6 +871,7 @@ void txWidget::slotImageChanged()
 
 void txWidget::slotBinary()
 {
+  if(mainWindowPtr->busyMode()>=0) return;
   slotGetParams();
   doTx=TXBINARY;
   dispatcherPtr->startDRMTxBinary();

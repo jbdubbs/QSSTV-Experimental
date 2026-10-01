@@ -253,6 +253,22 @@ void rxWidget::slotResync()
   rxFunctionsPtr->restartRX();
 }
 
+void rxWidget::setModeLock(int busy)
+{
+  int i;
+  for(i=0;i<TRXNOMODE;i++)
+    {
+      ui->settingsTableWidget->setTabEnabled(i,(busy<0)||(i==busy));
+    }
+}
+
+void rxWidget::syncModeTab(int m)
+{
+  ui->settingsTableWidget->blockSignals(true);
+  ui->settingsTableWidget->setCurrentIndex(m);
+  ui->settingsTableWidget->blockSignals(false);
+}
+
 void rxWidget::slotTransmissionMode(int rxtxMode)
 {
   emit modeSwitch(rxtxMode);

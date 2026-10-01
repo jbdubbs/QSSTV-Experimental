@@ -425,7 +425,8 @@ void txFunctions::waitEnd()
 void txFunctions::stopAndWait()
 {
   stopDRM=true;
-  if(transmissionModeIndex==TRXSSTV)
+  // abort based on what is actually running, not on the (possibly already changed) mode index
+  if(transmissionModeIndex==TRXSSTV || txState==TXPREPARESSTV || txState==TXSSTVIMAGE || txState==TXSSTVPOST)
     {
       sstvTxPtr->abort();
       // Step 18: sstvTxPtr->abort() only reaches modeBase::abortRun,

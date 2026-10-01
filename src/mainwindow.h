@@ -27,6 +27,10 @@ public:
   void setNewFont();
   void setPTT(bool p);
   void setSSTVDRMPushButton(bool inDRM);
+  //! mode (TRXSSTV/TRXDRM) that currently has a TX or RX in progress, or -1 when idle
+  int busyMode();
+  //! grey out the tabs of the other mode while SSTV or DRM TX/RX is in progress
+  void updateModeLock();
   spectrumWidget *spectrumFramePtr;
 
 private slots:

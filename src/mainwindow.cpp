@@ -47,6 +47,7 @@
 #include <QCloseEvent>
 #include <QMessageBox>
 #include <QScreen>
+#include <QTimer>
 #include <QApplication>
 #include "filewatcher.h"
 #include "ftpfunctions.h"
@@ -216,6 +217,9 @@ void mainWindow::init()
       splashPtr->showMessage(splashStr ,Qt::AlignLeft,Qt::white);
     }
   startTimer(1000);
+  QTimer *lockTimer=new QTimer(this);
+  connect(lockTimer,&QTimer::timeout,this,&mainWindow::updateModeLock);
+  lockTimer->start(250);
   if(fileWatcherPtr==nullptr) fileWatcherPtr=new fileWatcher;
   fileWatcherPtr->init();
 }
@@ -527,8 +531,33 @@ void mainWindow::slotCalibrate()
   writeSettings();
 }
 
+int mainWindow::busyMode()
+{
+  if(txWidgetPtr==nullptr || rxWidgetPtr==nullptr) return -1;
+  if(txWidgetPtr->functionsPtr()->txBusy() || rxWidgetPtr->rxBusy()) return transmissionModeIndex;
+  return -1;
+}
+
+void mainWindow::updateModeLock()
+{
+  int busy=busyMode();
+  txWidgetPtr->setModeLock(busy);
+  rxWidgetPtr->setModeLock(busy);
+  if(busy>=0) bsrPushButton->setEnabled(false);
+  else bsrPushButton->setEnabled(transmissionModeIndex==TRXDRM);
+}
+
 void mainWindow::slotModeChange(int rxtxMode)
 {
+  int busy=busyMode();
+  if((busy>=0) && (rxtxMode!=busy))
+    {
+      // never interrupt a running transmission/reception: put both tab bars back
+      txWidgetPtr->changeTransmissionMode(busy);
+      rxWidgetPtr->syncModeTab(busy);
+      updateModeLock();
+      return;
+    }
   txWidgetPtr->changeTransmissionMode(rxtxMode);
   rxWidgetPtr->changeTransmissionMode(rxtxMode);
   lastReceivedCall.clear();
