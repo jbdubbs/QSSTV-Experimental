@@ -990,11 +990,20 @@
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
+       <property name="minimumSize">
+        <size>
+         <width>64</width>
+         <height>0</height>
+        </size>
+       </property>
        <property name="maximumSize">
         <size>
          <width>16777215</width>
          <height>30</height>
         </size>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
        </property>
        <property name="buttonSymbols">
         <enum>QAbstractSpinBox::PlusMinus</enum>
@@ -1018,11 +1027,20 @@
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
+       <property name="minimumSize">
+        <size>
+         <width>64</width>
+         <height>0</height>
+        </size>
+       </property>
        <property name="maximumSize">
         <size>
          <width>16777215</width>
          <height>30</height>
         </size>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
        </property>
        <property name="buttonSymbols">
         <enum>QAbstractSpinBox::PlusMinus</enum>
@@ -1040,11 +1058,20 @@
      </item>
      <item row="1" column="2">
       <widget class="QDoubleSpinBox" name="avgDoubleSpinBox">
+       <property name="minimumSize">
+        <size>
+         <width>64</width>
+         <height>0</height>
+        </size>
+       </property>
        <property name="maximumSize">
         <size>
          <width>16777215</width>
          <height>30</height>
         </size>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
        </property>
        <property name="buttonSymbols">
         <enum>QAbstractSpinBox::PlusMinus</enum>
