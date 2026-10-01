@@ -219,6 +219,16 @@ void mainWindow::init()
 
 void mainWindow::restartSound(bool inStartUp)
 {
+  // Issue #11: a device change applied via slotConfigure() used to leave RX stuck
+  // idle -- the new soundIOPtr below is opened but never told to startCapture(),
+  // and nothing downstream of restartSound() noticed. Remember whether RX was
+  // actually running *before* tearing down the old device (reading this any later
+  // risks racing the RX thread's own starved-buffer self-demotion to RXIDLE, which
+  // the old device's teardown below triggers), so it can be put back the same way
+  // once the new device is up. At startup rxFunctionsPtr hasn't run yet (ctor
+  // default is RXIDLE), so this is a no-op there -- startRunning()'s own
+  // dispatcherPtr->startRX() call still does the real first-start.
+  bool rxWasActive=!rxWidgetPtr->functionsPtr()->isIdle();
   //first check if sound
   if(soundIOPtr!=nullptr)
     {
@@ -240,6 +250,12 @@ void mainWindow::restartSound(bool inStartUp)
         }
     }
   soundIOPtr->start();
+  // Re-arm RX on the new device the same way every other resume path already does
+  // (rxwidget.cpp's Start button, txwidget.cpp's post-TX handoff, filedecoder.cpp's
+  // post-decode resume) -- dispatcher::startRX() calls soundIOPtr->startCapture()
+  // and rxFunctionsPtr->startRX() together. Gated on rxWasActive so a device change
+  // made while RX was deliberately stopped doesn't turn it back on.
+  if(rxWasActive) dispatcherPtr->startRX();
 }
 
 
