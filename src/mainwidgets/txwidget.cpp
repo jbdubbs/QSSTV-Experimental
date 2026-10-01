@@ -33,7 +33,7 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   imageViewerPtr=ui->imageFrame;
 
   imageViewerPtr->displayImage();
-  useMmsstvCoreEngine=true; // corrected once readSettings() loads the real value
+  useMmsstvCoreEngine=false; // corrected once readSettings() loads the real value
   rebuildModeComboBox();
   sizeChanged=true;
   ui->sstvResizeComboBox->addItem("Stretch");
@@ -165,7 +165,7 @@ void txWidget::readSettings()
   useCW=qSettings.value("useCW",false).toBool();
   useVOX=qSettings.value("useVOX",false).toBool();
   useHybrid=qSettings.value("useHybrid",false).toBool();
-  useMmsstvCoreEngine=qSettings.value("useMmsstvCoreEngine",true).toBool();
+  useMmsstvCoreEngine=qSettings.value("useMmsstvCoreEngine",false).toBool();
   compressedSize=qSettings.value("compressedSize",5000).toUInt();
   drmParams.bandwith=qSettings.value("drmBandWith",0).toInt();
   drmParams.interleaver=qSettings.value("drmInterLeaver",0).toInt();
