@@ -445,6 +445,7 @@ void dispatcher::saveRxSSTVImage(esstvMode mode)
       fileName=QString("%1/%2_%3.%4").arg(rxSSTVImagesPath).arg(shortModeName).arg(dt.toString("yyyyMMdd_HHmmss")).arg(defaultImageFormat);
       addToLog(QString("dispatcher: saveRxImage():%1 ").arg(fileName),LOGDISPATCH);
       rxWidgetPtr->getImageViewerPtr()->save(fileName,defaultImageFormat,true,false);
+      if(QFileInfo::exists(fileName)) rxWidgetPtr->getImageViewerPtr()->setFilename(fileName);
 
       info="";
       m=0;

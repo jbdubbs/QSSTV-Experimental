@@ -16,9 +16,11 @@ public:
   explicit extViewer(QWidget *parent = 0);
   ~extViewer();
   void setup(QString fn);
+  void setup(const QImage &img,const QString &title);
   void done(int r) override;
-  
+
 private:
+  void restoreSize(int fw,int fh);
   Ui::extViewer *ui;
   int w,h;
   int labelWidth,labelHeight;

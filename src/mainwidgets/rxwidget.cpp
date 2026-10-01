@@ -326,6 +326,7 @@ void rxWidget::slotSave()
   QString fileName=d.saveFileName(path,"*","png");
   if (fileName.isNull()) return ;
   getImageViewerPtr()->save(fileName,defaultImageFormat,true,false);
+  if(QFileInfo::exists(fileName)) getImageViewerPtr()->setFilename(fileName);
   dispatcherPtr->saveImage(fileName,info);
 }
 

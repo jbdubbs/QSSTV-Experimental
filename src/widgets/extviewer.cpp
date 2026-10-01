@@ -25,13 +25,28 @@ void extViewer::setup(QString fn)
   // we want the original image
   ui->imViewer->stretch=true;
   ui->imViewer->setType(imageViewer::EXTVIEW);
-  ui->imViewer->openImage(fn,false,false,false,true);
+  // synchronous load so the size is known (background decode leaves the image null)
+  ui->imViewer->openImage(fn,false,false,false,false);
   fileName=fn;
   QFileInfo fi(fn);
   fw=ui->imViewer-> getImagePtr()->width();
   fh=ui->imViewer->getImagePtr()->height();
   ui->lineEdit->setText(QString("%1 %2x%3").arg(fi.fileName()).arg(fw).arg(fh));
+  restoreSize(fw,fh);
+}
 
+void extViewer::setup(const QImage &img,const QString &title)
+{
+  ui->imViewer->stretch=true;
+  ui->imViewer->setType(imageViewer::EXTVIEW);
+  ui->imViewer->openImage(img);
+  fileName.clear();
+  ui->lineEdit->setText(QString("%1 %2x%3").arg(title).arg(img.width()).arg(img.height()));
+  restoreSize(img.width(),img.height());
+}
+
+void extViewer::restoreSize(int fw,int fh)
+{
   QSettings qSettings;
   qSettings.beginGroup("EXTVIEWER");
   int sw=qSettings.value("width",-1).toInt();

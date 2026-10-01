@@ -80,6 +80,7 @@ public:
   //  void copy(imageViewer *src);
   void setType(thumbType t);
   QString getFilename() {return imageFileName;}
+  void setFilename(const QString &fn) {imageFileName=fn;}   // link an in-memory image to the file it was saved to
   QString getCompressedFilename() {return compressedFilename;}
   void enablePopup(bool en) {popupEnabled=en;}
   void displayImage();

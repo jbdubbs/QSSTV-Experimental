@@ -742,9 +742,18 @@ void imageViewer::slotUploadFTP()
 void imageViewer::slotView()
 {
   // parentless and non-modal so the window manager treats it as an independent window
+  bool haveFile=!imageFileName.isEmpty() && QFileInfo::exists(imageFileName);
+  QImage img;
+  if(!haveFile)
+    {
+      // live RX image has no file: show the in-memory image
+      img=sourceImage.isNull() ? displayedImage : sourceImage;
+      if(img.isNull()) return;
+    }
   extViewer *vm=new extViewer(nullptr);
   vm->setAttribute(Qt::WA_DeleteOnClose);
-  vm->setup(imageFileName);
+  if(haveFile) vm->setup(imageFileName);
+  else vm->setup(img,tr("RX image"));
   vm->show();
 }
 
@@ -760,6 +769,15 @@ void imageViewer::slotBGColorChanged()
 
 void imageViewer::slotProperties()
 {
+  // the live RX image is built in memory, so orgWidth/orgHeight were never set for it
+  int orgWidth=this->orgWidth;
+  int orgHeight=this->orgHeight;
+  if(orgWidth<=0 || orgHeight<=0)
+    {
+      const QImage &img=sourceImage.isNull() ? displayedImage : sourceImage;
+      orgWidth=img.width();
+      orgHeight=img.height();
+    }
   QFileInfo fi(imageFileName);
   if(fi.exists())
     {
