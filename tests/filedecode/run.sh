@@ -35,7 +35,11 @@ for m in jb pd; do
   eval "harness_$m=$(awk '/PSNR/{print $9}' "$T/$m.harness")"
 done
 "$LB" jb --image card --vis --count 2 --wav "$T/jb2.wav" > /dev/null
-"$LB" jb --image card --fir wide --vis --wav "$T/jbw.wav" --out "$T/jbw" > /dev/null
+"$LB" jb --image card --chroma-wide --vis --wav "$T/jbw.wav" --out "$T/jbw" > /dev/null   # JB60's "wide filter" is chroma-only
+# Timing references (see the receive-timing check below): the harness decodes with the same trimmed RX back porch
+# as the application but, unlike the application, has no sync-detector lag, so it must be delayed by that lag.
+"$LB" jb --image card --tshift 2 --out "$T/jbref" > /dev/null
+"$LB" jb --image card --chroma-wide --tshift 2 --out "$T/jbwref" > /dev/null
 
 echo "== decode, QSSTV engine (VIS detection + sync through the real app)"
 declare -A MODE=([jb]=JB60 [pd]=PD120)
@@ -53,25 +57,29 @@ done
 
 echo "== JB60 receive-timing regression"
 # JB60's RX back porch (src/sstv/sstvparam.cpp) trims out the ~2.5 sample (12 kHz) lag between the sync
-# detector's filter chain and the video filter's, measured by comparing the application's own decode against
-# the loopback harness's calibrated-delay reference (tests/jb60_loopback/README.md "The application against
-# this harness"). Un-trimmed it was ~31.7 dB against that reference (narrow filter) and ~28 dB (wide filter,
-# which is more sensitive to the offset); trimmed it is 40+ dB either way. 35 dB leaves headroom for machine
-# to machine filter-arithmetic noise while still catching a real regression (a reintroduced ~2 sample offset
-# lands at 25-30 dB, well below the guard).
+# detector's filter chain and the video filter's, so the application samples where an ideal receiver would. The
+# loopback harness uses the same trimmed porch but starts its line timing from the transmitter (no sync detector,
+# so no lag to cancel), which leaves it ~2 samples early; its reference is therefore generated with --tshift 2,
+# the lag the trim cancels. Measured: the application matches that reference at 54 dB (tshift 1.5: 42, 2.5: 47);
+# against an unshifted reference it reads ~31 dB however correct the timing is (issue #16 -- the check compared
+# against the wrong reference). NOTE what this guards: the harness shares sstvparam.cpp, so changing the trim
+# moves both sides and is NOT caught here (verified: bp 0.00208 still reads 54 dB). It catches a change in the
+# sync detector / video chain lag relative to the harness's model, e.g. a filter or buffering change in the
+# application. The wide check uses the harness's chroma-only wide track, which is what JB60's wide filter now is.
+# 35 dB leaves headroom for machine to machine filter-arithmetic noise.
 timing_check() {
   local label=$1 ref=$2 png=$3
   if [ -f "$png" ]; then
     local l=$(luma "$ref" "$png")
-    ge "$l" 35 && ok "$label: matches the harness's ideal timing, luma PSNR $l dB" \
-                || bad "$label: matches the harness's ideal timing, luma PSNR $l dB (want >= 35 dB)"
+    ge "$l" 35 && ok "$label: matches the harness at the application's sync lag, luma PSNR $l dB" \
+                || bad "$label: matches the harness at the application's sync lag, luma PSNR $l dB (want >= 35 dB)"
   else
     bad "$label: no picture to check"
   fi
 }
-timing_check "jb narrow filter" "$T/jb_rx.png" "$T/o_jb/jb_1_JB60.png"
+timing_check "jb narrow filter" "$T/jbref_rx.png" "$T/o_jb/jb_1_JB60.png"
 run --engine qsstv --wide-filter on -o "$T/o_jbw" "$T/jbw.wav"
-timing_check "jb wide filter" "$T/jbw_rx.png" "$T/o_jbw/jbw_1_JB60.png"
+timing_check "jb wide filter" "$T/jbwref_rx.png" "$T/o_jbw/jbw_1_JB60.png"
 
 echo "== JB60 right edge (issue #18)"
 # JB60's last Cb slot sits against the sync pulse and used to decode as a green/yellow strip down the right edge

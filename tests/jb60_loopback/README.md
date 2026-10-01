@@ -406,6 +406,16 @@ stays above 35 dB. PD120's tables already do the equivalent compensation, on the
 0.22 ms (2.6 samples) longer than its receiver's, which is why it showed a smaller residual error above. PD120 was
 left alone here since it wasn't part of this fix; its own small residual gap (about 0.3 dB) is unchanged.
 
+### Reference for the application's timing (issue #16)
+
+The harness shares `sstvparam.cpp`, so it runs with the same trimmed back porch, but it times the line from the
+transmitter rather than from a sync detector, so it has no ~2.5 sample lag for the trim to cancel and samples about
+2 samples early. The application therefore matches the harness at `--tshift 2` (54 dB luma, tshift 1.5: 42, 2.5: 47,
+0: 31.5), not at 0; `tests/filedecode` compared against shift 0 and read 31.5 / 27.4 dB against its 35 dB limit
+without anything being wrong. JB60's wide filter is chroma-only now, so that case compares against
+`--chroma-wide`, not `--fir wide` (which widens the whole picture). Changing the porch trim moves harness and
+application together, so that check does not detect it.
+
 ## Right-edge check (issue #18)
 
 Every single-image run prints `right-edge error`: the worst R/G/B channel and, separately, the luma error of the
