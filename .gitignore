@@ -67,3 +67,4 @@ tests/jb60_loopback/loopback
 # ...but the script itself is source, not output -- *build-* above would otherwise catch
 # its own filename.
 !/tools/build-hamlib-win64.sh
+!/tools/build-appimage-linux.sh

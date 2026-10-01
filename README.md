@@ -111,6 +111,17 @@ If Qt6, FFTW or OpenJPEG aren't found automatically, or you're using a from-sour
 Hamlib (see above), pass `-DCMAKE_PREFIX_PATH=...` / `-DHAMLIB_ROOT=...` to the first
 command.
 
+### Self-contained Linux AppImage
+
+`tools/build-appimage-linux.sh` packages a build from `build-cmake/` (or `$BUILD_DIR`)
+into a single-file `QSSTV-Experimental-<version>-x86_64.AppImage` that bundles Qt6 and
+every other runtime dependency, needing no system Qt6 install to run. It downloads
+`linuxdeploy`/`linuxdeploy-plugin-qt`/`appimagetool` (cached under
+`~/.cache/qsstv-appimage-tools`) the first time it runs. See the script's own header
+comment if a build ever segfaults on startup under every Qt platform backend — that's a
+known, already-solved issue with how some versions of `linuxdeploy` patch RELR-relocated
+binaries, not a QSSTV-Experimental bug.
+
 ### Debug Compile
 If you have problems compiling the software, please give as much information as possible but at least:
 * OS and version (e.g. Fedora 44, Ubuntu 24.04, Windows 11)
