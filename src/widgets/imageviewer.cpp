@@ -53,6 +53,8 @@ imageViewer::imageViewer(QWidget *parent): QLabel(parent)
 {
   addToLog("image creation",LOGIMAG);
   validImage=false;
+  orgWidth=0;
+  orgHeight=0;
   setFrameStyle(QFrame::Sunken | QFrame::Panel);
   QBrush b;
   QPalette palette;
@@ -339,6 +341,8 @@ bool imageViewer::openImage(QByteArray *ba)
 void imageViewer::clear()
 {
   validImage=false;
+  orgWidth=0;
+  orgHeight=0;
   imageFileName.clear();
   sourceImage=QImage();
   displayedImage=QImage();
@@ -800,6 +804,11 @@ void imageViewer::slotProperties()
       const QImage &img=sourceImage.isNull() ? displayedImage : sourceImage;
       orgWidth=img.width();
       orgHeight=img.height();
+    }
+  if(orgWidth<=0 || orgHeight<=0)
+    {
+      QMessageBox::information(this,"Image Properties","No image",QMessageBox::Ok);
+      return;
     }
   QFileInfo fi(imageFileName);
   if(fi.exists())
