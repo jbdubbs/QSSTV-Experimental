@@ -19,6 +19,9 @@
 *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
 ***************************************************************************/
 
+#ifdef Q_OS_WIN
+#include <windows.h> // WM_POWERBROADCAST / PBT_APMRESUME* -- see nativeEvent() below
+#endif
 #include "mainwindow.h"
 #include "appglobal.h"
 #include "logging.h"
@@ -237,6 +240,10 @@ void mainWindow::restartSound(bool inStartUp)
       soundIOPtr=nullptr;
     }
   soundIOPtr=new soundQtMultimedia;
+  // soundIOPtr is destroyed and recreated above every call, so this connection has
+  // to be redone every time too -- see soundBase::deviceLost()'s doc comment and
+  // recoverSound() for why.
+  connect(soundIOPtr,&soundBase::deviceLost,this,&mainWindow::recoverSound);
   if(!soundIOPtr->init(BASESAMPLERATE))
     {
       if(inStartUp)
@@ -257,6 +264,44 @@ void mainWindow::restartSound(bool inStartUp)
   // made while RX was deliberately stopped doesn't turn it back on.
   if(rxWasActive) dispatcherPtr->startRX();
 }
+
+// Windows-sleep follow-up to issue #11: an audio device that dies out from under RX
+// (most notably a Windows system sleep/resume cycle) needs the exact same recovery
+// as a user-initiated device change in Settings -- rebuild soundIOPtr and re-arm RX
+// if it was running. Reached from two independent detectors: nativeEvent() below
+// (WM_POWERBROADCAST, Windows-only, authoritative regardless of what the audio
+// backend reports) and soundBase::deviceLost() (connected in restartSound(),
+// cross-platform fallback/diagnostic for whatever the backend does report).
+void mainWindow::recoverSound(const QString &reason)
+{
+  // Rebuilding the audio device out from under an active PTT-keyed transmission
+  // would be actively harmful -- leave it alone and let the user recover manually
+  // (Stop/Start) if a transmission genuinely got stuck across a sleep. Not handled
+  // here; see the plan's accepted-risk note.
+  if(txWidgetPtr->functionsPtr()->getTXState()!=txFunctions::TXIDLE)
+    {
+      addToLog(QString("Sound device recovery skipped (TX active): %1").arg(reason),LOGSOUND);
+      return;
+    }
+  addToLog(QString("Recovering sound device: %1").arg(reason),LOGSOUND);
+  restartSound(false);
+}
+
+#ifdef Q_OS_WIN
+bool mainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr *result)
+{
+  if(eventType=="windows_generic_MSG")
+    {
+      MSG *msg=static_cast<MSG*>(message);
+      if(msg->message==WM_POWERBROADCAST
+         && (msg->wParam==PBT_APMRESUMEAUTOMATIC || msg->wParam==PBT_APMRESUMESUSPEND))
+        {
+          recoverSound("Windows resumed from sleep");
+        }
+    }
+  return QMainWindow::nativeEvent(eventType,message,result);
+}
+#endif
 
 
 void mainWindow::startRunning(bool startCardRx)

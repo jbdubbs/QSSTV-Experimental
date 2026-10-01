@@ -66,6 +66,21 @@ private:
   void readSettings();
   void writeSettings();
   void restartSound(bool inStartUp);
+  // Shared recovery for an audio device that died out from under RX -- Windows
+  // system sleep is the motivating case (see nativeEvent() below), reached via
+  // either that or soundBase::deviceLost() (connected in restartSound()). Skips
+  // (logging why) while TX is active, since rebuilding the audio device mid-
+  // transmission would be actively harmful; otherwise just calls restartSound(),
+  // which already knows how to re-arm RX only if it was actually running.
+  void recoverSound(const QString &reason);
+#ifdef Q_OS_WIN
+  // Windows invalidates/suspends audio streams across system sleep with no
+  // guarantee the Qt Multimedia backend surfaces that as a stream error (unlike
+  // this app's other Linux/macOS targets) -- WM_POWERBROADCAST is the OS's own,
+  // authoritative "resumed" notification, so it doesn't depend on what the audio
+  // backend does or doesn't report.
+  bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
+#endif
   void cleanUpCache(QString dirPath);
 //  void setupFtp(ftpThread *&ptr, QString idName);
   QComboBox *transmissionModeComboBox;

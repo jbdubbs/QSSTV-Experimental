@@ -83,6 +83,14 @@ public:
   bool calibrationCount(unsigned int &frames, double &elapsedTime);
   int countAvailable;
 signals:
+  // Emitted (soundQtMultimedia only, see init()) when the underlying audio stream
+  // stops on its own with a real error rather than via our own stop()/closeDevices()
+  // -- e.g. a device disappearing mid-session. Windows system sleep is the motivating
+  // case (mainwindow.cpp's nativeEvent() handles that one directly via
+  // WM_POWERBROADCAST, since that's authoritative regardless of what the backend
+  // reports; this is the cross-platform fallback/diagnostic in case it ever does
+  // report something, or for any other unexpected mid-session device loss).
+  void deviceLost(const QString &reason);
 
 public slots:
 

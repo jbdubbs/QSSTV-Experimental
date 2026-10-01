@@ -107,6 +107,21 @@ bool soundQtMultimedia::init(int samplerate)
   audioSourcePtr=new QAudioSource(inDev,inFormat,this);
   audioSinkPtr=new QAudioSink(outDev,outFormat,this);
 
+  // See soundbase.h's deviceLost() doc comment. error()!=NoError excludes our own
+  // clean stop()s (flushPlayback()'s stop()/start() cycle, closeDevices()'s teardown)
+  // from being mistaken for an unexpected device loss -- those always leave error()
+  // at NoError.
+  connect(audioSourcePtr,&QAudioSource::stateChanged,this,[this](QAudio::State state)
+    {
+      if(state==QAudio::StoppedState && audioSourcePtr->error()!=QAudio::NoError)
+        emit deviceLost(QString("capture: %1").arg(audioErrorString(audioSourcePtr->error())));
+    });
+  connect(audioSinkPtr,&QAudioSink::stateChanged,this,[this](QAudio::State state)
+    {
+      if(state==QAudio::StoppedState && audioSinkPtr->error()!=QAudio::NoError)
+        emit deviceLost(QString("playback: %1").arg(audioErrorString(audioSinkPtr->error())));
+    });
+
   captureDevicePtr=audioSourcePtr->start();
   playbackDevicePtr=audioSinkPtr->start();
   if(!captureDevicePtr || !playbackDevicePtr)
