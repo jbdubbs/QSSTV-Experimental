@@ -325,6 +325,22 @@ namespace
       if(kick[c]!=0.f) y[c]=clampByte((float)y[c]+kick[c]);
   }
 
+  // RX: the last Cb slot of a line (and, less so, the last Cr slot) sits against the sync pulse (JB60 has no front
+  // porch), whose 1200 Hz reads as the bottom of the scale. The sample pair getPixels() averages, plus the video
+  // filter's smear, reach into it: Cb collapses over the last ~8 px, which shows as a vertical green/yellow strip at
+  // the right edge (issue #18). Reproduced even through the ideal (unfiltered) loopback, so it is not a radio-path
+  // effect. Those slots are replaced by the last unaffected one (the edge replication every filter here already
+  // assumes). Measured with tests/jb60_loopback on card, right-edge B 70 -> 1..10 before, 69 after (ideal); with the
+  // real chain 2 Cb slots are needed (1 leaves a residual dip) and PSNR rises slightly on every run.
+  const unsigned int kRxTailHoldCb=2;
+  const unsigned int kRxTailHoldCr=1;
+
+  void holdTail(std::vector<unsigned char> &v,unsigned int n)
+  {
+    if(v.size()<=n) return;
+    for(unsigned int k=0;k<n;k++) v[v.size()-1-k]=v[v.size()-1-n];
+  }
+
   inline unsigned char encodeD(float d)
   {
     float a=fabsf(d);
@@ -759,6 +775,8 @@ void modeJB60::showLine()
   curD.assign(greenArrayPtr,greenArrayPtr+kSegCount[SEG_D]);
   curCr.assign(redArrayPtr,redArrayPtr+kSegCount[SEG_CR]);
   curCb.assign(blueArrayPtr,blueArrayPtr+kSegCount[SEG_CB]);
+  holdTail(curCr,kRxTailHoldCr);
+  holdTail(curCb,kRxTailHoldCb);
   // RX idea 4: opt-in, and only meaningful against the narrow filter this kernel was measured
   // against -- when the Cr/Cb wide-filter track is in use instead, skip it rather than apply a
   // mismatched inverse (the UI also grays out the checkbox in that case; this is the behavioral

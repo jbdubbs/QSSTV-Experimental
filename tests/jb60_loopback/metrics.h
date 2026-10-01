@@ -275,6 +275,28 @@ namespace metrics
     for(double &v:prof) v/=(H-40);
     return rise1090(prof);
   }
+  // Issue #18: JB60's last Cb slot sits against the sync pulse and used to decode as a green/yellow strip down
+  // the right edge. Row-averaged per-channel |rx-src| over `n` columns starting at x0 (R,G,B max returned), so
+  // image detail averages out and a column-wide colour error doesn't. Compare the last 8 columns against an
+  // interior block of the same size: a healthy edge reads about the same as the interior.
+  inline double columnBlockError(const QImage &src,const QImage &rx,int x0,int n)
+  {
+    double worst=0;
+    const int H=rx.height();
+    for(int c=0;c<3;c++)
+      for(int x=x0;x<x0+n;x++)
+        {
+          double a=0,b=0;
+          for(int r=10;r<H-10;r++)
+            {
+              QRgb s=((const QRgb*)src.constScanLine(r))[x],v=((const QRgb*)rx.constScanLine(r))[x];
+              a+=(c==0)?qRed(s):(c==1)?qGreen(s):qBlue(s);
+              b+=(c==0)?qRed(v):(c==1)?qGreen(v):qBlue(v);
+            }
+          worst=std::max(worst,fabs(a-b)/(H-20));
+        }
+    return worst;
+  }
   // Absolute x position (sub-pixel) where a cEdge()/vEdge()-style step's channel value crosses `frac` of
   // the way from its low plateau to its high plateau -- same windowed profile as edgeRiseChannel(), but a
   // position, not a width, so two runs (e.g. a TX-side change on vs off) can be compared for a group-delay

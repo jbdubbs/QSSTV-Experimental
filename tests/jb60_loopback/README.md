@@ -405,3 +405,11 @@ peak of 40-42 dB around -2.5 to -3 samples. The `tests/filedecode` "receive-timi
 stays above 35 dB. PD120's tables already do the equivalent compensation, on the other side: its transmitter porch is
 0.22 ms (2.6 samples) longer than its receiver's, which is why it showed a smaller residual error above. PD120 was
 left alone here since it wasn't part of this fix; its own small residual gap (about 0.3 dB) is unchanged.
+
+## Right-edge colour check (issue #18)
+
+Every single-image run prints `right-edge colour error`: the worst-channel, row-averaged |rx-src| over the last 8
+columns next to the same figure for an interior block 40 columns in. JB60's last Cb slot sits against the sync
+pulse (no front porch) and used to decode as a green/yellow strip. Card image, before -> after the receive-side
+tail hold in `showLine()`: ideal 60.5 -> 1.2, real chain with `--chroma-wide --snr 25 --ssb` 68.8 -> 23.2 (interior
+7.7 / 26.8). A healthy edge reads about the same as the interior.

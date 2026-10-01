@@ -416,6 +416,8 @@ namespace
     printf("  PSNR R %.2f G %.2f B %.2f  luma %.2f  all %.2f dB\n",metrics::psnr(src,r.rx,0),metrics::psnr(src,r.rx,1),metrics::psnr(src,r.rx,2),metrics::psnr(src,r.rx,3),metrics::psnr(src,r.rx,4));
     printf("  SSIM full %.3f  text-region %.3f   gradient kept: full %.2f text-region %.2f\n",metrics::ssim(src,r.rx,full),metrics::ssim(src,r.rx,txt),
            metrics::gradEnergy(r.rx,full)/metrics::gradEnergy(src,full),metrics::gradEnergy(r.rx,txt)/metrics::gradEnergy(src,txt));
+    printf("  right-edge colour error (worst channel, row-avg counts): last 8 cols %.1f   interior 8 cols %.1f   (issue #18: edge should not be far above interior)\n",
+           metrics::columnBlockError(src,r.rx,W-8,8),metrics::columnBlockError(src,r.rx,W-48,8));
     if(o.image=="vedge320") printf("  edge 10-90%% rise (x): %.2f px\n",metrics::edgeRiseV(r.rx,320));
     if(o.image=="vedge321") printf("  edge 10-90%% rise (x): %.2f px\n",metrics::edgeRiseV(r.rx,321));
     if(o.image=="hedge248") printf("  edge 10-90%% rise (y): %.2f px\n",metrics::edgeRiseH(r.rx,248));
