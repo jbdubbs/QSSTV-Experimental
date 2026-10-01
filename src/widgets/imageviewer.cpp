@@ -691,8 +691,31 @@ void imageViewer::slotLoad()
   QString fileNameTmp;
   dirDialog dd((QWidget *)this,"Browse");
   fileNameTmp=dd.openFileName(imageFilePath);
+  if(fileNameTmp.isEmpty()) return;
   if(openImage(fileNameTmp,true,false,false,true))
     {
+      if((ttype==TXSTOCKTHUMB) || (ttype==TEMPLATETHUMB))
+        {
+          // the gallery is a directory listing: import the file so it persists across restarts
+          QFileInfo src(fileNameTmp);
+          QDir dstDir(imageFilePath);
+          if(src.absoluteDir()!=dstDir)
+            {
+              QString dst=dstDir.filePath(src.fileName());
+              for(int i=1;QFile::exists(dst);i++)
+                {
+                  dst=dstDir.filePath(QString("%1-%2.%3").arg(src.completeBaseName()).arg(i).arg(src.suffix()));
+                }
+              if(QFile::copy(fileNameTmp,dst))
+                {
+                  fileNameTmp=dst;
+                }
+              else
+                {
+                  addToLog(QString("Unable to copy %1 to %2").arg(fileNameTmp).arg(dst),LOGIMAG);
+                }
+            }
+        }
       imageFileName=fileNameTmp;
       if(ttype==TEMPLATETHUMB)
         {
