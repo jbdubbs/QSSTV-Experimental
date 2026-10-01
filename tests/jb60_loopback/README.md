@@ -406,10 +406,17 @@ stays above 35 dB. PD120's tables already do the equivalent compensation, on the
 0.22 ms (2.6 samples) longer than its receiver's, which is why it showed a smaller residual error above. PD120 was
 left alone here since it wasn't part of this fix; its own small residual gap (about 0.3 dB) is unchanged.
 
-## Right-edge colour check (issue #18)
+## Right-edge check (issue #18)
 
-Every single-image run prints `right-edge colour error`: the worst-channel, row-averaged |rx-src| over the last 8
-columns next to the same figure for an interior block 40 columns in. JB60's last Cb slot sits against the sync
-pulse (no front porch) and used to decode as a green/yellow strip. Card image, before -> after the receive-side
-tail hold in `showLine()`: ideal 60.5 -> 1.2, real chain with `--chroma-wide --snr 25 --ssb` 68.8 -> 23.2 (interior
-7.7 / 26.8). A healthy edge reads about the same as the interior.
+Every single-image run prints `right-edge error`: the worst R/G/B channel and, separately, the luma error of the
+row-averaged |rx-src| over the last 8 columns, next to the same two figures for an interior block 40 columns in.
+`loopback --edge src.png rx.png` prints the same four numbers (edge channel, edge luma, interior channel, interior
+luma) for any decoded picture, e.g. the application's own, and `tests/filedecode/run.sh` asserts the application's
+edge channel error stays <= 15.
+
+JB60's last Cb slot sits against the sync pulse (no front porch) and used to decode as a green/yellow strip; the
+receiver now replaces the last 5 Cb / 3 Cr slots with the last unaffected one (`showLine()`). Card image, before ->
+after: ideal channel 60.5 -> 2.1, real chain with `--chroma-wide --snr 25 --ssb` 68.8 -> 7.5 (interior
+26.8), through the application ~60 -> ~9 (interior ~26 with noise). The luma column exists because a second artifact is not fixed yet: the last luma slot sits
+against D's mid-level and the last 2-3 columns of a dark picture come out bright (a dark-edged test image reads
+about 17 luma counts in the harness and ~34 in the application, against ~1 interior).
