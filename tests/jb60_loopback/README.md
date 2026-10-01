@@ -430,3 +430,12 @@ after: ideal channel 60.5 -> 2.1, real chain with `--chroma-wide --snr 25 --ssb`
 26.8), through the application ~60 -> ~9 (interior ~26 with noise). The luma column exists because a second artifact is not fixed yet: the last luma slot sits
 against D's mid-level and the last 2-3 columns of a dark picture come out bright (a dark-edged test image reads
 about 17 luma counts in the harness and ~34 in the application, against ~1 interior).
+
+## Right-edge luma check (issue #21)
+
+The L segment is followed directly by D, whose idle level is mid-scale, so the last luma slots were dragged toward
+128: a bright stripe on a dark edge, a dark one on a bright edge. `images/darkedge.png` and `images/brightedge.png`
+(flat rows, so interior luma error is ~0.1) isolate it; `--edge` prints the luma figure second. Through the
+application's own decode (`--snr 25 --ssb`), luma right-edge error: dark 52.3 -> 1.6, bright 73.7 -> 2.6 with
+`kRxTailHoldL=4` (1 / 2 / 3 slots: 31 / 12 / 2.1 on dark). The card image's PSNR is unchanged. `tests/filedecode/run.sh`
+asserts <= 6 counts on both.

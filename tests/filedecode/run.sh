@@ -99,6 +99,24 @@ edge_check() {
 edge_check "jb narrow filter" "$T/jb_src.png" "$T/o_jb/jb_1_JB60.png"
 edge_check "jb wide filter" "$T/jbw_src.png" "$T/o_jbw/jbw_1_JB60.png"
 
+# Issue #21: the L segment is followed directly by D (idle 128), which drags the last luma slots toward mid-grey --
+# a bright stripe on a dark edge (~50 counts un-fixed), a dark one on a bright edge (~75). Fixed: a few counts.
+luma_edge_check() {
+  local label=$1 img=$2
+  "$LB" jb --image "$img" --vis --snr 25 --ssb --wav "$T/$img.wav" --out "$T/$img" > /dev/null
+  run --engine qsstv -o "$T/o_$img" "$T/$img.wav" > /dev/null
+  local png="$T/o_$img/${img}_1_JB60.png"
+  if [ -f "$png" ]; then
+    read ec el ic il <<<"$("$LB" --edge "$T/${img}_src.png" "$png")"
+    ge "6" "$el" && ok "$label: right-edge luma error $el (interior $il)" \
+                 || bad "$label: right-edge luma error $el counts (interior $il; want <= 6)"
+  else
+    bad "$label: no picture to check"
+  fi
+}
+luma_edge_check "dark right edge" darkedge
+luma_edge_check "bright right edge" brightedge
+
 echo "== options"
 run --engine qsstv --mode PD120 -o "$T/o_mode" "$T/pd.wav"; expect_exit "forced correct mode" 0 $?
 run --engine qsstv --mode M1 -o "$T/o_wrongmode" "$T/pd.wav"; expect_exit "forced wrong mode finds nothing" 1 $?

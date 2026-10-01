@@ -113,7 +113,7 @@ namespace
     if(name=="gratd") return metrics::grating(W,H,'d');
     if(name=="cgrath") return metrics::chromaGrating(W,H,'h');
     if(name=="cgratv") return metrics::chromaGrating(W,H,'v');
-    QString path=(name=="card") ? QString(IMAGE_DIR)+"/card.png" : QString::fromStdString(name);
+    QString path=(name=="card"||name=="darkedge"||name=="brightedge") ? QString(IMAGE_DIR)+"/"+QString::fromStdString(name)+".png" : QString::fromStdString(name);
     QImage im(path);
     if(im.isNull()) { fprintf(stderr,"cannot load image %s\n",path.toLatin1().data()); exit(2); }
     im=im.convertToFormat(QImage::Format_RGB32);
