@@ -103,6 +103,7 @@ bool soundQtMultimedia::init(int samplerate)
   delete audioSinkPtr;
   captureDevicePtr=nullptr;
   playbackDevicePtr=nullptr;
+  rxFilled=0;
 
   audioSourcePtr=new QAudioSource(inDev,inFormat,this);
   audioSinkPtr=new QAudioSink(outDev,outFormat,this);
@@ -139,15 +140,21 @@ int soundQtMultimedia::read(int &countAvailable)
 {
   if(!soundDriverOK || !captureDevicePtr) return 0;
   const qint64 wanted=qint64(DOWNSAMPLESIZE)*sizeof(qint16);
-  countAvailable=captureDevicePtr->bytesAvailable();
-  if(countAvailable<wanted) return 0; // not enough yet -- soundBase::run()'s own polling loop retries
-  qint64 got=captureDevicePtr->read((char*)tempRXBuffer,wanted);
+  // Don't gate on bytesAvailable(): Qt 6.4's PulseAudio capture device (what Ubuntu 24.04's
+  // Qt, and so the AppImage, ships) reports 0 there in pull mode even while read() delivers
+  // data, so waiting for it to reach a full block never reads anything. read() is
+  // non-blocking everywhere (0 = nothing yet), so accumulate partial reads until a block fills.
+  qint64 got=captureDevicePtr->read(((char*)tempRXBuffer)+rxFilled,wanted-rxFilled);
   if(got<0)
     {
+      rxFilled=0;
       errorHandler("Audio capture error",audioErrorString(audioSourcePtr->error()));
       return -1;
     }
-  if(got<wanted) return 0; // shouldn't happen after the bytesAvailable() check, but don't hand back a partial block
+  rxFilled+=got;
+  countAvailable=int(rxFilled);
+  if(rxFilled<wanted) return 0; // not a full block yet -- soundBase::run()'s own polling loop retries
+  rxFilled=0;
   return DOWNSAMPLESIZE;
 }
 
@@ -183,6 +190,7 @@ int soundQtMultimedia::write(uint numFrames)
 
 void soundQtMultimedia::flushCapture()
 {
+  rxFilled=0;
   if(captureDevicePtr) captureDevicePtr->readAll(); // discard whatever's buffered
 }
 

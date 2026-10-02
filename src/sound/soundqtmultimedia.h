@@ -35,6 +35,7 @@ protected:
 private:
   QAudioSource *audioSourcePtr;
   QAudioSink *audioSinkPtr;
+  qint64 rxFilled=0;            // bytes of the current RX block already read into tempRXBuffer
   QIODevice *captureDevicePtr;  // owned by audioSourcePtr, not deleted directly
   QIODevice *playbackDevicePtr; // owned by audioSinkPtr, not deleted directly
 };
