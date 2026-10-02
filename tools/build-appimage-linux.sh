@@ -40,7 +40,7 @@ set -euo pipefail
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # repo root
 BUILD_DIR=${BUILD_DIR:-$HERE/build-cmake}
-VERSION=${VERSION:-10.0-Pre1}
+VERSION=${VERSION:-10.0-Pre2}
 TOOLS_DIR=${APPIMAGE_TOOLS_CACHE:-$HOME/.cache/qsstv-appimage-tools}
 OUT_DIR=${OUT_DIR:-$HERE}
 PATCHELF_VERSION=${PATCHELF_VERSION:-0.19.1}
