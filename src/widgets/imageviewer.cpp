@@ -140,7 +140,7 @@ bool imageViewer::openImage(QString &filename,QString start,bool ask,bool showMe
   if(ask)
     {
       dirDialog dd(static_cast<QWidget *>(this),"Browse");
-      tempFilename=dd.openFileName(start,"*");
+      tempFilename=dd.openFileName(start,pictureNameFilter());
     }
   if(tempFilename.isEmpty())
     {
@@ -694,7 +694,7 @@ void imageViewer::slotLoad()
 {
   QString fileNameTmp;
   dirDialog dd((QWidget *)this,"Browse");
-  fileNameTmp=dd.openFileName(imageFilePath);
+  fileNameTmp=dd.openFileName(imageFilePath,pictureNameFilter());
   if(fileNameTmp.isEmpty()) return;
   if(openImage(fileNameTmp,true,false,false,true))
     {

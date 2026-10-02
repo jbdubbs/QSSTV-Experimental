@@ -175,20 +175,20 @@ void repeaterConfig::setParams()
 
 void repeaterConfig::slotRp1Browse()
 {
-  browseGetFile(ui->repeaterImage1LineEdit,txStockImagesPath);
+  browseGetFile(ui->repeaterImage1LineEdit,txStockImagesPath,pictureNameFilter());
 }
 
 void repeaterConfig::slotRp2Browse()
 {
-  browseGetFile(ui->repeaterImage2LineEdit,txStockImagesPath);
+  browseGetFile(ui->repeaterImage2LineEdit,txStockImagesPath,pictureNameFilter());
 }
 void repeaterConfig::slotRp3Browse()
 {
-  browseGetFile(ui->repeaterImage3LineEdit,txStockImagesPath);
+  browseGetFile(ui->repeaterImage3LineEdit,txStockImagesPath,pictureNameFilter());
 }
 void repeaterConfig::slotRp4Browse()
 {
-  browseGetFile(ui->repeaterImage4LineEdit,txStockImagesPath);
+  browseGetFile(ui->repeaterImage4LineEdit,txStockImagesPath,pictureNameFilter());
 }
 
 void repeaterConfig::slotRepeaterIdleTemplateBrowse()

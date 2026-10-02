@@ -326,6 +326,15 @@ unsigned long timingAnalyser::result()
 
 
 /*!
+   \brief filter for dialogs that pick a picture to view or transmit: images plus the
+   templates and JPEG 2000 files that imageViewer loads through its own paths
+*/
+QString pictureNameFilter()
+{
+  return imageNameFilter("*.templ *.jp2 *.j2k");
+}
+
+/*!
    \brief QFileDialog filter for images, built from the formats the installed Qt plugins can read
    \param extra additional patterns for the first group (e.g. "*.templ")
 
