@@ -34,7 +34,7 @@ frequencySelectWidget::frequencySelectWidget(QWidget *parent) :baseConfig(parent
 {
   ui->setupUi(this);
   QStringList sl;
-  sl<<"Frequencyy"<<"Mode"<<"Modulation"<<"Passband";
+  sl<<"Frequency"<<"Mode"<<"Modulation"<<"Passband";
   ui->tableWidget->setAlternatingRowColors (false);
   ui->tableWidget->setColumnCount(4);
   ui->tableWidget->setHorizontalHeaderLabels(sl);
