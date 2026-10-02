@@ -37,7 +37,9 @@ for f in $HP/*.so; do
   FORCE+=(--library "$f")
 done
 cat > $APPDIR/apprun-hooks/libheif-plugins.sh <<'H'
-export LIBHEIF_PLUGIN_PATH="$APPDIR/usr/lib/libheif/plugins"
+export LIBHEIF_PLUGIN_PATH="${APPDIR:-$this_dir}/usr/lib/libheif/plugins"
+# the plugins' RUNPATH is only $ORIGIN, so their codec libs (libde265, ...) in usr/lib need this
+export LD_LIBRARY_PATH="${APPDIR:-$this_dir}/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 H
 
 cd $B

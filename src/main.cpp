@@ -40,6 +40,8 @@
 #include "sstv/sstvparam.h"
 #include "sstv/videofilterselection.h"
 #include "sstv/mmsstvslant.h"
+#include <QImageReader>
+#include "supportfunctions.h"
 
 
 QSplashScreen *splash;
@@ -97,6 +99,14 @@ int main( int argc, char ** argv )
   QCoreApplication::setOrganizationName(ORGANIZATION);
   QCoreApplication::setApplicationName(APPLICATION);
   QApplication app( argc, argv );
+  if(qEnvironmentVariableIsSet("QSSTV_LOG_FORMATS"))
+    {
+      // diagnostic: which image formats this Qt/plugin set can read, and the dialog filter built from them
+      QStringList rf;
+      foreach(QByteArray f,QImageReader::supportedImageFormats()) rf<<QString::fromLatin1(f);
+      fprintf(stderr,"image formats readable: %s\npicture filter: %s\nLIBHEIF_PLUGIN_PATH=%s\n",
+              qPrintable(rf.join(' ')),qPrintable(pictureNameFilter()),qgetenv("LIBHEIF_PLUGIN_PATH").constData());
+    }
 
   QCommandLineParser parser;
   // QSSTV-Experimental is built upon the original QSSTV 9.5.11 by Johan Maes, ON4QZ
