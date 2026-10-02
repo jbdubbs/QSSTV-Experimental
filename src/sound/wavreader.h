@@ -47,6 +47,8 @@ public:
 private:
   bool parseHeader(QString &error);
   bool openCompressed(const QString &path,QString &error);
+  bool openVorbis(QString &error);
+  void startDecoded(const QByteArray &pcm,int pcmRate,const QString &description);
   float sampleAt(const char *p) const;
   void readInput(unsigned int frames);
   int readNative(qint16 *dst,unsigned int count);

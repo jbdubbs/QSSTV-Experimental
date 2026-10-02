@@ -344,6 +344,16 @@ if(WIN32)
   # window. main.cpp's attachParentConsoleIfAny() is what keeps --batch/--decode's
   # output reaching a terminal when launched from one despite this.
   set_target_properties(qsstv PROPERTIES WIN32_EXECUTABLE TRUE)
+  # Windows Media Foundation (Qt's audio decoder there) has no Vorbis decoder, so decode
+  # Ogg Vorbis with libvorbisfile (mingw64-libvorbis) instead; see sound/wavreader.cpp.
+  pkg_check_modules(VORBISFILE vorbisfile)
+  if(VORBISFILE_FOUND)
+    target_compile_definitions(qsstv PRIVATE QSSTV_HAVE_VORBISFILE)
+    target_include_directories(qsstv PRIVATE ${VORBISFILE_INCLUDE_DIRS})
+    target_link_libraries(qsstv PRIVATE ${VORBISFILE_LIBRARIES})
+  else()
+    message(WARNING "vorbisfile not found (dnf install mingw64-libvorbis): Ogg Vorbis files will not decode on Windows")
+  endif()
 endif()
 
 target_include_directories(qsstv PRIVATE
@@ -460,6 +470,9 @@ if(WIN32)
     libwebpmux-3.dll
     libsharpyuv-0.dll
   )
+  if(VORBISFILE_FOUND)   # Ogg Vorbis decoding (mingw64-libvorbis, mingw64-libogg)
+    list(APPEND QSSTV_WIN_RUNTIME_DLLS libvorbisfile-3.dll libvorbis-0.dll libogg-0.dll)
+  endif()
   foreach(_dll ${QSSTV_WIN_RUNTIME_DLLS})
     install(FILES "${MINGW_SYSROOT}/bin/${_dll}" DESTINATION .)
   endforeach()

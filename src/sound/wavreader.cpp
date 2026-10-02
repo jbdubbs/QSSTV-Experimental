@@ -11,6 +11,9 @@
 #include <QTimer>
 #include <QUrl>
 #include <QtEndian>
+#ifdef QSSTV_HAVE_VORBISFILE
+#include <vorbis/vorbisfile.h>
+#endif
 #include <algorithm>
 #include <cmath>
 
@@ -40,6 +43,23 @@ namespace
     long i=lround(v);
     return (qint16)(i<-32768 ? -32768 : (i>32767 ? 32767 : i));
   }
+
+#ifdef QSSTV_HAVE_VORBISFILE
+  size_t vorbisRead(void *ptr,size_t size,size_t nmemb,void *ds)
+  {
+    qint64 n=((QFile*)ds)->read((char*)ptr,(qint64)(size*nmemb));
+    return n<0 ? 0 : (size_t)n/size;
+  }
+  int vorbisSeek(void *ds,ogg_int64_t offset,int whence)
+  {
+    QFile *f=(QFile*)ds;
+    qint64 pos=offset;
+    if(whence==SEEK_CUR) pos+=f->pos();
+    else if(whence==SEEK_END) pos+=f->size();
+    return f->seek(pos) ? 0 : -1;
+  }
+  long vorbisTell(void *ds) { return (long)((QFile*)ds)->pos(); }
+#endif
 
   const char *kHint="convert it with: ffmpeg -i input -ar 48000 -ac 1 -c:a pcm_s16le output.wav";
 }
@@ -221,9 +241,21 @@ bool wavReader::open(const QString &path,QString &error)
     }
   char magic[4];
   bool riff=(file.read(magic,4)==4 && memcmp(magic,"RIFF",4)==0);
+  bool ogg=(memcmp(magic,"OggS",4)==0);
   file.seek(0);
   if(!riff)
     {
+#ifdef QSSTV_HAVE_VORBISFILE
+      // Windows Media Foundation has no Vorbis decoder, so decode Ogg Vorbis ourselves
+      if(ogg)
+        {
+          QString vorbisError;
+          if(openVorbis(vorbisError)) return true;
+          file.seek(0);   // not Vorbis (e.g. Opus in Ogg): let Qt Multimedia try
+        }
+#else
+      Q_UNUSED(ogg);
+#endif
       file.close();
       if(!openCompressed(path,error))
         {
@@ -300,6 +332,13 @@ bool wavReader::openCompressed(const QString &path,QString &error)
               .arg(failure.isEmpty() ? QString() : " ("+failure+")").arg(kHint);
       return false;
     }
+  startDecoded(pcm,outputRate,QString("%1, decoded to %2 Hz mono").arg(QFileInfo(path).suffix().toLower()).arg(outputRate));
+  return true;
+}
+
+//! hold mono 16 bit PCM at pcmRate in memory and read it like a WAV file (resampled when pcmRate != outputRate)
+void wavReader::startDecoded(const QByteArray &pcm,int pcmRate,const QString &description)
+{
   decoded.setData(pcm);
   decoded.open(QIODevice::ReadOnly);
   dev=&decoded;
@@ -307,7 +346,7 @@ bool wavReader::openCompressed(const QString &path,QString &error)
   formatTag=1;
   channels=1;
   bits=16;
-  rate=outputRate;
+  rate=pcmRate;
   frameBytes=2;
   dataStart=0;
   dataFrames=pcm.size()/2;
@@ -316,11 +355,60 @@ bool wavReader::openCompressed(const QString &path,QString &error)
   hist.clear();
   histBase=0;
   nextT=0;
-  resampling=false;
-  ratio=1;
-  sourceDescription=QString("%1, decoded to %2 Hz mono").arg(QFileInfo(path).suffix().toLower()).arg(outputRate);
+  resampling=(rate!=outputRate);
+  ratio=(double)rate/outputRate;
+  if(resampling) buildKernel();
+  sourceDescription=description;
+  if(resampling) sourceDescription+=QString(" (resampled to %1 Hz)").arg(outputRate);
+}
+
+#ifdef QSSTV_HAVE_VORBISFILE
+//! decode the (already open) file as Ogg Vorbis: first channel only, at the file's own rate
+bool wavReader::openVorbis(QString &error)
+{
+  OggVorbis_File vf;
+  ov_callbacks cb={vorbisRead,vorbisSeek,nullptr,vorbisTell};
+  if(ov_open_callbacks(&file,&vf,nullptr,0,cb)!=0)
+    {
+      error="not an Ogg Vorbis file";
+      return false;
+    }
+  vorbis_info *vi=ov_info(&vf,-1);
+  if(!vi || vi->channels<1 || vi->rate<4000 || vi->rate>768000)
+    {
+      ov_clear(&vf);
+      error="unsupported Ogg Vorbis stream";
+      return false;
+    }
+  const int ch=vi->channels;
+  const int pcmRate=(int)vi->rate;
+  QByteArray pcm;
+  char buf[8192];
+  int section=0;
+  while(true)
+    {
+      long n=ov_read(&vf,buf,sizeof(buf),0,2,1,&section);
+      if(n==OV_HOLE) continue;
+      if(n<=0) break;
+      const qint16 *s=(const qint16*)buf;
+      for(long i=0;i+ch<=n/2;i+=ch) pcm.append((const char*)&s[i],2);
+    }
+  ov_clear(&vf);
+  if(pcm.size()<2)
+    {
+      error="Ogg Vorbis file contains no audio";
+      return false;
+    }
+  startDecoded(pcm,pcmRate,QString("Ogg Vorbis, %1 Hz, %2 channel%3").arg(pcmRate).arg(ch).arg(ch==1 ? "" : "s"));
   return true;
 }
+#else
+bool wavReader::openVorbis(QString &error)
+{
+  error="Ogg Vorbis decoder not built in";
+  return false;
+}
+#endif
 
 double wavReader::durationSeconds() const
 {
