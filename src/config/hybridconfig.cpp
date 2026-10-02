@@ -85,8 +85,8 @@ void hybridConfig::writeSettings()
   qSettings.setValue("hybridFtpPassword",hybridFtpPassword);
   qSettings.setValue("hybridFtpHybridFilesDirectory",hybridFtpHybridFilesDirectory);
   qSettings.setValue("enableHybridNotify",enableHybridNotify);
-  qSettings.setValue("hybridNotifyDir",hybridNotifyDir);
-  qSettings.setValue("onlineStatusDir",onlineStatusDir);
+  qSettings.setValue("hybridNotifyDirectory",hybridNotifyDir);
+  qSettings.setValue("onlineStatusDirectory",onlineStatusDir);
   qSettings.endGroup();
 }
 
