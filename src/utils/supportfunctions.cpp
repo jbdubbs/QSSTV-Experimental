@@ -326,20 +326,32 @@ unsigned long timingAnalyser::result()
 
 
 /*!
-   \brief name filter ("*.png *.jpg ...") of every image format the installed Qt plugins can read
-   \param extra additional patterns appended to the list (e.g. "*.templ")
+   \brief QFileDialog filter for images, built from the formats the installed Qt plugins can read
+   \param extra additional patterns for the first group (e.g. "*.templ")
+
+   Entries: common formats (only those actually readable here), every readable format, all files.
 */
 QString imageNameFilter(const QString &extra)
 {
-  QSet<QString> seen;
-  QStringList patterns;
+  static const char *common[]={"png","jpg","jpeg","gif","bmp","webp","avif","heic","heif",0};
+  QSet<QString> readable;
+  QStringList all;
   foreach(QByteArray fmt,QImageReader::supportedImageFormats())
     {
-      QString p=QString("*.")+QString::fromLatin1(fmt).toLower();
-      if(seen.contains(p)) continue;
-      seen.insert(p);
-      patterns.append(p);
+      QString f=QString::fromLatin1(fmt).toLower();
+      if(readable.contains(f)) continue;
+      readable.insert(f);
+      all.append("*."+f);
     }
-  if(!extra.isEmpty()) patterns.append(extra);
-  return patterns.join(' ');
+  QStringList common_;
+  for(int i=0;common[i];i++)
+    {
+      if(readable.contains(common[i])) common_.append(QString("*.")+common[i]);
+    }
+  if(!extra.isEmpty()) common_.append(extra);
+  QStringList groups;
+  groups.append("Images ("+common_.join(' ')+")");
+  groups.append("All supported image formats ("+all.join(' ')+(extra.isEmpty()?"":" "+extra)+")");
+  groups.append("All files (*)");
+  return groups.join(";;");
 }
