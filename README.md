@@ -67,6 +67,13 @@ brew install qt@6 fftw hamlib openjpeg pkg-config
 
 ### Windows
 
+**Supported systems:** 64-bit Windows 10 version 1809 or newer, and Windows 11. This is
+Qt 6's own minimum. Older systems fail before the program starts, with a missing-entry-point
+error from a Qt DLL: Windows 7 and 8.x (`GetCurrentPackageFullName` / `WaitOnAddress`
+missing from `KERNEL32.dll`) and the early Windows 10 builds such as 1507
+(`D3D12SerializeVersionedRootSignature` missing from `Qt6Gui.dll`). 32-bit Windows is not
+supported. Run `winver` to check your version.
+
 There is no Windows installer released yet, but the app **does build and link
 correctly** for 64-bit Windows via MinGW cross-compilation from Linux, verified on
 Fedora:
