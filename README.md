@@ -10,7 +10,7 @@ decode engine, decode-from-file support, and ongoing image-quality work.
 Pick one or more WAV files. They play through the normal receiver at about ten times real time (you watch the picture
 build up), pictures are saved as usual when *Autosave* is on, and the sound card receiver resumes when the last file is done.
 The Stop button cancels. Any WAV works: 8/16/24/32 bit PCM or float, mono or stereo (the first channel is used), any sample
-rate (it is resampled to 48 kHz). A picture that is still being received when the recording ends is kept if enough of it
+rate (it is resampled to 48 kHz). MP3, FLAC, OGG and AAC files also work; they are decoded by Qt Multimedia, so which formats are available depends on the platform's backend (FFmpeg on Linux, Windows Media Foundation on Windows, where FLAC/OGG may need system codecs). A picture that is still being received when the recording ends is kept if enough of it
 arrived (*Save if Complete*).
 
 **From the command line:**

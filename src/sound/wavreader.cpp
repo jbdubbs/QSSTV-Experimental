@@ -4,6 +4,12 @@
  ***************************************************************************/
 #include "wavreader.h"
 
+#include <QAudioDecoder>
+#include <QAudioBuffer>
+#include <QEventLoop>
+#include <QFileInfo>
+#include <QTimer>
+#include <QUrl>
 #include <QtEndian>
 #include <algorithm>
 #include <cmath>
@@ -40,6 +46,8 @@ namespace
 
 wavReader::wavReader()
 {
+  dev=nullptr;
+  compressed=false;
   formatTag=0;
   channels=0;
   bits=0;
@@ -64,6 +72,11 @@ wavReader::~wavReader()
 void wavReader::close()
 {
   file.close();
+  decoded.close();
+  decoded.setData(QByteArray());
+  dev=nullptr;
+  compressed=false;
+  sourceDescription.clear();
   hist.clear();
   histBase=0;
   nextT=0;
@@ -206,11 +219,25 @@ bool wavReader::open(const QString &path,QString &error)
       error=QString("cannot open file: %1").arg(file.errorString());
       return false;
     }
+  char magic[4];
+  bool riff=(file.read(magic,4)==4 && memcmp(magic,"RIFF",4)==0);
+  file.seek(0);
+  if(!riff)
+    {
+      file.close();
+      if(!openCompressed(path,error))
+        {
+          close();
+          return false;
+        }
+      return true;
+    }
   if(!parseHeader(error))
     {
       close();
       return false;
     }
+  dev=&file;
   file.seek(dataStart);
   framesRead=0;
   inputDone=false;
@@ -220,6 +247,78 @@ bool wavReader::open(const QString &path,QString &error)
   resampling=(rate!=outputRate);
   ratio=(double)rate/outputRate;
   if(resampling) buildKernel();
+  return true;
+}
+
+/*!
+  Decode a non-WAV file (mp3, flac, ogg, aac, ...) with Qt Multimedia into
+  mono 16 bit PCM at outputRate, held in memory, then read it like a WAV.
+*/
+bool wavReader::openCompressed(const QString &path,QString &error)
+{
+  QAudioDecoder decoder;
+  QAudioFormat fmt;
+  fmt.setSampleRate(outputRate);
+  fmt.setChannelCount(1);
+  fmt.setSampleFormat(QAudioFormat::Int16);
+  decoder.setAudioFormat(fmt);
+  decoder.setSource(QUrl::fromLocalFile(QFileInfo(path).absoluteFilePath()));
+
+  QByteArray pcm;
+  QString failure;
+  bool ok=true;
+  QEventLoop loop;
+  QTimer timeout;
+  timeout.setSingleShot(true);
+  QObject::connect(&decoder,&QAudioDecoder::bufferReady,&loop,[&]()
+    {
+      QAudioBuffer b=decoder.read();
+      if(b.isValid() && b.format().sampleFormat()==QAudioFormat::Int16 && b.format().channelCount()==1)
+        pcm.append((const char*)b.constData<qint16>(),b.byteCount());
+      timeout.start(10000);   // restart the stall guard on every buffer
+    });
+  QObject::connect(&decoder,&QAudioDecoder::finished,&loop,&QEventLoop::quit);
+  QObject::connect(&decoder,QOverload<QAudioDecoder::Error>::of(&QAudioDecoder::error),&loop,[&](QAudioDecoder::Error)
+    {
+      ok=false;
+      failure=decoder.errorString();
+      loop.quit();
+    });
+  QObject::connect(&timeout,&QTimer::timeout,&loop,[&]()
+    {
+      ok=false;
+      failure="timed out decoding";
+      loop.quit();
+    });
+  timeout.start(10000);
+  decoder.start();
+  loop.exec();
+  decoder.stop();
+  if(!ok || pcm.size()<2)
+    {
+      error=QString("unsupported or undecodable audio file%1; %2")
+              .arg(failure.isEmpty() ? QString() : " ("+failure+")").arg(kHint);
+      return false;
+    }
+  decoded.setData(pcm);
+  decoded.open(QIODevice::ReadOnly);
+  dev=&decoded;
+  compressed=true;
+  formatTag=1;
+  channels=1;
+  bits=16;
+  rate=outputRate;
+  frameBytes=2;
+  dataStart=0;
+  dataFrames=pcm.size()/2;
+  framesRead=0;
+  inputDone=false;
+  hist.clear();
+  histBase=0;
+  nextT=0;
+  resampling=false;
+  ratio=1;
+  sourceDescription=QString("%1, decoded to %2 Hz mono").arg(QFileInfo(path).suffix().toLower()).arg(outputRate);
   return true;
 }
 
@@ -236,6 +335,7 @@ int wavReader::progressPercent() const
 
 QString wavReader::describe() const
 {
+  if(compressed) return sourceDescription;
   QString s=QString("%1 Hz, %2 bit %3, %4 channel%5").arg(rate).arg(bits).arg(formatTag==3 ? "float" : "PCM").arg(channels).arg(channels==1 ? "" : "s");
   if(resampling) s+=QString(" (resampled to %1 Hz)").arg(outputRate);
   return s;
@@ -296,7 +396,7 @@ void wavReader::readInput(unsigned int frames)
       return;
     }
   raw.resize((int)(want*frameBytes));
-  qint64 got=file.read(raw.data(),raw.size())/frameBytes;
+  qint64 got=dev->read(raw.data(),raw.size())/frameBytes;
   const char *p=raw.constData();
   for(qint64 i=0;i<got;i++,p+=frameBytes) hist.push_back(sampleAt(p));
   framesRead+=got;
@@ -308,7 +408,7 @@ int wavReader::readNative(qint16 *dst,unsigned int count)
   qint64 want=std::min<qint64>(count,dataFrames-framesRead);
   if(want<=0) return 0;
   raw.resize((int)(want*frameBytes));
-  qint64 got=file.read(raw.data(),raw.size())/frameBytes;
+  qint64 got=dev->read(raw.data(),raw.size())/frameBytes;
   const char *p=raw.constData();
   for(qint64 i=0;i<got;i++,p+=frameBytes) dst[i]=toInt16(sampleAt(p));
   framesRead+=got;
@@ -348,6 +448,6 @@ int wavReader::readResampled(qint16 *dst,unsigned int count)
 
 int wavReader::read(qint16 *dst,unsigned int count)
 {
-  if(!file.isOpen()) return 0;
+  if(!dev || !dev->isOpen()) return 0;
   return resampling ? readResampled(dst,count) : readNative(dst,count);
 }

@@ -70,7 +70,7 @@ void fileDecoder::chooseAndDecode(QWidget *parent)
   QString dir=qSettings.value("lastDecodeDir",audioPath).toString();
   qSettings.endGroup();
   QStringList files=QFileDialog::getOpenFileNames(parent,tr("Decode SSTV from audio file"),dir,
-                                                  tr("WAV audio (*.wav *.WAV);;All files (*)"));
+                                                  tr("Audio files (*.wav *.mp3 *.flac *.ogg *.oga *.opus *.aac *.m4a);;WAV audio (*.wav *.WAV);;All files (*)"));
   if(files.isEmpty()) return;
   qSettings.beginGroup("RX");
   qSettings.setValue("lastDecodeDir",QFileInfo(files.first()).absolutePath());

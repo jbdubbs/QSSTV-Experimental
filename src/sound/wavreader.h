@@ -12,6 +12,7 @@
 #ifndef WAVREADER_H
 #define WAVREADER_H
 
+#include <QBuffer>
 #include <QFile>
 #include <QString>
 #include <deque>
@@ -28,7 +29,7 @@ public:
   //! open `path`; on failure returns false and sets `error` to a one line explanation
   bool open(const QString &path,QString &error);
   void close();
-  bool isOpen() const { return file.isOpen(); }
+  bool isOpen() const { return dev && dev->isOpen(); }
 
   //! read up to `count` mono samples at outputRate; returns the number produced, 0 at the end of the file
   int read(qint16 *dst,unsigned int count);
@@ -45,6 +46,7 @@ public:
 
 private:
   bool parseHeader(QString &error);
+  bool openCompressed(const QString &path,QString &error);
   float sampleAt(const char *p) const;
   void readInput(unsigned int frames);
   int readNative(qint16 *dst,unsigned int count);
@@ -52,6 +54,10 @@ private:
   void buildKernel();
 
   QFile file;
+  QBuffer decoded;          //!< mono 16 bit PCM at outputRate for non-WAV files (mp3, flac, ...)
+  QIODevice *dev;           //!< file or decoded, whichever is being read
+  bool compressed;
+  QString sourceDescription;
   int formatTag;            //!< 1 = PCM, 3 = IEEE float
   int channels;
   int bits;

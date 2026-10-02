@@ -218,6 +218,14 @@ if command -v ffmpeg >/dev/null; then
 st_f32   -ac 2 -c:a pcm_f32le
 list     -c:a pcm_s16le -metadata title=x
 EOF
+
+  echo "== compressed formats via Qt Multimedia (mp3, flac, ogg, aac)"
+  for ext in mp3 flac ogg aac; do
+    ffmpeg -loglevel error -y -i "$T/jb.wav" "$T/jbc.$ext" || { bad "$ext: ffmpeg cannot encode it, skipped"; continue; }
+    run --engine qsstv -o "$T/o_c$ext" "$T/jbc.$ext"; rc=$?
+    png="$T/o_c$ext/jbc_1_JB60.png"
+    if [ $rc = 0 ] && [ -f "$png" ]; then ok "$ext: decoded a picture"; else bad "$ext: exit $rc, no picture"; fi
+  done
 else
   echo "== (ffmpeg not installed: skipping the format/sample-rate variants)"
 fi
@@ -227,7 +235,7 @@ python3 -c "import wave; w=wave.open('$T/silence.wav','wb'); w.setnchannels(1); 
 run --engine qsstv -o "$T/o_sil" "$T/silence.wav"; expect_exit "silence: no picture" 1 $?
 echo "this is not audio" > "$T/notwav.wav"
 run "$T/notwav.wav"; expect_exit "not a WAV file" 2 $?
-grep -q "not a WAV" "$T/stderr" && ok "not a WAV: message names the problem" || bad "not a WAV: no useful message ($(cat "$T/stderr"))"
+grep -q "undecodable audio" "$T/stderr" && ok "not a WAV: message names the problem" || bad "not a WAV: no useful message ($(cat "$T/stderr"))"
 run "$T/missing.wav"; expect_exit "missing file" 2 $?
 run; expect_exit "--batch without files" 2 $?
 run --mode NOSUCH "$T/jb.wav"; expect_exit "unknown --mode" 2 $?

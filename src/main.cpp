@@ -111,7 +111,7 @@ int main( int argc, char ** argv )
   QCommandLineParser parser;
   // QSSTV-Experimental is built upon the original QSSTV 9.5.11 by Johan Maes, ON4QZ
   // (https://www.qsl.net/o/on4qz).
-  parser.setApplicationDescription("QSSTV-Experimental: receive and transmit SSTV. Recordings (WAV files) can be decoded from the command line.");
+  parser.setApplicationDescription("QSSTV-Experimental: receive and transmit SSTV. Recordings (WAV, MP3, FLAC, OGG, AAC) can be decoded from the command line.");
   QCommandLineOption helpOpt(QStringList() << "h" << "help","Show this help.");
   QCommandLineOption versionOpt(QStringList() << "v" << "version","Show the version.");
   QCommandLineOption decodeOpt(QStringList() << "d" << "decode","Decode the SSTV recording <file> (repeatable; bare arguments are files too). "
@@ -127,7 +127,7 @@ int main( int argc, char ** argv )
   QCommandLineOption timeoutOpt("timeout","With --batch: give up on a file after this many seconds (default: its length + 30 s).","seconds");
   QCommandLineOption listOpt("list-modes","Print the mode names that --mode accepts and exit.");
   parser.addOptions(QList<QCommandLineOption>() << helpOpt << versionOpt << decodeOpt << batchOpt << outDirOpt << modeOpt << engineOpt << wideOpt << slantOpt << timeoutOpt << listOpt);
-  parser.addPositionalArgument("file.wav","SSTV recordings to decode (same as --decode).","[file.wav ...]");
+  parser.addPositionalArgument("file","SSTV recordings to decode (same as --decode).","[file ...]");
   if(!parser.parse(app.arguments()))
     {
       fprintf(stderr,"%s\nTry --help.\n",parser.errorText().toLocal8Bit().constData());
