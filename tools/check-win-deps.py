@@ -25,6 +25,8 @@ import sys
 
 SYSROOT = "/usr/x86_64-w64-mingw32/sys-root/mingw"
 OBJDUMP = "x86_64-w64-mingw32-objdump"
+# AVIF/HEIC plugins and their libs, cross-built by tools/build-image-plugins-win64.sh (optional)
+VENDORED = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "third_party", "imageformats-win64")
 
 # Plugins this app loads at runtime (not visible in qsstv.exe's own import table --
 # Qt loads them dynamically) -- keep in sync with the install(FILES ... DESTINATION
@@ -36,6 +38,8 @@ PLUGIN_DLLS = [
     f"{SYSROOT}/lib/qt6/plugins/imageformats/qwebp.dll",
     f"{SYSROOT}/lib/qt6/plugins/styles/qmodernwindowsstyle.dll",
 ]
+PLUGIN_DLLS += [p for p in (f"{VENDORED}/plugins/imageformats/kimg_avif.dll",
+                            f"{VENDORED}/plugins/imageformats/kimg_heif.dll") if os.path.exists(p)]
 
 
 def dll_names(path):
@@ -44,7 +48,7 @@ def dll_names(path):
 
 
 def find_in_sysroot(name):
-    search_dirs = [f"{SYSROOT}/bin"]
+    search_dirs = [f"{SYSROOT}/bin", f"{VENDORED}/bin"]
     for root, _dirs, _files in os.walk(f"{SYSROOT}/lib/qt6/plugins"):
         search_dirs.append(root)
     for d in search_dirs:

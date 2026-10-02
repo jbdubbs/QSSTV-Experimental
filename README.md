@@ -138,14 +138,19 @@ OpenJPEG.
 | Format | Linux AppImage | Windows ZIP | Source build |
 |---|---|---|---|
 | WebP | yes | yes | needs Qt's `qtimageformats` (Fedora `qt6-qtimageformats`) |
-| AVIF | yes | no | needs KDE `kimageformats` + libavif |
-| HEIC/HEIF | yes | no | needs `kimageformats` + libheif **with an HEVC decoder** (e.g. Fedora's `libheif-freeworld`, Debian/Ubuntu `libheif-plugin-libde265`) |
+| AVIF | yes | yes | needs KDE `kimageformats` + libavif |
+| HEIC/HEIF | yes | yes | needs `kimageformats` + libheif **with an HEVC decoder** (e.g. Fedora's `libheif-freeworld`, Debian/Ubuntu `libheif-plugin-libde265`) |
 
 Fedora's stock libheif has no HEVC decoder, so HEIC does not load there until a freeworld/
 HEVC-capable libheif is installed; AVIF is unaffected. The image dialogs list only the
 formats your build can actually read. The AppImage builds `kimageformats` itself and bundles
-the libheif codec plugins (see `packaging/appimage/`). AVIF/HEIC for Windows would need
-libheif/libavif cross-built from source and is not available yet.
+the libheif codec plugins (see `packaging/appimage/`). The Windows ZIP gets AVIF/HEIC from
+`tools/build-image-plugins-win64.sh`, which cross-builds libde265, libaom, libheif, libavif and
+the `kimg_avif`/`kimg_heif` plugins into `third_party/imageformats-win64` (run it once before
+`cmake --build`/`cpack`; without it the package just lacks those two formats). There the codecs
+are linked into `libheif.dll`/`libavif.dll`, so no codec plugin files are needed. HEIC decoding
+uses libde265 (LGPL) for HEVC; HEVC patent exposure varies by jurisdiction. Not yet tested on
+a real Windows machine.
 
 ### Debug Compile
 If you have problems compiling the software, please give as much information as possible but at least:

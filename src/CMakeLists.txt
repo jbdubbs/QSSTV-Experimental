@@ -472,9 +472,20 @@ if(WIN32)
   install(FILES "${MINGW_SYSROOT}/lib/qt6/plugins/platforms/qwindows.dll" DESTINATION platforms)
   install(FILES "${MINGW_SYSROOT}/lib/qt6/plugins/multimedia/windowsmediaplugin.dll" DESTINATION multimedia)
   install(FILES "${MINGW_SYSROOT}/lib/qt6/plugins/imageformats/qjpeg.dll" DESTINATION imageformats)
-  # WebP (mingw64-qt6-qtimageformats + mingw64-libwebp). AVIF/HEIC are Linux-only for now:
-  # no mingw package for libheif/libavif/kimageformats exists.
+  # WebP (mingw64-qt6-qtimageformats + mingw64-libwebp).
   install(FILES "${MINGW_SYSROOT}/lib/qt6/plugins/imageformats/qwebp.dll" DESTINATION imageformats)
+  # AVIF/HEIC: KDE kimageformats plugins plus libheif/libavif (codecs linked in statically),
+  # cross-built from source by tools/build-image-plugins-win64.sh into third_party/ (no mingw
+  # packages exist). Optional: the package simply lacks those two formats if it was not run.
+  set(QSSTV_IMGFMT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/imageformats-win64")
+  if(EXISTS "${QSSTV_IMGFMT_DIR}/plugins/imageformats/kimg_heif.dll"
+     AND EXISTS "${QSSTV_IMGFMT_DIR}/plugins/imageformats/kimg_avif.dll")
+    install(FILES "${QSSTV_IMGFMT_DIR}/plugins/imageformats/kimg_heif.dll"
+                  "${QSSTV_IMGFMT_DIR}/plugins/imageformats/kimg_avif.dll" DESTINATION imageformats)
+    install(FILES "${QSSTV_IMGFMT_DIR}/bin/libheif.dll" "${QSSTV_IMGFMT_DIR}/bin/libavif.dll" DESTINATION .)
+  else()
+    message(STATUS "AVIF/HEIC plugins not found in ${QSSTV_IMGFMT_DIR} -- run tools/build-image-plugins-win64.sh to include them")
+  endif()
   install(FILES "${MINGW_SYSROOT}/lib/qt6/plugins/styles/qmodernwindowsstyle.dll" DESTINATION styles)
 endif()
 
