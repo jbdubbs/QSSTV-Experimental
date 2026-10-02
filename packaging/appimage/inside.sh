@@ -12,7 +12,7 @@ done
     --disable-static --enable-shared && make -j"$(nproc)" && make install ) >/tmp/hamlib.log 2>&1 || { tail -40 /tmp/hamlib.log; exit 1; }
 
 cmake -S $B/qsstv-experimental/src -B $B/qsstv-experimental/build-cmake -DCMAKE_BUILD_TYPE=Release \
-  -DHAMLIB_ROOT=$B/hamlib-upstream-sstv/install
+  -DHAMLIB_ROOT=$B/hamlib-upstream-sstv/install -DCMAKE_PREFIX_PATH=$QT_ROOT
 cmake --build $B/qsstv-experimental/build-cmake -j"$(nproc)"
 APPDIR=$B/AppDir
 cmake --install $B/qsstv-experimental/build-cmake --prefix $APPDIR/usr
@@ -22,12 +22,12 @@ cmake --install $B/qsstv-experimental/build-cmake --prefix $APPDIR/usr
 L=/usr/lib/x86_64-linux-gnu
 FORCE=()
 for pat in libasound libusb-1.0 libudev libEGL libGLX libGL libGLdispatch libOpenGL libX11 libX11-xcb \
-  libxcb 'libxcb-*' libXau libXdmcp libbsd libmd libfontconfig libfreetype libharfbuzz libexpat libSM libICE libdrm libfribidi libwayland-client; do
+  libxcb 'libxcb-*' libXau libXdmcp libbsd libmd libfontconfig libfreetype libharfbuzz libexpat libXrandr libXrender libXext libXfixes libSM libICE libdrm libfribidi libwayland-client; do
   for f in $L/$pat.so.*; do [ -e "$f" ] && FORCE+=(--library "$f"); done
 done
 
 cd $B
-export APPIMAGE_EXTRACT_AND_RUN=1 QMAKE=/usr/lib/qt6/bin/qmake6 VERSION NO_STRIP=1 PATCHELF=/usr/bin/patchelf
+export APPIMAGE_EXTRACT_AND_RUN=1 QMAKE=$QT_ROOT/bin/qmake LD_LIBRARY_PATH=$QT_ROOT/lib VERSION NO_STRIP=1 PATCHELF=/usr/bin/patchelf
 export EXTRA_PLATFORM_PLUGINS=libqoffscreen.so   # --batch headless mode needs offscreen
 linuxdeploy --appdir $APPDIR "${FORCE[@]}" \
   --executable $APPDIR/usr/bin/qsstv \
