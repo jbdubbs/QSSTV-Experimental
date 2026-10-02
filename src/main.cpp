@@ -85,6 +85,28 @@ static void chooseHeadlessPlatform(int argc,char **argv)
     }
 }
 
+/*!
+  The AppImage bundles Qt without a desktop platform theme (no GTK/KDE), so it falls back to plain Fusion with a
+  near-white window colour: text boxes and unchecked checkboxes then vanish into the background. Darken the window
+  and button colours (Fusion paints tab pages with the button colour) of a light scheme so the white fields and indicator boxes stand out. Dark schemes and desktops with a
+  real platform theme are left alone.
+*/
+static void fixBareFusionLook()
+{
+#ifdef Q_OS_LINUX
+  if(!qEnvironmentVariableIsSet("APPIMAGE")) return;
+  QString theme=qEnvironmentVariable("QT_QPA_PLATFORMTHEME");
+  if(theme.contains("gtk") || theme.contains("kde")) return;
+  if(QApplication::style()->name().compare("fusion",Qt::CaseInsensitive)!=0) return;
+  QPalette pal=QApplication::palette();
+  if(pal.color(QPalette::Window).lightness()<200) return;
+  pal.setColor(QPalette::Window,QColor(0xe6,0xe6,0xe6));
+  pal.setColor(QPalette::Button,QColor(0xdc,0xdc,0xdc));
+  pal.setColor(QPalette::Base,Qt::white);
+  QApplication::setPalette(pal);
+#endif
+}
+
 int main( int argc, char ** argv )
 {
 
@@ -99,6 +121,7 @@ int main( int argc, char ** argv )
   QCoreApplication::setOrganizationName(ORGANIZATION);
   QCoreApplication::setApplicationName(APPLICATION);
   QApplication app( argc, argv );
+  fixBareFusionLook();
   if(qEnvironmentVariableIsSet("QSSTV_LOG_FORMATS"))
     {
       // diagnostic: which image formats this Qt/plugin set can read, and the dialog filter built from them
