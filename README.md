@@ -129,6 +129,24 @@ comment if a build ever segfaults on startup under every Qt platform backend —
 known, already-solved issue with how some versions of `linuxdeploy` patch RELR-relocated
 binaries, not a QSSTV-Experimental bug.
 
+### Image formats
+
+Pictures are loaded and saved through Qt's image plugins, so which formats work depends on
+the plugins your Qt provides. PNG, JPEG, GIF and BMP always work; JPEG 2000 is handled by
+OpenJPEG.
+
+| Format | Linux AppImage | Windows ZIP | Source build |
+|---|---|---|---|
+| WebP | yes | yes | needs Qt's `qtimageformats` (Fedora `qt6-qtimageformats`) |
+| AVIF | yes | no | needs KDE `kimageformats` + libavif |
+| HEIC/HEIF | yes | no | needs `kimageformats` + libheif **with an HEVC decoder** (e.g. Fedora's `libheif-freeworld`, Debian/Ubuntu `libheif-plugin-libde265`) |
+
+Fedora's stock libheif has no HEVC decoder, so HEIC does not load there until a freeworld/
+HEVC-capable libheif is installed; AVIF is unaffected. The image dialogs list only the
+formats your build can actually read. The AppImage builds `kimageformats` itself and bundles
+the libheif codec plugins (see `packaging/appimage/`). AVIF/HEIC for Windows would need
+libheif/libavif cross-built from source and is not available yet.
+
 ### Debug Compile
 If you have problems compiling the software, please give as much information as possible but at least:
 * OS and version (e.g. Fedora 44, Ubuntu 24.04, Windows 11)
