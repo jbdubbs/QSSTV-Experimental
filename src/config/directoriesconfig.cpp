@@ -23,6 +23,7 @@
 #include "ui_directoriesconfig.h"
 
 #include <QStandardPaths>
+#include "appglobal.h"
 
 
 QString rxSSTVImagesPath;
@@ -59,10 +60,11 @@ directoriesConfig::~directoriesConfig()
 void directoriesConfig::readSettings()
 {
   QSettings qSettings;
-  // getenv("HOME") isn't reliably set on Windows; QStandardPaths::AppDataLocation is the
-  // portable equivalent of the old "$HOME/qsstv/..." tree (it's already namespaced by the
-  // organization/application name set in main.cpp, so the "qsstv" segment is dropped here).
-  QString appDataPath=QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+  // getenv("HOME") isn't reliably set on Windows; QStandardPaths gives the portable location.
+  // GenericDataLocation + APPNAME is used instead of AppDataLocation because the latter embeds
+  // the QSettings organization/application names (ON4QZ/qsstv_9.0), which are kept only so
+  // existing users' settings still load and shouldn't leak into user-visible directories.
+  QString appDataPath=QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)+"/"+APPNAME;
   qSettings.beginGroup("DIRECTORIES");
   rxSSTVImagesPath=qSettings.value("rxSSTVImagesPath",appDataPath+"/rx_sstv/").toString();
   rxDRMImagesPath=qSettings.value("rxDRMImagesPath",appDataPath+"/rx_drm/").toString();
