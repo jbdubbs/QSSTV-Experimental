@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libx11-xcb-dev libxrandr-dev libxcb-cursor-dev libxcb-glx0-dev libxcb-icccm4-dev libxcb-image0-dev libxcb-keysyms1-dev libxcb-randr0-dev \
     libxcb-render-util0-dev libxcb-shape0-dev libxcb-sync-dev libxcb-xfixes0-dev libxcb-xinerama0-dev libxcb-xkb-dev libxcb-util-dev \
     libfftw3-dev libasound2-dev libpulse-dev libopenjp2-7-dev libv4l-dev libjpeg-dev \
+    extra-cmake-modules libheif-dev libavif-dev libheif-plugin-libde265 libheif-plugin-aomdec libheif-plugin-dav1d \
     patchelf desktop-file-utils appstream \
     && rm -rf /var/lib/apt/lists/*
 # Qt: the official Qt 6.11 binaries (via aqtinstall), NOT Ubuntu 24.04's Qt 6.4.2 -- 6.4's
@@ -18,8 +19,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # binaries themselves are built against an older glibc).
 ARG QT_VERSION=6.11.2
 RUN pip3 install --break-system-packages aqtinstall \
- && aqt install-qt linux desktop $QT_VERSION linux_gcc_64 -m qtmultimedia qtserialport -O /opt/Qt
+ && aqt install-qt linux desktop $QT_VERSION linux_gcc_64 -m qtmultimedia qtserialport qtimageformats -O /opt/Qt
 ENV QT_ROOT=/opt/Qt/$QT_VERSION/gcc_64
+# AVIF/HEIC: Qt itself has no plugin for them (qtimageformats gives WebP/TIFF/TGA/...), so
+# build KDE's kimageformats heif/avif plugins against this Qt and drop them in its plugin dir
+# where linuxdeploy-plugin-qt picks them up. Tag must stay <= the KF6 ECM Ubuntu ships.
+ARG KIMAGEFORMATS_TAG=v6.10.0
+RUN git clone --depth 1 --branch $KIMAGEFORMATS_TAG https://invent.kde.org/frameworks/kimageformats.git /tmp/kif \
+ && cmake -S /tmp/kif -B /tmp/kif/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=$QT_ROOT \
+      -DKIMAGEFORMATS_HEIF=ON -DKDE_INSTALL_QTPLUGINDIR=$QT_ROOT/plugins -DBUILD_TESTING=OFF \
+ && cmake --build /tmp/kif/build -j"$(nproc)" && cmake --install /tmp/kif/build \
+ && ls $QT_ROOT/plugins/imageformats/ && rm -rf /tmp/kif
 # linuxdeploy tools, extracted (no FUSE inside a container)
 WORKDIR /opt/linuxdeploy
 RUN wget -q -O linuxdeploy.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \

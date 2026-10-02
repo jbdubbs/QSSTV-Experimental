@@ -184,7 +184,7 @@ void editor::slotFileOpen()
   /*	QFileDialog *fd = new QFileDialog(this,0,true);
   fd->show();*/
   dirDialog d(this,0);
-  QString s=d.openFileName(templatesPath,"*.png *.gif *.jpg *.templ");
+  QString s=d.openFileName(templatesPath,imageNameFilter("*.templ"));
   if (s.isNull()) return ;
   if (s.isEmpty()) return ;
   localFile.setFileName(s);

@@ -33,6 +33,7 @@ PLUGIN_DLLS = [
     f"{SYSROOT}/lib/qt6/plugins/platforms/qwindows.dll",
     f"{SYSROOT}/lib/qt6/plugins/multimedia/windowsmediaplugin.dll",
     f"{SYSROOT}/lib/qt6/plugins/imageformats/qjpeg.dll",
+    f"{SYSROOT}/lib/qt6/plugins/imageformats/qwebp.dll",
     f"{SYSROOT}/lib/qt6/plugins/styles/qmodernwindowsstyle.dll",
 ]
 

@@ -455,6 +455,10 @@ if(WIN32)
     libpcre2-8-0.dll
     libpng16-16.dll
     zlib1.dll
+    libwebp-7.dll
+    libwebpdemux-2.dll
+    libwebpmux-3.dll
+    libsharpyuv-0.dll
   )
   foreach(_dll ${QSSTV_WIN_RUNTIME_DLLS})
     install(FILES "${MINGW_SYSROOT}/bin/${_dll}" DESTINATION .)
@@ -468,6 +472,9 @@ if(WIN32)
   install(FILES "${MINGW_SYSROOT}/lib/qt6/plugins/platforms/qwindows.dll" DESTINATION platforms)
   install(FILES "${MINGW_SYSROOT}/lib/qt6/plugins/multimedia/windowsmediaplugin.dll" DESTINATION multimedia)
   install(FILES "${MINGW_SYSROOT}/lib/qt6/plugins/imageformats/qjpeg.dll" DESTINATION imageformats)
+  # WebP (mingw64-qt6-qtimageformats + mingw64-libwebp). AVIF/HEIC are Linux-only for now:
+  # no mingw package for libheif/libavif/kimageformats exists.
+  install(FILES "${MINGW_SYSROOT}/lib/qt6/plugins/imageformats/qwebp.dll" DESTINATION imageformats)
   install(FILES "${MINGW_SYSROOT}/lib/qt6/plugins/styles/qmodernwindowsstyle.dll" DESTINATION styles)
 endif()
 

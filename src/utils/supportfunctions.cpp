@@ -23,6 +23,8 @@
 #include "appglobal.h"
 #include <QDateTime>
 #include <QDebug>
+#include <QImageReader>
+#include <QSet>
 #include <stdarg.h>
 #include "dirdialog.h"
 
@@ -322,3 +324,22 @@ unsigned long timingAnalyser::result()
 
 
 
+
+/*!
+   \brief name filter ("*.png *.jpg ...") of every image format the installed Qt plugins can read
+   \param extra additional patterns appended to the list (e.g. "*.templ")
+*/
+QString imageNameFilter(const QString &extra)
+{
+  QSet<QString> seen;
+  QStringList patterns;
+  foreach(QByteArray fmt,QImageReader::supportedImageFormats())
+    {
+      QString p=QString("*.")+QString::fromLatin1(fmt).toLower();
+      if(seen.contains(p)) continue;
+      seen.insert(p);
+      patterns.append(p);
+    }
+  if(!extra.isEmpty()) patterns.append(extra);
+  return patterns.join(' ');
+}
