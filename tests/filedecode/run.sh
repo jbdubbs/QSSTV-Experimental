@@ -9,6 +9,8 @@
 #   QSSTV_BIN=/path/to/qsstv tests/filedecode/run.sh
 #
 # Needs: the built qsstv, g++/Qt6 headers (for the harness), and ffmpeg (optional: adds format/rate variants).
+# The mmsstv-core checks (forced mode, sensitivity, Auto Slant) also need mmsstv-core's encode_wav_tool
+# (ENCODE_WAV_TOOL, default ../../build-cmake/mmsstv-core/tests/encode_wav_tool); Auto Slant also needs ffmpeg. Skipped if absent.
 HERE=$(cd "$(dirname "$0")" && pwd)
 QSSTV=${QSSTV_BIN:-$HERE/../../build-qt6/qsstv}
 LB="$HERE/../jb60_loopback/loopback"
@@ -127,6 +129,64 @@ run --engine qsstv --wide-filter on -o "$T/o_wide" "$T/jb.wav"; expect_exit "wid
 run --engine qsstv -o "$T/o_two" "$T/jb2.wav"; rc=$?
 n=$(ls "$T"/o_two/*.png 2>/dev/null | wc -l)
 [ $rc = 0 ] && [ "$n" = 2 ] && ok "two pictures in one file -> $n files" || bad "two pictures in one file: exit $rc, $n files"
+
+echo "== mmsstv-core engine: forced mode, sensitivity, auto slant"
+ENC=${ENCODE_WAV_TOOL:-$HERE/../../build-cmake/mmsstv-core/tests/encode_wav_tool}
+if [ ! -x "$ENC" ]; then
+  echo "  skip mmsstv-core checks (no encode_wav_tool at $ENC; set ENCODE_WAV_TOOL)"
+else
+  # Native MMSSTV recordings (VIS first), so the Core engine's fidelity is meaningful (QSSTV-sent PD120 is not).
+  "$ENC" "$T/c_m1.wav" martin1 2>/dev/null; "$ENC" "$T/c_pd.wav" pd120 2>/dev/null
+  cpng() { ls "$1"/*.png 2>/dev/null | head -1; }                   # the one picture a batch run wrote to a dir
+  ssim() { "$LB" --compare "$1" "$2" | awk '{print $9}'; }          # SSIM of two PNGs
+
+  run --engine core --mode M1 -o "$T/o_cfm" "$T/c_m1.wav"; rc=$?
+  expect_exit "core: forced correct mode" 0 $rc
+  [ -n "$(cpng "$T/o_cfm")" ] && ok "core: forced correct mode wrote a picture" || bad "core: forced correct mode wrote no picture"
+  run --engine core --mode PD120 -o "$T/o_cfw" "$T/c_m1.wav"; expect_exit "core: forced wrong mode finds nothing" 1 $?
+
+  # Sensitivity has no CLI option; it is the RX/sensitivity setting (0 Low, 1 Normal, 2 High, 3 DX), mapped onto the
+  # demodulator's inverted m_SenseLvl. Only a smoke check: a clean signal must decode at every level.
+  CONF="$HOME/.config/ON4QZ/qsstv_9.0.conf"; mkdir -p "$(dirname "$CONF")"
+  for s in 0 1 2 3; do
+    printf '[RX]\nsensitivity=%s\n' $s > "$CONF"
+    run --engine core -o "$T/o_sens$s" "$T/c_m1.wav"; expect_exit "core: sensitivity $s decodes a clean signal" 0 $?
+  done
+  rm -f "$CONF"
+
+  if ! command -v ffmpeg >/dev/null; then
+    echo "  skip auto slant (needs ffmpeg)"
+  else
+    # Reference = the undrifted recording's own Core decode (isolates slant correction from the channel's baseline).
+    # Drift is a 100-1000 ppm sample-clock error; much larger also shifts the FM tones and breaks VIS/AFC regardless.
+    for m in m1:M1 pd:PD120; do
+      f=${m%%:*}; M=${m##*:}; w="$T/c_$f.wav"
+      run --engine core --slant off -o "$T/s_ref_$f" "$w"; ref=$(cpng "$T/s_ref_$f")
+      [ -n "$ref" ] || { bad "slant $M: no reference decode"; continue; }
+      run --engine core --slant on -o "$T/s_zero_$f" "$w"; z=$(cpng "$T/s_zero_$f")
+      # measured: M1 SSIM 0.957, PD120 0.982 (slant on vs off, no drift)
+      if [ -n "$z" ] && ge "$(ssim "$ref" "$z")" 0.94; then ok "slant $M: near no-op at zero drift (SSIM $(ssim "$ref" "$z"))"
+      else bad "slant $M: zero drift changed the picture (SSIM $( [ -n "$z" ] && ssim "$ref" "$z" ))"; fi
+      for ppm in -1000 -500 -100 100 500 1000; do
+        d="$T/d_${f}_$ppm.wav"
+        ffmpeg -v error -y -i "$w" -af "asetrate=$(awk -v p=$ppm 'BEGIN{printf "%.2f",48000*(1+p/1e6)}'),aresample=48000" "$d"
+        run --engine core --slant off -o "$T/s_off_${f}_$ppm" "$d"; off=$(cpng "$T/s_off_${f}_$ppm")
+        run --engine core --slant on -o "$T/s_on_${f}_$ppm" "$d"; on=$(cpng "$T/s_on_${f}_$ppm")
+        if [ -z "$off" ] || [ -z "$on" ]; then bad "slant $M $ppm ppm: no picture (off='$off' on='$on')"; continue; fi
+        poff=$(luma "$ref" "$off"); pon=$(luma "$ref" "$on")
+        # measured gains: 2.5 dB (M1, 100 ppm) up to 13 dB; require at least 1 dB everywhere
+        if ge "$pon" "$(awk -v a="$poff" 'BEGIN{print a+1}')"; then ok "slant $M $ppm ppm: luma PSNR $poff -> $pon dB"
+        else bad "slant $M $ppm ppm: luma PSNR $poff -> $pon dB (expected >= +1 dB)"; fi
+        # SSIM is flat at 100 ppm (already ~0.955 with slant off); require a clear gain only where the drift is visible
+        case $ppm in -100|100) ;; *)
+          soff=$(ssim "$ref" "$off"); son=$(ssim "$ref" "$on")
+          if ge "$son" "$(awk -v a="$soff" 'BEGIN{print a+0.02}')"; then ok "slant $M $ppm ppm: SSIM $soff -> $son"
+          else bad "slant $M $ppm ppm: SSIM $soff -> $son (expected >= +0.02)"; fi ;;
+        esac
+      done
+    done
+  fi
+fi
 
 echo "== truncated recording (45% of the picture)"
 python3 - "$T/jb.wav" "$T/trunc.wav" <<'EOF'
