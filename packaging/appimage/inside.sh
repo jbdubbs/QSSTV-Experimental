@@ -26,6 +26,20 @@ for pat in libasound libusb-1.0 libudev libEGL libGLX libGL libGLdispatch libOpe
   for f in $L/$pat.so.*; do [ -e "$f" ] && FORCE+=(--library "$f"); done
 done
 
+# libheif dlopen()s its codec plugins (HEVC/AV1 decoders) at runtime, so linuxdeploy can't see
+# them: pass each one with --library (bundles its codec deps), copy it where the hook below
+# points LIBHEIF_PLUGIN_PATH, and set that path at startup.
+HP=$L/libheif/plugins
+mkdir -p $APPDIR/usr/lib/libheif/plugins $APPDIR/apprun-hooks
+for f in $HP/*.so; do
+  [ -e "$f" ] || continue
+  cp "$f" $APPDIR/usr/lib/libheif/plugins/
+  FORCE+=(--library "$f")
+done
+cat > $APPDIR/apprun-hooks/libheif-plugins.sh <<'H'
+export LIBHEIF_PLUGIN_PATH="$APPDIR/usr/lib/libheif/plugins"
+H
+
 cd $B
 export APPIMAGE_EXTRACT_AND_RUN=1 QMAKE=$QT_ROOT/bin/qmake LD_LIBRARY_PATH=$QT_ROOT/lib VERSION NO_STRIP=1 PATCHELF=/usr/bin/patchelf
 export EXTRA_PLATFORM_PLUGINS=libqoffscreen.so   # --batch headless mode needs offscreen
