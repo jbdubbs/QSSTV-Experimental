@@ -20,6 +20,10 @@
 ***************************************************************************/
 
 #ifdef Q_OS_WIN
+#include <QDir>
+#include <QFileInfo>
+#include <QStandardPaths>
+#include <QFileDialog>
 #include <windows.h> // WM_POWERBROADCAST / PBT_APMRESUME* -- see nativeEvent() below
 #endif
 #include "mainwindow.h"
@@ -375,34 +379,44 @@ void mainWindow::setNewFont()
 void mainWindow::slotSaveWaterfallImage()
 {
   QImage *wf = ui->spectrumFrame->getImage();
-  if (wf) {
-      double freq=0;
-      QDateTime now=QDateTime::currentDateTime();
-      QString fn="waterfall-"+now.toString("yyyyMMddhhmmss")+".jpg";
+  if(!wf)
+    {
+      QMessageBox::information(this,tr("Save Waterfall Image"),tr("There is no waterfall image to save yet."));
+      return;
+    }
+  double freq=0;
+  QDateTime now=QDateTime::currentDateTime();
+  QImage im(wf->width()+2, wf->height()+22, QImage::Format_RGB32);
+  {
+    QPainter p(&im);
+    im.fill(Qt::black);
+    p.setPen(Qt::lightGray);
+    p.drawImage(2,20,*wf);
+    p.drawRect(0,0,wf->width()+1,wf->height()+21);
 
-      QImage im(wf->width()+2, wf->height()+22, QImage::Format_RGB32);
-      QPainter p(&im);
+    rigControllerPtr->getFrequency(freq);
+    if (freq>0)
+      p.drawText(1,15, QString("%1 MHz").arg(freq/1000000.0,1,'f',6));
+    else
+      p.drawText(1,15, "no freq");
+  }
+  delete wf;
 
-      im.fill(Qt::black);
-      p.setPen(Qt::lightGray);
-      p.drawImage(2,20,*wf);
-      p.drawRect(0,0,wf->width()+1,wf->height()+21);
-
-      //TODO: rig frequency etc
-      rigControllerPtr->getFrequency(freq);
-      if (freq>0)
-        p.drawText(1,15, QString("%1 MHz").arg(freq/1000000.0,1,'f',6));
-      else
-        p.drawText(1,15, "no freq");
-
-      if (im.save(fn, "jpg"))
-        {
-          statusBarPtr->showMessage("Saved "+fn);
-        }
-      else {
-          statusBarPtr->showMessage("Error saving image");
-        }
-      delete wf;
+  // ask where to save: the old silent save into the working directory was easy to miss
+  QString dflt=QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+  if(dflt.isEmpty()) dflt=QDir::homePath();
+  QString fn=QFileDialog::getSaveFileName(this,tr("Save Waterfall Image"),
+                                          dflt+"/waterfall-"+now.toString("yyyyMMddhhmmss")+".jpg",
+                                          tr("Images (*.jpg *.png)"));
+  if(fn.isEmpty()) return;
+  if(QFileInfo(fn).suffix().isEmpty()) fn+=".jpg";
+  if(im.save(fn))
+    {
+      statusBarPtr->showMessage("Saved "+fn,10000);
+    }
+  else
+    {
+      QMessageBox::warning(this,tr("Save Waterfall Image"),tr("Unable to save image to:\n%1").arg(fn));
     }
 }
 
