@@ -122,7 +122,7 @@ namespace
   }
 
   // ------------------------------------------------------------------ channel
-  const double kAudioAmp=8000.;      // what synthesizer::nextSample produces
+  const double kAudioAmp=24578.;     // what synthesizer::nextSample produces (TXSINEPEAK)
 
   // a frequency of 0 means silence
   std::vector<double> makeAudio(const std::vector<float> &f48)

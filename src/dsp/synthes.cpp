@@ -33,6 +33,11 @@
 //  This value is added to the old index  of the sine table.
 */
 
+// Peak amplitude of the classic engine's TX tones. Upstream QSSTV used 8000 (-12 dBFS);
+// 24578 (-2.5 dBFS) matches mmsstv-core's CSSTVMOD m_outgain, so both engines (and MMSSTV)
+// transmit at the same level and the OS playback volume has enough range.
+#define TXSINEPEAK 24578.
+
 synthesizer *synthesPtr;
 
 synthesizer::synthesizer(double txSmpClock)
@@ -43,7 +48,7 @@ synthesizer::synthesizer(double txSmpClock)
   addToLog(QString("synthes: tx sampling clock=%1").arg(txSamplingClock),LOGSOUND);
   for (i=0;i<SINTABLEN;i++)
     {
-      sineTable[i]=(sin(((double)i*M_PI*2.)/SINTABLEN)*8000.);
+      sineTable[i]=(sin(((double)i*M_PI*2.)/SINTABLEN)*TXSINEPEAK);
     }
 
 //  waterfallPtr= new waterfallText;
