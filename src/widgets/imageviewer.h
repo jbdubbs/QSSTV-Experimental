@@ -171,6 +171,7 @@ private:
   QAction *copyAct;
   QAction *pasteAct;
   QImage clipboardImage();
+  void clearTxImage();
 
   int gridCols;
   int gridRows;

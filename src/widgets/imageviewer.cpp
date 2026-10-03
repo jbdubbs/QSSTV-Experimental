@@ -583,6 +583,7 @@ void imageViewer::setType(thumbType tp)
       popup->addAction(printAct);
       popup->addAction(viewAct);
       popup->addAction(propertiesAct);
+      popup->addAction(deleteAct);   // removes the image (or grid segment) from TX, the file is kept
       break;
 
     case PREVIEW:
@@ -692,6 +693,7 @@ void imageViewer::mousePressEvent( QMouseEvent *e )
             }
           copyAct->setEnabled(gridActive() ? !segImages.value(activeSeg).isNull() : (hasValidImage() || !displayedImage.isNull()));
           pasteAct->setEnabled(!clipboardImage().isNull());
+          if(ttype==TXIMG) deleteAct->setEnabled(gridActive() ? !segImages.value(activeSeg).isNull() : hasValidImage());
           //              if (pixmap())
           if(hasValidImage())
 
@@ -715,6 +717,11 @@ void imageViewer::slotLeftClick()
 
 void imageViewer::slotDelete()
 {
+  if(ttype==TXIMG)
+    {
+      clearTxImage();
+      return;
+    }
   int exit=QMessageBox::Yes;
   if(imageFileName.isEmpty()) return;
   if(confirmDeletion)
@@ -728,6 +735,28 @@ void imageViewer::slotDelete()
 
   imageFileName="";
   emit layoutChanged();
+}
+
+// TX image: drop the image (or just the selected grid segment) without touching any file
+void imageViewer::clearTxImage()
+{
+  if(gridActive())
+    {
+      segImages[activeSeg]=QImage();
+      segFiles[activeSeg].clear();
+      selectSegment(activeSeg);
+      applyTemplate();
+    }
+  else
+    {
+      if(!hasValidImage()) return;
+      QImage blank((targetWidth>0 && targetHeight>0) ? QSize(targetWidth,targetHeight) : QSize(320,256),QImage::Format_ARGB32_Premultiplied);
+      blank.fill(imageBackGroundColor);
+      openImage(blank);
+      validImage=true;
+    }
+  displayImage();
+  emit imageChanged();
 }
 
 void imageViewer::slotEdit()
@@ -1455,6 +1484,11 @@ void imageViewer::keyPressEvent(QKeyEvent *e)
   if(e->matches(QKeySequence::Copy) && popup->actions().contains(copyAct))
     {
       slotCopy();
+      return;
+    }
+  if(e->matches(QKeySequence::Delete) && popup->actions().contains(deleteAct))
+    {
+      if(ttype!=TXIMG || (gridActive() ? !segImages.value(activeSeg).isNull() : hasValidImage())) slotDelete();
       return;
     }
   if(e->matches(QKeySequence::Paste) && popup->actions().contains(pasteAct))
