@@ -57,6 +57,18 @@ void configDialog::readSettings()
   ui->freqSelectWidget->readSettings();
 }
 
+/**
+    Sets the receive and transmit clock (e.g. from a calibration) and shows them in Configuration > Sound.
+    soundConfig::writeSettings() takes the clocks from those fields, so they must be updated too or the
+    old values would be written back over the new ones.
+*/
+void configDialog::setSoundClocks(double rx,double tx)
+{
+  rxClock=rx;
+  txClock=tx;
+  ui->soundWidget->setParams();
+}
+
 void configDialog::writeSettings()
 {
   ui->operatorWidget->writeSettings();

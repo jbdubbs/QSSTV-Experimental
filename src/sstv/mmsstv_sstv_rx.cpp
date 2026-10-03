@@ -5,6 +5,7 @@
 #include "mmsstv_sstv_rx.h"
 
 #include "appglobal.h"
+#include "soundconfig.h"   // rxClock
 #include "rxwidget.h"
 #include "imageviewer.h"
 #include "dispatcher.h"
@@ -104,8 +105,8 @@ MmsstvSstvRx::MmsstvSstvRx()
 	// read found and eliminated (auditing every CSSTVDEM sub-object's
 	// constructor -- CIIRTANK, CIIR, CPLL, CVCO, CSmooz, CFIR2, CSYNCINT,
 	// etc.), not a workaround -- deferred; see the Step 13 plan notes.
-	SampFreq = 48000.0;
-	SampBase = 48000.0;
+	SampBase = 48000.0;   // nominal rate: only sizes filters
+	SampFreq = rxClock;   // calibrated rate (Options > Calibrate), sets the slot timing
 	sys.m_SampFreq = SampFreq;
 	dem = new CSSTVDEM();
 }
@@ -162,6 +163,10 @@ void MmsstvSstvRx::processSamples(const double *samples, int count)
 {
 	serviceAbort();
 	syncSensitivity();
+	// Pick up a new calibration (and undo the transmit bridge's temporary txClock). SetMode() reads
+	// sys.m_SampFreq when a picture starts, so this is all the demodulator needs.
+	SampFreq = rxClock;
+	sys.m_SampFreq = rxClock;
 
 	if (!(mmsstvSlantActive() && trackingImage)) {
 		// Feature off (or not currently tracking a picture): exact

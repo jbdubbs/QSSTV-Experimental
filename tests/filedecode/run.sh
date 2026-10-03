@@ -185,6 +185,26 @@ else
         esac
       done
     done
+
+    # Calibrated clock (Options > Calibrate, the rxclock setting) must reach this engine too: a recording from a card
+    # that runs 200 ppm off, decoded with rxclock set to the card's true rate, must beat the same decode at 48000.
+    # (asetrate to a higher rate then back to 48000 gives fewer samples per second: a card running slow.)
+    for m in m1:M1 pd:PD120; do
+      f=${m%%:*}; M=${m##*:}; w="$T/c_$f.wav"
+      ref=$(cpng "$T/s_ref_$f"); [ -n "$ref" ] || continue
+      d="$T/clk_$f.wav"
+      ffmpeg -v error -y -i "$w" -af "asetrate=$(awk 'BEGIN{printf "%.2f",48000*(1+200/1e6)}'),aresample=48000" "$d"
+      rm -f "$CONF"
+      run --engine core --slant off -o "$T/clk_off_$f" "$d"; off=$(cpng "$T/clk_off_$f")
+      printf '[SOUND]\nrxclock=%s\n' "$(awk 'BEGIN{printf "%.3f",48000*(1-200/1e6)}')" > "$CONF"
+      run --engine core --slant off -o "$T/clk_on_$f" "$d"; on=$(cpng "$T/clk_on_$f")
+      rm -f "$CONF"
+      if [ -z "$off" ] || [ -z "$on" ]; then bad "calibrated clock $M: no picture (off='$off' on='$on')"; continue; fi
+      poff=$(luma "$ref" "$off"); pon=$(luma "$ref" "$on")
+      # measured (M1, 200 ppm): 19.2 -> 27.6 dB; require at least 3 dB
+      if ge "$pon" "$(awk -v a="$poff" 'BEGIN{print a+3}')"; then ok "calibrated rxclock $M: luma PSNR $poff -> $pon dB"
+      else bad "calibrated rxclock $M: luma PSNR $poff -> $pon dB (expected >= +3 dB)"; fi
+    done
   fi
 fi
 

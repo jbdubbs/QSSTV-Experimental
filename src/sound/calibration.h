@@ -2,48 +2,48 @@
 #define CALIBRATION_H
 
 #include <QDialog>
-#include <QTime>
+#include <QList>
 
-class QLCDNumber;
+class calibrationMethod;
 
 namespace Ui {
   class calibration;
   }
 
+/*!
+  Options > Calibrate. A tabbed dialog with one tab per calibration method (see calibrationMethod, at most
+  MAXCALIBRATIONMETHODS). Each method measures the sample rate of the soundcard against an external time
+  reference. OK takes the clocks of the method on the active tab.
+*/
 class calibration : public QDialog
 {
   Q_OBJECT
-  
+
 public:
   explicit calibration(QWidget *parent = 0);
   ~calibration();
-  int exec();
-  /**
-   ** @brief get calibrated receive clock
-   *
-   * @return double calibrated value of the rxclock
-   */
+  /** receive clock chosen by the accepted method in Hz, 0 if it did not measure it */
   double getRXClock() {return rxCardClock;}
-
-  /**
-   * @brief get calibrated transmit clock
-   *
-   * @return double calibrated value of the txclock
-   */
-  double getTXClock(){return txCardClock;}
+  /** transmit clock chosen by the accepted method in Hz, 0 if it did not measure it */
+  double getTXClock() {return txCardClock;}
 
 public slots:
-  void hasFinished(int result);
-  
+  void accept();
+  void reject();
+
+private slots:
+  void slotTabChanged(int index);
+  void slotResultChanged();
+
 private:
   Ui::calibration *ui;
+  QList<calibrationMethod *> methods;
   double rxCardClock;
   double txCardClock;
-  bool stopped;
   void init();
-  bool start(bool isRX);
-  void display(int value,QLCDNumber *dspl);
-  bool canceled;
+  void addMethod(calibrationMethod *m);
+  void stopAll();
+  calibrationMethod *activeMethod();
 };
 
 #endif // CALIBRATION_H

@@ -139,7 +139,7 @@ void soundConfig::getParams()
   soundBase::edataDst soundRoutingOutputCopy=soundRoutingOutput;
 
   getValue(rxClock,ui->inputClockLineEdit);
-  getValue(txClock,ui->inputClockLineEdit);
+  getValue(txClock,ui->outputClockLineEdit);
   getValue(inputAudioDevice,ui->inputPCMNameComboBox);
   getValue(outputAudioDevice,ui->outputPCMNameComboBox);
   getValue(alsaSelected,ui->alsaRadioButton);

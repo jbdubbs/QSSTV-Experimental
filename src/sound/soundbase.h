@@ -26,8 +26,6 @@
 
 #define PERIODSIZE (DOWNSAMPLESIZE)
 #define BUFFERSIZE (8*DOWNSAMPLESIZE)
-#define CALIBRATIONSIZE (PERIODSIZE)
-#define CALIBRATIONLEADIN 80
 
 
 class soundBase : public QThread
@@ -37,8 +35,8 @@ class soundBase : public QThread
 public:
   enum edataSrc{SNDINCARD,SNDINFROMFILE,SNDINCARDTOFILE};
   enum edataDst{SNDOUTCARD,SNDOUTTOFILE};
-  enum eplaybackState{PBINIT,PBSTARTING,PBRUNNING,PBCALIBRATESTART,PBCALIBRATEWAIT,PBCALIBRATE,PBEND};
-  enum ecaptureState{CPINIT,CPSTARTING,CPRUNNING,CPCALIBRATESTART,CPCALIBRATEWAIT,CPCALIBRATE,CPEND};
+  enum eplaybackState{PBINIT,PBSTARTING,PBRUNNING,PBEND};
+  enum ecaptureState{CPINIT,CPSTARTING,CPRUNNING,CPLISTENSTART,CPLISTEN,CPEND};
 
   explicit soundBase(QObject *parent = 0);
   ~soundBase();
@@ -79,8 +77,13 @@ public:
   bool isPlaying() {return playbackState!=PBINIT;}
   bool isCapturing() {return captureState!=CPINIT;}
 
-  bool calibrate(bool isCapture);
-  bool calibrationCount(unsigned int &frames, double &elapsedTime);
+  // "Listen" mode (Options > Calibrate): capture from the soundcard and put every raw sample in rawRxBuffer,
+  // without any decoding. The caller drains rawRxBuffer; if it can't keep up samples are dropped and
+  // listenOverruns() goes up (the caller must then restart its measurement, the sample timeline has a hole).
+  bool startListen();
+  void stopListen();
+  unsigned int listenOverruns() const {return overruns;}
+  int streamSampleRate() const {return sampleRate;}   //!< rate of the samples the application receives
   int countAvailable;
 signals:
   // Emitted (soundQtMultimedia only, see init()) when the underlying audio stream
@@ -138,20 +141,11 @@ private:
   downsampleFilter *downsampleFilterPtr;
   double volume;
 //  uint intVolume;
-  int captureCalibration(bool leadIn);
-  int playbackCalibration(bool leadIn);
-  QMutex mutex;
-  QElapsedTimer stopwatch;
-  unsigned int calibrationFrames;
-  unsigned int leadInCounter;
-  int calibrationTime;
-  double ucalibrationTime;
-  double ustartcalibrationTime;
-  struct timespec ts;
+  int captureListen();
+  volatile unsigned int overruns;
   QString lastErrorStr;
   quint64 storedFrames;
   bool prebuf;
-  unsigned int prevFrames;
 
 
 };

@@ -536,13 +536,19 @@ void mainWindow::setSSTVDRMPushButton(bool inDRM)
 
 void mainWindow::slotCalibrate()
 {
+  // the calibration needs the soundcard to itself; resume receive afterwards if it was running
+  bool rxWasActive=soundIOPtr->isCapturing();
   calibration calib(this);
   if(calib.exec()==QDialog::Accepted)
     {
-      rxClock=calib.getRXClock();
-      txClock=calib.getTXClock();
+      // a method that did not measure a clock returns 0: keep the current value
+      double rx=calib.getRXClock()>0? calib.getRXClock():rxClock;
+      double tx=calib.getTXClock()>0? calib.getTXClock():txClock;
+      // also updates the Configuration > Sound fields, which writeSettings() reads back over the globals
+      configDialogPtr->setSoundClocks(rx,tx);
+      writeSettings();
     }
-  writeSettings();
+  if(rxWasActive) dispatcherPtr->startRX();
 }
 
 int mainWindow::busyMode()

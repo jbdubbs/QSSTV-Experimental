@@ -16,6 +16,7 @@ public:
   ~configDialog();
   void readSettings();
   void writeSettings();
+  void setSoundClocks(double rx,double tx);
   int exec();
   bool soundNeedsRestart;
   bool guiNeedsRestart;

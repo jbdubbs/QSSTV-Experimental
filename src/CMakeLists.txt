@@ -117,6 +117,10 @@ set(QSSTV_SOURCES
     dsp/downsamplefilter.cpp
     utils/arraydumper.cpp
     sound/calibration.cpp
+    sound/calibrationmethod.cpp
+    sound/calibrationwwv.cpp
+    sound/wwvtickdetector.cpp
+    sound/wwvtickfit.cpp
     dsp/synthes.cpp
     dsp/filterparam.cpp
     sound/waterfalltext.cpp

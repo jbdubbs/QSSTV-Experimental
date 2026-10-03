@@ -5,6 +5,7 @@
 #include "mmsstv_sstv_tx.h"
 
 #include "imageviewer.h"
+#include "soundconfig.h"   // txClock
 #include "synthes.h"
 
 // mmsstv-core headers (see qsstv.pro's INCLUDEPATH additions).
@@ -171,9 +172,19 @@ bool sendImageViaMmsstv(imageViewer *ivPtr, esstvMode mode)
 	// Run at QSSTV's native TX rate -- resolves the RX/TX shared-rate
 	// requirement flagged in Step 4 without any resampling, since TX here
 	// needs no new audio tap (unlike RX).
-	SampFreq = 48000.0;
+	// The slot timing uses the calibrated transmit clock (Options > Calibrate); SampBase stays the nominal rate.
+	// The globals are shared with the receive bridge, which sets its own again, but put them back anyway.
+	struct clockRestore
+	{
+		double freq=SampFreq;
+		double sysFreq=sys.m_SampFreq;
+		double txOff=sys.m_TxSampOff;
+		~clockRestore() {SampFreq=freq; sys.m_SampFreq=sysFreq; sys.m_TxSampOff=txOff;}
+	} restoreClocks;
 	SampBase = 48000.0;
+	SampFreq = txClock;
 	sys.m_SampFreq = SampFreq;
+	sys.m_TxSampOff = 0.0;
 
 	SSTVSET.SetTxMode(mode);
 
