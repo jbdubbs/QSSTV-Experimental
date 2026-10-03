@@ -438,10 +438,10 @@ void graphItemBase::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
         {
           if(m_BoundingRect.width()<4*HSIZE) m_BoundingRect.setWidth(4*HSIZE);
           if(m_BoundingRect.height()<4*HSIZE) m_BoundingRect.setHeight(4*HSIZE);
+          prepareGeometryChange(); // must precede the change so the scene index drops the old rect
           param.rct = m_BoundingRect.adjusted(2*HSIZE,2*HSIZE, -2*HSIZE, -2*HSIZE);
           qreal penw=pen().widthF()/2;
           param.rct = param.rct.adjusted(penw,penw,-penw,-penw);
-          prepareGeometryChange();
           update();
         }
 
