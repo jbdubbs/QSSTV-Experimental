@@ -28,6 +28,8 @@
 #include "jp2io.h"
 #include <configdialog.h>
 #include "drm.h"
+#include "txwidget.h"
+#include "gallerywidget.h"
 
 #ifdef IMAGETESTVIEWER
 #include "templateviewer.h"
@@ -91,6 +93,15 @@ imageViewer::imageViewer(QWidget *parent): QLabel(parent)
   connect(zoomInAct, SIGNAL(triggered()), this, SLOT(slotZoomIn()));
   zoomOutAct = new QAction(tr("Zoom Out (&-)"), this);
   connect(zoomOutAct, SIGNAL(triggered()), this, SLOT(slotZoomOut()));
+  copyAct = new QAction(tr("&Copy"), this);
+  copyAct->setShortcut(QKeySequence::Copy);
+  copyAct->setShortcutContext(Qt::WidgetShortcut);
+  connect(copyAct, SIGNAL(triggered()), this, SLOT(slotCopy()));
+  pasteAct = new QAction(tr("&Paste"), this);
+  pasteAct->setShortcut(QKeySequence::Paste);
+  pasteAct->setShortcutContext(Qt::WidgetShortcut);
+  connect(pasteAct, SIGNAL(triggered()), this, SLOT(slotPaste()));
+  setFocusPolicy(Qt::ClickFocus);
   connect(configDialogPtr,SIGNAL(bgColorChanged()), SLOT(slotBGColorChanged()));
   clickTimer.setSingleShot(true);
   clickTimer.setInterval(40);
@@ -536,6 +547,8 @@ void imageViewer::setType(thumbType tp)
   popup->removeAction(deleteAct);
   popup->removeAction(viewAct);
   popup->removeAction(propertiesAct);
+  popup->removeAction(copyAct);
+  popup->removeAction(pasteAct);
   switch(tp)
     {
     case EXTVIEW:
@@ -595,6 +608,17 @@ void imageViewer::setType(thumbType tp)
       popup->addAction(propertiesAct);
       break;
     }
+  if(tp==TXIMG || tp==TXSTOCKTHUMB)
+    {
+      popup->addSeparator();
+      popup->addAction(copyAct);
+      popup->addAction(pasteAct);
+    }
+  else
+    {
+      popup->addSeparator();
+      popup->addAction(copyAct);
+    }
   popupEnabled=true;
 
 }
@@ -625,6 +649,7 @@ void imageViewer::mousePressEvent( QMouseEvent *e )
         }
       else if (e->type() == QEvent::MouseButtonPress)
         {
+          setFocus();
           if (ttype==EXTVIEW)
             {
               //              if (pixmap())
@@ -640,6 +665,9 @@ void imageViewer::mousePressEvent( QMouseEvent *e )
     {
       if(popupEnabled)
         {
+          setFocus();
+          copyAct->setEnabled(hasValidImage() || !displayedImage.isNull());
+          pasteAct->setEnabled(!clipboardImage().isNull());
           //              if (pixmap())
           if(hasValidImage())
 
@@ -1216,3 +1244,100 @@ void imageViewer::imageTestViewer(QImage *im,QString infoStr)
 }
 #endif
 
+
+QImage imageViewer::clipboardImage()
+{
+  const QMimeData *md=QGuiApplication::clipboard()->mimeData();
+  if(!md) return QImage();
+  if(md->hasImage())
+    {
+      QImage im=qvariant_cast<QImage>(md->imageData());
+      if(!im.isNull()) return im;
+    }
+  if(md->hasUrls())
+    {
+      const QList<QUrl> urls=md->urls();
+      for(const QUrl &u: urls)
+        {
+          if(!u.isLocalFile()) continue;
+          QImage im(u.toLocalFile());
+          if(!im.isNull()) return im;
+        }
+    }
+  return QImage();
+}
+
+void imageViewer::slotCopy()
+{
+  // the live RX image is painted straight into displayedImage and never sets validImage/sourceImage
+  if(!hasValidImage() && displayedImage.isNull()) return;
+  QImage im;
+  if((ttype!=RXIMG) && (ttype!=TXIMG) && !imageFileName.isEmpty())
+    {
+      im.load(imageFileName);   // thumbnails only hold a downscaled copy; use the full file
+    }
+  if(im.isNull()) im=sourceImage.isNull() ? displayedImage : sourceImage;
+  if(im.isNull()) return;
+  // the receiver writes bare RGB values into displayedImage, so the alpha channel is not meaningful
+  // (save() flattens to RGB32 for the same reason); an alpha-carrying copy pastes as blank/transparent
+  if(ttype==RXIMG) im=im.convertToFormat(QImage::Format_RGB32);
+  QGuiApplication::clipboard()->setImage(im);
+}
+
+void imageViewer::slotPaste()
+{
+  if((ttype!=TXIMG) && (ttype!=TXSTOCKTHUMB)) return;
+  QImage im=clipboardImage();
+  if(im.isNull()) return;
+  // the stock gallery is a directory listing, so pasted images are stored there (as snapshots are)
+  QDir dir(txStockImagesPath);
+  QString base=QString("clipboard-%1").arg(QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss"));
+  QString dst=dir.filePath(base+".png");
+  for(int i=1;QFile::exists(dst);i++)
+    {
+      dst=dir.filePath(QString("%1-%2.png").arg(base).arg(i));
+    }
+  if(!im.save(dst,"PNG"))
+    {
+      addToLog(QString("Unable to save clipboard image to %1").arg(dst),LOGIMAG);
+      return;
+    }
+  if(ttype==TXIMG) txWidgetPtr->setImage(dst);
+  galleryWidgetPtr->txStockImageChanged();
+}
+
+void imageViewer::keyPressEvent(QKeyEvent *e)
+{
+  // shortcuts mirror the popup: only act if the action is offered for this type
+  if(e->matches(QKeySequence::Copy) && popup->actions().contains(copyAct))
+    {
+      slotCopy();
+      return;
+    }
+  if(e->matches(QKeySequence::Paste) && popup->actions().contains(pasteAct))
+    {
+      slotPaste();
+      return;
+    }
+  QLabel::keyPressEvent(e);
+}
+
+void imageViewer::focusInEvent(QFocusEvent *e)
+{
+  QPalette p=palette();
+  p.setColor(QPalette::WindowText,p.color(QPalette::Highlight));
+  setPalette(p);
+  setFrameStyle(QFrame::Box | QFrame::Plain);
+  setLineWidth(2);
+  QLabel::focusInEvent(e);
+}
+
+void imageViewer::focusOutEvent(QFocusEvent *e)
+{
+  QPalette p=palette();
+  p.setColor(QPalette::WindowText,QApplication::palette().color(QPalette::WindowText));
+  setPalette(p);
+  setFrameStyle(QFrame::Sunken | QFrame::Panel);
+  setLineWidth(1);
+  QLabel::focusOutEvent(e);
+}

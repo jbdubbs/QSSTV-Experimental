@@ -108,6 +108,9 @@ public:
 
 protected:
   void resizeEvent(QResizeEvent *);
+  void keyPressEvent(QKeyEvent *e);
+  void focusInEvent(QFocusEvent *e);
+  void focusOutEvent(QFocusEvent *e);
 
 public slots:
   void slotToTX();
@@ -120,6 +123,8 @@ private slots:
   void slotPrint();
   void slotUploadFTP();
   void slotProperties();
+  void slotCopy();
+  void slotPaste();
 
   void slotView();
   void slotBGColorChanged();
@@ -160,6 +165,9 @@ private:
   QAction *propertiesAct;
   QAction *zoomInAct;
   QAction *zoomOutAct;
+  QAction *copyAct;
+  QAction *pasteAct;
+  QImage clipboardImage();
 
   //  double psizeRatio;
   int compressSize;   // target size of compressed image
