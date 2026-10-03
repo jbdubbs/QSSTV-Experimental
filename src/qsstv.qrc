@@ -29,5 +29,19 @@
         <file>icons/down.png</file>
         <file>icons/up.png</file>
         <file>icons/line.png</file>
+        <file>icons/tb_binary.png</file>
+        <file>icons/tb_camera.png</file>
+        <file>icons/tb_doubletone.png</file>
+        <file>icons/tb_edit.png</file>
+        <file>icons/tb_erase.png</file>
+        <file>icons/tb_open.png</file>
+        <file>icons/tb_decode.png</file>
+        <file>icons/tb_replay.png</file>
+        <file>icons/tb_save.png</file>
+        <file>icons/tb_start.png</file>
+        <file>icons/tb_stop.png</file>
+        <file>icons/tb_sweep.png</file>
+        <file>icons/tb_tone_rep.png</file>
+        <file>icons/tb_upload.png</file>
     </qresource>
 </RCC>

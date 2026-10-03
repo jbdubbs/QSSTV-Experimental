@@ -40,7 +40,7 @@
       <number>1</number>
      </property>
      <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="0,0,0,0,0,0,0,1,0,0,3,0,0">
+      <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="0,0,0,0,0,0,1,0,0,3,0,0,0">
        <property name="spacing">
         <number>2</number>
        </property>
@@ -57,8 +57,14 @@
          </property>
          <property name="icon">
           <iconset resource="../qsstv.qrc">
-           <normaloff>:/icons/start.png</normaloff>:/icons/start.png</iconset>
+           <normaloff>:/icons/tb_start.png</normaloff>:/icons/tb_start.png</iconset>
          </property>
+           <property name="iconSize">
+            <size>
+             <width>32</width>
+             <height>32</height>
+            </size>
+           </property>
         </widget>
        </item>
        <item>
@@ -74,25 +80,14 @@
          </property>
          <property name="icon">
           <iconset resource="../qsstv.qrc">
-           <normaloff>:/icons/stop.png</normaloff>:/icons/stop.png</iconset>
+           <normaloff>:/icons/tb_stop.png</normaloff>:/icons/tb_stop.png</iconset>
          </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QToolButton" name="repeaterToneToolButton">
-         <property name="toolTip">
-          <string>Send repeater tone</string>
-         </property>
-         <property name="statusTip">
-          <string>Send repeater tone</string>
-         </property>
-         <property name="text">
-          <string>...</string>
-         </property>
-         <property name="icon">
-          <iconset resource="../qsstv.qrc">
-           <normaloff>:/icons/tone.png</normaloff>:/icons/tone.png</iconset>
-         </property>
+           <property name="iconSize">
+            <size>
+             <width>32</width>
+             <height>32</height>
+            </size>
+           </property>
         </widget>
        </item>
        <item>
@@ -108,8 +103,14 @@
          </property>
          <property name="icon">
           <iconset resource="../qsstv.qrc">
-           <normaloff>:/icons/fileopen.png</normaloff>:/icons/fileopen.png</iconset>
+           <normaloff>:/icons/tb_open.png</normaloff>:/icons/tb_open.png</iconset>
          </property>
+           <property name="iconSize">
+            <size>
+             <width>32</width>
+             <height>32</height>
+            </size>
+           </property>
         </widget>
        </item>
        <item>
@@ -125,8 +126,14 @@
          </property>
          <property name="icon">
           <iconset resource="../qsstv.qrc">
-           <normaloff>:/icons/edit.png</normaloff>:/icons/edit.png</iconset>
+           <normaloff>:/icons/tb_edit.png</normaloff>:/icons/tb_edit.png</iconset>
          </property>
+           <property name="iconSize">
+            <size>
+             <width>32</width>
+             <height>32</height>
+            </size>
+           </property>
         </widget>
        </item>
        <item>
@@ -142,15 +149,21 @@
          </property>
          <property name="icon">
           <iconset resource="../qsstv.qrc">
-           <normaloff>:/icons/camera.png</normaloff>:/icons/camera.png</iconset>
+           <normaloff>:/icons/tb_camera.png</normaloff>:/icons/tb_camera.png</iconset>
          </property>
+           <property name="iconSize">
+            <size>
+             <width>32</width>
+             <height>32</height>
+            </size>
+           </property>
         </widget>
        </item>
        <item>
         <widget class="QPushButton" name="binaryPushButton">
          <property name="icon">
           <iconset resource="../qsstv.qrc">
-           <normaloff>:/icons/binary.png</normaloff>:/icons/binary.png</iconset>
+           <normaloff>:/icons/tb_binary.png</normaloff>:/icons/tb_binary.png</iconset>
          </property>
         </widget>
        </item>
@@ -187,8 +200,14 @@
          </property>
          <property name="icon">
           <iconset resource="../qsstv.qrc">
-           <normaloff>:/icons/up.png</normaloff>:/icons/up.png</iconset>
+           <normaloff>:/icons/tb_upload.png</normaloff>:/icons/tb_upload.png</iconset>
          </property>
+           <property name="iconSize">
+            <size>
+             <width>32</width>
+             <height>32</height>
+            </size>
+           </property>
         </widget>
        </item>
        <item>
@@ -205,6 +224,29 @@
         </spacer>
        </item>
        <item>
+        <widget class="QToolButton" name="repeaterToneToolButton">
+         <property name="toolTip">
+          <string>Send repeater tone</string>
+         </property>
+         <property name="statusTip">
+          <string>Send repeater tone</string>
+         </property>
+         <property name="text">
+          <string>...</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../qsstv.qrc">
+           <normaloff>:/icons/tb_tone_rep.png</normaloff>:/icons/tb_tone_rep.png</iconset>
+         </property>
+           <property name="iconSize">
+            <size>
+             <width>32</width>
+             <height>32</height>
+            </size>
+           </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QToolButton" name="generateToneToolButton">
          <property name="toolTip">
           <string>Send tone</string>
@@ -217,8 +259,14 @@
          </property>
          <property name="icon">
           <iconset resource="../qsstv.qrc">
-           <normaloff>:/icons/doubletone.png</normaloff>:/icons/doubletone.png</iconset>
+           <normaloff>:/icons/tb_doubletone.png</normaloff>:/icons/tb_doubletone.png</iconset>
          </property>
+           <property name="iconSize">
+            <size>
+             <width>32</width>
+             <height>32</height>
+            </size>
+           </property>
         </widget>
        </item>
        <item>
@@ -234,8 +282,14 @@
          </property>
          <property name="icon">
           <iconset resource="../qsstv.qrc">
-           <normaloff>:/icons/sweep.png</normaloff>:/icons/sweep.png</iconset>
+           <normaloff>:/icons/tb_sweep.png</normaloff>:/icons/tb_sweep.png</iconset>
          </property>
+           <property name="iconSize">
+            <size>
+             <width>32</width>
+             <height>32</height>
+            </size>
+           </property>
         </widget>
        </item>
       </layout>
