@@ -104,6 +104,9 @@ public:
 
 
   int applyTemplate();
+  void setGrid(int cols,int rows);   // TXIMG only: stitch cols x rows separately loaded segments
+  int gridColumns() const {return gridCols;}
+  int gridRowCount() const {return gridRows;}
 
 
 protected:
@@ -168,6 +171,18 @@ private:
   QAction *copyAct;
   QAction *pasteAct;
   QImage clipboardImage();
+
+  int gridCols;
+  int gridRows;
+  int activeSeg;
+  QVector<QImage> segImages;
+  QVector<QString> segFiles;
+  bool gridActive() const {return (ttype==TXIMG) && (gridCols*gridRows>1);}
+  int segmentAt(const QPoint &pos);
+  void selectSegment(int seg);
+  void captureSegment(const QImage &im,const QString &fn);
+  QImage composeGrid();
+  QPixmap withGridOverlay(const QPixmap &pm);
 
   //  double psizeRatio;
   int compressSize;   // target size of compressed image

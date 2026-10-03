@@ -445,6 +445,13 @@
            <item row="3" column="3">
             <widget class="QComboBox" name="sstvResizeComboBox"/>
            </item>
+           <item row="4" column="3">
+            <widget class="QComboBox" name="sstvGridComboBox">
+             <property name="toolTip">
+              <string>Stitch several images together (columns x rows) for modes larger than PD160; right-click a segment to load, edit, copy or paste it</string>
+             </property>
+            </widget>
+           </item>
           </layout>
          </item>
         </layout>

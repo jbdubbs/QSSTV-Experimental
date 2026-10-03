@@ -39,6 +39,11 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   ui->sstvResizeComboBox->addItem("Stretch");
   ui->sstvResizeComboBox->addItem("Crop");
   ui->sstvResizeComboBox->addItem("Fit");
+  ui->sstvGridComboBox->addItem("Single image");
+  ui->sstvGridComboBox->addItem("Grid 1x2");
+  ui->sstvGridComboBox->addItem("Grid 2x1");
+  ui->sstvGridComboBox->addItem("Grid 2x2");
+  connect(ui->sstvGridComboBox,SIGNAL(activated(int)),SLOT(slotGridChanged(int)));
 
   connect(ui->sstvModeComboBox,SIGNAL(activated(int)),SLOT(slotModeChanged(int )));
   connect(ui->sstvResizeComboBox,SIGNAL(activated(int)),SLOT(slotResizeChanged(int)));
@@ -167,6 +172,7 @@ void txWidget::readSettings()
   useHybrid=qSettings.value("useHybrid",false).toBool();
   useMmsstvCoreEngine=qSettings.value("useMmsstvCoreEngine",false).toBool();
   compressedSize=qSettings.value("compressedSize",5000).toUInt();
+  gridLayout=qSettings.value("gridLayout",0).toInt();
   drmParams.bandwith=qSettings.value("drmBandWith",0).toInt();
   drmParams.interleaver=qSettings.value("drmInterLeaver",0).toInt();
   drmParams.protection=qSettings.value("drmProtection",0).toInt();
@@ -196,6 +202,7 @@ void txWidget::writeSettings()
   qSettings.setValue("drmRobMode",drmParams.robMode);
   qSettings.setValue("drmReedSolomon",drmParams.reedSolomon);
   qSettings.setValue("compressedSize",compressedSize);
+  qSettings.setValue("gridLayout",gridLayout);
   qSettings.endGroup();
 }
 
@@ -269,6 +276,8 @@ void txWidget::setParams()
   if(compressedSize>MAXDRMSIZE) compressedSize=MAXDRMSIZE;
   setValue(compressedSize,ui->sizeSlider);
   ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex!=TRXSSTV));
+  ui->sstvGridComboBox->setCurrentIndex(qBound(0,gridLayout,3));
+  updateGridControl();
   updateTxTime();
 }
 
@@ -641,8 +650,28 @@ void txWidget::slotModeChanged(int m)
     {
       sstvModeIndexTx=txModeList[m];
       setSelectedEngine(sstvModeIndexTx, useMmsstvCoreEngine ? ENGINE_MMSSTV_CORE : ENGINE_QSSTV);
+      updateGridControl();
       applyTemplate();
     }
+}
+
+// stitched grids only make sense for modes larger than PD160 (512x400)
+void txWidget::updateGridControl()
+{
+  bool large=(transmissionModeIndex==TRXSSTV) &&
+      (SSTVTable[(int)sstvModeIndexTx].numberOfPixels>512 || SSTVTable[(int)sstvModeIndexTx].numberOfDisplayLines>400);
+  ui->sstvGridComboBox->setEnabled(large);
+  int idx=large ? ui->sstvGridComboBox->currentIndex() : 0;
+  static const int cols[4]={1,1,2,2};
+  static const int rows[4]={1,2,1,2};
+  imageViewerPtr->setGrid(cols[idx],rows[idx]);
+}
+
+void txWidget::slotGridChanged(int i)
+{
+  gridLayout=i;
+  updateGridControl();
+  applyTemplate();
 }
 
 // Step 17: repopulates sstvModeComboBox from scratch, filtered by
@@ -676,6 +705,7 @@ void txWidget::slotEngineChanged(bool checked)
   ui->sstvModeComboBox->setCurrentIndex(newIndex);
   sstvModeIndexTx=txModeList[newIndex];
   setSelectedEngine(sstvModeIndexTx, checked ? ENGINE_MMSSTV_CORE : ENGINE_QSSTV);
+  updateGridControl();
   applyTemplate();
   updateTxTime();
 }

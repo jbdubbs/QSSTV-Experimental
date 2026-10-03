@@ -40,6 +40,7 @@
 #include <QMenu>
 
 #define RATIOSCALE 1.
+#define MAXSEGMENTS 4
 
 
 /**
@@ -57,6 +58,11 @@ imageViewer::imageViewer(QWidget *parent): QLabel(parent)
   validImage=false;
   orgWidth=0;
   orgHeight=0;
+  gridCols=1;
+  gridRows=1;
+  activeSeg=0;
+  segImages.resize(MAXSEGMENTS);
+  segFiles.resize(MAXSEGMENTS);
   setFrameStyle(QFrame::Sunken | QFrame::Panel);
   QBrush b;
   QPalette palette;
@@ -270,6 +276,11 @@ bool  imageViewer::processImageDisplay(bool success,bool showMessage,bool fromCa
       orgWidth=tempImage.width();
       orgHeight=tempImage.height();
       displayedImage=sourceImage;
+      if(gridActive())
+        {
+          captureSegment(sourceImage,tempFilename);
+          applyTemplate();   // stitch the segments into the frame
+        }
       //#ifdef IMAGETESTVIEWER
       //      imageTestViewer(&displayedImage,"processImage");
       //#endif
@@ -329,6 +340,11 @@ bool imageViewer::openImage(QImage im)
       sourceImage=im;
       displayedImage=im;
       compressedImageData.clear();
+      if(gridActive())
+        {
+          captureSegment(im,QString());
+          applyTemplate();
+        }
       displayImage();
       return true;
     }
@@ -357,6 +373,8 @@ void imageViewer::clear()
   imageFileName.clear();
   sourceImage=QImage();
   displayedImage=QImage();
+  for(int i=0;i<segImages.size();i++) segImages[i]=QImage();
+  for(int i=0;i<segFiles.size();i++) segFiles[i].clear();
   compressedImageData.clear();
   view=QRect();
   setPixmap(QPixmap());
@@ -410,15 +428,11 @@ void imageViewer::displayImage()
   if (view.isNull()) {
       if(hasScaledContents() || (displayedImage.width()>width()) || (displayedImage.height()>height()) || stretch)
         {
-          QPixmap mp;
-          mp=QPixmap::fromImage(displayedImage.scaled(width()-2,height()-2,Qt::KeepAspectRatio,Qt::SmoothTransformation));
-          setPixmap(QPixmap::fromImage(displayedImage.scaled(width()-2,height()-2,Qt::KeepAspectRatio,Qt::SmoothTransformation)));
-
+          setPixmap(withGridOverlay(QPixmap::fromImage(displayedImage.scaled(width()-2,height()-2,Qt::KeepAspectRatio,Qt::SmoothTransformation))));
         }
       else
         {
-          setPixmap(QPixmap::fromImage(displayedImage));
-
+          setPixmap(withGridOverlay(QPixmap::fromImage(displayedImage)));
         }
 
     }
@@ -650,6 +664,11 @@ void imageViewer::mousePressEvent( QMouseEvent *e )
       else if (e->type() == QEvent::MouseButtonPress)
         {
           setFocus();
+          if(gridActive())
+            {
+              selectSegment(segmentAt(e->pos()));
+              displayImage();
+            }
           if (ttype==EXTVIEW)
             {
               //              if (pixmap())
@@ -666,7 +685,12 @@ void imageViewer::mousePressEvent( QMouseEvent *e )
       if(popupEnabled)
         {
           setFocus();
-          copyAct->setEnabled(hasValidImage() || !displayedImage.isNull());
+          if(gridActive())
+            {
+              selectSegment(segmentAt(e->pos()));
+              displayImage();
+            }
+          copyAct->setEnabled(gridActive() ? !segImages.value(activeSeg).isNull() : (hasValidImage() || !displayedImage.isNull()));
           pasteAct->setEnabled(!clipboardImage().isNull());
           //              if (pixmap())
           if(hasValidImage())
@@ -803,6 +827,7 @@ void imageViewer::slotView()
     {
       // live RX image has no file: show the in-memory image
       img=sourceImage.isNull() ? displayedImage : sourceImage;
+      if(gridActive()) img=segImages.value(activeSeg);   // only the selected segment
       if(img.isNull()) return;
     }
   extViewer *vm=new extViewer(nullptr);
@@ -829,7 +854,7 @@ void imageViewer::slotProperties()
   int orgHeight=this->orgHeight;
   if(orgWidth<=0 || orgHeight<=0)
     {
-      const QImage &img=sourceImage.isNull() ? displayedImage : sourceImage;
+      const QImage &img=gridActive() ? segImages.value(activeSeg) : (sourceImage.isNull() ? displayedImage : sourceImage);
       orgWidth=img.width();
       orgHeight=img.height();
     }
@@ -990,6 +1015,7 @@ int imageViewer::applyTemplate()
   int compRatio;
   int byteCount;
 
+  if(gridActive() && transmissionModeIndex==TRXSSTV) sourceImage=composeGrid();
   if(sourceImage.isNull()) return 0;
   QFile fi(templateFileName);
   if(ttype!=TXIMG) return 0;
@@ -1199,6 +1225,116 @@ int imageViewer::diplayedImageBytecount()
 }
 
 
+// ---- stitched grid (TX image on modes larger than PD160) ----
+
+void imageViewer::setGrid(int cols,int rows)
+{
+  if(ttype!=TXIMG) return;
+  if(cols<1) cols=1;
+  if(rows<1) rows=1;
+  if((cols==gridCols) && (rows==gridRows)) return;
+  bool wasGrid=gridActive();
+  int n=cols*rows;
+  // segments keep their slot (0..3) whatever the layout; slots beyond the layout stay remembered
+  segImages.resize(MAXSEGMENTS);
+  segFiles.resize(MAXSEGMENTS);
+  if(wasGrid)
+    {
+      if(n==1 && !segImages[0].isNull())
+        {
+          // back to a single image: segment 0 becomes the image again
+          sourceImage=segImages[0];
+          imageFileName=segFiles[0];
+        }
+    }
+  else if(!sourceImage.isNull())
+    {
+      // the single image becomes segment 0
+      segImages[0]=sourceImage;
+      segFiles[0]=imageFileName;
+    }
+  gridCols=cols;
+  gridRows=rows;
+  selectSegment(0);
+  applyTemplate();
+  displayImage();
+  emit imageChanged();
+}
+
+int imageViewer::segmentAt(const QPoint &pos)
+{
+  if(displayedImage.isNull()) return activeSeg;
+  QPoint p=mapToImage(pos);
+  int c=qBound(0,p.x()*gridCols/qMax(1,displayedImage.width()),gridCols-1);
+  int r=qBound(0,p.y()*gridRows/qMax(1,displayedImage.height()),gridRows-1);
+  return r*gridCols+c;
+}
+
+void imageViewer::selectSegment(int seg)
+{
+  if(!gridActive()) return;
+  activeSeg=qBound(0,seg,gridCols*gridRows-1);
+  imageFileName=segFiles.value(activeSeg);
+  const QImage seg_im=segImages.value(activeSeg);
+  orgWidth=seg_im.width();
+  orgHeight=seg_im.height();
+}
+
+void imageViewer::captureSegment(const QImage &im,const QString &fn)
+{
+  if(activeSeg>=segImages.size()) return;
+  segImages[activeSeg]=im;
+  segFiles[activeSeg]=fn;
+}
+
+QImage imageViewer::composeGrid()
+{
+  int w=targetWidth,h=targetHeight;
+  if(w<=0 || h<=0)
+    {
+      w=gridCols*512;
+      h=gridRows*400;
+    }
+  QImage out(w,h,QImage::Format_ARGB32_Premultiplied);
+  out.fill(imageBackGroundColor);
+  QPainter painter(&out);
+  for(int r=0;r<gridRows;r++)
+    {
+      for(int c=0;c<gridCols;c++)
+        {
+          const QImage seg=segImages.value(r*gridCols+c);
+          if(seg.isNull()) continue;
+          QRect cell(c*w/gridCols,r*h/gridRows,(c+1)*w/gridCols-c*w/gridCols,(r+1)*h/gridRows-r*h/gridRows);
+          // same Stretch/Crop/Fit handling as a whole image, applied per cell
+          QImage scaled=seg.scaled(cell.size(),aspectRatioMode,Qt::SmoothTransformation);
+          painter.setClipRect(cell);
+          painter.drawImage(cell.x()+(cell.width()-scaled.width())/2,cell.y()+(cell.height()-scaled.height())/2,scaled);
+        }
+    }
+  painter.end();
+  return out;
+}
+
+QPixmap imageViewer::withGridOverlay(const QPixmap &pm)
+{
+  if(!gridActive() || pm.isNull()) return pm;
+  QPixmap out=pm;
+  QPainter p(&out);
+  int w=out.width(),h=out.height();
+  QPen pen(Qt::white);
+  pen.setStyle(Qt::DashLine);
+  p.setPen(pen);
+  for(int c=1;c<gridCols;c++) p.drawLine(c*w/gridCols,0,c*w/gridCols,h);
+  for(int r=1;r<gridRows;r++) p.drawLine(0,r*h/gridRows,w,r*h/gridRows);
+  // outline the selected segment
+  int ac=activeSeg%gridCols,ar=activeSeg/gridCols;
+  QRect cell(ac*w/gridCols,ar*h/gridRows,(ac+1)*w/gridCols-ac*w/gridCols,(ar+1)*h/gridRows-ar*h/gridRows);
+  p.setPen(QPen(Qt::yellow,2));
+  p.drawRect(cell.adjusted(1,1,-1,-1));
+  p.end();
+  return out;
+}
+
 void imageViewer::resizeEvent(QResizeEvent *)
 {
   displayImage();
@@ -1269,6 +1405,13 @@ QImage imageViewer::clipboardImage()
 
 void imageViewer::slotCopy()
 {
+  if(gridActive())
+    {
+      // copy only the selected segment's own image
+      QImage seg=segImages.value(activeSeg);
+      if(!seg.isNull()) QGuiApplication::clipboard()->setImage(seg);
+      return;
+    }
   // the live RX image is painted straight into displayedImage and never sets validImage/sourceImage
   if(!hasValidImage() && displayedImage.isNull()) return;
   QImage im;

@@ -104,6 +104,7 @@ public slots:
 
   void slotModeChanged(int);
   void slotResizeChanged(int);
+  void slotGridChanged(int);
   void slotEngineChanged(bool);
   void slotBinary();
   void slotHybridToggled();
@@ -125,6 +126,7 @@ private:
   void applyTemplate();
   void updateTxTime();
   void rebuildModeComboBox();
+  void updateGridControl();
   void startTxImage();
   void enableButtons(bool enable);
 
@@ -164,6 +166,7 @@ private:
   // any specific mode's selectedEngine() value -- see engineCheckBox's
   // handlers for why.
   bool useMmsstvCoreEngine;
+  int gridLayout=0;
 
 };
 
