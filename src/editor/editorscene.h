@@ -83,6 +83,7 @@ public:
 
 public slots:
   void setMode(eMode m);
+  void placeItem(graphItemBase::egraphType type, QPointF center);
   void setItemType(graphItemBase::egraphType tp);
   //    void editorLostFocus(DiagramTextItem *item);
   void slotCopy();

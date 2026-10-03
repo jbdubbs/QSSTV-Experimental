@@ -234,18 +234,24 @@ void editorView::setParams()
 
 
 
+QPointF editorView::visibleCenter()
+{
+  // centre of the part of the canvas currently in view
+  QRectF visible=canvas->mapToScene(canvas->viewport()->rect()).boundingRect().intersected(scene->sceneRect());
+  if(visible.isEmpty()) visible=scene->sceneRect();
+  return visible.center();
+}
+
 void editorView::slotRectangle()
 {
-  scene->setMode(editorScene::INSERT);
-  scene->setItemType(graphItemBase::RECTANGLE);
+  scene->placeItem(graphItemBase::RECTANGLE,visibleCenter());
   modified=true;
 }
 
 
 void editorView::slotCircle()
 {
-  scene->setMode(editorScene::INSERT);
-  scene->setItemType(graphItemBase::ELLIPSE);
+  scene->placeItem(graphItemBase::ELLIPSE,visibleCenter());
   modified=true;
 }
 
@@ -272,19 +278,17 @@ void editorView::slotText()
   connect(t.listWidget, SIGNAL(currentTextChanged(QString)), this, SLOT(slotMacro(QString)));
   if(d.exec()==QDialog::Accepted)
     {
-      scene->setMode(editorScene::INSERT);
-      scene->setItemType(graphItemBase::TEXT);
       scene->text=t.plainTextEdit->toPlainText();
-      txt=t.plainTextEdit->toPlainText();
-      scene->apply(editorScene::DTEXT);
+      txt=scene->text;
+      // place the text in the centre of the visible canvas area; the user can drag it from there
+      scene->placeItem(graphItemBase::TEXT,visibleCenter());
     }
   modified=true;
 }
 
 void editorView::slotLine()
 {
-  scene->setMode(editorScene::INSERT);
-  scene->setItemType(graphItemBase::LINE);
+  scene->placeItem(graphItemBase::LINE,visibleCenter());
   modified=true;
 }
 
@@ -294,15 +298,13 @@ void editorView::slotImage()
   QString fileName;
   dirDialog dd((QWidget *)this,"editor");
   scene->fl=dd.openFileName(QString(),imageNameFilter());
-  scene->setMode(editorScene::INSERT);
-  scene->setItemType(graphItemBase::IMAGE);
+  scene->placeItem(graphItemBase::IMAGE,visibleCenter());
   modified=true;
 }
 
 void editorView::slotReplay()
 {
-  scene->setMode(editorScene::INSERT);
-  scene->setItemType(graphItemBase::REPLAY);
+  scene->placeItem(graphItemBase::REPLAY,visibleCenter());
   modified=true;
 }
 
@@ -376,10 +378,7 @@ void editorView::slotUnderline(bool b)
 
 void editorView::setImage(QImage *)
 {
-
-  scene->setMode(editorScene::INSERT);
-  scene->setItemType(graphItemBase::IMAGE);
-  modified=true;
+  // items are no longer click-to-place, so there is nothing to arm here
 }
 
 

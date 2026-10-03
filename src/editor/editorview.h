@@ -53,6 +53,7 @@ public:
 
 public slots:
   void slotChangeCanvasSize();
+  QPointF visibleCenter();
   void slotRectangle();
   void slotCircle();
   void slotText();

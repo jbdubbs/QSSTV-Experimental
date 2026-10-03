@@ -347,6 +347,48 @@ void editorScene::setItemType(graphItemBase::egraphType tp)
   itemType = tp;
 }
 
+void editorScene::placeItem(graphItemBase::egraphType type, QPointF center)
+{
+  graphItemBase *item=NULL;
+  QImage im;
+  switch(type)
+    {
+    case graphItemBase::RECTANGLE:
+      item=new itemRectangle(contextMenu);
+      break;
+    case graphItemBase::LINE:
+      item=new itemLine(contextMenu);
+      break;
+    case graphItemBase::ELLIPSE:
+      item=new itemEllipse(contextMenu);
+      break;
+    case graphItemBase::TEXT:
+      if(text.isEmpty()) return;
+      item=new itemText(contextMenu);
+      item->setFont(font);
+      item->setText(text);
+      break;
+    case graphItemBase::IMAGE:
+      if(fl.isEmpty() || !im.load(fl)) return;
+      item=new itemImage(contextMenu);
+      item->setImage(im);
+      break;
+    case graphItemBase::REPLAY:
+      item=new itemReplayImage(contextMenu);
+      break;
+    default:
+      return;
+    }
+  setMode(MOVE);
+  clearSelection();
+  itemSetup(item);
+  // the origin of a text item is its baseline start, so centre on the shape bounds rather than the origin
+  QRectF r=(type==graphItemBase::TEXT) ? item->shape().boundingRect() : item->rect();
+  item->setPos(center-r.center());
+  item->setSelected(true);
+  emit itemSelected(item);
+}
+
 void editorScene::apply(changeFlags cf)
 {
   QPen p;
@@ -449,54 +491,6 @@ void editorScene::mousePressEvent(QGraphicsSceneMouseEvent *mouseEvent)
     {
       switch(mode)
         {
-        case INSERT:
-          switch(itemType)
-            {
-            case graphItemBase::RECTANGLE:
-              item=new itemRectangle(contextMenu);
-              itemSetup(item);
-              item->setPos(mouseEvent->scenePos());
-              break;
-            case graphItemBase::LINE:
-              item=new itemLine(contextMenu);
-              itemSetup(item);
-              item->setPos(mouseEvent->scenePos());
-              break;
-            case graphItemBase::ELLIPSE:
-              item=new itemEllipse(contextMenu);
-              itemSetup(item);
-              item->setPos(mouseEvent->scenePos());
-              break;
-            case graphItemBase::TEXT:
-              if (!text.isEmpty())
-                {
-                  item=new itemText(contextMenu);
-                  item->setFont(font);
-                  item->setText(text);
-                  itemSetup(item);
-                  item->setPos(mouseEvent->scenePos());
-                }
-              break;
-            case graphItemBase::IMAGE:
-              if (fl.isEmpty()) break;
-              if(im.load(fl))
-                {
-                  item=new itemImage(contextMenu);
-                  item->setImage(im);
-                  itemSetup(item);
-                  item->setPos(mouseEvent->scenePos());
-                }
-              break;
-            case graphItemBase::REPLAY:
-              item=new itemReplayImage(contextMenu);
-              itemSetup(item);
-              item->setPos(mouseEvent->scenePos());
-              break;
-            case graphItemBase::SBORDER:
-            case graphItemBase::BASE:
-              break;
-            }
-          break;
         case MOVE:
           //          if(!selectedItems().isEmpty())
           //            {
