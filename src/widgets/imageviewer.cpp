@@ -62,6 +62,8 @@ imageViewer::imageViewer(QWidget *parent): QLabel(parent)
   gridRows=1;
   activeSeg=0;
   selected=false;
+  dragging=false;
+  dragMoved=false;
   segImages.resize(MAXSEGMENTS);
   segFiles.resize(MAXSEGMENTS);
   setFrameStyle(QFrame::Sunken | QFrame::Panel);
@@ -456,7 +458,7 @@ void imageViewer::zoom(const QPoint centre, int dlevel)
   while ((dlevel!=0) && (view.width()<=displayedImage.width())) {
       if (dlevel>0) {
           // halve the size of the viewed area
-          if ((view.width()>300) && (view.height()>300)) {
+          if ((view.width()>96) && (view.height()>96)) {
               addToLog("zoom in",LOGIMAG);
               view.adjust(+view.width()/4, +view.height()/4, -view.width()/4, -view.height()/4);
             }
@@ -678,7 +680,10 @@ void imageViewer::mousePressEvent( QMouseEvent *e )
               if(hasValidImage())
                 {
                   clickPos = mapToImage(e->pos());
-                  clickTimer.start();
+                  dragging=true;
+                  dragMoved=false;
+                  dragView=view;
+                  dragImagePt=clickPos;
                 }
             }
         }
@@ -704,6 +709,77 @@ void imageViewer::mousePressEvent( QMouseEvent *e )
           popup->popup(QCursor::pos());
         }
     }
+}
+
+// EXTVIEW: the wheel zooms about the cursor
+void imageViewer::wheelEvent(QWheelEvent *e)
+{
+  if(ttype!=EXTVIEW || !hasValidImage() || displayedImage.isNull())
+    {
+      QLabel::wheelEvent(e);
+      return;
+    }
+  int dy=e->angleDelta().y();
+  if(dy==0) return;
+  QPoint pos=e->position().toPoint();
+  QPoint p=mapToImage(pos);
+  QRect before=view.isNull() ? displayedImage.rect() : view;
+  // smooth zoom: 1.15x per standard wheel notch (120 units), down to a 48 pixel wide view
+  double factor=qPow(1.15,dy/120.0);
+  double nw=qBound(48.0,before.width()/factor,(double)displayedImage.width());
+  double scale=nw/before.width();
+  QSize ns(qMax(1,qRound(before.width()*scale)),qMax(1,qRound(before.height()*scale)));
+  if(ns.width()>=displayedImage.width() || ns.height()>=displayedImage.height())
+    {
+      view=QRect();   // fully zoomed out
+    }
+  else
+    {
+      // keep the image point under the cursor where it was
+      double fx=(p.x()-before.x())/(double)before.width();
+      double fy=(p.y()-before.y())/(double)before.height();
+      QRect v(QPoint(p.x()-qRound(fx*ns.width()),p.y()-qRound(fy*ns.height())),ns);
+      v.moveLeft(qBound(0,v.x(),displayedImage.width()-v.width()));
+      v.moveTop(qBound(0,v.y(),displayedImage.height()-v.height()));
+      view=v;
+    }
+  displayImage();
+  e->accept();
+}
+
+// EXTVIEW: dragging with the left button pans the zoomed image
+void imageViewer::mouseMoveEvent(QMouseEvent *e)
+{
+  if(ttype!=EXTVIEW || !dragging || !(e->buttons() & Qt::LeftButton) || dragView.isNull())
+    {
+      QLabel::mouseMoveEvent(e);
+      return;
+    }
+  QRect cur=view;
+  view=dragView;
+  QPoint now=mapToImage(e->pos());   // same mapping as at press time
+  view=cur;
+  QPoint d=dragImagePt-now;
+  if(!dragMoved && d.manhattanLength()<3) return;
+  if(!dragMoved) setCursor(Qt::ClosedHandCursor);
+  dragMoved=true;
+  QRect v=dragView.translated(d);
+  v.moveLeft(qBound(0,v.x(),displayedImage.width()-v.width()));
+  v.moveTop(qBound(0,v.y(),displayedImage.height()-v.height()));
+  view=v;
+  displayImage();
+}
+
+void imageViewer::mouseReleaseEvent(QMouseEvent *e)
+{
+  if(ttype==EXTVIEW && dragging && e->button()==Qt::LeftButton)
+    {
+      dragging=false;
+      unsetCursor();
+      if(!dragMoved) clickTimer.start();   // a plain click still recentres, a drag does not
+      return;
+    }
+  QLabel::mouseReleaseEvent(e);
 }
 
 void imageViewer::slotLeftClick()

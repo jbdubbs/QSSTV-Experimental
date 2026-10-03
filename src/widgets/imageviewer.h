@@ -115,6 +115,9 @@ public:
 protected:
   void resizeEvent(QResizeEvent *);
   void keyPressEvent(QKeyEvent *e);
+  void wheelEvent(QWheelEvent *e);
+  void mouseMoveEvent(QMouseEvent *e);
+  void mouseReleaseEvent(QMouseEvent *e);
   void focusInEvent(QFocusEvent *e);
   void focusOutEvent(QFocusEvent *e);
 
@@ -162,6 +165,10 @@ private:
   thumbType ttype;
   bool popupEnabled;
   bool selected;
+  bool dragging;      // EXTVIEW: left-drag panning while zoomed
+  bool dragMoved;
+  QRect dragView;     // view when the drag started
+  QPoint dragImagePt; // image point under the cursor when the drag started
   void updateFrame();
   bool isGalleryThumb() const {return ttype==RXSSTVTHUMB||ttype==RXDRMTHUMB||ttype==TXSSTVTHUMB||ttype==TXDRMTHUMB||ttype==TXSTOCKTHUMB||ttype==TEMPLATETHUMB;}
 
