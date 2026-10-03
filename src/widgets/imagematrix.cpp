@@ -3,6 +3,9 @@
 #include <QDir>
 #include <QDebug>
 #include <iostream>
+#include <QMessageBox>
+#include "txwidget.h"
+#include "utils/supportfunctions.h"
 
 #define MINCOLSIZE 32
 #define MINROWSIZE 26
@@ -15,6 +18,7 @@ imageMatrix::imageMatrix(QWidget *parent) :  QWidget(parent)
 
   parentPtr=parent;
   parentPtr->resize(511, 300);
+  anchorViewer=NULL;
   verticalLayout = NULL;
   horizontalLayout=NULL;
   sortFlags=QDir::Time;
@@ -28,6 +32,7 @@ imageMatrix::~imageMatrix()
 
 void imageMatrix::setupLayout()
 {
+  anchorViewer=NULL;
   if(verticalLayout!=NULL) delete verticalLayout;
   verticalLayout = new QVBoxLayout(parentPtr);
   verticalLayout->setObjectName(QString::fromUtf8("vt1"));
@@ -102,6 +107,9 @@ void imageMatrix::init(int numRows, int numColumns, QString dir,imageViewer::thu
           imv->setType(tt);
           gridLayout->addWidget(imv, i, j, 1, 1);
           connect(imv,SIGNAL(layoutChanged()),SLOT(slotLayoutChanged()));
+          connect(imv,SIGNAL(thumbClicked(imageViewer*,Qt::KeyboardModifiers)),SLOT(slotThumbClicked(imageViewer*,Qt::KeyboardModifiers)));
+          connect(imv,SIGNAL(deleteSelected()),SLOT(slotDeleteSelected()));
+          connect(imv,SIGNAL(toTxSelected()),SLOT(slotToTxSelected()));
         }
     }
   for (i=0;i<rows;i++)
@@ -162,10 +170,91 @@ QString imageMatrix::getLastFile()
   else return QString();
 }
 
+void imageMatrix::clearSelection()
+{
+  for(int i=0;i<gridLayout->count();i++)
+    {
+      ((imageViewer *)gridLayout->itemAt(i)->widget())->setSelected(false);
+    }
+  anchorViewer=NULL;
+}
+
+QList<imageViewer *> imageMatrix::selectedViewers()
+{
+  QList<imageViewer *> l;
+  for(int i=0;i<rows;i++)
+    {
+      for(int j=0;j<columns;j++)
+        {
+          imageViewer *iv=(imageViewer *)gridLayout->itemAtPosition(i,j)->widget();
+          if(iv->isSelected() && !iv->getFilename().isEmpty()) l.append(iv);
+        }
+    }
+  return l;
+}
+
+// plain click selects one, Ctrl toggles, Shift selects the range from the last plain/Ctrl click
+void imageMatrix::slotThumbClicked(imageViewer *iv,Qt::KeyboardModifiers mods)
+{
+  if((mods & Qt::ShiftModifier) && anchorViewer)
+    {
+      int a=gridLayout->indexOf(anchorViewer);
+      int b=gridLayout->indexOf(iv);
+      if(a>=0 && b>=0)
+        {
+          if(!(mods & Qt::ControlModifier)) clearSelection();
+          anchorViewer=(imageViewer *)gridLayout->itemAt(a)->widget();
+          for(int i=qMin(a,b);i<=qMax(a,b);i++)
+            {
+              imageViewer *v=(imageViewer *)gridLayout->itemAt(i)->widget();
+              if(!v->getFilename().isEmpty()) v->setSelected(true);
+            }
+          return;
+        }
+    }
+  if(mods & Qt::ControlModifier)
+    {
+      iv->setSelected(!iv->isSelected());
+    }
+  else
+    {
+      clearSelection();
+      iv->setSelected(true);
+    }
+  anchorViewer=iv;
+}
+
+void imageMatrix::slotDeleteSelected()
+{
+  QList<imageViewer *> sel=selectedViewers();
+  if(sel.isEmpty()) return;
+  if(confirmDeletion)
+    {
+      QString msg=(sel.count()==1) ? QString("Do you want to delete the file and\n move it to the trash folder?")
+                                   : QString("Do you want to delete %1 files and\n move them to the trash folder?").arg(sel.count());
+      if(QMessageBox::question(this,"Delete file",msg,QMessageBox::Yes|QMessageBox::No)!=QMessageBox::Yes) return;
+    }
+  QStringList names;
+  foreach(imageViewer *iv,sel) names.append(iv->getFilename());
+  foreach(QString fn,names) trash(fn,true);
+  anchorViewer=NULL;
+  slotLayoutChanged();   // rescan and redraw (this also drops the selection)
+}
+
+// several files to TX: they fill the grid segments in order, any surplus is ignored
+void imageMatrix::slotToTxSelected()
+{
+  QStringList names;
+  foreach(imageViewer *iv,selectedViewers()) names.append(iv->getFilename());
+  if(names.isEmpty()) return;
+  txWidgetPtr->setImages(names);
+}
+
 void imageMatrix::displayFiles()
 {
   int i,j,k;
   QString tempStr;
+  clearSelection();
   int offset=currentPage*rows*columns;
   pageLabel->setText(QString("   Page %1 of %2").arg(currentPage+1).arg(numPages).leftJustified(17,' '));
   for(i=0;i<rows;i++)

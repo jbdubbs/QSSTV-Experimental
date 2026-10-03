@@ -105,6 +105,9 @@ public:
 
   int applyTemplate();
   void setGrid(int cols,int rows);   // TXIMG only: stitch cols x rows separately loaded segments
+  int loadSegments(const QStringList &files);   // TXIMG grid: fill segments 0.. with the first files, returns how many were loaded
+  void setSelected(bool sel);   // gallery thumbnails: multi-selection highlight
+  bool isSelected() const {return selected;}
   int gridColumns() const {return gridCols;}
   int gridRowCount() const {return gridRows;}
 
@@ -138,6 +141,9 @@ private slots:
 
 
 signals:
+  void thumbClicked(imageViewer *iv,Qt::KeyboardModifiers mods);   // gallery thumbnails: selection click
+  void deleteSelected();   // Delete on a selected thumbnail: matrix deletes the whole selection
+  void toTxSelected();     // To TX on a selected thumbnail: matrix sends the whole selection
   void layoutChanged();
   void imageChanged();
 
@@ -155,6 +161,9 @@ private:
   QString imageFilePath;
   thumbType ttype;
   bool popupEnabled;
+  bool selected;
+  void updateFrame();
+  bool isGalleryThumb() const {return ttype==RXSSTVTHUMB||ttype==RXDRMTHUMB||ttype==TXSSTVTHUMB||ttype==TXDRMTHUMB||ttype==TXSTOCKTHUMB||ttype==TEMPLATETHUMB;}
 
   QMenu *popup;
   QAction *newAct;

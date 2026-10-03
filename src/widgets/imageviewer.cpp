@@ -61,6 +61,7 @@ imageViewer::imageViewer(QWidget *parent): QLabel(parent)
   gridCols=1;
   gridRows=1;
   activeSeg=0;
+  selected=false;
   segImages.resize(MAXSEGMENTS);
   segFiles.resize(MAXSEGMENTS);
   setFrameStyle(QFrame::Sunken | QFrame::Panel);
@@ -665,6 +666,7 @@ void imageViewer::mousePressEvent( QMouseEvent *e )
       else if (e->type() == QEvent::MouseButtonPress)
         {
           setFocus();
+          if(isGalleryThumb()) emit thumbClicked(this,e->modifiers());
           if(gridActive())
             {
               selectSegment(segmentAt(e->pos()));
@@ -686,6 +688,7 @@ void imageViewer::mousePressEvent( QMouseEvent *e )
       if(popupEnabled)
         {
           setFocus();
+          if(isGalleryThumb() && !selected) emit thumbClicked(this,Qt::NoModifier);   // right-click outside the selection selects just this one
           if(gridActive())
             {
               selectSegment(segmentAt(e->pos()));
@@ -717,6 +720,11 @@ void imageViewer::slotLeftClick()
 
 void imageViewer::slotDelete()
 {
+  if(selected && isGalleryThumb())
+    {
+      emit deleteSelected();
+      return;
+    }
   if(ttype==TXIMG)
     {
       clearTxImage();
@@ -926,6 +934,11 @@ void imageViewer::slotZoomOut()
 
 void imageViewer::slotToTX()
 {
+  if(selected && isGalleryThumb())
+    {
+      emit toTxSelected();
+      return;
+    }
   moveToTxEvent *mt=0;
   addToLog(QString("ToTx: %1").arg(imageFileName),LOGTXMAIN);
   mt=new moveToTxEvent(imageFileName);
@@ -1499,22 +1512,65 @@ void imageViewer::keyPressEvent(QKeyEvent *e)
   QLabel::keyPressEvent(e);
 }
 
-void imageViewer::focusInEvent(QFocusEvent *e)
+void imageViewer::setSelected(bool sel)
+{
+  if(selected==sel) return;
+  selected=sel;
+  updateFrame();
+}
+
+// highlighted box while focused or selected
+void imageViewer::updateFrame()
 {
   QPalette p=palette();
-  p.setColor(QPalette::WindowText,p.color(QPalette::Highlight));
-  setPalette(p);
-  setFrameStyle(QFrame::Box | QFrame::Plain);
-  setLineWidth(2);
+  if(hasFocus() || selected)
+    {
+      p.setColor(QPalette::WindowText,p.color(QPalette::Highlight));
+      setPalette(p);
+      setFrameStyle(QFrame::Box | QFrame::Plain);
+      setLineWidth(2);
+    }
+  else
+    {
+      p.setColor(QPalette::WindowText,QApplication::palette().color(QPalette::WindowText));
+      setPalette(p);
+      setFrameStyle(QFrame::Sunken | QFrame::Panel);
+      setLineWidth(1);
+    }
+}
+
+// fills grid segments 0.. with the first files (extra files are ignored)
+int imageViewer::loadSegments(const QStringList &files)
+{
+  if(ttype!=TXIMG) return 0;
+  if(!gridActive())
+    {
+      if(files.isEmpty()) return 0;
+      QString fn=files.first();
+      return openImage(fn,true,true,false,true) ? 1 : 0;
+    }
+  int n=0;
+  int count=qMin(files.count(),gridCols*gridRows);
+  for(int i=0;i<count;i++)
+    {
+      selectSegment(i);
+      QString fn=files.at(i);
+      if(openImage(fn,true,false,false,false)) n++;   // synchronous so the segment index stays valid
+    }
+  selectSegment(0);
+  displayImage();
+  emit imageChanged();
+  return n;
+}
+
+void imageViewer::focusInEvent(QFocusEvent *e)
+{
   QLabel::focusInEvent(e);
+  updateFrame();
 }
 
 void imageViewer::focusOutEvent(QFocusEvent *e)
 {
-  QPalette p=palette();
-  p.setColor(QPalette::WindowText,QApplication::palette().color(QPalette::WindowText));
-  setPalette(p);
-  setFrameStyle(QFrame::Sunken | QFrame::Panel);
-  setLineWidth(1);
   QLabel::focusOutEvent(e);
+  updateFrame();
 }

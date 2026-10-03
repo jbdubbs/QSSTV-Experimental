@@ -628,6 +628,12 @@ void txWidget::updateTxTime()
 }
 
 
+void txWidget::setImages(const QStringList &files)
+{
+  addToLog(QString("setImages %1 files").arg(files.count()),LOGTXMAIN);
+  imageViewerPtr->loadSegments(files);
+}
+
 void 	txWidget::setImage(QString fn)
 {
   addToLog(QString("setImage %1").arg(fn),LOGTXMAIN);

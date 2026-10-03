@@ -26,6 +26,9 @@ public:
 private:
   void getList();
   void displayFiles();
+  void clearSelection();
+  QList<imageViewer *> selectedViewers();   // in page order
+  imageViewer *anchorViewer;   // shift-click range start
   void setupLayout();
   QVBoxLayout *verticalLayout;
   QHBoxLayout *horizontalLayout;
@@ -54,6 +57,9 @@ private slots:
   void slotBegin();
   void slotEnd();
   void slotLayoutChanged();
+  void slotThumbClicked(imageViewer *iv,Qt::KeyboardModifiers mods);
+  void slotDeleteSelected();
+  void slotToTxSelected();
 
 };
 
