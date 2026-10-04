@@ -58,6 +58,10 @@ public:
   QString getPreviewFilename();
   void txTestPattern(etpSelect sel);
   void startNotifyCheck(QString tmask);
+  //! calibration: send a generated picture in the given mode through the normal SSTV TX path; the user's own TX picture, mode and template setting are put back when it ends (calibrationTxFinished) or on abortCalibrationTx()
+  bool sendCalibrationImage(esstvMode mode,const QImage &image);
+  void abortCalibrationTx();
+  bool calibrationTxActive() const {return calTxActive;}
 
   void setDRMNotifyText(QString txt)
   {
@@ -119,6 +123,7 @@ private slots:
 
 signals:
   void modeSwitch(int);
+  void calibrationTxFinished();
 
 private:
   void initView();
@@ -129,9 +134,16 @@ private:
   void rebuildModeComboBox();
   void updateGridControl();
   void startTxImage();
+  void restoreAfterCalibrationTx();
   void enableButtons(bool enable);
 
   Ui::txWidget *ui;
+  bool calTxActive=false;
+  QImage calSavedImage;
+  bool calSavedValid=false;
+  QString calSavedFile;
+  esstvMode calSavedMode=NOTVALID;
+  bool calSavedUseTemplate=false;
   txFunctions *txFunctionsPtr;
 
   editor *ed;

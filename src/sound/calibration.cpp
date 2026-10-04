@@ -23,6 +23,7 @@
 #include "calibrationmethod.h"
 #include "calibrationwwv.h"
 #include "calibrationntp.h"
+#include "calibrationsstv.h"
 #include <QPushButton>
 #include <QTabBar>
 
@@ -57,7 +58,7 @@ void calibration::init()
 {
   addMethod(new calibrationWwv(this));
   addMethod(new calibrationNtp(this));
-  // addMethod(new ...);   // third method
+  addMethod(new calibrationSstv(this));
   connect(ui->methodTabs,SIGNAL(currentChanged(int)),this,SLOT(slotTabChanged(int)));
   ui->methodTabs->tabBar()->setVisible(methods.count()>1);
   slotResultChanged();

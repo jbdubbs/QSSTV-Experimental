@@ -41,11 +41,16 @@ public:
   void uploadToRXServer(QString remoteDir, QString fn);
   void logSSTV(QString call, bool fromFSKID);
   void showOffLine();
+  /** calibration: while set, a received SSTV picture is announced with sstvImageReceived() and not saved */
+  void setCalibrationRx(bool on) {calibrationRx=on;}
 //  eftpResult notifyRXDone;
 //  eftpResult hybridTxDone;
 //  eftpResult hybridRxDone;
 //  eftpResult notifyTxDone;
 
+
+signals:
+  void sstvImageReceived(int mode);   //!< a picture was completed (NOTVALID if too few lines); only while setCalibrationRx(true)
 
 private slots:
 //  void slotRXNotification(QString info);
@@ -57,6 +62,7 @@ private:
   bool inList(QList <QUrlInfo> lst,QString fn);
   void timerEvent(QTimerEvent *event);
   bool editorActive;
+  bool calibrationRx=false;
   editor *ed;
   imageViewer *iv;
   int txTimeCounter;

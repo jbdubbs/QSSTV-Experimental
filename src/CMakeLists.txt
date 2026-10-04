@@ -122,6 +122,8 @@ set(QSSTV_SOURCES
     sound/wwvtickdetector.cpp
     sound/wwvtickfit.cpp
     sound/calibrationntp.cpp
+    sound/calibrationsstv.cpp
+    sound/slantfit.cpp
     sound/sntpclient.cpp
     sound/linefit.cpp
     dsp/synthes.cpp
@@ -520,7 +522,7 @@ endif()
 set(CPACK_PACKAGE_NAME "QSSTV-Experimental")
 set(CPACK_PACKAGE_VENDOR "QSSTV-Experimental")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "SSTV and HamDRM transceiver")
-set(CPACK_PACKAGE_VERSION "10.0-Pre3")
+set(CPACK_PACKAGE_VERSION "10.0-Pre4")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "QSSTV-Experimental")
 set(CPACK_GENERATOR "ZIP")
 if(WIN32)

@@ -342,6 +342,49 @@ void txWidget::slotStart()
     }
 }
 
+bool txWidget::sendCalibrationImage(esstvMode mode,const QImage &image)
+{
+  if(calTxActive || mainWindowPtr->busyMode()>=0 || transmissionModeIndex!=TRXSSTV) return false;
+  if(imageViewerPtr->gridColumns()*imageViewerPtr->gridRowCount()>1 || image.isNull()) return false;
+  calSavedValid=imageViewerPtr->hasValidImage();
+  calSavedImage=*imageViewerPtr->getImagePtr();
+  calSavedFile=imageViewerPtr->getFilename();
+  calSavedMode=sstvModeIndexTx;
+  calSavedUseTemplate=useTemplate;
+  calTxActive=true;
+  sstvModeIndexTx=mode;
+  useTemplate=false;
+  imageViewerPtr->openImage(image);
+  doTx=TXNORMAL;
+  prepareTx();
+  return true;
+}
+
+void txWidget::abortCalibrationTx()
+{
+  if(!calTxActive) return;
+  dispatcherPtr->idleAll();
+  restoreAfterCalibrationTx();
+}
+
+void txWidget::restoreAfterCalibrationTx()
+{
+  calTxActive=false;
+  sstvModeIndexTx=calSavedMode;
+  useTemplate=calSavedUseTemplate;
+  if(calSavedValid)
+    {
+      imageViewerPtr->openImage(calSavedImage);
+      imageViewerPtr->setFilename(calSavedFile);
+    }
+  else imageViewerPtr->clear();
+  calSavedImage=QImage();
+  applyTemplate();
+  ui->startToolButton->setEnabled(true);
+  enableButtons(true);
+  emit calibrationTxFinished();
+}
+
 void txWidget::slotUpload()
 {
   if(imageViewerPtr->hasValidImage())
@@ -374,6 +417,7 @@ void txWidget::prepareTxComplete(bool ok)
   if (!ok)
     {
       addToLog("Upload/prepare failed",LOGTXMAIN);
+      if(calTxActive) restoreAfterCalibrationTx();
       ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex!=TRXSSTV));
     }
   ui->startToolButton->setEnabled(true);
@@ -425,7 +469,7 @@ void txWidget::startTxImage()
   switch(transmissionModeIndex)
     {
     case TRXSSTV:
-      if(saveTXimages)
+      if(saveTXimages && !calTxActive)
         {
           fn=QString("%1/%2_%3.%4").arg(txSSTVImagesPath).arg(finf.baseName()).arg(dt.toString("yyyyMMdd_HHmmss")).arg(defaultImageFormat);
           imageViewerPtr->save(fn,defaultImageFormat,true,false);
@@ -492,6 +536,7 @@ void txWidget::sendWfText()
 
 void txWidget::slotStop()
 {
+  if(calTxActive) restoreAfterCalibrationTx();
   ui->startToolButton->setEnabled(true);
   enableButtons(true);
   dispatcherPtr->startRX();

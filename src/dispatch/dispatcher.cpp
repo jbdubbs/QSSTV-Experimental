@@ -117,7 +117,12 @@ void dispatcher::customEvent( QEvent * e )
       }
       break;
     case endSSTVImageRX:
-      if(fileDecoderPtr && fileDecoderPtr->isBatch())
+      if(calibrationRx)
+        {
+          // the calibration dialog measures the picture: no saving, repeater or gallery handling
+          emit sstvImageReceived((int)((endImageSSTVRXEvent*)e)->getMode());
+        }
+      else if(fileDecoderPtr && fileDecoderPtr->isBatch())
         {
           // headless decode from file: just keep the picture, none of the gallery / repeater / FTP handling
           fileDecoderPtr->imageDecoded(((endImageSSTVRXEvent*)e)->getMode());

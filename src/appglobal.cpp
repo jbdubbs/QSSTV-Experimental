@@ -7,7 +7,7 @@
 
 const QString MAJORVERSION  = "10.0";
 const QString CONFIGVERSION = "9.0";
-const QString MINORVERSION  = "-Pre3";
+const QString MINORVERSION  = "-Pre4";
 // QSSTV-Experimental is built upon the original QSSTV 9.5.11 by Johan Maes, ON4QZ
 // (https://www.qsl.net/o/on4qz). CONFIGVERSION is intentionally left at its original
 // value -- it names the QSettings storage location (see APPLICATION below), and bumping
