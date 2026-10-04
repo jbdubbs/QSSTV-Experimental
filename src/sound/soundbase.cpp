@@ -3,6 +3,7 @@
 #include "logging.h"
 #include "configparams.h"
 #include "arraydumper.h"
+#include "rawclock.h"
 
 #include <QDebug>
 #include <QApplication>
@@ -44,6 +45,7 @@ soundBase::soundBase(QObject *parent) : QThread(parent)
   fileTailLeft=0;
   fileNoiseState=12345;
   overruns=0;
+  stampFrames=0;
   downsampleFilterPtr=new downsampleFilter(DOWNSAMPLESIZE,true);
 
 }
@@ -230,6 +232,13 @@ int soundBase::captureListen()
   int count=read(countAvailable);
   if(count<=0) return 0;
   if(count>DOWNSAMPLESIZE) count=DOWNSAMPLESIZE;
+  {
+    // the soundcard's own timeline, whether or not the caller keeps up with rawRxBuffer
+    double now=rawMonotonicSeconds();
+    QMutexLocker lock(&stampMutex);
+    stampFrames+=count;
+    if(stamps.size()<100000) stamps.push_back({stampFrames,now});
+  }
   if((int)rawRxBuffer.spaceLeft()<count)
     {
       overruns++;
@@ -252,9 +261,21 @@ bool soundBase::startListen()
   fileSource=false;
   rawRxBuffer.reset();
   overruns=0;
+  {
+    QMutexLocker lock(&stampMutex);
+    stamps.clear();
+    stampFrames=0;
+  }
   if(!isRunning()) start();
   switchCaptureState(CPLISTENSTART);
   return true;
+}
+
+void soundBase::takeListenStamps(std::vector<listenStamp> &out)
+{
+  QMutexLocker lock(&stampMutex);
+  out.insert(out.end(),stamps.begin(),stamps.end());
+  stamps.clear();
 }
 
 void soundBase::stopListen()

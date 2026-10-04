@@ -10,6 +10,7 @@
 
 #include <QThread>
 #include <QMutex>
+#include <vector>
 
 #define BYTESPOWER 18
 
@@ -84,6 +85,10 @@ public:
   void stopListen();
   unsigned int listenOverruns() const {return overruns;}
   int streamSampleRate() const {return sampleRate;}   //!< rate of the samples the application receives
+  /** One entry per block captured in listen mode: total frames received so far and the raw monotonic clock
+      (rawMonotonicSeconds()) when the block was complete. Used by the NTP calibration, independent of rawRxBuffer. */
+  struct listenStamp {quint64 frames; double time;};
+  void takeListenStamps(std::vector<listenStamp> &out);
   int countAvailable;
 signals:
   // Emitted (soundQtMultimedia only, see init()) when the underlying audio stream
@@ -143,6 +148,9 @@ private:
 //  uint intVolume;
   int captureListen();
   volatile unsigned int overruns;
+  QMutex stampMutex;
+  std::vector<listenStamp> stamps;
+  quint64 stampFrames;
   QString lastErrorStr;
   quint64 storedFrames;
   bool prebuf;

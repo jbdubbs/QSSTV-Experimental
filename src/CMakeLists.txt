@@ -121,6 +121,9 @@ set(QSSTV_SOURCES
     sound/calibrationwwv.cpp
     sound/wwvtickdetector.cpp
     sound/wwvtickfit.cpp
+    sound/calibrationntp.cpp
+    sound/sntpclient.cpp
+    sound/linefit.cpp
     dsp/synthes.cpp
     dsp/filterparam.cpp
     sound/waterfalltext.cpp

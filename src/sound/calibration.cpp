@@ -22,6 +22,7 @@
 #include "ui_calibration.h"
 #include "calibrationmethod.h"
 #include "calibrationwwv.h"
+#include "calibrationntp.h"
 #include <QPushButton>
 #include <QTabBar>
 
@@ -55,11 +56,13 @@ calibration::~calibration()
 void calibration::init()
 {
   addMethod(new calibrationWwv(this));
-  // addMethod(new ...);   // second method
+  addMethod(new calibrationNtp(this));
   // addMethod(new ...);   // third method
   connect(ui->methodTabs,SIGNAL(currentChanged(int)),this,SLOT(slotTabChanged(int)));
   ui->methodTabs->tabBar()->setVisible(methods.count()>1);
   slotResultChanged();
+  // the wrapped labels of a page can need more height than the .ui size leaves: never start smaller than the content
+  resize(qMax(width(),sizeHint().width()),qMax(height(),sizeHint().height()));
 }
 
 void calibration::addMethod(calibrationMethod *m)
