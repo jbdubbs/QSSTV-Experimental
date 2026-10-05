@@ -121,9 +121,7 @@ calibrationWwv::calibrationWwv(QWidget *parent) : calibrationMethod(parent)
 
   QVBoxLayout *layout=new QVBoxLayout(this);
   QLabel *info=new QLabel(tr("Tune a receiver to WWV (2.5, 5, 10, 15 or 20 MHz) or WWVH, in AM or USB mode, and feed its audio "
-                             "to the soundcard input. The one-second time ticks are an external time reference traceable to "
-                             "NIST: the number of samples between ticks is the true sample rate. Let it run for 5 minutes or "
-                             "more for an accuracy of about 1 ppm, then press OK."),this);
+                             "to the soundcard input. Press Start and let it run about 5 minutes. Press Save when the reading is stable."),this);
   info->setWordWrap(true);
   layout->addWidget(info);
 
@@ -136,6 +134,9 @@ calibrationWwv::calibrationWwv(QWidget *parent) : calibrationMethod(parent)
   row->addStretch(1);
   startButton=new QPushButton(tr("Start"),this);
   row->addWidget(startButton);
+  saveButton=new QPushButton(tr("Save"),this);
+  saveButton->setToolTip(tr("Use this result and close."));
+  row->addWidget(saveButton);
   layout->addLayout(row);
 
   statusLabel=new QLabel(this);
@@ -165,13 +166,12 @@ calibrationWwv::calibrationWwv(QWidget *parent) : calibrationMethod(parent)
   applyTxCheck->setToolTip(tr("WWV can only be received. Most soundcards and USB interfaces run input and output from the same "
                               "clock, so the receive measurement also applies to transmit. Untick if yours does not."));
   layout->addWidget(applyTxCheck);
-  QLabel *note=new QLabel(tr("The result is valid for this input device and audio setup."),this);
-  layout->addWidget(note);
 
   timer=new QTimer(this);
   timer->setInterval(100);
   connect(timer,SIGNAL(timeout()),this,SLOT(slotTimer()));
   connect(startButton,SIGNAL(clicked()),this,SLOT(slotStartStop()));
+  connect(saveButton,SIGNAL(clicked()),this,SLOT(slotSave()));
   connect(stationCombo,SIGNAL(currentIndexChanged(int)),this,SLOT(slotToneChanged()));
   connect(applyTxCheck,SIGNAL(toggled(bool)),this,SIGNAL(resultChanged()));
   updateDisplay();
@@ -188,6 +188,17 @@ void calibrationWwv::slotStartStop()
 {
   if(running) stop();
   else start();
+}
+
+void calibrationWwv::slotSave()
+{
+  if(!hasResult())
+    {
+      QMessageBox::information(this,tr("Calibration"),tr("No valid result yet. Keep the measurement running."));
+      return;
+    }
+  stop();
+  emit saveRequested();
 }
 
 void calibrationWwv::slotToneChanged()
@@ -299,7 +310,7 @@ void calibrationWwv::updateDisplay()
 {
   const wwvFitResult &r=fit->result();
   if(!running && !r.valid)
-    statusLabel->setText(tr("Press Start when the receiver is tuned to WWV."));
+    statusLabel->setText(tr("Press Start."));
   else if(!r.valid)
     statusLabel->setText(tr("Listening: looking for the time ticks..."));
   else if(r.ticks<GOODTICKS)
@@ -307,7 +318,7 @@ void calibrationWwv::updateDisplay()
   else if(std::fabs(r.ppm)>MAXPPM)
     statusLabel->setText(tr("Error larger than 0.2%: wrong station or signal? Not accepted."));
   else
-    statusLabel->setText(running? tr("Measuring. Press Stop or OK when the reading is stable.") : tr("Stopped. Press OK to use this result."));
+    statusLabel->setText(running? tr("Press Save when the reading is stable, or keep running for more accuracy.") : tr("Stopped. Press Save to use this result."));
   if(r.valid)
     {
       rateLabel->setText(tr("%1 Hz").arg(streamRate*(1.0+r.ppm*1e-6),0,'f',2));

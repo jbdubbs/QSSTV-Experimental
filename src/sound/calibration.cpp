@@ -31,7 +31,7 @@
  * \class calibration
  *
  * Dialog with one tab per calibration method. A method measures the sample rate of the soundcard against an
- * external time reference (the PC's own clock is not one, so it is not offered). If the OK button is pressed
+ * external time reference (the PC's own clock is not one, so it is not offered). If the OK button (or a method's Save button) is pressed
  * the clocks of the active method are available through getRXClock() and getTXClock() and the caller stores them.
  *
  * Adding a method: derive from calibrationMethod and add it to init().
@@ -40,6 +40,7 @@
 calibration::calibration(QWidget *parent) : QDialog(parent),  ui(new Ui::calibration)
 {
   ui->setupUi(this);
+  ui->buttonBox->button(QDialogButtonBox::Cancel)->setText(tr("Close"));
   rxCardClock=0;
   txCardClock=0;
   init();
@@ -76,6 +77,7 @@ void calibration::addMethod(calibrationMethod *m)
   methods.append(m);
   ui->methodTabs->addTab(m,m->title());
   connect(m,SIGNAL(resultChanged()),this,SLOT(slotResultChanged()));
+  connect(m,SIGNAL(saveRequested()),this,SLOT(accept()));
 }
 
 calibrationMethod *calibration::activeMethod()
@@ -101,7 +103,9 @@ void calibration::slotTabChanged(int)
 void calibration::slotResultChanged()
 {
   calibrationMethod *m=activeMethod();
-  ui->buttonBox->button(QDialogButtonBox::Ok)->setEnabled(m!=nullptr && m->hasResult());
+  QPushButton *ok=ui->buttonBox->button(QDialogButtonBox::Ok);
+  ok->setVisible(m!=nullptr && m->usesOkButton());
+  ok->setEnabled(m!=nullptr && m->hasResult());
 }
 
 void calibration::accept()

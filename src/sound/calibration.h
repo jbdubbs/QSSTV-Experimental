@@ -13,7 +13,7 @@ namespace Ui {
 /*!
   Options > Calibrate. A tabbed dialog with one tab per calibration method (see calibrationMethod, at most
   MAXCALIBRATIONMETHODS). Each method measures the sample rate of the soundcard against an external time
-  reference. OK takes the clocks of the method on the active tab.
+  reference. OK, or the Save button of a tab, takes the clocks of the method on the active tab.
 */
 class calibration : public QDialog
 {

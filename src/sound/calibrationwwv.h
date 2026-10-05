@@ -30,15 +30,18 @@ public:
   bool hasResult() const;
   double rxClockResult() const;
   double txClockResult() const;
+  bool usesOkButton() const {return false;}
 
 private slots:
   void slotStartStop();
+  void slotSave();
   void slotTimer();
   void slotToneChanged();
 
 private:
   QComboBox *stationCombo;
   QPushButton *startButton;
+  QPushButton *saveButton;
   QLabel *statusLabel;
   QLabel *rateLabel;
   QLabel *ppmLabel;

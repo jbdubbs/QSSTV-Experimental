@@ -128,9 +128,8 @@ calibrationNtp::calibrationNtp(QWidget *parent) : calibrationMethod(parent)
   valid=false;
 
   QVBoxLayout *layout=new QVBoxLayout(this);
-  QLabel *info=new QLabel(tr("Uses internet time servers (NTP, traceable to NIST) as the reference: no radio needed, nothing "
-                             "has to be connected to the input. 5 minutes gives a few ppm, 30 minutes about 1 ppm. Use a direct "
-                             "soundcard device: audio the system resamples to another clock gives a wrong result."),this);
+  QLabel *info=new QLabel(tr("Press Start and let it run about 30 minutes. Press Save when the reading is stable. Use a direct "
+                             "soundcard device (not one the system resamples)."),this);
   info->setWordWrap(true);
   layout->addWidget(info);
 
@@ -142,6 +141,9 @@ calibrationNtp::calibrationNtp(QWidget *parent) : calibrationMethod(parent)
   row->addWidget(serversEdit,1);
   startButton=new QPushButton(tr("Start"),this);
   row->addWidget(startButton);
+  saveButton=new QPushButton(tr("Save"),this);
+  saveButton->setToolTip(tr("Use this result and close."));
+  row->addWidget(saveButton);
   layout->addLayout(row);
 
   statusLabel=new QLabel(this);
@@ -173,9 +175,6 @@ calibrationNtp::calibrationNtp(QWidget *parent) : calibrationMethod(parent)
   applyTxCheck->setToolTip(tr("This method listens to the soundcard input. Most soundcards and USB interfaces run input and output "
                               "from the same clock, so the receive measurement also applies to transmit. Untick if yours does not."));
   layout->addWidget(applyTxCheck);
-  QLabel *note=new QLabel(tr("The result is valid for this input device and audio setup, at the present temperature."),this);
-  note->setWordWrap(true);
-  layout->addWidget(note);
 
   sntp=new sntpClient(this);
   connect(sntp,SIGNAL(sampleReady(int,double,double,double)),this,SLOT(slotSample(int,double,double,double)));
@@ -184,6 +183,7 @@ calibrationNtp::calibrationNtp(QWidget *parent) : calibrationMethod(parent)
   timer->setInterval(1000);
   connect(timer,SIGNAL(timeout()),this,SLOT(slotTimer()));
   connect(startButton,SIGNAL(clicked()),this,SLOT(slotStartStop()));
+  connect(saveButton,SIGNAL(clicked()),this,SLOT(slotSave()));
   connect(applyTxCheck,SIGNAL(toggled(bool)),this,SIGNAL(resultChanged()));
   updateDisplay();
 }
@@ -197,6 +197,17 @@ void calibrationNtp::slotStartStop()
 {
   if(running) stop();
   else start();
+}
+
+void calibrationNtp::slotSave()
+{
+  if(!hasResult())
+    {
+      QMessageBox::information(this,tr("Calibration"),tr("No valid result yet. Keep the measurement running."));
+      return;
+    }
+  stop();
+  emit saveRequested();
 }
 
 void calibrationNtp::start()
@@ -396,7 +407,7 @@ void calibrationNtp::updateDisplay()
 {
   bool h=hasResult();
   if(!running && !valid)
-    statusLabel->setText(tr("Press Start. An internet connection is needed."));
+    statusLabel->setText(tr("Press Start. Internet connection required."));
   else if(!lastStatus.isEmpty() && ntpPts.size()<(size_t)MINNTPSAMPLES)
     statusLabel->setText(lastStatus);
   else if(ntpPts.size()<(size_t)MINNTPSAMPLES)
@@ -404,10 +415,9 @@ void calibrationNtp::updateDisplay()
   else if(valid && std::fabs(ppm)>MAXPPM)
     statusLabel->setText(tr("Error larger than 0.2%: is the input device the right one? Not accepted."));
   else if(!h)
-    statusLabel->setText(tr("Collecting data. The error estimate has to come down to %1 ppm in at least %2 minutes.")
-                         .arg(MAXACCEPTPPM,0,'f',0).arg(MINSECONDS/60.0,0,'f',0));
+    statusLabel->setText(tr("Collecting data..."));
   else
-    statusLabel->setText(running? tr("Measuring. Press Stop or OK when the reading is stable.") : tr("Stopped. Press OK to use this result."));
+    statusLabel->setText(running? tr("Press Save when the reading is stable, or keep running for more accuracy.") : tr("Stopped. Press Save to use this result."));
   if(valid)
     {
       rateLabel->setText(tr("%1 Hz").arg(streamRate*(1.0+ppm*1e-6),0,'f',2));

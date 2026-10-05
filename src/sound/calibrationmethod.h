@@ -31,10 +31,14 @@ public:
   virtual double rxClockResult() const=0;
   /** measured transmit clock in Hz; 0 if this method did not measure it (the old value is kept) */
   virtual double txClockResult() const=0;
+  /** true if the dialog's OK button accepts this method; false if the page has its own Save button */
+  virtual bool usesOkButton() const {return true;}
 
 signals:
   /** emitted whenever hasResult() or the results change */
   void resultChanged();
+  /** the page's Save button was pressed with a valid result: the dialog stores it and closes */
+  void saveRequested();
 };
 
 #endif // CALIBRATIONMETHOD_H
