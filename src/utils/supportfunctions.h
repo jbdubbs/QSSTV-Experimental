@@ -70,6 +70,7 @@ bool browseGetFile(QLineEdit *le,QString deflt,const QString &filter="*");
 bool browseSaveFile(QLineEdit *le,QString deflt,const QString &filter="*");
 bool browseDir(QLineEdit *le, QString deflt);
 void deleteFiles(QString dirPath,QString extension);
+QStringList commonImageFormats();
 QString imageNameFilter(const QString &extra=QString());
 QString pictureNameFilter();
 

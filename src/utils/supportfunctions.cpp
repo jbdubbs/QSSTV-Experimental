@@ -340,9 +340,14 @@ QString pictureNameFilter()
 
    Entries: common formats (only those actually readable here), every readable format, all files.
 */
+QStringList commonImageFormats()
+{
+  return QStringList()<<"png"<<"jpg"<<"jpeg"<<"gif"<<"bmp"<<"webp"<<"avif"<<"heic"<<"heif";
+}
+
 QString imageNameFilter(const QString &extra)
 {
-  static const char *common[]={"png","jpg","jpeg","gif","bmp","webp","avif","heic","heif",0};
+  const QStringList common=commonImageFormats();
   QSet<QString> readable;
   QStringList all;
   foreach(QByteArray fmt,QImageReader::supportedImageFormats())
@@ -353,9 +358,9 @@ QString imageNameFilter(const QString &extra)
       all.append("*."+f);
     }
   QStringList common_;
-  for(int i=0;common[i];i++)
+  foreach(QString c,common)
     {
-      if(readable.contains(common[i])) common_.append(QString("*.")+common[i]);
+      if(readable.contains(c)) common_.append("*."+c);
     }
   if(!extra.isEmpty()) common_.append(extra);
   QStringList groups;

@@ -31,10 +31,11 @@ rxWidget::rxWidget(QWidget *parent):QWidget(parent),ui(new Ui::rxWidget)
 
 
   rebuildModeComboBox();
-  for (const QByteArray &format : QImageWriter::supportedImageFormats())
+  QStringList writable;
+  for (const QByteArray &format : QImageWriter::supportedImageFormats()) writable << QString::fromLatin1(format).toLower();
+  foreach(QString f,commonImageFormats())
     {
-      QString text = tr("%1").arg(QString(format));
-      ui->defaultImageFormatComboBox->addItem(text);
+      if(writable.contains(f)) ui->defaultImageFormatComboBox->addItem(f);
     }
   QStringList strLst;
   strLst << "Low" << "Normal"  << "High" << "DX";
@@ -112,6 +113,7 @@ void rxWidget::readSettings()
   sensitivity=qSettings.value("sensitivity",1).toInt();
   sstvModeIndexRx=(esstvMode)qSettings.value("sstvModeIndexRx",0).toInt();
   defaultImageFormat=qSettings.value("defaultImageFormat","png").toString();
+  if(ui->defaultImageFormatComboBox->findText(defaultImageFormat)<0) defaultImageFormat="png"; // saved format no longer offered
   minCompletion=qSettings.value("minCompletion",25).toInt();
   setParams();
   qSettings.endGroup();
