@@ -86,6 +86,8 @@ imageViewer::imageViewer(QWidget *parent): QLabel(parent)
   connect(loadAct, SIGNAL(triggered()), this, SLOT(slotLoad()));
   toTXAct = new QAction(tr("&To TX"), this);
   connect(toTXAct, SIGNAL(triggered()), this, SLOT(slotToTX()));
+  toTXMenu = new QMenu(tr("&To TX"), this);
+  connect(toTXMenu, SIGNAL(triggered(QAction*)), this, SLOT(slotToTXSegment(QAction*)));
   editAct = new QAction(tr("&Edit"), this);
   connect(editAct, SIGNAL(triggered()), this, SLOT(slotEdit()));
   printAct = new QAction(tr("&Print"), this);
@@ -703,6 +705,18 @@ void imageViewer::mousePressEvent( QMouseEvent *e )
           pasteAct->setEnabled(!clipboardImage().isNull());
           if(ttype==TXIMG) deleteAct->setEnabled(gridActive() ? !segImages.value(activeSeg).isNull() : hasValidImage());
           //              if (pixmap())
+          // with a TX grid the To TX entry becomes a submenu: Auto / Grid 1..N
+          popup->removeAction(toTXMenu->menuAction());
+          toTXAct->setVisible(true);
+          int nseg=txWidgetPtr->txGridSegments();
+          if(nseg>1 && popup->actions().contains(toTXAct))
+            {
+              toTXMenu->clear();
+              toTXMenu->addAction(tr("Auto"))->setData(-1);
+              for(int i=0;i<nseg;i++) toTXMenu->addAction(tr("Grid %1").arg(i+1))->setData(i);
+              popup->insertMenu(toTXAct,toTXMenu);
+              toTXAct->setVisible(false);
+            }
           if(hasValidImage())
 
             clickPos = mapToImage(e->pos());
@@ -1010,14 +1024,25 @@ void imageViewer::slotZoomOut()
 
 void imageViewer::slotToTX()
 {
+  toTx(-1);
+}
+
+void imageViewer::slotToTXSegment(QAction *a)
+{
+  toTx(a->data().toInt());
+}
+
+// seg: TX grid segment, -1 = first empty one (else 0)
+void imageViewer::toTx(int seg)
+{
   if(selected && isGalleryThumb())
     {
-      emit toTxSelected();
+      emit toTxSelected(seg);
       return;
     }
   moveToTxEvent *mt=0;
   addToLog(QString("ToTx: %1").arg(imageFileName),LOGTXMAIN);
-  mt=new moveToTxEvent(imageFileName);
+  mt=new moveToTxEvent(imageFileName,seg);
   QApplication::postEvent(dispatcherPtr, mt); // Qt will delete it when done
 }
 
@@ -1613,6 +1638,24 @@ void imageViewer::updateFrame()
       setFrameStyle(QFrame::Sunken | QFrame::Panel);
       setLineWidth(1);
     }
+}
+
+int imageViewer::firstEmptySegment() const
+{
+  if(!gridActive()) return -1;
+  for(int i=0;i<gridCols*gridRows;i++) if(segImages.value(i).isNull()) return i;
+  return 0;
+}
+
+bool imageViewer::loadSegment(const QString &file,int seg)
+{
+  QString fn=file;
+  if(!gridActive()) return openImage(fn,true,true,false,true);
+  selectSegment(seg);
+  bool ok=openImage(fn,true,false,false,false);   // synchronous so the segment index stays valid
+  displayImage();
+  emit imageChanged();
+  return ok;
 }
 
 // fills grid segments 0.. with the first files (extra files are ignored)

@@ -59,7 +59,7 @@ private slots:
   void slotLayoutChanged();
   void slotThumbClicked(imageViewer *iv,Qt::KeyboardModifiers mods);
   void slotDeleteSelected();
-  void slotToTxSelected();
+  void slotToTxSelected(int seg);
 
 };
 

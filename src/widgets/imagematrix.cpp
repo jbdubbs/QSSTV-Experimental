@@ -109,7 +109,7 @@ void imageMatrix::init(int numRows, int numColumns, QString dir,imageViewer::thu
           connect(imv,SIGNAL(layoutChanged()),SLOT(slotLayoutChanged()));
           connect(imv,SIGNAL(thumbClicked(imageViewer*,Qt::KeyboardModifiers)),SLOT(slotThumbClicked(imageViewer*,Qt::KeyboardModifiers)));
           connect(imv,SIGNAL(deleteSelected()),SLOT(slotDeleteSelected()));
-          connect(imv,SIGNAL(toTxSelected()),SLOT(slotToTxSelected()));
+          connect(imv,SIGNAL(toTxSelected(int)),SLOT(slotToTxSelected(int)));
         }
     }
   for (i=0;i<rows;i++)
@@ -242,12 +242,13 @@ void imageMatrix::slotDeleteSelected()
 }
 
 // several files to TX: they fill the grid segments in order, any surplus is ignored
-void imageMatrix::slotToTxSelected()
+void imageMatrix::slotToTxSelected(int seg)
 {
   QStringList names;
   foreach(imageViewer *iv,selectedViewers()) names.append(iv->getFilename());
   if(names.isEmpty()) return;
-  txWidgetPtr->setImages(names);
+  if(names.count()==1) txWidgetPtr->setImageToSegment(names.first(),seg);   // single image: auto/explicit segment
+  else txWidgetPtr->setImages(names);
 }
 
 void imageMatrix::displayFiles()

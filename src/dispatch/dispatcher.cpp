@@ -224,7 +224,7 @@ void dispatcher::customEvent( QEvent * e )
     case moveToTx:
       {
         addToLog(QString("moveToTx: %1").arg(((moveToTxEvent *)e)->getFilename()),LOGDISPATCH);
-        txWidgetPtr->setImage(((moveToTxEvent *)e)->getFilename());
+        txWidgetPtr->setImageToSegment(((moveToTxEvent *)e)->getFilename(),((moveToTxEvent *)e)->getSegment());
       }
       break;
     case saveDRMImage:

@@ -108,6 +108,8 @@ public:
   int loadSegments(const QStringList &files);   // TXIMG grid: fill segments 0.. with the first files, returns how many were loaded
   void setSelected(bool sel);   // gallery thumbnails: multi-selection highlight
   bool isSelected() const {return selected;}
+  int firstEmptySegment() const;   // TXIMG grid: first empty segment, else 0 (-1 if no grid)
+  bool loadSegment(const QString &fn,int seg);   // TXIMG grid: load fn into one segment
   int gridColumns() const {return gridCols;}
   int gridRowCount() const {return gridRows;}
 
@@ -123,6 +125,7 @@ protected:
 
 public slots:
   void slotToTX();
+  void slotToTXSegment(QAction *a);
   void slotEdit();
 
 private slots:
@@ -146,7 +149,7 @@ private slots:
 signals:
   void thumbClicked(imageViewer *iv,Qt::KeyboardModifiers mods);   // gallery thumbnails: selection click
   void deleteSelected();   // Delete on a selected thumbnail: matrix deletes the whole selection
-  void toTxSelected();     // To TX on a selected thumbnail: matrix sends the whole selection
+  void toTxSelected(int seg);     // To TX on a selected thumbnail: matrix sends the whole selection
   void layoutChanged();
   void imageChanged();
 
@@ -173,9 +176,11 @@ private:
   bool isGalleryThumb() const {return ttype==RXSSTVTHUMB||ttype==RXDRMTHUMB||ttype==TXSSTVTHUMB||ttype==TXDRMTHUMB||ttype==TXSTOCKTHUMB||ttype==TEMPLATETHUMB;}
 
   QMenu *popup;
+  void toTx(int seg);
   QAction *newAct;
   QAction *loadAct;
   QAction *toTXAct;
+  QMenu *toTXMenu;
   QAction *editAct;
   QAction *printAct;
   QAction *uploadAct;

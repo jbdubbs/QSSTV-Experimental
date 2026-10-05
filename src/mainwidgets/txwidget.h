@@ -48,6 +48,8 @@ public:
   void sendRepeaterImage(esstvMode rxMode=NOTVALID);
   void setImage(QImage *ima);
   void setImage(QString fn);
+  void setImageToSegment(QString fn,int seg);   // seg -1: first empty grid segment (else 0)
+  int txGridSegments() const;
   void setImages(const QStringList &files);   // multi-select from the gallery: fills the TX grid segments
   void setProgress(uint prg);
   void setupTemplatesComboBox();

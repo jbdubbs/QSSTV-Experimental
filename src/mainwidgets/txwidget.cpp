@@ -674,6 +674,18 @@ void txWidget::setImages(const QStringList &files)
   imageViewerPtr->loadSegments(files);
 }
 
+void txWidget::setImageToSegment(QString fn,int seg)
+{
+  addToLog(QString("setImageToSegment %1 %2").arg(fn).arg(seg),LOGTXMAIN);
+  if(seg<0) seg=imageViewerPtr->firstEmptySegment();
+  imageViewerPtr->loadSegment(fn,qMax(0,seg));
+}
+
+int txWidget::txGridSegments() const
+{
+  return imageViewerPtr->gridColumns()*imageViewerPtr->gridRowCount();
+}
+
 void 	txWidget::setImage(QString fn)
 {
   addToLog(QString("setImage %1").arg(fn),LOGTXMAIN);

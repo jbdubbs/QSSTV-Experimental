@@ -385,13 +385,15 @@ private:
 class moveToTxEvent : public baseEvent
 {
 public:
-  moveToTxEvent(QString fn):baseEvent( (QEvent::Type)moveToTx),fileName(fn)
+  moveToTxEvent(QString fn,int seg=-1):baseEvent( (QEvent::Type)moveToTx),fileName(fn),segment(seg)
   {
     description="moveToTxEvent";
   }
   QString getFilename() {return fileName;}
+  int getSegment() {return segment;}
 private:
   QString fileName;
+  int segment;
 };
 
 
