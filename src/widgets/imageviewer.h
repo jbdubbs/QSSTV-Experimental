@@ -122,6 +122,7 @@ protected:
   void mouseReleaseEvent(QMouseEvent *e);
   void focusInEvent(QFocusEvent *e);
   void focusOutEvent(QFocusEvent *e);
+  void paintEvent(QPaintEvent *e);
 
 public slots:
   void slotToTX();

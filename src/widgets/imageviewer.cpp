@@ -1618,13 +1618,45 @@ void imageViewer::setSelected(bool sel)
   if(selected==sel) return;
   selected=sel;
   updateFrame();
+  update();
 }
 
-// highlighted box while focused or selected
+// selected gallery thumbnail: accent tint, two-tone ring and a check badge, so it
+// reads clearly even on an accent-coloured cell background
+void imageViewer::paintEvent(QPaintEvent *e)
+{
+  QLabel::paintEvent(e);
+  if(!selected || !isGalleryThumb()) return;
+  QPainter p(this);
+  p.setRenderHint(QPainter::Antialiasing);
+  QColor accent=palette().color(QPalette::Highlight);
+  QColor tint=accent;
+  tint.setAlpha(45);
+  p.fillRect(rect(),tint);
+  p.setBrush(Qt::NoBrush);
+  p.setPen(QPen(accent,3));
+  p.drawRoundedRect(QRectF(rect()).adjusted(1.5,1.5,-1.5,-1.5),3,3);
+  p.setPen(QPen(Qt::white,1));
+  p.drawRoundedRect(QRectF(rect()).adjusted(3.5,3.5,-3.5,-3.5),2,2);
+  int d=qBound(12,qMin(width(),height())/5,22);
+  QRectF badge(7,7,d,d);
+  p.setPen(QPen(Qt::white,2));
+  p.setBrush(accent);
+  p.drawEllipse(badge);
+  p.setPen(QPen(Qt::white,qMax(1.5,d/8.0),Qt::SolidLine,Qt::RoundCap,Qt::RoundJoin));
+  QPainterPath tick;
+  tick.moveTo(badge.left()+d*0.27,badge.top()+d*0.53);
+  tick.lineTo(badge.left()+d*0.44,badge.top()+d*0.69);
+  tick.lineTo(badge.left()+d*0.74,badge.top()+d*0.34);
+  p.setBrush(Qt::NoBrush);
+  p.drawPath(tick);
+}
+
+// thin highlighted box while focused (a selected gallery thumbnail is drawn in paintEvent)
 void imageViewer::updateFrame()
 {
   QPalette p=palette();
-  if(hasFocus() || selected)
+  if(hasFocus() && !(selected && isGalleryThumb()))
     {
       p.setColor(QPalette::WindowText,p.color(QPalette::Highlight));
       setPalette(p);
