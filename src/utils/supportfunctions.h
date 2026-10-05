@@ -71,6 +71,7 @@ bool browseSaveFile(QLineEdit *le,QString deflt,const QString &filter="*");
 bool browseDir(QLineEdit *le, QString deflt);
 void deleteFiles(QString dirPath,QString extension);
 QStringList commonImageFormats();
+void styleToolButtons(QWidget *parent);
 QString imageNameFilter(const QString &extra=QString());
 QString pictureNameFilter();
 

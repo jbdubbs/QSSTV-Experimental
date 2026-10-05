@@ -21,6 +21,7 @@
 rxWidget::rxWidget(QWidget *parent):QWidget(parent),ui(new Ui::rxWidget)
 {
   ui->setupUi(this);
+  styleToolButtons(this);
   rxFunctionsPtr=new rxFunctions();
   ui->syncWidget->setHorizontal(false);
   ui->syncWidget->setLabelText("S");

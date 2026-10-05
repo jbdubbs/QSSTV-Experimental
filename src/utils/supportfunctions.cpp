@@ -25,6 +25,7 @@
 #include <QDebug>
 #include <QImageReader>
 #include <QSet>
+#include <QToolButton>
 #include <stdarg.h>
 #include "dirdialog.h"
 
@@ -343,6 +344,25 @@ QString pictureNameFilter()
 QStringList commonImageFormats()
 {
   return QStringList()<<"png"<<"jpg"<<"jpeg"<<"gif"<<"bmp"<<"webp"<<"avif"<<"heic"<<"heif";
+}
+
+/*!
+  Windows 10 draws raised tool buttons with the grey (225) button face, which looks dark against the white tab page.
+  Its style takes that colour from the visual theme, not QPalette::Button, so force a lighter face with a
+  stylesheet (state colours mimic the native Windows 10 buttons). Other platforms keep their native look.
+*/
+void styleToolButtons(QWidget *parent)
+{
+#ifdef Q_OS_WIN
+  const QString css=
+    "QToolButton{background-color:white;border:1px solid #adadad;border-radius:2px;}"
+    "QToolButton:hover{background-color:#e5f1fb;border-color:#0078d7;}"
+    "QToolButton:pressed{background-color:#cce4f7;border-color:#005499;}"
+    "QToolButton:disabled{background-color:#f4f4f4;border-color:#d0d0d0;}";
+  foreach(QToolButton *b,parent->findChildren<QToolButton *>()) b->setStyleSheet(css);
+#else
+  Q_UNUSED(parent);
+#endif
 }
 
 QString imageNameFilter(const QString &extra)

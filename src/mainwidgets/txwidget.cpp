@@ -28,6 +28,7 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
 {
   QString tmp;
   ui->setupUi(this);
+  styleToolButtons(this);
   ui->previewWidget->setType(imageViewer::PREVIEW);
   txFunctionsPtr=new txFunctions(this);
   imageViewerPtr=ui->imageFrame;
