@@ -277,6 +277,10 @@ void txFunctions::run()
           break;
         case TXSSTVPOST:
           addToLog("Entered TXSSTVPOST ",LOGTXFUNC);
+          if (useCW || myCallsign.isEmpty())
+            {
+              sendPostamble();
+            }
           if (useCW)
             {
               sendCW();
@@ -414,9 +418,34 @@ void txFunctions::waitTxOn()
     }
 }
 
+// End-of-image tones, matching MMSSTV's SendSSTV() footer when no FSK ID is
+// sent: a trailing tone one line long (capped at 0.5 s), then
+// 1900/1500/1900/1500 at 100 ms each. With VOX the whole footer is 1900 Hz.
+// (With an FSK ID the 300 ms lead-in in sendFSKID() plays that role.)
+void txFunctions::sendPostamble()
+{
+  double lineTime=0.1;
+  if (txSSTVParam.numberOfDataLines>0 && txSSTVParam.imageTime>0)
+    {
+      lineTime=txSSTVParam.imageTime/txSSTVParam.numberOfDataLines;
+    }
+  if (lineTime>0.5) lineTime=0.5;
+  if (useVOX)
+    {
+      synthesPtr->sendTone(lineTime,1900.,0,true);
+      return;
+    }
+  synthesPtr->sendTone(lineTime,1500.,0,true);
+  synthesPtr->sendTone(0.1,1900.,0,true);
+  synthesPtr->sendTone(0.1,1500.,0,true);
+  synthesPtr->sendTone(0.1,1900.,0,true);
+  synthesPtr->sendTone(0.1,1500.,0,true);
+}
+
 void txFunctions::waitEnd()
 {
   synthesPtr->sendTone(SILENCEDELAY,00,0,true); // send silence
+  soundBase::txFileDone=true;   // --encode: everything is queued now, an empty buffer means the end
   addToLog("waitEnd() posting endTXImage",LOGTXFUNC);
   endImageTXEvent *ce=new endImageTXEvent;
   QApplication::postEvent(dispatcherPtr, ce );  // Qt will delete it when done
@@ -439,7 +468,6 @@ void txFunctions::stopAndWait()
         {
           qApp->processEvents();
         }
-
     }
   addToLog("txFunc: stop initiated",LOGTXFUNC);
   switchTxState(TXIDLE);
@@ -557,7 +585,7 @@ void txFunctions:: sendFSKID()
   IDChar = Checksum & 0x3F ;
 
   sendFSKChar(IDChar);
-  synthesPtr->sendTone(0.1,1900.,0,true);
+  synthesPtr->sendTone(0.1,2100.,0,true);
 }
 
 void txFunctions::sendBSR(QByteArray *p,drmTxParams dp)

@@ -181,9 +181,23 @@ void synthesizer::writeBuffer(quint32 *buffer, int len)
 
         }
      }
-  while((!soundIOPtr->txBuffer.put(buffer,len)) && (soundIOPtr->isPlaying()))
+  // txBuffer::put(ptr,len) is all-or-nothing, so a block bigger than the
+  // ring (2^16 frames) could never be accepted and this loop would spin
+  // forever (TX thread hung, no audio, app unable to exit). Feed it in
+  // chunks that always fit.
+  const int chunk=4096;
+  int pos=0;
+  if(len>chunk) addToLog(QString("writeBuffer: splitting %1 frames into %2-frame chunks").arg(len).arg(chunk),LOGSYNTHES);
+  while(pos<len)
     {
-      usleep(2000);
+      int n=((len-pos)>chunk)?chunk:(len-pos);
+      int waits=0;
+      while((!soundIOPtr->txBuffer.put(buffer+pos,n)) && (soundIOPtr->isPlaying()))
+        {
+          usleep(2000);
+          if(++waits==2500) addToLog(QString("writeBuffer: blocked 5s, %1 frames pending, buffer count %2").arg(len-pos).arg(soundIOPtr->txBuffer.count()),LOGSYNTHES);
+        }
+      pos+=n;
     }
 }
 

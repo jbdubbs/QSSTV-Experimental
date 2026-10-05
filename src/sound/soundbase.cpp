@@ -391,10 +391,20 @@ void soundBase::clearFileSource()
   fileCancelled=false;
 }
 
+QString soundBase::txFileName;
+volatile bool soundBase::txFileDone=false;
+
 int soundBase::play()
 {
   unsigned int numFrames;
   int framesWritten;
+  if(!txFileName.isEmpty() && !prebuf && !txFileDone && txBuffer.count()==0)
+    {
+      // Encoding to a file nothing paces us like a sound card does: an empty buffer only means the TX
+      // thread is behind, not that the transmission is over (waitEnd() sets txFileDone for that).
+      msleep(1);
+      return 1;
+    }
   if(prebuf)
     {
       if(txBuffer.count()<(DOWNSAMPLESIZE*8))
@@ -407,7 +417,7 @@ int soundBase::play()
     {
       framesWritten=0;
     }
-  if(soundRoutingOutput==SNDOUTTOFILE)  // output the wav-file
+  if(soundRoutingOutput==SNDOUTTOFILE || !txFileName.isEmpty())  // output the wav-file
     {
 
       if(storedFrames<=(ulong)recordingSize*1048576L)
@@ -420,6 +430,7 @@ int soundBase::play()
   addToLog(QString("frames to write: %1 at %2 buffered:%3").arg(numFrames).arg(txBuffer.getReadIndex()).arg(txBuffer.count()),LOGSOUND);
 
   //  framesWritten=write(numFrames);
+  if(!txFileName.isEmpty()) return numFrames;   // encoding to a file: no sound card
   framesWritten=write(DOWNSAMPLESIZE);
   addToLog(QString("frames written: %1").arg(framesWritten),LOGSOUND);
   if(framesWritten<0)
@@ -432,14 +443,23 @@ int soundBase::play()
 bool soundBase::startPlayback()
 {
   switchCaptureState(CPINIT);
-  if(!soundDriverOK)
+  if(!soundDriverOK && txFileName.isEmpty())
     {
       errorHandler("No valid sound device (see configuration)","");
       return false;
     }
   storedFrames=0;
+  txFileDone=false;
   soundIOPtr->txBuffer.reset();
-  if(soundRoutingOutput==SNDOUTTOFILE)
+  if(!txFileName.isEmpty())
+    {
+      if(!waveOut.openFileForWrite(txFileName,false,true))
+        {
+          errorHandler("File not opened",txFileName);
+          return false;
+        }
+    }
+  else if(soundRoutingOutput==SNDOUTTOFILE)
     {
 
       if(!waveOut.openFileForWrite("",true,true)) // indicate stereo

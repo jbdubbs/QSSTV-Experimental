@@ -62,4 +62,7 @@ void setRxPreferCoreEngine(bool prefer);
 // command line (--engine) so scripted decodes can pick an engine without touching the user's settings.
 void setRxEngineOverride(int override);
 
+// Same for TX (--encode --engine): -1 = none, 0 = QSSTV's own engine, 1 = mmsstv-core where it supports the mode.
+void setTxEngineOverride(int override);
+
 #endif // ENGINESELECTION_H

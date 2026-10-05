@@ -1,4 +1,5 @@
 #include "sstvtx.h"
+#include <algorithm>
 #include "appglobal.h"
 #include "configparams.h"
 #include "soundbase.h"
@@ -211,6 +212,11 @@ double sstvTx::calcTxTime(int overheadTime)
   else
   {
     tim+=FSKIDTime();
+  }
+  if(useCW || myCallsign.isEmpty())
+  {
+    double lt=(txSSTVParam.numberOfDataLines>0)?txSSTVParam.imageTime/txSSTVParam.numberOfDataLines:0.1;
+    tim+=useVOX?std::min(lt,0.5):std::min(lt,0.5)+0.4; // postamble
   }
   tim+=overheadTime;
   return tim;

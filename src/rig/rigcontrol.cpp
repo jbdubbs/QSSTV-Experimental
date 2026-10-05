@@ -23,6 +23,7 @@
 
 #include "mainwindow.h"
 #include "txwidget.h"
+#include "sound/soundbase.h"
 #include "configparams.h"
 #include "dispatcher.h"
 
@@ -398,6 +399,7 @@ void rigControl::setSerialPTTLines(bool b)
 
 void rigControl::activatePTT(bool b)
 {
+  if(!soundBase::txFileName.isEmpty()) return;   // --encode writes a wav file: never key a radio
   if(catParams.enableSerialPTT)
     {
       if (catParams.pttSerialPort.isEmpty()) return;

@@ -192,6 +192,11 @@ bool sendImageViaMmsstv(imageViewer *ivPtr, esstvMode mode)
 	mod.OpenTXBuf(10);
 	mod.InitTXBuf();
 
+	// MMSSTV's OutHEAD() 8-tone attention header (non-VOX, wide-band);
+	// SendVisHeader() below only does leader/break/leader + VIS. Matches
+	// sstvTx::sendPreamble() so both engines sound the same.
+	static const short kHeadTones[8] = {1900, 1500, 1900, 1500, 2300, 1500, 2300, 1500};
+	for (int i = 0; i < 8; i++) mod.Write(kHeadTones[i], 100);
 	SendVisHeader(&mod, info->visCode);
 	drainToTx(mod);
 

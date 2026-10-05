@@ -36,6 +36,8 @@
 #include "dispatcher.h"
 #include "dispatch/filedecoder.h"
 #include "mainwidgets/rxwidget.h"
+#include "mainwidgets/txwidget.h"
+#include "sound/soundbase.h"
 #include "sstv/engineselection.h"
 #include "sstv/sstvparam.h"
 #include "sstv/videofilterselection.h"
@@ -77,7 +79,7 @@ static void chooseHeadlessPlatform(int argc,char **argv)
   for(int i=1;i<argc;i++)
     {
       QString a=QString::fromLocal8Bit(argv[i]);
-      if(a=="-b" || a=="--batch" || a=="-h" || a=="--help" || a=="-v" || a=="--version" || a=="--list-modes")
+      if(a=="-b" || a=="--batch" || a=="-h" || a=="--help" || a=="-v" || a=="--version" || a=="--list-modes" || a=="--encode" || a.startsWith("--encode="))
         {
           qputenv("QT_QPA_PLATFORM","offscreen");
           return;
@@ -148,8 +150,11 @@ int main( int argc, char ** argv )
   QCommandLineOption wideOpt("wide-filter","Wide video filter for the fast modes for this run: auto (your setting), on or off.","auto|on|off");
   QCommandLineOption slantOpt("slant","Auto Slant on the MMSSTV Core engine for this run: auto (your setting), on or off.","auto|on|off");
   QCommandLineOption timeoutOpt("timeout","With --batch: give up on a file after this many seconds (default: its length + 30 s).","seconds");
+  QCommandLineOption encodeOpt("encode","Headless: transmit the picture <image> through the normal SSTV TX path into a wav file (see --wav-out, --mode, --engine) and exit. "
+                               "Your settings are read but never written.","image");
+  QCommandLineOption wavOutOpt("wav-out","With --encode: the wav file to write (default: <image>.wav).","file");
   QCommandLineOption listOpt("list-modes","Print the mode names that --mode accepts and exit.");
-  parser.addOptions(QList<QCommandLineOption>() << helpOpt << versionOpt << decodeOpt << batchOpt << outDirOpt << modeOpt << engineOpt << wideOpt << slantOpt << timeoutOpt << listOpt);
+  parser.addOptions(QList<QCommandLineOption>() << helpOpt << versionOpt << decodeOpt << batchOpt << outDirOpt << modeOpt << engineOpt << wideOpt << slantOpt << timeoutOpt << encodeOpt << wavOutOpt << listOpt);
   parser.addPositionalArgument("file","SSTV recordings to decode (same as --decode).","[file ...]");
   if(!parser.parse(app.arguments()))
     {
@@ -220,7 +225,9 @@ int main( int argc, char ** argv )
       fprintf(stderr,"--timeout needs a number of seconds\n");
       return fileDecoder::EXIT_BADFILE;
     }
+  const bool encode=parser.isSet(encodeOpt);
   setRxEngineOverride(engineOverride);
+  setTxEngineOverride(engineOverride);
   setWideVideoFilterOverride(wideOverride);
   setMmsstvSlantOverride(slantOverride);
 
@@ -263,6 +270,44 @@ int main( int argc, char ** argv )
       mainWindowPtr->shutdown(false);
       globalEnd();
       return fileDecoder::EXIT_BADFILE;
+    }
+  if(encode)
+    {
+      // --encode: send the picture through the normal TX path (the calibration transmit helper) into a wav file
+      esstvMode txMode=NOTVALID;
+      for(int i=0;i<NUMSSTVMODES;i++)
+        {
+          if(getSSTVModeNameShort((esstvMode)i).compare(parser.value(modeOpt),Qt::CaseInsensitive)==0) txMode=(esstvMode)i;
+        }
+      QImage img(parser.value(encodeOpt));
+      if(txMode==NOTVALID || img.isNull())
+        {
+          fprintf(stderr,"--encode needs a readable image and a valid --mode (see --list-modes)\n");
+          mainWindowPtr->shutdown(false);
+          globalEnd();
+          return fileDecoder::EXIT_BADFILE;
+        }
+      soundBase::txFileName=parser.isSet(wavOutOpt) ? parser.value(wavOutOpt) : parser.value(encodeOpt)+".wav";
+      // only leave the event loop here: slotStop() emits this and then still calls startRX(), which needs the worker
+      // threads, so they are shut down after exec() has returned
+      QObject::connect(txWidgetPtr,&txWidget::calibrationTxFinished,&app,[&app]()
+      {
+        app.exit(0);
+      },Qt::QueuedConnection);
+      QTimer::singleShot(900000,&app,[&app](){fprintf(stderr,"--encode timed out\n");app.exit(3);});
+      mainWindowPtr->startRunning(true);
+      if(!txWidgetPtr->sendCalibrationImage(txMode,img))
+        {
+          fprintf(stderr,"--encode: could not start the transmission\n");
+          mainWindowPtr->shutdown(false);
+          globalEnd();
+          return fileDecoder::EXIT_BADFILE;
+        }
+      result=app.exec();
+      mainWindowPtr->shutdown(false);
+      globalEnd();
+      fprintf(stderr,"wrote %s\n",qPrintable(soundBase::txFileName));
+      return result;
     }
   if(batch)
     {

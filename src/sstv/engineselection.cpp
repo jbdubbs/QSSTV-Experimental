@@ -30,10 +30,22 @@ bool mmsstvCoreActiveForAnyMode()
 	return rxPreferCoreEngine();
 }
 
+namespace {
+int txEngineOverride = -1;
+}
+
+void setTxEngineOverride(int override)
+{
+	txEngineOverride = override;
+}
+
 eEngine selectedEngine(esstvMode mode)
 {
 	if (!mmsstvCoreSupports(mode)) {
 		return ENGINE_QSSTV; // no alternative implementation exists
+	}
+	if (txEngineOverride >= 0) {
+		return txEngineOverride == 1 ? ENGINE_MMSSTV_CORE : ENGINE_QSSTV;
 	}
 	QSettings qSettings;
 	qSettings.beginGroup("Engine");

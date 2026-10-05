@@ -39,6 +39,10 @@ public:
   enum eplaybackState{PBINIT,PBSTARTING,PBRUNNING,PBEND};
   enum ecaptureState{CPINIT,CPSTARTING,CPRUNNING,CPLISTENSTART,CPLISTEN,CPEND};
 
+  // Command line --encode: when set, transmit audio goes to this wav file (no dialog, no sound card, not paced to real time)
+  static QString txFileName;
+  static volatile bool txFileDone;   // set by txFunctions::waitEnd() once the TX thread has queued its last sample
+
   explicit soundBase(QObject *parent = 0);
   ~soundBase();
   virtual bool init(int samplerate)=0;

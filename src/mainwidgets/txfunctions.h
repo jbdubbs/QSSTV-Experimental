@@ -77,6 +77,7 @@ private:
   void waitEnd();
   void sendCW();
   void sendFSKID();
+  void sendPostamble();
   void sendTestPattern();
   void syncBurst();
   void sendFSKChar(int IDChar);
