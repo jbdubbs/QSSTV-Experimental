@@ -135,7 +135,6 @@ void txWidget::init()
   readSettings();
   initView();
   setProfileNames();
-  ed=NULL;
   repeaterIndex=0;
   repeaterTimer=new QTimer(this);
   connect(repeaterTimer,SIGNAL(timeout()),SLOT(slotRepeaterTimer()));
@@ -616,16 +615,12 @@ void txWidget::slotGenerateRepeaterTone()
 
 void txWidget::slotEdit()
 {
-  if (ed!=NULL) delete ed;
-  ed=new editor(this);
   if(txFunctionsPtr->txBusy())
     {
       QMessageBox::warning(this,"Editor","Transmission busy, editor not available");
       return;
     }
-//  connect(ed,SIGNAL(imageAvailable(QImage *)),SLOT(setImage(QImage *)));
-  ed->setImage(imageViewerPtr->getImagePtr());
-  ed->show();
+  imageViewerPtr->slotEdit();   // same path as the image's right-click Edit
 }
 
 

@@ -146,7 +146,6 @@ private:
   bool calSavedUseTemplate=false;
   txFunctions *txFunctionsPtr;
 
-  editor *ed;
   QTimer *repeaterTimer;
   QTimer repeaterTxDelayTimer;
   int repeaterIndex;

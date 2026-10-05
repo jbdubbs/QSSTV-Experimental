@@ -123,10 +123,10 @@ protected:
 
 public slots:
   void slotToTX();
+  void slotEdit();
 
 private slots:
   void slotDelete();
-  void slotEdit();
   void slotLoad();
   void slotNew();
   void slotPrint();
