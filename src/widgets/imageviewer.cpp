@@ -26,6 +26,7 @@
 #include "dirdialog.h"
 #include "extviewer.h"
 #include "jp2io.h"
+#include "supportfunctions.h"
 #include <configdialog.h>
 #include "drm.h"
 #include "txwidget.h"
@@ -222,7 +223,7 @@ bool imageViewer::openImage(QString &filename,QString start,bool ask,bool showMe
                 }
             }
         }
-      else if(tempImage.load(tempFilename))
+      else if(loadImageAutoRotate(tempImage,tempFilename))
         {
           success=true;
         }
@@ -362,7 +363,7 @@ bool imageViewer::openImage(QByteArray *ba)
   QImage tempImage;
   QBuffer buffer(ba);
   buffer.open(QIODevice::ReadOnly);
-  if(tempImage.load(&buffer,NULL))
+  if(loadImageAutoRotate(tempImage,&buffer))
     {
       return  openImage(tempImage.convertToFormat(QImage::Format_ARGB32_Premultiplied));
     }

@@ -25,6 +25,7 @@
 #include "appglobal.h"
 #include "ui_textform.h"
 #include "imageviewer.h"
+#include "supportfunctions.h"
 
 #ifndef STANDALONE
 #include "gallerywidget.h"
@@ -108,7 +109,7 @@ bool editorScene::load(QFile &f)
 
       //try to load an image
       f.reset();
-      if(im.load(&f,0))
+      if(loadImageAutoRotate(im,&f))
         {
           addToLog("image loaded",LOGEDIT);
           imageType=FLATIMAGE;
@@ -369,7 +370,7 @@ void editorScene::placeItem(graphItemBase::egraphType type, QPointF center)
       item->setText(text);
       break;
     case graphItemBase::IMAGE:
-      if(fl.isEmpty() || !im.load(fl)) return;
+      if(fl.isEmpty() || !loadImageAutoRotate(im,fl)) return;
       item=new itemImage(contextMenu);
       item->setImage(im);
       break;

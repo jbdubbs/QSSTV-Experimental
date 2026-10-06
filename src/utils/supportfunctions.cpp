@@ -365,6 +365,22 @@ void styleToolButtons(QWidget *parent)
 #endif
 }
 
+bool loadImageAutoRotate(QImage &im, const QString &fileName)
+{
+  QImageReader r(fileName);
+  r.setAutoTransform(true);
+  im=r.read();
+  return !im.isNull();
+}
+
+bool loadImageAutoRotate(QImage &im, QIODevice *device)
+{
+  QImageReader r(device);
+  r.setAutoTransform(true);
+  im=r.read();
+  return !im.isNull();
+}
+
 QString imageNameFilter(const QString &extra)
 {
   const QStringList common=commonImageFormats();

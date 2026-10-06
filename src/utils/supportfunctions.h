@@ -2,6 +2,8 @@
 #define SUPPORTFUNCTIONS_H
 
 #include <QString>
+#include <QImage>
+#include <QIODevice>
 #include <QLineEdit>
 #include <QCheckBox>
 #include <QComboBox>
@@ -73,6 +75,9 @@ void deleteFiles(QString dirPath,QString extension);
 QStringList commonImageFormats();
 void styleToolButtons(QWidget *parent);
 QString imageNameFilter(const QString &extra=QString());
+/** load an image applying its EXIF/HEIF orientation (QImage::load() ignores it) */
+bool loadImageAutoRotate(QImage &im, const QString &fileName);
+bool loadImageAutoRotate(QImage &im, QIODevice *device);
 QString pictureNameFilter();
 
 bool trash(QString filename,bool forceDelete);
