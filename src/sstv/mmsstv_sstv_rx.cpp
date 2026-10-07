@@ -219,6 +219,7 @@ void MmsstvSstvRx::feedSample(double sample)
 		bool modeAllowed = (int)sstvModeIndexRx == 0
 			|| (int)sstvModeIndexRx == (int)lockedMode + 1;
 		trackingImage = (lockedMode != NOTVALID) && modeAllowed && rxPreferCoreEngine() && !qsstvBusy;
+		rxCoreImageActive = trackingImage;
 		if (trackingImage) {
 			int width, height;
 			getModeDimensions(lockedMode, width, height); // trackingImage implies this succeeds
