@@ -276,39 +276,26 @@ namespace metrics
     return rise1090(prof);
   }
   // Issue #18: JB60's last Cb slot sits against the sync pulse and used to decode as a green/yellow strip down
-  // the right edge; the last luma slot, followed by D's mid-level, brightens the last columns of a dark picture.
-  // Row-averaged |rx-src| over `n` columns starting at x0, so image detail averages out and a column-wide
-  // error doesn't. Returns the worst single R/G/B channel; `luma` (Rec.601, same weights as txPairLuma) is the
-  // worst *luma* error alone, which tells a luma artifact from a chroma one.
-  // Compare the last 8 columns against an interior block of the same size: a healthy edge reads about the same.
-  struct EdgeError { double channel; double luma; };
-  inline EdgeError columnBlockError(const QImage &src,const QImage &rx,int x0,int n)
+  // the right edge. Row-averaged per-channel |rx-src| over `n` columns starting at x0 (R,G,B max returned), so
+  // image detail averages out and a column-wide colour error doesn't. Compare the last 8 columns against an
+  // interior block of the same size: a healthy edge reads about the same as the interior.
+  inline double columnBlockError(const QImage &src,const QImage &rx,int x0,int n)
   {
-    EdgeError worst={0,0};
+    double worst=0;
     const int H=rx.height();
-    for(int x=x0;x<x0+n;x++)
-      {
-        double a[3]={0,0,0},b[3]={0,0,0};
-        for(int r=10;r<H-10;r++)
-          {
-            QRgb s=((const QRgb*)src.constScanLine(r))[x],v=((const QRgb*)rx.constScanLine(r))[x];
-            a[0]+=qRed(s); a[1]+=qGreen(s); a[2]+=qBlue(s);
-            b[0]+=qRed(v); b[1]+=qGreen(v); b[2]+=qBlue(v);
-          }
-        const double k=1.0/(H-20);
-        for(int c=0;c<3;c++) worst.channel=std::max(worst.channel,fabs(a[c]-b[c])*k);
-        double ly=0.30*(a[0]-b[0])+0.59*(a[1]-b[1])+0.11*(a[2]-b[2]);
-        worst.luma=std::max(worst.luma,fabs(ly)*k);
-      }
+    for(int c=0;c<3;c++)
+      for(int x=x0;x<x0+n;x++)
+        {
+          double a=0,b=0;
+          for(int r=10;r<H-10;r++)
+            {
+              QRgb s=((const QRgb*)src.constScanLine(r))[x],v=((const QRgb*)rx.constScanLine(r))[x];
+              a+=(c==0)?qRed(s):(c==1)?qGreen(s):qBlue(s);
+              b+=(c==0)?qRed(v):(c==1)?qGreen(v):qBlue(v);
+            }
+          worst=std::max(worst,fabs(a-b)/(H-20));
+        }
     return worst;
-  }
-  // "last 8 columns" vs "interior 8 columns" line shared by the per-image report and --edge
-  inline void printRightEdge(const QImage &src,const QImage &rx)
-  {
-    const int W=rx.width();
-    EdgeError e=columnBlockError(src,rx,W-8,8),i=columnBlockError(src,rx,W-48,8);
-    printf("  right-edge error, row-avg counts (issue #18): last 8 cols  channel %.1f luma %.1f   interior 8 cols  channel %.1f luma %.1f\n",
-           e.channel,e.luma,i.channel,i.luma);
   }
   // Absolute x position (sub-pixel) where a cEdge()/vEdge()-style step's channel value crosses `frac` of
   // the way from its low plateau to its high plateau -- same windowed profile as edgeRiseChannel(), but a

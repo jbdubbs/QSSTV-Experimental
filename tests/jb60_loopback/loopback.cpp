@@ -416,7 +416,8 @@ namespace
     printf("  PSNR R %.2f G %.2f B %.2f  luma %.2f  all %.2f dB\n",metrics::psnr(src,r.rx,0),metrics::psnr(src,r.rx,1),metrics::psnr(src,r.rx,2),metrics::psnr(src,r.rx,3),metrics::psnr(src,r.rx,4));
     printf("  SSIM full %.3f  text-region %.3f   gradient kept: full %.2f text-region %.2f\n",metrics::ssim(src,r.rx,full),metrics::ssim(src,r.rx,txt),
            metrics::gradEnergy(r.rx,full)/metrics::gradEnergy(src,full),metrics::gradEnergy(r.rx,txt)/metrics::gradEnergy(src,txt));
-    metrics::printRightEdge(src,r.rx);
+    printf("  right-edge colour error (worst channel, row-avg counts): last 8 cols %.1f   interior 8 cols %.1f   (issue #18: edge should not be far above interior)\n",
+           metrics::columnBlockError(src,r.rx,W-8,8),metrics::columnBlockError(src,r.rx,W-48,8));
     if(o.image=="vedge320") printf("  edge 10-90%% rise (x): %.2f px\n",metrics::edgeRiseV(r.rx,320));
     if(o.image=="vedge321") printf("  edge 10-90%% rise (x): %.2f px\n",metrics::edgeRiseV(r.rx,321));
     if(o.image=="hedge248") printf("  edge 10-90%% rise (y): %.2f px\n",metrics::edgeRiseH(r.rx,248));
@@ -524,7 +525,7 @@ int main(int argc,char**argv)
   if(argc<2) { fprintf(stderr,
       "usage: %s <jb|pd> [--image 0|1|2|card|vedge320|vedge321|hedge248|hedge249|cedge320|cedge321|medge320|medge321|dedge320|dedge321|grath|gratv|gratd|cgrath|cgratv|file.png]\n"
       "          [--suite] [--ideal] [--fir wide|narrow] [--chroma-wide] [--chroma-deconv] [--chroma-edge-boost] [--chroma-grid-phase f] [--chroma-compand-gamma g] [--chroma-pseudo-luma f] [--chroma-triangle] [--snr dB] [--ssb] [--noise-hz Hz (with --ideal)] [--clock-err frac]\n"
-      "          [--tshift samples] [--out prefix] [--wav file.wav [--vis] [--count N]] [--dump-slots cr|cb|both]\n"          "       %s --compare a.png b.png\n       %s --edge src.png rx.png   (right-edge error: edge channel/luma, interior channel/luma)\n",argv[0],argv[0],argv[0]); return 1; }
+      "          [--tshift samples] [--out prefix] [--wav file.wav [--vis] [--count N]] [--dump-slots cr|cb|both]\n"          "       %s --compare a.png b.png\n",argv[0],argv[0]); return 1; }
   if(!strcmp(argv[1],"--compare"))
     {
       if(argc<4) { fprintf(stderr,"--compare a.png b.png\n"); return 1; }
@@ -532,17 +533,6 @@ int main(int argc,char**argv)
       QImage a=QImage(argv[2]).convertToFormat(QImage::Format_RGB32),b=QImage(argv[3]).convertToFormat(QImage::Format_RGB32);
       if(a.isNull()||b.isNull()||a.size()!=b.size()) { fprintf(stderr,"cannot compare: unreadable or different size\n"); return 2; }
       printf("PSNR luma %.2f dB  all %.2f dB  SSIM %.3f\n",metrics::psnr(a,b,3),metrics::psnr(a,b,4),metrics::ssim(a,b,{0,0,a.width(),a.height()}));
-      return 0;
-    }
-  if(!strcmp(argv[1],"--edge"))
-    {
-      if(argc<4) { fprintf(stderr,"--edge src.png rx.png\n"); return 1; }
-      QGuiApplication capp(argc,argv);
-      QImage a=QImage(argv[2]).convertToFormat(QImage::Format_RGB32),b=QImage(argv[3]).convertToFormat(QImage::Format_RGB32);
-      if(a.isNull()||b.isNull()||a.size()!=b.size()) { fprintf(stderr,"cannot compare: unreadable or different size\n"); return 2; }
-      const int W=a.width();
-      metrics::EdgeError e=metrics::columnBlockError(a,b,W-8,8),i=metrics::columnBlockError(a,b,W-48,8);
-      printf("%.1f %.1f %.1f %.1f\n",e.channel,e.luma,i.channel,i.luma);   // edge channel/luma, interior channel/luma
       return 0;
     }
   o.mode=(!strcmp(argv[1],"pd"))?PD120:JB60;

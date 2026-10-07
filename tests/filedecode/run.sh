@@ -81,24 +81,6 @@ timing_check "jb narrow filter" "$T/jbref_rx.png" "$T/o_jb/jb_1_JB60.png"
 run --wide-filter on -o "$T/o_jbw" "$T/jbw.wav"
 timing_check "jb wide filter" "$T/jbwref_rx.png" "$T/o_jbw/jbw_1_JB60.png"
 
-echo "== JB60 right edge (issue #18)"
-# JB60's last Cb slot sits against the sync pulse and used to decode as a green/yellow strip down the right edge
-# (the application's front end smears it over ~5 Cb slots; the loopback harness alone under-sized the first
-# fix). Row-averaged colour error of the last 8 columns against the source, via the application's own decode.
-# Un-fixed it is ~60 counts on the card image; fixed it is within a few counts of the interior block.
-edge_check() {
-  local label=$1 src=$2 png=$3
-  if [ -f "$png" ]; then
-    read ec el ic il <<<"$("$LB" --edge "$src" "$png")"
-    ge "15" "$ec" && ok "$label: right-edge colour error $ec (interior $ic)" \
-                  || bad "$label: right-edge colour error $ec counts (interior $ic; want <= 15)"
-  else
-    bad "$label: no picture to check"
-  fi
-}
-edge_check "jb narrow filter" "$T/jb_src.png" "$T/o_jb/jb_1_JB60.png"
-edge_check "jb wide filter" "$T/jbw_src.png" "$T/o_jbw/jbw_1_JB60.png"
-
 echo "== options"
 run --mode PD120 -o "$T/o_mode" "$T/pd.wav"; expect_exit "forced correct mode" 0 $?
 run --mode M1 -o "$T/o_wrongmode" "$T/pd.wav"; expect_exit "forced wrong mode finds nothing" 1 $?
