@@ -91,11 +91,6 @@ public:
 	// flips, so the outgoing engine stops painting the shared canvas.
 	void abortImage() { abortRequested = true; }
 
-	// Like abortImage() but for the start of a new recording (decode from file): drops a stale demodulator lock
-	// the same way, yet serviceAbort() then reports false, so the audio already queued for the new recording
-	// (its preamble!) is not discarded.
-	void resetLock() { lockResetRequested = true; }
-
 	// RX-thread side of abortImage(). Returns true if an abort was pending
 	// (and has now been applied). Must be called from the RX thread, even
 	// when the raw tap isn't being fed to processSamples().
@@ -131,7 +126,6 @@ private:
 	bool qsstvBusy = false;
 	bool trackingImage = false;
 	std::atomic<bool> abortRequested{false};
-	std::atomic<bool> lockResetRequested{false};
 	int decodedRows = 0;
 
 	// Mirrors QSSTV's own RX sensitivity setting (rxwidget.cpp's

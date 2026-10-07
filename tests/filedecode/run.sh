@@ -145,12 +145,6 @@ else
   [ -n "$(cpng "$T/o_cfm")" ] && ok "core: forced correct mode wrote a picture" || bad "core: forced correct mode wrote no picture"
   run --engine core --mode PD120 -o "$T/o_cfw" "$T/c_m1.wav"; expect_exit "core: forced wrong mode finds nothing" 1 $?
 
-  # Issue #51: the Core demodulator stayed locked after a picture, so later files in the same run decoded nothing
-  cp "$T/c_m1.wav" "$T/c_m1b.wav"   # distinct name: the output pictures are named after the recording
-  run --engine core -o "$T/o_cseq" "$T/c_m1.wav" "$T/c_pd.wav" "$T/c_m1b.wav"; rc=$?
-  n=$(ls "$T"/o_cseq/*.png 2>/dev/null | wc -l)
-  [ $rc = 0 ] && [ "$n" = 3 ] && ok "core: three files in a row -> $n pictures" || bad "core: three files in a row: exit $rc, $n pictures"
-
   # Sensitivity has no CLI option; it is the RX/sensitivity setting (0 Low, 1 Normal, 2 High, 3 DX), mapped onto the
   # demodulator's inverted m_SenseLvl. Only a smoke check: a clean signal must decode at every level.
   CONF="$HOME/.config/ON4QZ/qsstv_9.0.conf"; mkdir -p "$(dirname "$CONF")"

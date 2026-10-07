@@ -11,7 +11,6 @@
 #include "mainwindow.h"
 #include "rxfunctions.h"
 #include "rxwidget.h"
-#include "mmsstv_sstv_rx.h"
 #include "soundbase.h"
 #include "wavreader.h"
 
@@ -128,9 +127,6 @@ bool fileDecoder::startNext()
     }
   currentSeconds=seconds;
   dispatcherPtr->idleAll();
-  // mmsstv-core's demodulator stays locked after a picture (it never drops its own lock), which hides the next
-  // file's VIS: put it back to hunting for one (applied by the RX thread, see MmsstvSstvRx::serviceAbort())
-  rxWidgetPtr->functionsPtr()->resetCoreLock();
   if(!soundIOPtr->startFileCapture(currentFile,!batch,error))
     {
       note(EXIT_BADFILE);

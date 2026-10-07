@@ -125,9 +125,7 @@ void MmsstvSstvRx::finishImage()
 
 bool MmsstvSstvRx::serviceAbort()
 {
-	bool abort = abortRequested.exchange(false);
-	bool lockReset = lockResetRequested.exchange(false);
-	if (!abort && !lockReset) return false;
+	if (!abortRequested.exchange(false)) return false;
 	// No endImageSSTVRXEvent: a dropped picture must not be autosaved.
 	trackingImage = false;
 	trackingMode = NOTVALID;
@@ -138,7 +136,7 @@ bool MmsstvSstvRx::serviceAbort()
 	// next picture's 0->1 lock edge from processSamples(). Stop() puts it
 	// back to hunting for a VIS (without recreating it -- see the ctor).
 	dem->Stop();
-	return abort;   // a lock reset alone must not make the caller discard the audio queued behind it
+	return true;
 }
 
 // QSSTV's sensitivityComboBox runs Low(0)/Normal(1)/High(2)/DX(3), least to
