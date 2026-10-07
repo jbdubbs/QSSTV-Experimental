@@ -57,7 +57,6 @@ public:
 protected:
   embState rxSetupLine();
   embState txSetupLine();
-  void txLeadIn();
   void setupParams(double clock);
   void showLine();
   void getLine();

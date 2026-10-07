@@ -414,23 +414,6 @@ void modeBase::yuvConversion(unsigned char *array)
   displayLineCounter++;
 }
 
-/**
-  \brief send what a standard signal has between the VIS and the first picture data of line 0
-
-  The modes here build a line as data, front porch, sync, back porch: the standard line rotated so that it ends
-  with the sync, so nothing sends the sync that a standard transmission puts before line 0. A receiver that finds
-  each line by its sync (QSSTV's own) does not care, but one that counts from the end of the VIS code (the MMSSTV
-  Core engine, and any other VIS-anchored decoder) places the whole picture early by one sync.
-  Only the sync is needed: the back porch of line 0 is already there, because the pixel position tables start the
-  first pixel at the line start plus the back porch, so pixel 0 is held through it. The lead-in is not counted in
-  sampleCounter, since the pixel position tables are absolute from the start of line 0.
-  Modes whose lines do not end with a sync that is followed by the next line's data override this (Scottie).
-*/
-void modeBase::txLeadIn()
-{
-  synthesPtr->sendSamples((unsigned int)rint(syncDuration),syncFreq);
-}
-
 modeBase::eModeBase modeBase::transmitImage(imageViewer *iv)
 {
   txImPtr=iv;
@@ -444,7 +427,6 @@ modeBase::eModeBase modeBase::transmitImage(imageViewer *iv)
   start=0;
   subLine=0;
   abortRun=false;
-  txLeadIn();
   while(!abortRun)
     {
       isRunning=true;

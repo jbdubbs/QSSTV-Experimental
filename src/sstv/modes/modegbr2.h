@@ -51,7 +51,6 @@ protected:
 
 //	int adaptStartPosition(bool vertRetrace);
   embState txSetupLine();
-  void txLeadIn();
 };
 
 #endif
