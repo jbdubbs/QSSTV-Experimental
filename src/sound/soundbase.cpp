@@ -398,10 +398,13 @@ int soundBase::play()
 {
   unsigned int numFrames;
   int framesWritten;
-  if(!txFileName.isEmpty() && !prebuf && !txFileDone && txBuffer.count()==0)
+  if(!txFileName.isEmpty() && !prebuf && !txFileDone && txBuffer.count()<DOWNSAMPLESIZE)
     {
-      // Encoding to a file nothing paces us like a sound card does: an empty buffer only means the TX
-      // thread is behind, not that the transmission is over (waitEnd() sets txFileDone for that).
+      // Encoding to a file nothing paces us like a sound card does: a buffer that is empty or not yet holding a
+      // full block only means the TX thread is behind, not that the transmission is over (waitEnd() sets
+      // txFileDone for that). Taking a partial block would also leave every later read misaligned with the
+      // ring buffer, so one read would straddle its end and copy whatever lies beyond it (a gap of silence, or
+      // garbage, in the recording: it broke the VIS of about half the PD120 files).
       msleep(1);
       return 1;
     }
