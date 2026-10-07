@@ -65,12 +65,4 @@ void setRxEngineOverride(int override);
 // Same for TX (--encode --engine): -1 = none, 0 = QSSTV's own engine, 1 = mmsstv-core where it supports the mode.
 void setTxEngineOverride(int override);
 
-// "Smooth Display Scaling" (RX tab): when off, the RX picture is scaled with nearest-neighbour instead of a
-// smoothing filter, which shows the raw scan-line stagger. It only affects pictures decoded by QSSTV's own
-// engine; a picture tracked by mmsstv-core (rxCoreImageActive, set by MmsstvSstvRx at each VIS lock) is always
-// smoothed. Defaults to true (the original behaviour).
-extern bool rxSmoothDisplayScaling;
-extern bool rxCoreImageActive;
-bool rxUseSmoothDisplay();
-
 #endif // ENGINESELECTION_H

@@ -56,7 +56,6 @@ public:
 
 
   void init(thumbType tp);
-  Qt::TransformationMode scaleMode() const;
   bool openImage(QString &filename, QString start, bool ask, bool showMessage, bool temitSignal, bool fromCache, bool background);
   bool openImage(QString &filename, bool showMessage, bool emitSignal, bool fromCache,bool background);
   bool openImage(QImage im);

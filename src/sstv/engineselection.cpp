@@ -71,14 +71,6 @@ void setRxEngineOverride(int override)
 	rxEngineOverride = override;
 }
 
-bool rxSmoothDisplayScaling = true;
-bool rxCoreImageActive = false;
-
-bool rxUseSmoothDisplay()
-{
-	return rxSmoothDisplayScaling || (rxCoreImageActive && rxPreferCoreEngine());
-}
-
 bool rxPreferCoreEngine()
 {
 	if (rxEngineOverride >= 0) return rxEngineOverride == 1;
