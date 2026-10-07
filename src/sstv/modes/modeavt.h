@@ -39,6 +39,7 @@ protected:
 	void calcPixelPositionTable(unsigned int colorLine,bool tx);
 	void setupParams(double clock);
   embState txSetupLine();
+  void txLeadIn();
   bool avtTrailerDetect;
   unsigned int duration;
   unsigned int bitCounter;

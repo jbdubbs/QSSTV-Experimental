@@ -124,7 +124,7 @@ run --engine qsstv --mode PD120 -o "$T/o_mode" "$T/pd.wav"; expect_exit "forced 
 run --engine qsstv --mode M1 -o "$T/o_wrongmode" "$T/pd.wav"; expect_exit "forced wrong mode finds nothing" 1 $?
 run --engine core -o "$T/o_core" "$T/pd.wav"; rc=$?
 expect_exit "mmsstv-core engine" 0 $rc
-ls "$T"/o_core/*.png >/dev/null 2>&1 && ok "mmsstv-core wrote a picture (fidelity not checked: it expects sync first, QSSTV sends it last)" || bad "mmsstv-core wrote no picture"
+ls "$T"/o_core/*.png >/dev/null 2>&1 && ok "mmsstv-core wrote a picture (alignment is checked in the transmitter section below)" || bad "mmsstv-core wrote no picture"
 run --engine qsstv --wide-filter on -o "$T/o_wide" "$T/jb.wav"; expect_exit "wide filter" 0 $?
 run --engine qsstv -o "$T/o_two" "$T/jb2.wav"; rc=$?
 n=$(ls "$T"/o_two/*.png 2>/dev/null | wc -l)
@@ -212,6 +212,36 @@ else
       else bad "calibrated rxclock $M: luma PSNR $poff -> $pon dB (expected >= +3 dB)"; fi
     done
   fi
+fi
+
+declare -A cols
+echo "== QSSTV transmitter: first-line timing (issue #52)"
+# A decoder that counts from the end of the VIS code (the mmsstv-core engine) places the picture early if the
+# transmitter leaves out the sync before line 0. Encode a white picture with a black vertical bar with both
+# transmitters, decode both with the Core engine and compare where the bar lands near the top of the picture: it must
+# be the same to within 3 px (without the leading sync it is 12 px off for Martin 1 and 117 px for PD120).
+if command -v ffmpeg >/dev/null && [ -x "$ENC" ]; then
+  bar_cols() {   # first and last dark column, between columns $2 and $3, of one row near the top of a PNG
+    ffmpeg -v error -i "$1" -vf "crop=iw:1:0:12,format=gray" -f rawvideo - 2>/dev/null | od -An -v -tu1 -w1 \
+      | awk -v lo="$2" -v hi="$3" 'NR>lo && NR<=hi && $1<128{if(first=="")first=NR; last=NR} END{if(first=="")print "none"; else print first, last}'
+  }
+  for M in M1 PD120 S1; do
+    case $M in PD120) size=640x496;; *) size=320x256;; esac
+    w=${size%x*}; h=${size#*x}
+    ffmpeg -v error -y -f lavfi -i "color=white:s=$size,drawbox=x=$((w*3/10)):y=0:w=$((w/20)):h=$h:color=black:t=fill" -frames:v 1 "$T/bar.png"
+    for tx in qsstv core; do
+      "$QSSTV" --encode "$T/bar.png" --mode $M --engine $tx --wav-out "$T/tx.wav" >/dev/null 2>&1
+      rm -rf "$T/tx_$tx"
+      run --engine core --mode $M --slant off -o "$T/tx_$tx" "$T/tx.wav"
+      cols[$tx]=$(bar_cols "$(cpng "$T/tx_$tx")" $((w/10)) $((w*6/10)))
+    done
+    a=${cols[qsstv]%% *}; b=${cols[core]%% *}
+    if [ "$a" = none ] || [ "$b" = none ] || [ -z "$a" ] || [ -z "$b" ]; then bad "$M transmitter timing: no bar found (qsstv tx '${cols[qsstv]}', core tx '${cols[core]}')"
+    elif [ $((a>b ? a-b : b-a)) -le 3 ]; then ok "$M transmitter timing: bar at column $a (QSSTV tx) vs $b (Core tx)"
+    else bad "$M transmitter timing: bar at column $a (QSSTV tx) vs $b (Core tx), expected within 3 px"; fi
+  done
+else
+  echo "  skip (needs ffmpeg and mmsstv-core's encode_wav_tool)"
 fi
 
 echo "== truncated recording (45% of the picture)"

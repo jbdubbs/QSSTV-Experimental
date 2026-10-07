@@ -200,3 +200,10 @@ modeBase::embState modeGBR2::txSetupLine()
       return MBENDOFLINE;
     }
 }
+
+/**
+  \brief nothing is sent before line 0: a standard Scottie transmission has no sync before its first line (its line starts with the 1.5 ms separator that line 0 already has)
+*/
+void modeGBR2::txLeadIn()
+{
+}

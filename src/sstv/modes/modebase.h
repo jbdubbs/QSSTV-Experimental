@@ -154,6 +154,7 @@ protected:
       Each line is subdivided in subLines. A subLine can be a pixel line, a delay or a sync. This function is called from transmit function in the modebase.
   */
   virtual embState txSetupLine()=0;
+  virtual void txLeadIn();   //!< what is sent before line 0, see modebase.cpp
 
   virtual void getLine();
   imageViewer *txImage() {return txImPtr;}

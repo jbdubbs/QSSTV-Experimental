@@ -294,3 +294,9 @@ modeBase::embState modeAVT::txSetupLine()
 		}
 }
 
+/**
+  \brief nothing is sent before line 0: AVT frames are not a sync-per-line signal that a VIS-anchored decoder times from
+*/
+void modeAVT::txLeadIn()
+{
+}

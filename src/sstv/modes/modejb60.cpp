@@ -814,3 +814,10 @@ void modeJB60::showLine()
   prevCr.swap(curCr);
   prevCb.swap(curCb);
 }
+
+/**
+  \brief nothing is sent before line 0: JB60 is QSSTV's own mode, and its receive timing is tuned to the existing signal
+*/
+void modeJB60::txLeadIn()
+{
+}
