@@ -79,6 +79,7 @@ void rxWidget::init()
   connect(ui->decodeFileToolButton,SIGNAL(clicked()),SLOT(slotDecodeFile()));
   connect(ui->autoSaveCheckBox,SIGNAL(clicked()),SLOT(slotGetParams()));
   connect(ui->autoSlantAdjustCheckBox,SIGNAL(clicked()),SLOT(slotGetParams()));
+  connect(ui->smoothDisplayCheckBox,SIGNAL(clicked()),SLOT(slotSmoothDisplayChanged()));
   connect(ui->engineCheckBox,SIGNAL(clicked(bool)),SLOT(slotEngineChanged(bool))); // clicked, not toggled: only a user click aborts RX, not settings load
 
 
@@ -116,6 +117,7 @@ void rxWidget::readSettings()
   defaultImageFormat=qSettings.value("defaultImageFormat","png").toString();
   if(ui->defaultImageFormatComboBox->findText(defaultImageFormat)<0) defaultImageFormat="png"; // saved format no longer offered
   minCompletion=qSettings.value("minCompletion",25).toInt();
+  rxSmoothDisplayScaling=qSettings.value("smoothDisplayScaling",true).toBool();
   setParams();
   qSettings.endGroup();
 
@@ -132,6 +134,7 @@ void rxWidget::writeSettings()
   qSettings.setValue("sstvModeIndexRx",sstvModeIndexRx);
   qSettings.setValue("defaultImageFormat",defaultImageFormat);
   qSettings.setValue("minCompletion",minCompletion);
+  qSettings.setValue("smoothDisplayScaling",rxSmoothDisplayScaling);
   qSettings.endGroup();
 }
 
@@ -149,6 +152,7 @@ void rxWidget::getParams()
   setRxPreferCoreEngine(preferCore);
   getValue(defaultImageFormat,ui->defaultImageFormatComboBox);
   getValue(minCompletion,ui->completeSpinBox);
+  getValue(rxSmoothDisplayScaling,ui->smoothDisplayCheckBox);
 }
 
 void rxWidget::setParams()
@@ -159,6 +163,7 @@ void rxWidget::setParams()
   rebuildModeComboBox();
   setValue(defaultImageFormat,ui->defaultImageFormatComboBox);
   setValue(minCompletion,ui->completeSpinBox);
+  setValue(rxSmoothDisplayScaling,ui->smoothDisplayCheckBox);
 }
 
 // Populates sstvModeComboBox ("Auto" always first) with every SSTV mode
@@ -226,6 +231,12 @@ void rxWidget::slotEngineChanged(bool checked)
   // (new) engine starts on the next VIS lock.
   rxFunctionsPtr->switchEngine();
   imageViewerPtr->createImage(QSize(320,256),imageBackGroundColor,imageStretch);
+}
+
+void rxWidget::slotSmoothDisplayChanged()
+{
+  getParams();
+  imageViewerPtr->displayImage();   // redraw the current picture with the new scaling
 }
 
 void rxWidget::slotGetParams()

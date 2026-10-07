@@ -19,6 +19,7 @@
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
 #include "imageviewer.h"
+#include "engineselection.h"
 #include "appglobal.h"
 #include "logging.h"
 #include "configparams.h"
@@ -425,6 +426,13 @@ QRgb *imageViewer::getScanLineAddress(int line)
 
 
 
+// RX picture only: the "Smooth Display Scaling" option (RX tab) can switch smoothing off for QSSTV-engine pictures
+Qt::TransformationMode imageViewer::scaleMode() const
+{
+  if((ttype==RXIMG) && !rxUseSmoothDisplay()) return Qt::FastTransformation;
+  return Qt::SmoothTransformation;
+}
+
 void imageViewer::displayImage()
 {
   if(displayedImage.isNull())
@@ -434,7 +442,7 @@ void imageViewer::displayImage()
   if (view.isNull()) {
       if(hasScaledContents() || (displayedImage.width()>width()) || (displayedImage.height()>height()) || stretch)
         {
-          setPixmap(withGridOverlay(QPixmap::fromImage(displayedImage.scaled(width()-2,height()-2,Qt::KeepAspectRatio,Qt::SmoothTransformation))));
+          setPixmap(withGridOverlay(QPixmap::fromImage(displayedImage.scaled(width()-2,height()-2,Qt::KeepAspectRatio,scaleMode()))));
         }
       else
         {
@@ -445,7 +453,7 @@ void imageViewer::displayImage()
   else
     {
       QImage im = displayedImage.copy(view);
-      setPixmap(QPixmap::fromImage(im.scaled(width()-2,height()-2,Qt::KeepAspectRatio,Qt::SmoothTransformation)));
+      setPixmap(QPixmap::fromImage(im.scaled(width()-2,height()-2,Qt::KeepAspectRatio,scaleMode())));
 
     }
 
