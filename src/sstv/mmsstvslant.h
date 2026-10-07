@@ -69,8 +69,8 @@ public:
 	double correctionRatio() const { return ratio; }
 
 private:
-	struct Observation { double line; double offset; double score; double corr; };
-	static constexpr int kHistory = 1024;     // lines kept for the regression (a whole picture: see recalc())
+	struct Observation { double line; double offset; };
+	static constexpr int kHistory = 64;       // recent lines kept for the regression window
 	static constexpr int kWarmupLines = 16;   // MMSSTV's own documented minimum for its high-accuracy mode
 	static constexpr int kRecalcInterval = 5; // matches QSSTV's own slantAdjustLine cadence
 
@@ -81,7 +81,6 @@ private:
 	int linesSinceRecalc = 0;
 	int lastSamplesPerLine = 0;
 	double ratio = 1.0;
-	double cumCorr = 0.0;   // samples of timing shift the ratio has applied so far (see recalc())
 
 	void recalc();
 };
