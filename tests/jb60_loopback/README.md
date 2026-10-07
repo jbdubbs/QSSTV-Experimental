@@ -415,11 +415,3 @@ transmitter rather than from a sync detector, so it has no ~2.5 sample lag for t
 without anything being wrong. JB60's wide filter is chroma-only now, so that case compares against
 `--chroma-wide`, not `--fir wide` (which widens the whole picture). Changing the porch trim moves harness and
 application together, so that check does not detect it.
-
-## Right-edge colour check (issue #18)
-
-Every single-image run prints `right-edge colour error`: the worst-channel, row-averaged |rx-src| over the last 8
-columns next to the same figure for an interior block 40 columns in. JB60's last Cb slot sits against the sync
-pulse (no front porch) and used to decode as a green/yellow strip. Card image, before -> after the receive-side
-tail hold in `showLine()`: ideal 60.5 -> 1.2, real chain with `--chroma-wide --snr 25 --ssb` 68.8 -> 23.2 (interior
-7.7 / 26.8). A healthy edge reads about the same as the interior.
