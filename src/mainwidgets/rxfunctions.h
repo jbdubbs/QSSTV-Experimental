@@ -31,6 +31,7 @@ public:
   void restartRX();
   void eraseImage();
   void switchEngine();
+  void resetCoreLock();   // drop mmsstv-core's demodulator lock (without clearing the picture)
   QString getModeStr();
   sstvRx  *sstvRxPtr;
   void stopThread();

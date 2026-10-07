@@ -246,6 +246,11 @@ void rxFunctions::switchEngine()
   eraseImage();
 }
 
+void rxFunctions::resetCoreLock()
+{
+  mmsstvRxPtr->resetLock();
+}
+
 void rxFunctions::switchRxState(erxState newState)
 {
   addToLog(QString("%1 to %2").arg(rxStateStr[rxState]).arg(rxStateStr[newState]),LOGRXFUNC);
