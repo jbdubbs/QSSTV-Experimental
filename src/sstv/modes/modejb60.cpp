@@ -330,18 +330,12 @@ namespace
   // filter's smear, reach into it: Cb collapses over the last ~8 px, which shows as a vertical green/yellow strip at
   // the right edge (issue #18). Reproduced even through the ideal (unfiltered) loopback, so it is not a radio-path
   // effect. Those slots are replaced by the last unaffected one (the edge replication every filter here already
-  // assumes). Sized by sweeping 2..8 slots through the application's own decode (qsstv --batch) of the loopback harness's WAV:
+  // Sized by sweeping 2..8 slots through the application's own decode (qsstv --batch) of the loopback harness's WAV:
   // the sync step smears across about 5 Cb / 3 Cr slots (2 left a ~60-count blue error, 4 still ~14, 5 reached the
   // image's own noise). The loopback harness's chain behaves the same; an earlier 2/1 was a misreading of its
   // output, not a difference between harness and application. The cost is the last ~18 px of chroma detail.
   const unsigned int kRxTailHoldCb=5;
   const unsigned int kRxTailHoldCr=3;
-  // The L segment is followed directly by D, whose idle level is mid-scale (128), so the same smear drags the last
-  // luma slots toward it: too bright on a dark edge, too dark on a bright one (issue #21). Same remedy, same sizing
-  // method; swept 0..8 slots through the app's own decode of the harness WAV: luma right-edge error on a near-black
-  // edge 52 -> 31 / 12 / 2.1 / 1.6 for 1 / 2 / 3 / 4 slots, on a bright edge 74 -> 2.6 at 4; the card image's
-  // PSNR does not drop. Cost: the last 4 px of luma detail.
-  const unsigned int kRxTailHoldL=4;
 
   void holdTail(std::vector<unsigned char> &v,unsigned int n)
   {
@@ -785,7 +779,6 @@ void modeJB60::showLine()
   curCb.assign(blueArrayPtr,blueArrayPtr+kSegCount[SEG_CB]);
   holdTail(curCr,kRxTailHoldCr);
   holdTail(curCb,kRxTailHoldCb);
-  holdTail(curL,kRxTailHoldL);
   // RX idea 4: opt-in, and only meaningful against the narrow filter this kernel was measured
   // against -- when the Cr/Cb wide-filter track is in use instead, skip it rather than apply a
   // mismatched inverse (the UI also grays out the checkbox in that case; this is the behavioral
