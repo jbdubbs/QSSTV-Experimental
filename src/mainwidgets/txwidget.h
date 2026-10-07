@@ -112,7 +112,6 @@ public slots:
   void slotModeChanged(int);
   void slotResizeChanged(int);
   void slotGridChanged(int);
-  void slotEngineChanged(bool);
   void slotBinary();
   void slotHybridToggled();
   void slotNotifyTimeout();
@@ -176,10 +175,6 @@ private:
   // function's comment for why a direct index-to-enum cast no longer
   // works once the list can be filtered.
   QVector<esstvMode> txModeList;
-  // Persisted checked-state of "Use MMSSTV Core engine", independent of
-  // any specific mode's selectedEngine() value -- see engineCheckBox's
-  // handlers for why.
-  bool useMmsstvCoreEngine;
   int gridLayout=0;
 
 };

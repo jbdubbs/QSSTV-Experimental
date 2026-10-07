@@ -34,7 +34,7 @@
 */
 
 // Peak amplitude of the classic engine's TX tones. Upstream QSSTV used 8000 (-12 dBFS);
-// 24578 (-2.5 dBFS) matches mmsstv-core's CSSTVMOD m_outgain, so both engines (and MMSSTV)
+// 24578 (-2.5 dBFS) matches MMSSTV's output level, so QSSTV-Experimental and MMSSTV
 // transmit at the same level and the OS playback volume has enough range.
 #define TXSINEPEAK 24578.
 

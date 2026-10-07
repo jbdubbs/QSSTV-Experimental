@@ -2,15 +2,13 @@
 # End-to-end test of decoding from a file with the real application:  qsstv --batch
 #
 # The loopback harness (tests/jb60_loopback) writes WAV files with the real transmitter preamble and VIS, and
-# the built qsstv decodes them headless, so VIS detection, line sync, both receive engines and the file
+# the built qsstv decodes them headless, so VIS detection, line sync, and the file
 # reader are all exercised. The application runs with a throw-away HOME, so your settings are not touched.
 #
 #   tests/filedecode/run.sh                       # uses ../../build-qt6/qsstv
 #   QSSTV_BIN=/path/to/qsstv tests/filedecode/run.sh
 #
 # Needs: the built qsstv, g++/Qt6 headers (for the harness), and ffmpeg (optional: adds format/rate variants).
-# The mmsstv-core checks (forced mode, sensitivity, Auto Slant) also need mmsstv-core's encode_wav_tool
-# (ENCODE_WAV_TOOL, default ../../build-cmake/mmsstv-core/tests/encode_wav_tool); Auto Slant also needs ffmpeg. Skipped if absent.
 HERE=$(cd "$(dirname "$0")" && pwd)
 QSSTV=${QSSTV_BIN:-$HERE/../../build-qt6/qsstv}
 LB="$HERE/../jb60_loopback/loopback"
@@ -46,7 +44,7 @@ done
 echo "== decode, QSSTV engine (VIS detection + sync through the real app)"
 declare -A MODE=([jb]=JB60 [pd]=PD120)
 for m in jb pd; do
-  run --engine qsstv -o "$T/o_$m" "$T/$m.wav"; rc=$?
+  run -o "$T/o_$m" "$T/$m.wav"; rc=$?
   expect_exit "$m: exit code" 0 $rc
   png="$T/o_$m/${m}_1_${MODE[$m]}.png"
   if [ -f "$png" ]; then
@@ -80,7 +78,7 @@ timing_check() {
   fi
 }
 timing_check "jb narrow filter" "$T/jbref_rx.png" "$T/o_jb/jb_1_JB60.png"
-run --engine qsstv --wide-filter on -o "$T/o_jbw" "$T/jbw.wav"
+run --wide-filter on -o "$T/o_jbw" "$T/jbw.wav"
 timing_check "jb wide filter" "$T/jbwref_rx.png" "$T/o_jbw/jbw_1_JB60.png"
 
 echo "== JB60 right edge (issue #18)"
@@ -106,7 +104,7 @@ edge_check "jb wide filter" "$T/jbw_src.png" "$T/o_jbw/jbw_1_JB60.png"
 luma_edge_check() {
   local label=$1 img=$2
   "$LB" jb --image "$img" --vis --snr 25 --ssb --wav "$T/$img.wav" --out "$T/$img" > /dev/null
-  run --engine qsstv -o "$T/o_$img" "$T/$img.wav" > /dev/null
+  run -o "$T/o_$img" "$T/$img.wav" > /dev/null
   local png="$T/o_$img/${img}_1_JB60.png"
   if [ -f "$png" ]; then
     read ec el ic il <<<"$("$LB" --edge "$T/${img}_src.png" "$png")"
@@ -120,93 +118,12 @@ luma_edge_check "dark right edge" darkedge
 luma_edge_check "bright right edge" brightedge
 
 echo "== options"
-run --engine qsstv --mode PD120 -o "$T/o_mode" "$T/pd.wav"; expect_exit "forced correct mode" 0 $?
-run --engine qsstv --mode M1 -o "$T/o_wrongmode" "$T/pd.wav"; expect_exit "forced wrong mode finds nothing" 1 $?
-run --engine core -o "$T/o_core" "$T/pd.wav"; rc=$?
-expect_exit "mmsstv-core engine" 0 $rc
-ls "$T"/o_core/*.png >/dev/null 2>&1 && ok "mmsstv-core wrote a picture (fidelity not checked: it expects sync first, QSSTV sends it last)" || bad "mmsstv-core wrote no picture"
-run --engine qsstv --wide-filter on -o "$T/o_wide" "$T/jb.wav"; expect_exit "wide filter" 0 $?
-run --engine qsstv -o "$T/o_two" "$T/jb2.wav"; rc=$?
+run --mode PD120 -o "$T/o_mode" "$T/pd.wav"; expect_exit "forced correct mode" 0 $?
+run --mode M1 -o "$T/o_wrongmode" "$T/pd.wav"; expect_exit "forced wrong mode finds nothing" 1 $?
+run --wide-filter on -o "$T/o_wide" "$T/jb.wav"; expect_exit "wide filter" 0 $?
+run -o "$T/o_two" "$T/jb2.wav"; rc=$?
 n=$(ls "$T"/o_two/*.png 2>/dev/null | wc -l)
 [ $rc = 0 ] && [ "$n" = 2 ] && ok "two pictures in one file -> $n files" || bad "two pictures in one file: exit $rc, $n files"
-
-echo "== mmsstv-core engine: forced mode, sensitivity, auto slant"
-ENC=${ENCODE_WAV_TOOL:-$HERE/../../build-cmake/mmsstv-core/tests/encode_wav_tool}
-if [ ! -x "$ENC" ]; then
-  echo "  skip mmsstv-core checks (no encode_wav_tool at $ENC; set ENCODE_WAV_TOOL)"
-else
-  # Native MMSSTV recordings (VIS first), so the Core engine's fidelity is meaningful (QSSTV-sent PD120 is not).
-  "$ENC" "$T/c_m1.wav" martin1 2>/dev/null; "$ENC" "$T/c_pd.wav" pd120 2>/dev/null
-  cpng() { ls "$1"/*.png 2>/dev/null | head -1; }                   # the one picture a batch run wrote to a dir
-  ssim() { "$LB" --compare "$1" "$2" | awk '{print $9}'; }          # SSIM of two PNGs
-
-  run --engine core --mode M1 -o "$T/o_cfm" "$T/c_m1.wav"; rc=$?
-  expect_exit "core: forced correct mode" 0 $rc
-  [ -n "$(cpng "$T/o_cfm")" ] && ok "core: forced correct mode wrote a picture" || bad "core: forced correct mode wrote no picture"
-  run --engine core --mode PD120 -o "$T/o_cfw" "$T/c_m1.wav"; expect_exit "core: forced wrong mode finds nothing" 1 $?
-
-  # Sensitivity has no CLI option; it is the RX/sensitivity setting (0 Low, 1 Normal, 2 High, 3 DX), mapped onto the
-  # demodulator's inverted m_SenseLvl. Only a smoke check: a clean signal must decode at every level.
-  CONF="$HOME/.config/ON4QZ/qsstv_9.0.conf"; mkdir -p "$(dirname "$CONF")"
-  for s in 0 1 2 3; do
-    printf '[RX]\nsensitivity=%s\n' $s > "$CONF"
-    run --engine core -o "$T/o_sens$s" "$T/c_m1.wav"; expect_exit "core: sensitivity $s decodes a clean signal" 0 $?
-  done
-  rm -f "$CONF"
-
-  if ! command -v ffmpeg >/dev/null; then
-    echo "  skip auto slant (needs ffmpeg)"
-  else
-    # Reference = the undrifted recording's own Core decode (isolates slant correction from the channel's baseline).
-    # Drift is a 100-1000 ppm sample-clock error; much larger also shifts the FM tones and breaks VIS/AFC regardless.
-    for m in m1:M1 pd:PD120; do
-      f=${m%%:*}; M=${m##*:}; w="$T/c_$f.wav"
-      run --engine core --slant off -o "$T/s_ref_$f" "$w"; ref=$(cpng "$T/s_ref_$f")
-      [ -n "$ref" ] || { bad "slant $M: no reference decode"; continue; }
-      run --engine core --slant on -o "$T/s_zero_$f" "$w"; z=$(cpng "$T/s_zero_$f")
-      # measured: M1 SSIM 0.957, PD120 0.982 (slant on vs off, no drift)
-      if [ -n "$z" ] && ge "$(ssim "$ref" "$z")" 0.94; then ok "slant $M: near no-op at zero drift (SSIM $(ssim "$ref" "$z"))"
-      else bad "slant $M: zero drift changed the picture (SSIM $( [ -n "$z" ] && ssim "$ref" "$z" ))"; fi
-      for ppm in -1000 -500 -100 100 500 1000; do
-        d="$T/d_${f}_$ppm.wav"
-        ffmpeg -v error -y -i "$w" -af "asetrate=$(awk -v p=$ppm 'BEGIN{printf "%.2f",48000*(1+p/1e6)}'),aresample=48000" "$d"
-        run --engine core --slant off -o "$T/s_off_${f}_$ppm" "$d"; off=$(cpng "$T/s_off_${f}_$ppm")
-        run --engine core --slant on -o "$T/s_on_${f}_$ppm" "$d"; on=$(cpng "$T/s_on_${f}_$ppm")
-        if [ -z "$off" ] || [ -z "$on" ]; then bad "slant $M $ppm ppm: no picture (off='$off' on='$on')"; continue; fi
-        poff=$(luma "$ref" "$off"); pon=$(luma "$ref" "$on")
-        # measured gains: 2.5 dB (M1, 100 ppm) up to 13 dB; require at least 1 dB everywhere
-        if ge "$pon" "$(awk -v a="$poff" 'BEGIN{print a+1}')"; then ok "slant $M $ppm ppm: luma PSNR $poff -> $pon dB"
-        else bad "slant $M $ppm ppm: luma PSNR $poff -> $pon dB (expected >= +1 dB)"; fi
-        # SSIM is flat at 100 ppm (already ~0.955 with slant off); require a clear gain only where the drift is visible
-        case $ppm in -100|100) ;; *)
-          soff=$(ssim "$ref" "$off"); son=$(ssim "$ref" "$on")
-          if ge "$son" "$(awk -v a="$soff" 'BEGIN{print a+0.02}')"; then ok "slant $M $ppm ppm: SSIM $soff -> $son"
-          else bad "slant $M $ppm ppm: SSIM $soff -> $son (expected >= +0.02)"; fi ;;
-        esac
-      done
-    done
-
-    # Calibrated clock (Options > Calibrate, the rxclock setting) must reach this engine too: a recording from a card
-    # that runs 200 ppm off, decoded with rxclock set to the card's true rate, must beat the same decode at 48000.
-    # (asetrate to a higher rate then back to 48000 gives fewer samples per second: a card running slow.)
-    for m in m1:M1 pd:PD120; do
-      f=${m%%:*}; M=${m##*:}; w="$T/c_$f.wav"
-      ref=$(cpng "$T/s_ref_$f"); [ -n "$ref" ] || continue
-      d="$T/clk_$f.wav"
-      ffmpeg -v error -y -i "$w" -af "asetrate=$(awk 'BEGIN{printf "%.2f",48000*(1+200/1e6)}'),aresample=48000" "$d"
-      rm -f "$CONF"
-      run --engine core --slant off -o "$T/clk_off_$f" "$d"; off=$(cpng "$T/clk_off_$f")
-      printf '[SOUND]\nrxclock=%s\n' "$(awk 'BEGIN{printf "%.3f",48000*(1-200/1e6)}')" > "$CONF"
-      run --engine core --slant off -o "$T/clk_on_$f" "$d"; on=$(cpng "$T/clk_on_$f")
-      rm -f "$CONF"
-      if [ -z "$off" ] || [ -z "$on" ]; then bad "calibrated clock $M: no picture (off='$off' on='$on')"; continue; fi
-      poff=$(luma "$ref" "$off"); pon=$(luma "$ref" "$on")
-      # measured (M1, 200 ppm): 19.2 -> 27.6 dB; require at least 3 dB
-      if ge "$pon" "$(awk -v a="$poff" 'BEGIN{print a+3}')"; then ok "calibrated rxclock $M: luma PSNR $poff -> $pon dB"
-      else bad "calibrated rxclock $M: luma PSNR $poff -> $pon dB (expected >= +3 dB)"; fi
-    done
-  fi
-fi
 
 echo "== truncated recording (45% of the picture)"
 python3 - "$T/jb.wav" "$T/trunc.wav" <<'EOF'
@@ -214,7 +131,7 @@ import sys
 d=open(sys.argv[1],'rb').read()
 open(sys.argv[2],'wb').write(d[:44+int((len(d)-44)*0.45)])
 EOF
-run --engine qsstv -o "$T/o_trunc" "$T/trunc.wav"; expect_exit "truncated file still saves the partial picture" 0 $?
+run -o "$T/o_trunc" "$T/trunc.wav"; expect_exit "truncated file still saves the partial picture" 0 $?
 
 if command -v ffmpeg >/dev/null; then
   echo "== other formats (ffmpeg): must decode like the 48 kHz file"
@@ -222,7 +139,7 @@ if command -v ffmpeg >/dev/null; then
   while read -r name args; do
     ffmpeg -loglevel error -y -i "$T/jb.wav" $args "$T/$name.wav" || { bad "$name: ffmpeg failed"; continue; }
     [ "$name" = list ] && { grep -aq LIST "$T/list.wav" && ok "list: the file really has a LIST chunk" || bad "list: ffmpeg wrote no LIST chunk, test is void"; }
-    run --engine qsstv -o "$T/o_$name" "$T/$name.wav"; rc=$?
+    run -o "$T/o_$name" "$T/$name.wav"; rc=$?
     png="$T/o_$name/${name}_1_JB60.png"
     if [ $rc = 0 ] && [ -f "$png" ]; then
       l=$(luma "$T/jb_src.png" "$png")
@@ -242,7 +159,7 @@ EOF
   echo "== compressed formats via Qt Multimedia (mp3, flac, ogg, aac)"
   for ext in mp3 flac ogg aac; do
     ffmpeg -loglevel error -y -i "$T/jb.wav" "$T/jbc.$ext" || { bad "$ext: ffmpeg cannot encode it, skipped"; continue; }
-    run --engine qsstv -o "$T/o_c$ext" "$T/jbc.$ext"; rc=$?
+    run -o "$T/o_c$ext" "$T/jbc.$ext"; rc=$?
     png="$T/o_c$ext/jbc_1_JB60.png"
     if [ $rc = 0 ] && [ -f "$png" ]; then ok "$ext: decoded a picture"; else bad "$ext: exit $rc, no picture"; fi
   done
@@ -252,14 +169,13 @@ fi
 
 echo "== bad input"
 python3 -c "import wave; w=wave.open('$T/silence.wav','wb'); w.setnchannels(1); w.setsampwidth(2); w.setframerate(48000); w.writeframes(b'\\0\\0'*48000*20); w.close()"
-run --engine qsstv -o "$T/o_sil" "$T/silence.wav"; expect_exit "silence: no picture" 1 $?
+run -o "$T/o_sil" "$T/silence.wav"; expect_exit "silence: no picture" 1 $?
 echo "this is not audio" > "$T/notwav.wav"
 run "$T/notwav.wav"; expect_exit "not a WAV file" 2 $?
 grep -q "undecodable audio" "$T/stderr" && ok "not a WAV: message names the problem" || bad "not a WAV: no useful message ($(cat "$T/stderr"))"
 run "$T/missing.wav"; expect_exit "missing file" 2 $?
 run; expect_exit "--batch without files" 2 $?
 run --mode NOSUCH "$T/jb.wav"; expect_exit "unknown --mode" 2 $?
-run --engine bogus "$T/jb.wav"; expect_exit "bad --engine" 2 $?
 
 echo "== help works without a display"
 out=$(env -u DISPLAY -u WAYLAND_DISPLAY -u QT_QPA_PLATFORM "$QSSTV" --help 2>&1); rc=$?

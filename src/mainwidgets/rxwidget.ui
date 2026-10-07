@@ -404,23 +404,10 @@
             </widget>
            </item>
            <!-- Built upon the original QSSTV 9.5.11 by Johan Maes, ON4QZ (https://www.qsl.net/o/on4qz) -->
-           <item row="4" column="0">
-            <widget class="QCheckBox" name="engineCheckBox">
-             <property name="toolTip">
-              <string>Use the ported mmsstv-core engine where it supports the mode, else QSSTV-Experimental's own engine.</string>
-             </property>
-             <property name="layoutDirection">
-              <enum>Qt::RightToLeft</enum>
-             </property>
-             <property name="text">
-              <string>MMSSTV Core</string>
-             </property>
-            </widget>
-           </item>
            <item row="7" column="0">
             <widget class="QCheckBox" name="smoothDisplayCheckBox">
              <property name="toolTip">
-              <string>Smooth the received picture when it is scaled to fit the window. Turn off to see the raw scan lines. Only affects the QSSTV engine.</string>
+              <string>Smooth the received picture when it is scaled to fit the window. Turn off to see the raw scan lines.</string>
              </property>
              <property name="layoutDirection">
               <enum>Qt::RightToLeft</enum>

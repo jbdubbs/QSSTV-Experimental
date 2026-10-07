@@ -1,5 +1,4 @@
 #include "soundbase.h"
-#include "engineselection.h"
 #include "logging.h"
 #include "configparams.h"
 #include "arraydumper.h"
@@ -161,14 +160,6 @@ int soundBase::capture()
   int count=0;
   bool endAfterBlock=false;
   if(rxBuffer.spaceLeft()<RXSTRIPE) return 0;
-  // The raw (undecimated) tap for mmsstv-core fills four times faster than rxBuffer and is written without a check.
-  // A live capture never gets far ahead of the receiver, but reading a file can. With mmsstv-core in use wait for
-  // room; without it nobody reads the tap, so just empty it.
-  if(fileSource && rawRxBuffer.spaceLeft()<DOWNSAMPLESIZE)
-    {
-      if(!mmsstvCoreActiveForAnyMode()) rawRxBuffer.reset();
-      else return 0;
-    }
   if(fileSource)
     {
       count=readFileBlock(endAfterBlock);
@@ -208,17 +199,6 @@ int soundBase::capture()
           storedFrames+=count;
         }
     }
-  // mmsstv-linux-port Step 7: tap the raw, un-decimated samples for
-  // mmsstv-core's engine (see rawRxBuffer's declaration in soundbase.h) --
-  // before downSample4() touches tempRXBuffer, same as the decimated path
-  // below reads it after. tempRXBuffer is mono at this point regardless of
-  // source (SNDINCARD's downmix already happened in read(); SNDINFROMFILE
-  // reads mono/pre-downmixed data directly).
-  {
-    FILTERPARAMTYPE rawSamples[DOWNSAMPLESIZE];
-    for(int i=0;i<DOWNSAMPLESIZE;i++) rawSamples[i]=FILTERPARAMTYPE(tempRXBuffer[i]);
-    rawRxBuffer.putNoCheck(rawSamples,DOWNSAMPLESIZE);
-  }
   downsampleFilterPtr->downSample4(tempRXBuffer);
   volume=downsampleFilterPtr->avgVolumeDb;
   rxBuffer.putNoCheck(downsampleFilterPtr->filteredDataPtr(),RXSTRIPE);

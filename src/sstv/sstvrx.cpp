@@ -284,15 +284,12 @@ void sstvRx::process()
     case HUNTING:
       if(syncProcPtr==NULL)
         {
-          if(!coreEngineBusy) // don't spam over mmsstv-core's own "Receiving ... (MMSSTV)" status
-            {
-              stce= new rxSSTVStatusEvent(QString("No sync"));
-              QApplication::postEvent( dispatcherPtr, stce );  // Qt will delete it when done
-            }
+          stce= new rxSSTVStatusEvent(QString("No sync"));
+          QApplication::postEvent( dispatcherPtr, stce );  // Qt will delete it when done
           advanceBuffers();
           break; // no sync
         }
-      stce= new rxSSTVStatusEvent(QString("Receiving ")+getSSTVModeNameLong(syncProcPtr->getMode())+" (QSSTV)");
+      stce= new rxSSTVStatusEvent(QString("Receiving ")+getSSTVModeNameLong(syncProcPtr->getMode()));
       lastUsedModeStr=getSSTVModeNameShort(syncProcPtr->getMode());
       rxUseWideFilter=modeUsesWideVideoFilter(syncProcPtr->getMode()); // fixed for the whole picture
       QApplication::postEvent( dispatcherPtr, stce );  // Qt will delete it when done

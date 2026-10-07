@@ -19,7 +19,6 @@
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
 #include "imageviewer.h"
-#include "engineselection.h"
 #include "appglobal.h"
 #include "logging.h"
 #include "configparams.h"
@@ -426,10 +425,10 @@ QRgb *imageViewer::getScanLineAddress(int line)
 
 
 
-// RX picture only: the "Smooth Display Scaling" option (RX tab) can switch smoothing off for QSSTV-engine pictures
+// RX picture only: the "Smooth Display Scaling" option (RX tab) can switch smoothing off 
 Qt::TransformationMode imageViewer::scaleMode() const
 {
-  if((ttype==RXIMG) && !rxUseSmoothDisplay()) return Qt::FastTransformation;
+  if((ttype==RXIMG) && !rxSmoothDisplayScaling) return Qt::FastTransformation;
   return Qt::SmoothTransformation;
 }
 

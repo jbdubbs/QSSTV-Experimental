@@ -6,8 +6,6 @@
 #include "dispatcher.h"
 #include "rxwidget.h"
 #include "sstvrx.h"
-#include "sstv/mmsstv_sstv_rx.h"
-#include "sstv/engineselection.h"
 
 #include <QApplication>
 
@@ -26,7 +24,6 @@ rxFunctions::rxFunctions(QObject *parent) : QThread(parent)
   rxState=RXIDLE;
   sstvRxPtr=new sstvRx;
   drmRxPtr=new drmRx;
-  mmsstvRxPtr=new MmsstvSstvRx;
   rxBytes=0;
   setObjectName("rx-thread");
 }
@@ -35,7 +32,6 @@ rxFunctions::~rxFunctions()
 {
   delete sstvRxPtr;
   delete drmRxPtr;
-  delete mmsstvRxPtr;
 }
 
 //static DSPFLOAT dummyBuf[RXSTRIPE];
@@ -63,7 +59,6 @@ void rxFunctions::run()
                     {
                       // end of a decoded file: a picture still in progress would be dropped by the init below
                       sstvRxPtr->finishInput();
-                      mmsstvRxPtr->finishImage();
                     }
                   switchRxState(RXINIT);
                 }
@@ -86,52 +81,11 @@ void rxFunctions::run()
                   drmRxPtr->run(tempBuf);
                   break;
                 case TRXSSTV:
-                  // Tell QSSTV's own detector whether mmsstv-core is the one
-                  // actually receiving right now (as of the previous
-                  // buffer's raw-tap drain below), so it holds off spamming
-                  // "No sync" over mmsstv-core's status while it steps aside
-                  // -- see sstvRx::setCoreEngineBusy()'s comment.
-                  sstvRxPtr->setCoreEngineBusy(mmsstvRxPtr->isTrackingImage());
                   sstvRxPtr->run(tempBuf,volBuf);
                   break;
                 case TRXNOMODE:
                   switchRxState(RXIDLE);
                   break;
-                }
-              // mmsstv-linux-port: independent drain of the raw
-              // (un-decimated) audio tap for mmsstv-core's RX engine,
-              // alongside (not instead of) sstvRxPtr's own
-              // decimated-pipeline dispatch above. Gated on its own
-              // buffer's fill level (it fills faster than rxBuffer, since
-              // it isn't decimated) and on whether the RX engine
-              // preference favors mmsstv-core at all (mmsstvCoreActiveForAnyMode(),
-              // which just mirrors rxPreferCoreEngine()) -- RX doesn't know
-              // which mode is incoming until VIS locks (mmsstv_sstv_rx.cpp
-              // handles the per-mode support check once it does), so this
-              // can't gate on one specific mode's setting the way TX does.
-              // When the checkbox is off, this is simply skipped and
-              // QSSTV's own pipeline handles every mode unmodified (see
-              // syncprocessor.cpp's createModeBase()).
-              // An engine switch (see switchEngine()) may be pending even
-              // when the tap is no longer being fed; if one was, also
-              // discard audio that piled up in the tap meanwhile so the
-              // (possibly newly enabled) engine starts from live audio.
-              if(mmsstvRxPtr->serviceAbort())
-                {
-                  static DSPFLOAT discardBuf[DOWNSAMPLESIZE];
-                  while(soundIOPtr->rawRxBuffer.count()>=DOWNSAMPLESIZE)
-                    {
-                      soundIOPtr->rawRxBuffer.copyNoCheck(discardBuf,DOWNSAMPLESIZE);
-                    }
-                }
-              if((transmissionModeIndex==TRXSSTV)
-                 && mmsstvCoreActiveForAnyMode()
-                 && (soundIOPtr->rawRxBuffer.count()>=DOWNSAMPLESIZE))
-                {
-                  static DSPFLOAT rawBuf[DOWNSAMPLESIZE];
-                  soundIOPtr->rawRxBuffer.copyNoCheck(rawBuf,DOWNSAMPLESIZE);
-                  mmsstvRxPtr->setQsstvBusy(sstvRxPtr->isReceivingImage());
-                  mmsstvRxPtr->processSamples(rawBuf,DOWNSAMPLESIZE);
                 }
             }
           break;
@@ -236,14 +190,6 @@ void rxFunctions::eraseImage()
           sstvRxPtr->eraseImage();
         }
     }
-}
-
-void rxFunctions::switchEngine()
-{
-  // Stop whichever engine is mid-picture (both, to be safe) so they never
-  // paint the shared canvas at the same time.
-  mmsstvRxPtr->abortImage();
-  eraseImage();
 }
 
 void rxFunctions::switchRxState(erxState newState)

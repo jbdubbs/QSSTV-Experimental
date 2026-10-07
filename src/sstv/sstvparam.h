@@ -201,6 +201,7 @@ void printActiveSSTVParam(bool tx);
 quint32 getMaxLineSamples();
 
 extern bool autoSlantAdjust;
+extern bool rxSmoothDisplayScaling; //!< RX tab "Smooth Display Scaling": false scales the RX picture with nearest-neighbour
 extern bool autoSave;
 extern int sensitivity;
 extern esstvMode sstvModeIndexRx;

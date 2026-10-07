@@ -14,7 +14,6 @@
 #include "mainwindow.h"
 #include "configparams.h"
 #include "ftpthread.h"
-#include "engineselection.h"
 #include "dispatch/filedecoder.h"
 
 
@@ -80,7 +79,6 @@ void rxWidget::init()
   connect(ui->autoSaveCheckBox,SIGNAL(clicked()),SLOT(slotGetParams()));
   connect(ui->autoSlantAdjustCheckBox,SIGNAL(clicked()),SLOT(slotGetParams()));
   connect(ui->smoothDisplayCheckBox,SIGNAL(clicked()),SLOT(slotSmoothDisplayChanged()));
-  connect(ui->engineCheckBox,SIGNAL(clicked(bool)),SLOT(slotEngineChanged(bool))); // clicked, not toggled: only a user click aborts RX, not settings load
 
 
 
@@ -147,9 +145,6 @@ void rxWidget::getParams()
   getIndex(idx,ui->sstvModeComboBox);
   esstvMode selected=(idx>=0 && idx<rxModeList.size()) ? rxModeList[idx] : NOTVALID;
   sstvModeIndexRx=(selected==NOTVALID) ? (esstvMode)0 : (esstvMode)((int)selected+1);
-  bool preferCore;
-  getValue(preferCore,ui->engineCheckBox);
-  setRxPreferCoreEngine(preferCore);
   getValue(defaultImageFormat,ui->defaultImageFormatComboBox);
   getValue(minCompletion,ui->completeSpinBox);
   getValue(rxSmoothDisplayScaling,ui->smoothDisplayCheckBox);
@@ -166,10 +161,7 @@ void rxWidget::setParams()
   setValue(rxSmoothDisplayScaling,ui->smoothDisplayCheckBox);
 }
 
-// Populates sstvModeComboBox ("Auto" always first) with every SSTV mode
-// -- the list is no longer filtered by the "MMSSTV Core As Default"
-// checkbox (that checkbox only picks which engine handles a given mode,
-// it doesn't hide any mode from manual selection or auto-detection),
+// Populates sstvModeComboBox ("Auto" always first) with every SSTV mode,
 // rebuilds rxModeList (index -> esstvMode, index 0 == the "Auto" sentinel
 // NOTVALID) in step, and re-selects whichever mode sstvModeIndexRx
 // previously pointed to if it's still present (else falls back to
@@ -222,15 +214,6 @@ bool rxWidget::setRxModeByName(const QString &name)
   ui->sstvModeComboBox->blockSignals(false);
   sstvModeIndexRx=(mode==NOTVALID) ? (esstvMode)0 : (esstvMode)((int)mode+1);
   return true;
-}
-
-void rxWidget::slotEngineChanged(bool checked)
-{
-  setRxPreferCoreEngine(checked);
-  // Whatever engine was mid-picture is dropped and the canvas cleared; the
-  // (new) engine starts on the next VIS lock.
-  rxFunctionsPtr->switchEngine();
-  imageViewerPtr->createImage(QSize(320,256),imageBackGroundColor,imageStretch);
 }
 
 void rxWidget::slotSmoothDisplayChanged()

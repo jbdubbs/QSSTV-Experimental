@@ -26,6 +26,7 @@
 
 
 bool autoSlantAdjust;
+bool rxSmoothDisplayScaling=true;
 bool autoSave;
 int sensitivity;
 int filterIndex;

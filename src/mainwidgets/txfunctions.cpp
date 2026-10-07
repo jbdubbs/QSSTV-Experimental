@@ -22,8 +22,6 @@
 #include "txfunctions.h"
 #include "appglobal.h"
 #include "sstv/sstvtx.h"
-#include "sstv/mmsstv_sstv_tx.h"
-#include "sstv/engineselection.h"
 #include "cw.h"
 
 
@@ -259,14 +257,7 @@ void txFunctions::run()
           addToLog("Entered SSTVTXIMAGE",LOGTXFUNC);
           startProgress(sstvTxPtr->calcTxTime(0));
           addToLog("Entered before SSTVTXIMAGE",LOGTXFUNC);
-          // mmsstv-linux-port Step 6/8: for modes mmsstv-core supports
-          // (Martin 1, Scottie 1 so far), the user-selected engine decides
-          // whether this goes through mmsstv-core or QSSTV's own per-mode
-          // TX path; every other mode always uses QSSTV's own path. See
-          // sstv/engineselection.h and sstv/mmsstv_sstv_tx.h.
-          if((selectedEngine(txSSTVParam.mode)==ENGINE_MMSSTV_CORE)
-             ? sendImageViaMmsstv(txWidgetPtr->getImageViewerPtr(), txSSTVParam.mode)
-             : sstvTxPtr->sendImage(txWidgetPtr->getImageViewerPtr()))
+          if(sstvTxPtr->sendImage(txWidgetPtr->getImageViewerPtr()))
             {
               switchTxState(TXSSTVPOST);
             }
@@ -458,11 +449,6 @@ void txFunctions::stopAndWait()
   if(transmissionModeIndex==TRXSSTV || txState==TXPREPARESSTV || txState==TXSSTVIMAGE || txState==TXSSTVPOST)
     {
       sstvTxPtr->abort();
-      // Step 18: sstvTxPtr->abort() only reaches modeBase::abortRun,
-      // which sendImageViaMmsstv() (the mmsstv-core TX bridge) never
-      // polls -- fire both unconditionally, same as this call already
-      // does regardless of which engine is actually active.
-      requestMmsstvTxAbort();
       switchTxState(TXRESTART);
       while(txState!=TXIDLE)
         {

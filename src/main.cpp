@@ -38,10 +38,8 @@
 #include "mainwidgets/rxwidget.h"
 #include "mainwidgets/txwidget.h"
 #include "sound/soundbase.h"
-#include "sstv/engineselection.h"
 #include "sstv/sstvparam.h"
 #include "sstv/videofilterselection.h"
-#include "sstv/mmsstvslant.h"
 #include <QImageReader>
 #include "supportfunctions.h"
 
@@ -146,15 +144,13 @@ int main( int argc, char ** argv )
                               "Your settings are read but never written.");
   QCommandLineOption outDirOpt(QStringList() << "o" << "out-dir","With --batch: directory for the pictures, named <file>_<n>_<MODE>.png (default: current directory).","dir");
   QCommandLineOption modeOpt(QStringList() << "m" << "mode","Receive only this mode (short name as in --list-modes, e.g. PD120, JB60) instead of auto detection.","mode");
-  QCommandLineOption engineOpt("engine","Receive engine for this run: auto (your setting), qsstv (QSSTV-Experimental's own for every mode) or core (mmsstv-core where it supports the mode).","auto|qsstv|core");
   QCommandLineOption wideOpt("wide-filter","Wide video filter for the fast modes for this run: auto (your setting), on or off.","auto|on|off");
-  QCommandLineOption slantOpt("slant","Auto Slant on the MMSSTV Core engine for this run: auto (your setting), on or off.","auto|on|off");
   QCommandLineOption timeoutOpt("timeout","With --batch: give up on a file after this many seconds (default: its length + 30 s).","seconds");
-  QCommandLineOption encodeOpt("encode","Headless: transmit the picture <image> through the normal SSTV TX path into a wav file (see --wav-out, --mode, --engine) and exit. "
+  QCommandLineOption encodeOpt("encode","Headless: transmit the picture <image> through the normal SSTV TX path into a wav file (see --wav-out, --mode) and exit. "
                                "Your settings are read but never written.","image");
   QCommandLineOption wavOutOpt("wav-out","With --encode: the wav file to write (default: <image>.wav).","file");
   QCommandLineOption listOpt("list-modes","Print the mode names that --mode accepts and exit.");
-  parser.addOptions(QList<QCommandLineOption>() << helpOpt << versionOpt << decodeOpt << batchOpt << outDirOpt << modeOpt << engineOpt << wideOpt << slantOpt << timeoutOpt << encodeOpt << wavOutOpt << listOpt);
+  parser.addOptions(QList<QCommandLineOption>() << helpOpt << versionOpt << decodeOpt << batchOpt << outDirOpt << modeOpt << wideOpt << timeoutOpt << encodeOpt << wavOutOpt << listOpt);
   parser.addPositionalArgument("file","SSTV recordings to decode (same as --decode).","[file ...]");
   if(!parser.parse(app.arguments()))
     {
@@ -183,18 +179,7 @@ int main( int argc, char ** argv )
       fprintf(stderr,"--batch needs at least one file to decode. Try --help.\n");
       return fileDecoder::EXIT_BADFILE;
     }
-  int engineOverride=-1,wideOverride=-1;
-  if(parser.isSet(engineOpt))
-    {
-      QString v=parser.value(engineOpt).toLower();
-      if(v=="qsstv") engineOverride=0;
-      else if(v=="core") engineOverride=1;
-      else if(v!="auto")
-        {
-          fprintf(stderr,"--engine must be auto, qsstv or core\n");
-          return fileDecoder::EXIT_BADFILE;
-        }
-    }
+  int wideOverride=-1;
   if(parser.isSet(wideOpt))
     {
       QString v=parser.value(wideOpt).toLower();
@@ -206,18 +191,6 @@ int main( int argc, char ** argv )
           return fileDecoder::EXIT_BADFILE;
         }
     }
-  int slantOverride=-1;
-  if(parser.isSet(slantOpt))
-    {
-      QString v=parser.value(slantOpt).toLower();
-      if(v=="on") slantOverride=1;
-      else if(v=="off") slantOverride=0;
-      else if(v!="auto")
-        {
-          fprintf(stderr,"--slant must be auto, on or off\n");
-          return fileDecoder::EXIT_BADFILE;
-        }
-    }
   bool timeoutOk=true;
   int timeoutSeconds=parser.isSet(timeoutOpt) ? parser.value(timeoutOpt).toInt(&timeoutOk) : 0;
   if(!timeoutOk || timeoutSeconds<0)
@@ -226,10 +199,7 @@ int main( int argc, char ** argv )
       return fileDecoder::EXIT_BADFILE;
     }
   const bool encode=parser.isSet(encodeOpt);
-  setRxEngineOverride(engineOverride);
-  setTxEngineOverride(engineOverride);
   setWideVideoFilterOverride(wideOverride);
-  setMmsstvSlantOverride(slantOverride);
 
   QPixmap pixmap(":/icons/qsstvsplash.png");
   QSplashScreen splash(pixmap,Qt::WindowStaysOnTopHint);

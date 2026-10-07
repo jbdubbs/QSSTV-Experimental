@@ -14,7 +14,6 @@ class iirFilter;
 class modeBase;
 class sstvRx;
 class drmRx;
-class MmsstvSstvRx;
 
 class rxFunctions : public QThread
 {
@@ -30,7 +29,6 @@ public:
   void startRX();
   void restartRX();
   void eraseImage();
-  void switchEngine();
   QString getModeStr();
   sstvRx  *sstvRxPtr;
   void stopThread();
@@ -48,11 +46,6 @@ private:
   void switchRxState(erxState newState);
   uint rxBytes;
   void forceInit();
-
-  // mmsstv-linux-port Step 7/8: independent RX path via mmsstv-core for
-  // whichever modes it supports, drained alongside (not instead of)
-  // sstvRxPtr's own decimated-pipeline dispatch. See sstv/mmsstv_sstv_rx.h.
-  MmsstvSstvRx *mmsstvRxPtr;
 
 };
 

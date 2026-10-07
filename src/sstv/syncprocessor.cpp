@@ -5,7 +5,6 @@
 #include "dispatchevents.h"
 #include "dispatcher.h"
 #include "modes/modes.h"
-#include "engineselection.h"
 
 #ifndef QT_NO_DEBUG
 #include "scope/scopeview.h"
@@ -946,73 +945,22 @@ bool  syncProcessor::createModeBase()
   switch (currentMode)
   {
   case M1:
-    // mmsstv-linux-port: RX's "MMSSTV Core As Default" checkbox
-    // (rxPreferCoreEngine()) is the sole gate for every mode mmsstv-core
-    // supports (see sstv/engineselection.h's kMmsstvCoreModes) -- when
-    // it's on, QSSTV's own detector steps aside here exactly like an
-    // unrecognized VIS code would (falls through to the same NOTVALID
-    // path below), and the independent mmsstv_sstv_rx.cpp engine (fed
-    // from the raw-audio tap, gated the same way) handles the reception
-    // instead. When it's off, this runs exactly as upstream, unchanged.
-    // Deliberately does not consult selectedEngine()'s per-mode table --
-    // that table is written by TX's own checkbox on each mode pick, and
-    // letting RX read it let a TX-tab pick silently override this
-    // checkbox.
-    if(!rxPreferCoreEngine())
-      {
-        currentModePtr=new modeGBR(currentMode,RXSTRIPE,false,false);
-      }
-    else
-      {
-        currentMode=NOTVALID;
-      }
+    currentModePtr=new modeGBR(currentMode,RXSTRIPE,false,false);
     break;
   case M2:
-    // Same conditional split as M1 above -- see that case's comment.
-    if(!rxPreferCoreEngine())
-      {
-        currentModePtr=new modeGBR(currentMode,RXSTRIPE,false,false);
-      }
-    else
-      {
-        currentMode=NOTVALID;
-      }
+    currentModePtr=new modeGBR(currentMode,RXSTRIPE,false,false);
     break;
   case S1:
   case S2:
   case SDX:
-    // Same conditional split as M1 above -- see that case's comment.
-    if(!rxPreferCoreEngine())
-      {
-        currentModePtr=new modeGBR2(currentMode,RXSTRIPE,false,false);
-      }
-    else
-      {
-        currentMode=NOTVALID;
-      }
+    currentModePtr=new modeGBR2(currentMode,RXSTRIPE,false,false);
     break;
   case R36:
-    // Same conditional split as M1/S1/S2/SDX above -- see M1's comment.
-    if(!rxPreferCoreEngine())
-      {
-        currentModePtr=new modeRobot1(currentMode,RXSTRIPE,false,false);
-      }
-    else
-      {
-        currentMode=NOTVALID;
-      }
+    currentModePtr=new modeRobot1(currentMode,RXSTRIPE,false,false);
     break;
   case R24:
   case R72:
-    // Same conditional split as M1/R36 above -- see M1's comment.
-    if(!rxPreferCoreEngine())
-      {
-        currentModePtr=new modeRobot2(currentMode,RXSTRIPE,false,false);
-      }
-    else
-      {
-        currentMode=NOTVALID;
-      }
+    currentModePtr=new modeRobot2(currentMode,RXSTRIPE,false,false);
     break;
   case ML180:
   case ML240:
@@ -1023,16 +971,7 @@ bool  syncProcessor::createModeBase()
   case MR115:
   case MR140:
   case MR175:
-    // Same conditional split as M1/R36/R24/R72/PD above -- see M1's
-    // comment.
-    if(!rxPreferCoreEngine())
-      {
-        currentModePtr=new modeRobot2(currentMode,RXSTRIPE,false,false);
-      }
-    else
-      {
-        currentMode=NOTVALID;
-      }
+    currentModePtr=new modeRobot2(currentMode,RXSTRIPE,false,false);
     break;
   case SC2_60:
   case SC2_120:
@@ -1066,25 +1005,13 @@ bool  syncProcessor::createModeBase()
   case MP115:
   case MP140:
   case MP175:
-    // Same conditional split as M1/R36/R24/R72 above -- see M1's comment.
-    // MP73N/110N/140N (narrow FSK, not yet migrated) stay in their own
-    // unconditional block below.
-    if(!rxPreferCoreEngine())
-      {
-        currentModePtr=new modePD(currentMode,RXSTRIPE,false,false);
-      }
-    else
-      {
-        currentMode=NOTVALID;
-      }
+    currentModePtr=new modePD(currentMode,RXSTRIPE,false,false);
     break;
   case PD120S:
   case PD120W:
-    // QSSTV-only modes: not in kMmsstvCoreModes, so never deferred to the core engine.
     currentModePtr=new modePD(currentMode,RXSTRIPE,false,false);
     break;
   case JB60:
-    // QSSTV-only mode: not in kMmsstvCoreModes, so never deferred to the core engine.
     currentModePtr=new modeJB60(currentMode,RXSTRIPE,false,false);
     break;
   case MP73N:

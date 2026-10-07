@@ -21,7 +21,6 @@
 #include "rigcontrol.h"
 #include "imageviewer.h"
 #include "testpatternselection.h"
-#include "sstv/engineselection.h"
 
 
 txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
@@ -34,7 +33,6 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   imageViewerPtr=ui->imageFrame;
 
   imageViewerPtr->displayImage();
-  useMmsstvCoreEngine=false; // corrected once readSettings() loads the real value
   rebuildModeComboBox();
   sizeChanged=true;
   ui->sstvResizeComboBox->addItem("Stretch");
@@ -48,7 +46,6 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
 
   connect(ui->sstvModeComboBox,SIGNAL(activated(int)),SLOT(slotModeChanged(int )));
   connect(ui->sstvResizeComboBox,SIGNAL(activated(int)),SLOT(slotResizeChanged(int)));
-  connect(ui->engineCheckBox,SIGNAL(toggled(bool)),SLOT(slotEngineChanged(bool)));
 
   connect(ui->drmTxBandwidthComboBox,SIGNAL(activated(int)),SLOT(slotGetTXParams()));
   connect(ui->drmTxInterleaveComboBox,SIGNAL(activated(int)),SLOT(slotGetTXParams()));
@@ -170,7 +167,6 @@ void txWidget::readSettings()
   useCW=qSettings.value("useCW",false).toBool();
   useVOX=qSettings.value("useVOX",false).toBool();
   useHybrid=qSettings.value("useHybrid",false).toBool();
-  useMmsstvCoreEngine=qSettings.value("useMmsstvCoreEngine",false).toBool();
   compressedSize=qSettings.value("compressedSize",5000).toUInt();
   gridLayout=qSettings.value("gridLayout",0).toInt();
   drmParams.bandwith=qSettings.value("drmBandWith",0).toInt();
@@ -194,7 +190,6 @@ void txWidget::writeSettings()
   qSettings.setValue( "useVOX", useVOX);
   qSettings.setValue( "useCW", useCW);
   qSettings.setValue( "useHybrid", useHybrid);
-  qSettings.setValue( "useMmsstvCoreEngine", useMmsstvCoreEngine);
   qSettings.setValue("drmBandWith",drmParams.bandwith);
   qSettings.setValue("drmInterLeaver",drmParams.interleaver);
   qSettings.setValue("drmProtection",drmParams.protection);
@@ -249,7 +244,6 @@ void txWidget::slotGetParams()
 
 void txWidget::setParams()
 {
-  setValue(useMmsstvCoreEngine,ui->engineCheckBox);
   rebuildModeComboBox();
   {
     int idx=txModeList.indexOf(sstvModeIndexTx);
@@ -708,7 +702,6 @@ void txWidget::slotModeChanged(int m)
   if(transmissionModeIndex==TRXSSTV)
     {
       sstvModeIndexTx=txModeList[m];
-      setSelectedEngine(sstvModeIndexTx, useMmsstvCoreEngine ? ENGINE_MMSSTV_CORE : ENGINE_QSSTV);
       updateGridControl();
       applyTemplate();
     }
@@ -733,12 +726,9 @@ void txWidget::slotGridChanged(int i)
   applyTemplate();
 }
 
-// Step 17: repopulates sstvModeComboBox from scratch, filtered by
-// useMmsstvCoreEngine (checked -> only mmsstvCoreSupports() modes;
-// unchecked -> every mode), and rebuilds txModeList (index -> esstvMode)
-// in step -- combo-box index no longer equals the enum value once the
-// list can be filtered, so every other index<->mode conversion in this
-// file goes through txModeList instead of a direct cast.
+// Repopulates sstvModeComboBox from scratch with every mode and rebuilds
+// txModeList (index -> esstvMode) in step; index<->mode conversions in
+// this file go through txModeList instead of a direct cast.
 void txWidget::rebuildModeComboBox()
 {
   ui->sstvModeComboBox->blockSignals(true);
@@ -747,26 +737,10 @@ void txWidget::rebuildModeComboBox()
   for(int i=0;i<NUMSSTVMODES;i++)
     {
       esstvMode m=(esstvMode)i;
-      if(useMmsstvCoreEngine && !mmsstvCoreSupports(m)) continue;
       ui->sstvModeComboBox->addItem(getSSTVModeNameLong(m));
       txModeList.append(m);
     }
   ui->sstvModeComboBox->blockSignals(false);
-}
-
-void txWidget::slotEngineChanged(bool checked)
-{
-  useMmsstvCoreEngine=checked;
-  esstvMode previousMode=sstvModeIndexTx;
-  rebuildModeComboBox();
-  int newIndex=txModeList.indexOf(previousMode);
-  if(newIndex<0) newIndex=0;
-  ui->sstvModeComboBox->setCurrentIndex(newIndex);
-  sstvModeIndexTx=txModeList[newIndex];
-  setSelectedEngine(sstvModeIndexTx, checked ? ENGINE_MMSSTV_CORE : ENGINE_QSSTV);
-  updateGridControl();
-  applyTemplate();
-  updateTxTime();
 }
 
 void txWidget::slotResizeChanged(int i)

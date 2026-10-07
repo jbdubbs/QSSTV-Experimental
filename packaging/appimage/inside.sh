@@ -1,10 +1,10 @@
 #!/bin/bash
 # Runs inside the builder container (see build.sh).
 set -euo pipefail
-B=/build; mkdir -p $B/{qsstv-experimental,mmsstv-core,hamlib-upstream-sstv}
+B=/build; mkdir -p $B/{qsstv-experimental,hamlib-upstream-sstv}
 # copy sources; hamlib's generated configure/Makefiles are gitignored but present on the host
 # (configured for the host distro), so exclude everything ignored plus prior build output
-for d in qsstv-experimental mmsstv-core hamlib-upstream-sstv; do
+for d in qsstv-experimental hamlib-upstream-sstv; do
   rsync -a --filter=':- .gitignore' --exclude=.git --exclude='build*' --exclude=install /src/$d/ $B/$d/
 done
 

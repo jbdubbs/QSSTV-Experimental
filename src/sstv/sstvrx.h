@@ -39,20 +39,7 @@ public:
   {
     return((SSTVState!=HUNTING) && (SSTVState!=END));
   }
-  // Set by rxFunctions::run() from MmsstvSstvRx::isTrackingImage(): while
-  // true, the mmsstv-core engine is the one actually receiving the current
-  // picture, so process()'s HUNTING state holds off posting its own
-  // "No sync" status -- QSSTV's own detector keeps re-attempting (and, by
-  // design, stepping aside from -- see createModeBase() in
-  // syncprocessor.cpp) the same VIS lock in parallel, and would otherwise
-  // spam over mmsstv_sstv_rx.cpp's "Receiving ... (MMSSTV)" status every
-  // buffer.
-  void setCoreEngineBusy(bool busy) { coreEngineBusy=busy; }
-
-  // True while QSSTV's own engine is mid-picture (its mode's canvas exists
-  // and it is painting it). rxFunctions::run() passes this to
-  // MmsstvSstvRx::setQsstvBusy() so mmsstv-core can't also claim the shared
-  // canvas -- see that method's comment.
+  // True while a picture is being received (its mode's canvas exists and it is painting it).
   bool isReceivingImage() const { return SSTVState==PROCESSING || SSTVState==WAITFORSYNC || SSTVState==SLANTADJUST; }
 #ifndef QT_NO_DEBUG
   unsigned int setOffset(unsigned int offset,bool ask);
@@ -101,7 +88,6 @@ private:
   bool usingWide;
   syncProcessor *syncProcPtr;
   DSPFLOAT agcVolume;
-  bool coreEngineBusy=false;
 };
 
 #endif // SSTVRX_H

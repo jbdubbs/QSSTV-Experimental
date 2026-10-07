@@ -429,7 +429,7 @@
         </attribute>
         <layout class="QVBoxLayout" name="verticalLayout_3">
          <item>
-          <!-- A grid (not the old per-row HBoxLayout+spacer idiom) so Mode/MMSSTV Core/resize
+          <!-- A grid (not the old per-row HBoxLayout+spacer idiom) so Mode/resize
                share one right-aligned label column and one value column, the same way the RX
                SSTV tab's gridLayout_2 lines its labels and checkboxes up with its combo boxes. -->
           <layout class="QGridLayout" name="gridLayout_4">
@@ -470,19 +470,6 @@
             </widget>
            </item>
            <!-- Built upon the original QSSTV 9.5.11 by Johan Maes, ON4QZ (https://www.qsl.net/o/on4qz) -->
-           <item row="1" column="1">
-            <widget class="QCheckBox" name="engineCheckBox">
-             <property name="toolTip">
-              <string>Use the ported mmsstv-core engine; Mode above lists only what it supports.</string>
-             </property>
-             <property name="layoutDirection">
-              <enum>Qt::RightToLeft</enum>
-             </property>
-             <property name="text">
-              <string>MMSSTV Core</string>
-             </property>
-            </widget>
-           </item>
            <item row="2" column="3">
             <spacer name="verticalSpacer_2">
              <property name="orientation">

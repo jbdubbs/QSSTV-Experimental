@@ -66,14 +66,7 @@ public:
   int fileProgressPercent() const {return fileReader.progressPercent();}
   buffer<FILTERPARAMTYPE,BYTESPOWER> rxBuffer;
   buffer<FILTERPARAMTYPE,BYTESPOWER> rxVolumeBuffer;
-  // mmsstv-linux-port Step 7: raw, un-decimated capture samples (same
-  // DOWNSAMPLESIZE-per-call cadence as rxBuffer's decimated push, just not
-  // yet run through downsampleFilterPtr->downSample4()). Populated
-  // alongside rxBuffer in capture(); mmsstv-core's CSSTVDEM needs genuine
-  // raw audio, not QSSTV's own already-demodulated/decimated stream. Only
-  // meaningfully drained when a mode has ENGINE_MMSSTV_CORE selected (see
-  // sstv/engineselection.h) -- otherwise it just accumulates and gets
-  // reset like any other unread ring buffer.
+  // Raw capture samples for the Calibrate dialog (captureListen()); not fed during normal receive.
   buffer<FILTERPARAMTYPE,BYTESPOWER> rawRxBuffer;
   buffer<SOUNDFRAME,16> txBuffer;
   double getVolumeDb(){return volume;}

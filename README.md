@@ -30,7 +30,7 @@ modes, for this run only), `--timeout SECONDS` (batch: per-file limit, default t
 For a completely clean run use a throw-away configuration: `HOME=$(mktemp -d) qsstv --batch ...`.
 
 `tests/filedecode/run.sh` decodes generated recordings with the built program and checks pictures, exit codes and file formats
-(needs the loopback harness in `tests/jb60_loopback`; ffmpeg is optional and adds the sample-rate and format variants; the mmsstv-core checks, including Auto Slant, use `encode_wav_tool` from the CMake build and ffmpeg).
+(needs the loopback harness in `tests/jb60_loopback`; ffmpeg is optional and adds the sample-rate and format variants).
 
 ## Installation
 

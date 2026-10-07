@@ -72,9 +72,6 @@ else()
   pkg_get_variable(QSSTV_HAMLIB_LIBDIR hamlib libdir)
 endif()
 
-# --- mmsstv-core (sibling checkout; see qsstv.pro's original comment) ---------------
-set(MMSSTV_CORE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../mmsstv-core" CACHE PATH "Path to the mmsstv-core checkout")
-add_subdirectory("${MMSSTV_CORE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/mmsstv-core")
 
 # --- Qwt (debug-only oscilloscope) ---------------------------------------------------
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -223,10 +220,6 @@ set(QSSTV_SOURCES
     sstv/sstvparam.cpp
     sstv/sstvrx.cpp
     sstv/sstvtx.cpp
-    sstv/mmsstv_sstv_tx.cpp
-    sstv/mmsstv_sstv_rx.cpp
-    sstv/mmsstvslant.cpp
-    sstv/engineselection.cpp
     sstv/videofilterselection.cpp
     sstv/chromadeconvolution.cpp
     sstv/chromacompanding.cpp
@@ -386,7 +379,6 @@ target_link_libraries(qsstv PRIVATE
     PkgConfig::FFTW3
     PkgConfig::OPENJP2
     hamlib::hamlib
-    mmsstv_core
 )
 
 if(UNIX AND NOT APPLE)
