@@ -53,7 +53,6 @@ void configDialog::readSettings()
   ui->catWidget->readSettings();
   ui->soundWidget->readSettings();
   ui->waterfallWidget->readSettings();
-  ui->modeOptionsWidget->readSettings();
   ui->freqSelectWidget->readSettings();
 }
 
@@ -82,7 +81,6 @@ void configDialog::writeSettings()
   ui->drmProfilesWidget->writeSettings();
   ui->cwWidget->writeSettings();
   ui->waterfallWidget->writeSettings();
-  ui->modeOptionsWidget->writeSettings();
   soundNeedsRestart=ui->soundWidget->hasChanged();
   guiNeedsRestart=ui->guiWidget->hasChanged();
   ui->freqSelectWidget->writeSettings();

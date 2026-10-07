@@ -13,8 +13,6 @@
 #include "rxwidget.h"
 #include "downsamplefilter.h"
 #include "filters.h"
-#include "videofilterselection.h"
-#include "chromadeconvolution.h"
 #include "chromaedgeboost.h"
 #include "chromagridphase.h"
 #include "chromacompanding.h"
@@ -50,7 +48,6 @@ namespace
     std::string image="0";
     bool ideal=false;      // old baseband path: no audio, no downsampler, no video filter
     bool ssb=false;        // 300-2700 Hz band limit
-    bool wide=false;       // --fir wide: the wide video filter (dsp/filters videoFilter(.., true))
     bool hasSnr=false;
     double snr=0;          // dB in 2.7 kHz, white noise at the receiver input
     double noiseHz=0;      // --ideal only: gaussian noise on the demodulated frequency
@@ -175,11 +172,11 @@ namespace
   }
 
   // audio (48 kHz) -> real downsampler -> real video filter -> 12 kHz demod track (Hz)
-  std::vector<quint16> demodChain(const std::vector<double> &audio,bool wide)
+  std::vector<quint16> demodChain(const std::vector<double> &audio)
   {
     const unsigned block=DOWNSAMPLESIZE;
     downsampleFilter ds(block,true);
-    videoFilter vf(RXSTRIPE,wide);
+    videoFilter vf(RXSTRIPE);
     std::vector<quint16> out;
     std::vector<short> buf(block);
     for(size_t pos=0;pos<audio.size();pos+=block)
@@ -238,15 +235,15 @@ namespace
   }
 
   // delay (12 kHz samples) between a frequency step entering the TX track and its 50% point in the demod track
-  double calibrateDelay(bool wide)
+  double calibrateDelay()
   {
-    static double cached[2]={-1,-1};
-    double &c=cached[wide ? 1 : 0];
+    static double cached=-1;
+    double &c=cached;
     if(c>=0) return c;
     std::vector<float> f(14400,1500.f);
     f.insert(f.end(),14400,2300.f);
     f.insert(f.end(),9600,1500.f);
-    std::vector<quint16> y=demodChain(makeAudio(withTail(f)),wide);
+    std::vector<quint16> y=demodChain(makeAudio(withTail(f)));
     for(size_t n=1500;n<y.size();n++)
       if(y[n]>=1900 && y[n-1]<1900)
         {
@@ -304,7 +301,7 @@ namespace
   struct Result { QImage rx; double seconds; int rxResult; int lines,imageLines; double delay; };
 
   // outCr/outCb, when non-null and o.mode==JB60: filled with the last line pair's demodulated,
-  // pre-deconvolution Cr/Cb slot arrays (modeJB60::lastCr()/lastCb()) before rx is deleted --
+  // Cr/Cb slot arrays (modeJB60::lastCr()/lastCb()) before rx is deleted --
   // used only by --dump-slots.
   Result runChain(const Options &o,const QImage &src,
                    std::vector<unsigned char> *outCr=nullptr,std::vector<unsigned char> *outCb=nullptr)
@@ -324,7 +321,6 @@ namespace
     Result res; res.seconds=f48.size()/txc; res.delay=0;
 
     std::vector<quint16> demod;
-    std::vector<quint16> demodWide;   // JB60's chroma-wide path only (see below); empty means "not used"
     if(o.ideal)
       {
         std::mt19937 rng(1); std::normal_distribution<double> nd(0,1);
@@ -346,19 +342,14 @@ namespace
             if(o.ssb) bandLimit(rec);
             writeWav(o.wav,rec);
           }
-        res.delay=calibrateDelay(o.wide)+o.tshift;
-        demod=alignTrack(demodChain(audio,o.wide),res.delay);
-        // JB60's per-segment chroma-wide path (RX idea #1): a second track through the wide filter, with its
-        // own independently-calibrated delay -- verified equal to the narrow one's, not assumed (see README).
-        if(o.mode==JB60) demodWide=alignTrack(demodChain(audio,true),calibrateDelay(true)+o.tshift);
+        res.delay=calibrateDelay()+o.tshift;
+        demod=alignTrack(demodChain(audio),res.delay);
       }
     for(int i=0;i<24000;i++) demod.push_back(1500);   // tail
-    for(int i=0;i<24000 && !demodWide.empty();i++) demodWide.push_back(1500);
 
     modeBase *rx=(o.mode==JB60)?(modeBase*)new modeJB60(o.mode,demod.size(),false,false):(modeBase*)new modePD(o.mode,demod.size(),false,false);
     rx->init(12000.*(1+o.clockErr));
     rx->setRxSampleCounter(0);
-    if(!demodWide.empty()) rx->setWideDemod(demodWide.data());
     res.rxResult=(int)rx->process(demod.data(),0,false,0);
     res.lines=rx->receivedLines(); res.imageLines=rx->imageLines();
     res.rx=rxIv.img;
@@ -411,7 +402,7 @@ namespace
   {
     const metrics::Rect full={0,0,W,H},txt=textRegion(o.image);
     printf("mode %s  image %s  channel %s%s%s\n",txSSTVParam.name.toLatin1().data(),o.image.c_str(),
-           o.ideal?"ideal (baseband)":(o.wide?"real (downsampler+WIDE video FIR)":"real (downsampler+video FIR)"),o.hasSnr?QString("  snr %1 dB").arg(o.snr).toLatin1().data():"",o.ssb?"  ssb":"");
+           o.ideal?"ideal (baseband)":"real (downsampler+video FIR)",o.hasSnr?QString("  snr %1 dB").arg(o.snr).toLatin1().data():"",o.ssb?"  ssb":"");
     printf("  tx %.2f s (table %.2f)  video-path delay %.2f samples  rx result %d, lines %d/%d\n",r.seconds,txSSTVParam.imageTime,r.delay,r.rxResult,r.lines,r.imageLines);
     printf("  PSNR R %.2f G %.2f B %.2f  luma %.2f  all %.2f dB\n",metrics::psnr(src,r.rx,0),metrics::psnr(src,r.rx,1),metrics::psnr(src,r.rx,2),metrics::psnr(src,r.rx,3),metrics::psnr(src,r.rx,4));
     printf("  SSIM full %.3f  text-region %.3f   gradient kept: full %.2f text-region %.2f\n",metrics::ssim(src,r.rx,full),metrics::ssim(src,r.rx,txt),
@@ -481,15 +472,14 @@ namespace
     { o.image="grath"; QImage s=loadImage(o.image); mh=metrics::mtf(runChain(o,s).rx,'h'); }
     { o.image="gratv"; QImage s=loadImage(o.image); mv=metrics::mtf(runChain(o,s).rx,'v'); }
     { o.image="gratd"; QImage s=loadImage(o.image); md=metrics::mtf(runChain(o,s).rx,'d'); }
-    printf("suite  mode %s  channel %s%s%s\n",txSSTVParam.name.toLatin1().data(),o.ideal?"ideal":(o.wide?"real, wide FIR":"real"),o.hasSnr?QString("  snr %1 dB").arg(o.snr).toLatin1().data():"",o.ssb?"  ssb":"");
+    printf("suite  mode %s  channel %s%s%s\n",txSSTVParam.name.toLatin1().data(),o.ideal?"ideal":"real",o.hasSnr?QString("  snr %1 dB").arg(o.snr).toLatin1().data():"",o.ssb?"  ssb":"");
     printf("  card: luma PSNR %.2f dB  SSIM text %.3f full %.3f  text gradient kept %.2f\n",cardYpsnr,cardSsimText,cardSsimFull,cardGrad);
     printf("  edge 10-90%% rise: x %.2f px   y %.2f px   chroma %.2f px\n",riseX,riseY,riseC);
     printMtf("horizontal",mh); printMtf("vertical",mv); printMtf("diagonal",md);
   }
 
   // RX idea 4 design tool: dumps the real chain's Cr/Cb slot-domain impulse response (a flat-
-  // background run and a one-column-impulse run, both through the *current* Options -- e.g. pass
-  // --chroma-wide to measure the wide filter's response instead of the narrow one) as plain text
+  // background run and a one-column-impulse run, both through the *current* Options) as plain text
   // on stdout, for offline FFT/Wiener-inverse design. See tests/jb60_loopback/README.md, RX idea 4.
   void dumpSlots(const Options &o,const std::string &channel)
   {
@@ -522,7 +512,7 @@ int main(int argc,char**argv)
   Options o;
   if(argc<2) { fprintf(stderr,
       "usage: %s <jb|pd> [--image 0|1|2|card|vedge320|vedge321|hedge248|hedge249|cedge320|cedge321|medge320|medge321|dedge320|dedge321|grath|gratv|gratd|cgrath|cgratv|file.png]\n"
-      "          [--suite] [--ideal] [--fir wide|narrow] [--chroma-wide] [--chroma-deconv] [--chroma-edge-boost] [--chroma-grid-phase f] [--chroma-compand-gamma g] [--chroma-pseudo-luma f] [--chroma-triangle] [--snr dB] [--ssb] [--noise-hz Hz (with --ideal)] [--clock-err frac]\n"
+      "          [--suite] [--ideal] [--chroma-edge-boost] [--chroma-grid-phase f] [--chroma-compand-gamma g] [--chroma-pseudo-luma f] [--chroma-triangle] [--snr dB] [--ssb] [--noise-hz Hz (with --ideal)] [--clock-err frac]\n"
       "          [--tshift samples] [--out prefix] [--wav file.wav [--vis] [--count N]] [--dump-slots cr|cb|both]\n"          "       %s --compare a.png b.png\n",argv[0],argv[0]); return 1; }
   if(!strcmp(argv[1],"--compare"))
     {
@@ -534,7 +524,7 @@ int main(int argc,char**argv)
       return 0;
     }
   o.mode=(!strcmp(argv[1],"pd"))?PD120:JB60;
-  bool chromaWide=false,chromaDeconv=false,chromaEdgeBoost=false,chromaTriangle=false;
+  bool chromaEdgeBoost=false,chromaTriangle=false;
   double gridPhase=0.0;
   double compandGamma=1.0;
   double pseudoLumaAmp=0.0;
@@ -546,7 +536,6 @@ int main(int argc,char**argv)
       if(a=="--image") o.image=val();
       else if(a=="--ideal") o.ideal=true;
       else if(a=="--ssb") o.ssb=true;
-      else if(a=="--fir") { std::string v=val(); if(v!="wide"&&v!="narrow") { fprintf(stderr,"--fir wide|narrow\n"); return 1; } o.wide=(v=="wide"); }
       else if(a=="--snr") { o.hasSnr=true; o.snr=atof(val()); }
       else if(a=="--noise-hz") o.noiseHz=atof(val());
       else if(a=="--clock-err") o.clockErr=atof(val());
@@ -556,8 +545,6 @@ int main(int argc,char**argv)
       else if(a=="--suite") o.suite=true;
       else if(a=="--vis") o.vis=true;
       else if(a=="--count") o.count=std::max(1,atoi(val()));
-      else if(a=="--chroma-wide") chromaWide=true;
-      else if(a=="--chroma-deconv") chromaDeconv=true;
       else if(a=="--chroma-edge-boost") chromaEdgeBoost=true;
       else if(a=="--chroma-grid-phase") gridPhase=atof(val());
       else if(a=="--chroma-compand-gamma") compandGamma=atof(val());
@@ -566,11 +553,6 @@ int main(int argc,char**argv)
       else if(a=="--dump-slots") dumpSlotsChannel=val();
       else { fprintf(stderr,"unknown option %s\n",a.c_str()); return 1; }
     }
-  // Deterministic regardless of any real qsstv settings on this machine: off unless --chroma-wide asks for it
-  // (this is what modeJB60::getPixels() reads for its per-segment choice; see RX idea #1 in videofilterselection.h).
-  setWideVideoFilterOverride(chromaWide ? 1 : 0);
-  // Same idea, RX idea #4 (chromadeconvolution.h): off unless --chroma-deconv asks for it.
-  setChromaDeconvolutionOverride(chromaDeconv ? 1 : 0);
   // Same idea, TX idea 12 (chromaedgeboost.h): off unless --chroma-edge-boost asks for it.
   setChromaEdgeBoostOverride(chromaEdgeBoost ? 1 : 0);
   // idea 12 attempt 3 (chromagridphase.h): 0.0 by default, bit-identical to the fixed grid.

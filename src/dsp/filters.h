@@ -23,23 +23,19 @@ private:
 
 
 /*!
-  FM demodulator for the picture data. The standard filter (about +/-600 Hz) suits the slow modes, but it smears
-  a 190 us pixel over about four pixels. The wide variant (about +/-1000 Hz, same 181 taps so the same group
-  delay) is sharper on clean signals and noisier on weak ones; it is meant for the fast modes.
+  FM demodulator for the picture data (about +/-600 Hz).
 */
 class videoFilter
 {
 public:
-  videoFilter(uint maxLength,bool wide=false);
+  videoFilter(uint maxLength);
   ~videoFilter();
   void process(FILTERPARAMTYPE *dataPtr);
   void init();
   quint16 *demodPtr;
 private:
-  static void designWideTaps(FILTERPARAMTYPE *taps);
   filter videoFltr;
   filter lpFltr;
-  bool wideFilter;
 };
 
 class wfFilter

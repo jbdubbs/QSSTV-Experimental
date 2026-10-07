@@ -39,7 +39,6 @@
 #include "mainwidgets/txwidget.h"
 #include "sound/soundbase.h"
 #include "sstv/sstvparam.h"
-#include "sstv/videofilterselection.h"
 #include <QImageReader>
 #include "supportfunctions.h"
 
@@ -144,13 +143,12 @@ int main( int argc, char ** argv )
                               "Your settings are read but never written.");
   QCommandLineOption outDirOpt(QStringList() << "o" << "out-dir","With --batch: directory for the pictures, named <file>_<n>_<MODE>.png (default: current directory).","dir");
   QCommandLineOption modeOpt(QStringList() << "m" << "mode","Receive only this mode (short name as in --list-modes, e.g. PD120, JB60) instead of auto detection.","mode");
-  QCommandLineOption wideOpt("wide-filter","Wide video filter for the fast modes for this run: auto (your setting), on or off.","auto|on|off");
   QCommandLineOption timeoutOpt("timeout","With --batch: give up on a file after this many seconds (default: its length + 30 s).","seconds");
   QCommandLineOption encodeOpt("encode","Headless: transmit the picture <image> through the normal SSTV TX path into a wav file (see --wav-out, --mode) and exit. "
                                "Your settings are read but never written.","image");
   QCommandLineOption wavOutOpt("wav-out","With --encode: the wav file to write (default: <image>.wav).","file");
   QCommandLineOption listOpt("list-modes","Print the mode names that --mode accepts and exit.");
-  parser.addOptions(QList<QCommandLineOption>() << helpOpt << versionOpt << decodeOpt << batchOpt << outDirOpt << modeOpt << wideOpt << timeoutOpt << encodeOpt << wavOutOpt << listOpt);
+  parser.addOptions(QList<QCommandLineOption>() << helpOpt << versionOpt << decodeOpt << batchOpt << outDirOpt << modeOpt << timeoutOpt << encodeOpt << wavOutOpt << listOpt);
   parser.addPositionalArgument("file","SSTV recordings to decode (same as --decode).","[file ...]");
   if(!parser.parse(app.arguments()))
     {
@@ -179,18 +177,6 @@ int main( int argc, char ** argv )
       fprintf(stderr,"--batch needs at least one file to decode. Try --help.\n");
       return fileDecoder::EXIT_BADFILE;
     }
-  int wideOverride=-1;
-  if(parser.isSet(wideOpt))
-    {
-      QString v=parser.value(wideOpt).toLower();
-      if(v=="on") wideOverride=1;
-      else if(v=="off") wideOverride=0;
-      else if(v!="auto")
-        {
-          fprintf(stderr,"--wide-filter must be auto, on or off\n");
-          return fileDecoder::EXIT_BADFILE;
-        }
-    }
   bool timeoutOk=true;
   int timeoutSeconds=parser.isSet(timeoutOpt) ? parser.value(timeoutOpt).toInt(&timeoutOk) : 0;
   if(!timeoutOk || timeoutSeconds<0)
@@ -199,7 +185,6 @@ int main( int argc, char ** argv )
       return fileDecoder::EXIT_BADFILE;
     }
   const bool encode=parser.isSet(encodeOpt);
-  setWideVideoFilterOverride(wideOverride);
 
   QPixmap pixmap(":/icons/qsstvsplash.png");
   QSplashScreen splash(pixmap,Qt::WindowStaysOnTopHint);

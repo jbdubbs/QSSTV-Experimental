@@ -47,11 +47,11 @@ public:
   modeJB60(esstvMode m, unsigned int len, bool tx, bool narrowMode);
   ~modeJB60();
   bool getPixels();
-  // Diagnostic accessors, not used by the app itself: the most recently RX-captured (post-demod,
-  // pre-deconvolution) Cr/Cb slot arrays. showLine() swaps its freshly assign()'d curCr/curCb into
+  // Diagnostic accessors, not used by the app itself: the most recently RX-captured (post-demod) Cr/Cb slot arrays.
+  // showLine() swaps its freshly assign()'d curCr/curCb into
   // prevCr/prevCb before returning, so immediately after any process() call these hold exactly the
   // last line pair's demodulated chroma -- used by tests/jb60_loopback's --dump-slots to measure
-  // the real chain's slot-domain response for RX idea 4's deconvolution filter design.
+  // the real chain's slot-domain response.
   const std::vector<unsigned char>& lastCr() const { return prevCr; }
   const std::vector<unsigned char>& lastCb() const { return prevCb; }
 protected:
@@ -71,7 +71,6 @@ private:
 
   DSPFLOAT slot;                       //!< duration of one sample slot (in samples of the local clock)
   quint16 prevSample;                  //!< previous demodulator sample (RX slot averaging)
-  quint16 prevSampleWide;              //!< previous wide-filter sample (RX slot averaging, Cr/Cb only)
   float guideLut[256];                 //!< luminance similarity weight for chroma upsampling
   float dDecodeLut[256];               //!< expands a received D level back to a luminance difference
   std::vector<unsigned char> rowY;     //!< reconstructed luminance row

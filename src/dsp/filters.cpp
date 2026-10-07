@@ -68,53 +68,13 @@ void syncFilter::process(FILTERPARAMTYPE *dataPtr)
 
 
 
-videoFilter::videoFilter(uint maxLength,bool wide):videoFltr(filter::FTFIR,maxLength),lpFltr(filter::FTFIR,maxLength),wideFilter(wide)
+videoFilter::videoFilter(uint maxLength):videoFltr(filter::FTFIR,maxLength),lpFltr(filter::FTFIR,maxLength)
 {
   init();
 }
 
 videoFilter::~videoFilter()
 {
-}
-
-namespace
-{
-  // modified Bessel function of the first kind, order 0 (power series)
-  double besselI0(double x)
-  {
-    double sum=1,term=1;
-    for(int k=1;k<60;k++)
-      {
-        double h=x/(2*k);
-        term*=h*h;
-        sum+=term;
-        if(term<1e-14*sum) break;
-      }
-    return sum;
-  }
-}
-
-/*!
-  Kaiser windowed sinc low pass, VIDEOFIRNUMTAPS taps, -6 dB at VIDEOWIDECUTOFF (the ideal cutoff of a windowed
-  sinc), unity gain at DC. Runs on the complex baseband, so the pass band is +/-VIDEOWIDECUTOFF around the carrier.
-*/
-void videoFilter::designWideTaps(FILTERPARAMTYPE *taps)
-{
-  const int n=VIDEOFIRNUMTAPS;
-  const double mid=(n-1)/2.0;
-  const double fc=VIDEOWIDECUTOFF/SAMPLERATE;   // cycles per sample
-  const double norm=besselI0(VIDEOWIDEKAISERBETA);
-  double sum=0;
-  int i;
-  for(i=0;i<n;i++)
-    {
-      double x=i-mid;
-      double sinc=(x==0) ? 2*fc : sin(2*M_PI*fc*x)/(M_PI*x);
-      double r=2.0*i/(n-1)-1.0;
-      taps[i]=sinc*besselI0(VIDEOWIDEKAISERBETA*sqrt(1.0-r*r))/norm;
-      sum+=taps[i];
-    }
-  for(i=0;i<n;i++) taps[i]/=sum;
 }
 
 void videoFilter::init()
@@ -125,20 +85,8 @@ void videoFilter::init()
   videoFltr.volumeDecayIntegrator=0.01;
   videoFltr.nZeroes=VIDEOFIRNUMTAPS-1;
   videoFltr.frCenter=VIDEOFIRCENTER;
-  if(wideFilter)
-    {
-      // owned by videoFltr (freed by filter::deleteBuffers), like filter::setupMatchedFilter's taps
-      FILTERPARAMTYPE *taps=new FILTERPARAMTYPE[VIDEOFIRNUMTAPS];
-      designWideTaps(taps);
-      videoFltr.coefZPtr=taps;
-      videoFltr.coefZPtrNewed=true;
-      videoFltr.gain=1;
-    }
-  else
-    {
-      videoFltr.gain=VIDEOFIRGAIN;
-      videoFltr.coefZPtr=(FILTERPARAMTYPE *)videoFilterCoefFIR;
-    }
+  videoFltr.gain=VIDEOFIRGAIN;
+  videoFltr.coefZPtr=(FILTERPARAMTYPE *)videoFilterCoefFIR;
   videoFltr.allocate();
   demodPtr=videoFltr.demodPtr;
   lpFltr.setupMatchedFilter(0,1);

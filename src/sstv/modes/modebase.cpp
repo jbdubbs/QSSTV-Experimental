@@ -70,8 +70,6 @@ modeBase::modeBase(esstvMode m, unsigned int len, bool tx, bool narrowMode)
   pixelArrayPtr=NULL;
   pixelPositionTable=NULL;
   debugStatePtr=NULL;
-  wideDemodPtr=NULL;
-  sampleWide=0;
   addToLog(QString("mb constructor mode=%1").arg((int) m),LOGMODES);
   if(transmit)
     {
@@ -222,7 +220,6 @@ modeBase::eModeBase modeBase::process(quint16 *demod,unsigned int syncPos,bool g
           subLine++;
         }
       sample=demod[i];
-      sampleWide=wideDemodPtr?wideDemodPtr[i]:demod[i];
       debugStatePtr[i]=debugState;
 
       switch(state)

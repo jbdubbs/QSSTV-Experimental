@@ -5,7 +5,6 @@
 #include "filterparam.h"
 #include "filters.h"
 #include "modes/modebase.h"
-#include "videofilterselection.h"
 
 
 #ifndef QT_NO_DEBUG
@@ -40,8 +39,6 @@ sstvRx::sstvRx(QObject *parent) : QObject(parent),syncNarrowProc(true),syncWideP
 {
   syncFilterPtr=NULL;
   videoFilterPtr=NULL;
-  videoFilterWidePtr=NULL;
-  rxUseWideFilter=false;
   syncProcPtr=NULL;
 #ifndef QT_NO_DEBUG
   scopeViewerData=new scopeView("Data Scope");
@@ -74,7 +71,6 @@ void sstvRx::resetParams(bool bufferReset)
       addToLog("reset Buffers",LOGRXMAIN);
       agcVolume=0;
       bufferVideoDemod.reset();
-      bufferVideoDemodWide.reset();
       bufferSync1200Vol.reset();
       bufferSync1900Vol.reset();
       bufferInputVol.reset();
@@ -91,7 +87,6 @@ void sstvRx::resetParams(bool bufferReset)
 sstvRx::~sstvRx()
 {
   if(videoFilterPtr!=NULL) delete videoFilterPtr;
-  if(videoFilterWidePtr!=NULL) delete videoFilterWidePtr;
   if(syncFilterPtr !=NULL) delete syncFilterPtr;
 }
 
@@ -101,11 +96,6 @@ void sstvRx::setFilters()
     videoFilterPtr=new videoFilter(RXSTRIPE);
   else
     videoFilterPtr->init();
-  // second demodulator with the wide filter, fed the same samples; the fast modes read its output (see modeDemodPtr)
-  if(videoFilterWidePtr==NULL)
-    videoFilterWidePtr=new videoFilter(RXSTRIPE,true);
-  else
-    videoFilterWidePtr->init();
   if(syncFilterPtr==NULL) syncFilterPtr=new syncFilter(RXSTRIPE);
   else syncFilterPtr->init();
 }
@@ -131,8 +121,6 @@ void sstvRx::run(DSPFLOAT *dataPtr,DSPFLOAT *volumePtr)
 //    }
   videoFilterPtr->process(dataPtr);
   bufferVideoDemod.putNoCheck(videoFilterPtr->demodPtr,RXSTRIPE);
-  videoFilterWidePtr->process(dataPtr);
-  bufferVideoDemodWide.putNoCheck(videoFilterWidePtr->demodPtr,RXSTRIPE);
   syncFilterPtr->process(dataPtr);
   bufferSync1200Vol.putNoCheck(syncFilterPtr->detect1200Ptr,RXSTRIPE);
 #ifndef DISABLENARROW
@@ -170,37 +158,24 @@ void sstvRx::run(DSPFLOAT *dataPtr,DSPFLOAT *volumePtr)
   //  addToLog(QString("After process readIndex:=%1 sampleCounter:=%2").arg(bufferVideoDemod.getReadIndex()).arg(syncProcPtr->sampleCounter),LOGRXFUNC);
 }
 
-// The two demodulated buffers always move together: the sync processors read the standard one (VIS, FSK), the
-// picture modes read whichever their filter setting selects.
 quint16 *sstvRx::modeDemodPtr()
 {
-  return rxUseWideFilter ? bufferVideoDemodWide.readPointer() : bufferVideoDemod.readPointer();
-}
-
-// The wide track alongside modeDemodPtr()'s choice, for modes that pick per segment (JB60's chroma) rather than
-// per picture. Always available since both buffers are always filled (see run()); modeDemodPtr() above still
-// decides the *primary* (narrow, for JB60) buffer passed as process()'s demod argument.
-quint16 *sstvRx::modeDemodWidePtr()
-{
-  return bufferVideoDemodWide.readPointer();
+  return bufferVideoDemod.readPointer();
 }
 
 void sstvRx::demodSkip(unsigned int n)
 {
   bufferVideoDemod.skip(n);
-  bufferVideoDemodWide.skip(n);
 }
 
 void sstvRx::demodRewind(unsigned int n)
 {
   bufferVideoDemod.rewind(n);
-  bufferVideoDemodWide.rewind(n);
 }
 
 void sstvRx::demodSetReadIndex(unsigned int idx)
 {
   bufferVideoDemod.setReadIndex(idx);
-  bufferVideoDemodWide.setReadIndex(idx);
 }
 
 void sstvRx::advanceBuffers()
@@ -291,7 +266,6 @@ void sstvRx::process()
         }
       stce= new rxSSTVStatusEvent(QString("Receiving ")+getSSTVModeNameLong(syncProcPtr->getMode()));
       lastUsedModeStr=getSSTVModeNameShort(syncProcPtr->getMode());
-      rxUseWideFilter=modeUsesWideVideoFilter(syncProcPtr->getMode()); // fixed for the whole picture
       QApplication::postEvent( dispatcherPtr, stce );  // Qt will delete it when done
       // fallthrough for first processing
       switchState(SLANTADJUST); // for logging
@@ -309,7 +283,6 @@ void sstvRx::process()
       syncProcPtr->sampleCounter=block*RXSTRIPE;
       syncProcPtr->currentModePtr->setRxSampleCounter(syncProcPtr->sampleCounter);
       syncProcPtr->currentModePtr->redrawFast(true);
-      syncProcPtr->currentModePtr->setWideDemod(modeDemodWidePtr());
       if(syncProcPtr->currentModePtr->process(modeDemodPtr(),syncPosition-syncProcPtr->sampleCounter,true,syncProcPtr->sampleCounter)!=modeBase::MBRUNNING)
         {
           switchState(END);
@@ -329,7 +302,6 @@ void sstvRx::process()
           demodSkip(RXSTRIPE);
           syncProcPtr->sampleCounter+=RXSTRIPE;
           //          addToLog(QString("loop readIndex: %1,syncProcPtr->sampleCounter: %2").arg(rxHoldingBuffer.getReadIndex()).arg(syncProcPtr->sampleCounter),LOGRXFUNC);
-          syncProcPtr->currentModePtr->setWideDemod(modeDemodWidePtr());
           syncProcPtr->currentModePtr->process(modeDemodPtr(),0,false,syncProcPtr->sampleCounter);
           //      scopeViewerData->addData(SCDATA2,bufferVideoDemod.readPointer(),syncProcPtr->sampleCounter,RXSTRIPE);
 #ifndef QT_NO_DEBUG
@@ -358,7 +330,6 @@ void sstvRx::process()
         }
       else
         {
-          syncProcPtr->currentModePtr->setWideDemod(modeDemodWidePtr());
           if(syncProcPtr->currentModePtr->process(modeDemodPtr(),0,false,syncProcPtr->sampleCounter)!=modeBase::MBRUNNING)
             {
               switchState(END);
@@ -407,14 +378,12 @@ void sstvRx::process()
                 demodSetReadIndex(bufferIdx);
                 while(bufferVideoDemod.getReadIndex()!=currentIdx)
                   {
-                    syncProcPtr->currentModePtr->setWideDemod(modeDemodWidePtr());
                     if(syncProcPtr->currentModePtr->process(modeDemodPtr(),0,false,syncProcPtr->sampleCounter)==modeBase::MBENDOFIMAGE)
                       {
                         switchState(END);
                       }
                     demodSkip(RXSTRIPE);
                   }
-                syncProcPtr->currentModePtr->setWideDemod(modeDemodWidePtr());
                 if(syncProcPtr->currentModePtr->process(modeDemodPtr(),0,false,syncProcPtr->sampleCounter)==modeBase::MBENDOFIMAGE)
                   {
                     switchState(END);

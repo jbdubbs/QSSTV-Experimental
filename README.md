@@ -25,8 +25,7 @@ line per picture on stdout, reports problems on stderr and exits with a code you
 uses Qt's offscreen platform so it also works over ssh, reads your settings but never writes them, and does not prune your image caches.
 
 Options: `--mode PD120` (receive only that mode instead of auto detection; `--list-modes` shows the names),
-`--engine qsstv|core|auto` (which receive engine, for this run only), `--wide-filter on|off|auto` (the wide video filter for the fast
-modes, for this run only), `--timeout SECONDS` (batch: per-file limit, default the file's length + 30 s), `--help`.
+`--timeout SECONDS` (batch: per-file limit, default the file's length + 30 s), `--help`.
 For a completely clean run use a throw-away configuration: `HOME=$(mktemp -d) qsstv --batch ...`.
 
 `tests/filedecode/run.sh` decodes generated recordings with the built program and checks pictures, exit codes and file formats

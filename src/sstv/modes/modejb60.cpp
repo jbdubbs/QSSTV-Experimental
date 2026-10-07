@@ -17,8 +17,6 @@
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
 #include "modejb60.h"
-#include "videofilterselection.h"
-#include "chromadeconvolution.h"
 #include "chromaedgeboost.h"
 #include "chromagridphase.h"
 #include "chromacompanding.h"
@@ -175,51 +173,6 @@ namespace
       arr[k]=clampByte((1.f-w[k])*(float)arr[k]+w[k]*boosted[k]);
   }
 
-  // RX idea 4: regularized (Wiener-style) inverse of the combined TX-pre-emphasis + channel slot-
-  // domain response, applied to already-demodulated Cr/Cb (opt-in, chromaDeconvolutionEnabled()).
-  // Symmetric (zero group delay), 7 taps. Matched to the narrow filter only -- the call site in
-  // showLine() must not apply this when Cr/Cb came from the wide track instead.
-  //
-  // Design (see tests/jb60_loopback/README.md, "RX idea 4" section, for the full derivation and
-  // sweep tables): H(f) was measured through the real chain (--dump-slots), not from raw taps, as a
-  // Y-luma-held-constant Cr/Cb step so downsampleChroma()'s guided weights reduce to a plain box
-  // average -- this response already includes the unconditional TX pre-emphasis above, i.e. it's
-  // the *combined* response per the design-target decision in the RX idea 4 plan. The inverse is
-  // Hinv(f)=|H(f)|/(|H(f)|^2+K), K=0.07, with DC pinned to an exact 1.0 (not the Wiener-shrunk
-  // value -- the channel's own DC gain is already ~1, so flat/already-correct colour must pass
-  // through unchanged) and the target held flat past 1100 Hz, where the measurement itself becomes
-  // noise-dominated (matches the narrow filter's own -15dB@804Hz/null~1150Hz). Fit to a 7-tap
-  // symmetric FIR by weighted least squares over the cosine basis. Tap-count sweep (3/5/7/9 at this
-  // K): gains grow with diminishing returns past 7, matching idea 6's own precedent. K sweep at 7
-  // taps: broad flat optimum 0.05-0.1, regressing below baseline outside about 0.02-0.3 -- 0.07
-  // chosen near that optimum with a smaller centre tap than the 0.05 peak (less noise-amplification
-  // risk for a ~0.01dB difference in clean-signal gain). SNR sweep (card and a hard-edged colour
-  // image, 40dB down to 0dB): a real noise crossover, around 22-25dB SNR (small, growing losses
-  // below it; small, consistent gains above) -- unlike idea 6's TX-side pre-emphasis, this is an
-  // RX-side inverse and so amplifies whatever noise already arrived along with genuine signal, per
-  // its own original risk framing. Default off; the RX checkbox tooltip says "about 25 dB".
-  const unsigned int kDeconvHalfTaps=3;
-  const float kDeconvKernel[kDeconvHalfTaps+1]={1.186478f, 0.040282f, -0.025199f, -0.108322f};
-
-  void applyChromaDeconvolution(unsigned char *arr,unsigned int n)
-  {
-    if(n<1) return;
-    std::vector<unsigned char> src(arr,arr+n);   // read from a copy, not partially-overwritten neighbours
-    auto at=[&](int i)->float
-      {
-        if(i<0) i=0;
-        if(i>=(int)n) i=(int)n-1;
-        return (float)src[i];
-      };
-    for(unsigned int k=0;k<n;k++)
-      {
-        float v=kDeconvKernel[0]*at((int)k);
-        for(unsigned int t=1;t<=kDeconvHalfTaps;t++)
-          v+=kDeconvKernel[t]*(at((int)k-(int)t)+at((int)k+(int)t));
-        arr[k]=clampByte(v);
-      }
-  }
-
   // TX idea 14 (jb60-color-smear-ideas memory): joint, hue-preserving magnitude companding of Cr/Cb,
   // mirroring D's own kDGamma compander but for the 2D (Cr,Cb) chroma vector instead of a 1D residual.
   // Runs at full 640-column resolution (getLine()/emitPair()), *before* downsampleChroma()'s decimation
@@ -355,7 +308,6 @@ modeJB60::modeJB60(esstvMode m,unsigned int len,bool tx,bool narrowMode): modeBa
 {
   slot=0;
   prevSample=0;
-  prevSampleWide=0;
   for(int d=0;d<256;d++)
     {
       float x=d/kGuideSigma;
@@ -501,26 +453,19 @@ bool modeJB60::getPixels()
   int color;
   double dev=activeSSTVParam->deviation*2;
   double fc=activeSSTVParam->subcarrier;
-  // Cr/Cb only: when the "Wide Video Filter" setting is on, read the wide-filter track instead of the narrow
-  // one. L and D (any other debugState) always use the narrow, noise-robust track -- see videofilterselection.h.
-  const bool chromaWide=(debugState==stColorLine2 || debugState==stColorLine3) && wideVideoFilterEnabled();
-  const quint16 s=chromaWide ? sampleWide : sample;
-  const quint16 ps=chromaWide ? prevSampleWide : prevSample;
   if(sampleCounter>=pixelPositionTable[pixelCounter]+(slot/2))
     {
-      double avg=((double)s+(double)ps)/2.;
+      double avg=((double)sample+(double)prevSample)/2.;
       color=128+lround((avg-fc)*255./dev);
       if(color<0) color=0;
       if(color>255) color=255;
       pixelArrayPtr[pixelCounter]=(unsigned char)color;
       pixelCounter++;
       prevSample=sample;
-      prevSampleWide=sampleWide;
       if(pixelCounter>=segmentPixels) return true;
       return false;
     }
   prevSample=sample;
-  prevSampleWide=sampleWide;
   return false;
 }
 
@@ -759,16 +704,6 @@ void modeJB60::showLine()
   curD.assign(greenArrayPtr,greenArrayPtr+kSegCount[SEG_D]);
   curCr.assign(redArrayPtr,redArrayPtr+kSegCount[SEG_CR]);
   curCb.assign(blueArrayPtr,blueArrayPtr+kSegCount[SEG_CB]);
-  // RX idea 4: opt-in, and only meaningful against the narrow filter this kernel was measured
-  // against -- when the Cr/Cb wide-filter track is in use instead, skip it rather than apply a
-  // mismatched inverse (the UI also grays out the checkbox in that case; this is the behavioral
-  // guard that still applies even if settings are edited outside the UI, e.g. the test harness
-  // override or a hand-edited config file).
-  if(chromaDeconvolutionEnabled() && !wideVideoFilterEnabled())
-    {
-      applyChromaDeconvolution(curCr.data(),kSegCount[SEG_CR]);
-      applyChromaDeconvolution(curCb.data(),kSegCount[SEG_CB]);
-    }
 
   if(p>0)
     {

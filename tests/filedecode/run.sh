@@ -35,11 +35,9 @@ for m in jb pd; do
   eval "harness_$m=$(awk '/PSNR/{print $9}' "$T/$m.harness")"
 done
 "$LB" jb --image card --vis --count 2 --wav "$T/jb2.wav" > /dev/null
-"$LB" jb --image card --chroma-wide --vis --wav "$T/jbw.wav" --out "$T/jbw" > /dev/null   # JB60's "wide filter" is chroma-only
 # Timing references (see the receive-timing check below): the harness decodes with the same trimmed RX back porch
 # as the application but, unlike the application, has no sync-detector lag, so it must be delayed by that lag.
 "$LB" jb --image card --tshift 2 --out "$T/jbref" > /dev/null
-"$LB" jb --image card --chroma-wide --tshift 2 --out "$T/jbwref" > /dev/null
 
 echo "== decode, QSSTV engine (VIS detection + sync through the real app)"
 declare -A MODE=([jb]=JB60 [pd]=PD120)
@@ -65,7 +63,7 @@ echo "== JB60 receive-timing regression"
 # against the wrong reference). NOTE what this guards: the harness shares sstvparam.cpp, so changing the trim
 # moves both sides and is NOT caught here (verified: bp 0.00208 still reads 54 dB). It catches a change in the
 # sync detector / video chain lag relative to the harness's model, e.g. a filter or buffering change in the
-# application. The wide check uses the harness's chroma-only wide track, which is what JB60's wide filter now is.
+# application.
 # 35 dB leaves headroom for machine to machine filter-arithmetic noise.
 timing_check() {
   local label=$1 ref=$2 png=$3
@@ -78,13 +76,10 @@ timing_check() {
   fi
 }
 timing_check "jb narrow filter" "$T/jbref_rx.png" "$T/o_jb/jb_1_JB60.png"
-run --wide-filter on -o "$T/o_jbw" "$T/jbw.wav"
-timing_check "jb wide filter" "$T/jbwref_rx.png" "$T/o_jbw/jbw_1_JB60.png"
 
 echo "== options"
 run --mode PD120 -o "$T/o_mode" "$T/pd.wav"; expect_exit "forced correct mode" 0 $?
 run --mode M1 -o "$T/o_wrongmode" "$T/pd.wav"; expect_exit "forced wrong mode finds nothing" 1 $?
-run --wide-filter on -o "$T/o_wide" "$T/jb.wav"; expect_exit "wide filter" 0 $?
 run -o "$T/o_two" "$T/jb2.wav"; rc=$?
 n=$(ls "$T"/o_two/*.png 2>/dev/null | wc -l)
 [ $rc = 0 ] && [ "$n" = 2 ] && ok "two pictures in one file -> $n files" || bad "two pictures in one file: exit $rc, $n files"

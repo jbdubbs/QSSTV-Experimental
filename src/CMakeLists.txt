@@ -220,8 +220,6 @@ set(QSSTV_SOURCES
     sstv/sstvparam.cpp
     sstv/sstvrx.cpp
     sstv/sstvtx.cpp
-    sstv/videofilterselection.cpp
-    sstv/chromadeconvolution.cpp
     sstv/chromacompanding.cpp
     sstv/chromaedgeboost.cpp
     sstv/chromagridphase.cpp
@@ -251,7 +249,6 @@ set(QSSTV_SOURCES
     config/hybridconfig.cpp
     config/repeaterconfig.cpp
     config/waterfallconfig.cpp
-    config/modeoptionsconfig.cpp
     utils/hybridcrypt.cpp
     sstv/visfskid.cpp
     dsp/filters.cpp
@@ -315,7 +312,6 @@ set(QSSTV_FORMS
     config/hybridconfig.ui
     config/repeaterconfig.ui
     config/waterfallconfig.ui
-    config/modeoptionsconfig.ui
     drmtx/bsrform.ui
     mainwidgets/gallerywidget.ui
     mainwidgets/rxwidget.ui

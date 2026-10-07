@@ -62,9 +62,6 @@ extern const double p_video_bp[VIDEOBPNUMPOLES];
 #define VIDEOFIRGAIN 10.000014
 #define VIDEOFIRCENTER 1900
 extern const double videoFilterCoefFIR[VIDEOFIRNUMTAPS];
-// wide variant for fast modes (see videoFilter): same length, so same group delay; the taps are designed at run time
-#define VIDEOWIDECUTOFF 1000.0       // Hz, -6 dB point of the complex baseband low pass
-#define VIDEOWIDEKAISERBETA 7.0
 
 
 
