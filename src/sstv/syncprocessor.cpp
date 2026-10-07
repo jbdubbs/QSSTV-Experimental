@@ -1007,7 +1007,6 @@ bool  syncProcessor::createModeBase()
   case MP175:
     currentModePtr=new modePD(currentMode,RXSTRIPE,false,false);
     break;
-  case PD120S:
   case PD120W:
     currentModePtr=new modePD(currentMode,RXSTRIPE,false,false);
     break;

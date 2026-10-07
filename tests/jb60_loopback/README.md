@@ -84,7 +84,7 @@ within 0.05 (on the card, and on a photo with text overlay), and at least 2 dB b
 `dsp/filters.cpp` `videoFilter(maxLength, true)` is the same demodulator with a Kaiser windowed-sinc low pass at
 +/-1000 Hz instead of QSSTV's +/-600 Hz filter (same 181 taps, so the same 90 sample group delay). The app runs it
 alongside the standard one, and the RX "Wide Video Filter" checkbox (default off) controls two different things
-depending on mode: PD120/PD120S/PD120W read it for the *whole picture* (`--fir wide` here reproduces that), while
+depending on mode: PD120/PD120W read it for the *whole picture* (`--fir wide` here reproduces that), while
 JB60 reads it for *Cr/Cb only* (`--chroma-wide` here; see the "Chroma-only wide filter for JB60" section below) --
 L/D always stay on the narrow filter for JB60. What follows in this section is the whole-picture measurement
 (`--fir wide`), i.e. what PD120 still does and what JB60 used to do before the per-segment split. Real chain,

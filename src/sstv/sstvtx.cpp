@@ -144,7 +144,6 @@ bool sstvTx::create(esstvMode m,DSPFLOAT clock)
   case PD50:
   case PD90:
   case PD120:
-  case PD120S:
   case PD120W:
   case PD160:
   case PD180:
