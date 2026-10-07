@@ -6,9 +6,11 @@
 
 #include "sstvparam.h" // autoSlantAdjust
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <vector>
 
 namespace
 {
@@ -34,6 +36,7 @@ void MmsstvSlantTracker::reset()
 	linesSinceRecalc = 0;
 	lastSamplesPerLine = 0;
 	ratio = 1.0;
+	cumCorr = 0.0;
 }
 
 void MmsstvSlantTracker::observeLine(const short *bufRow, int samplesPerLine)
@@ -104,7 +107,8 @@ void MmsstvSlantTracker::observeLine(const short *bufRow, int samplesPerLine)
 
 	if (getenv("MMSSTV_SLANT_DEBUG")) fprintf(stderr, "[slant] line=%d spl=%d bestOffset=%d bestScore=%ld ratio=%.6f\n", line, samplesPerLine, bestOffset, bestScore, ratio);
 
-	Observation obs{(double)line, (double)bestOffset};
+	Observation obs{(double)line, (double)bestOffset, (double)bestScore, cumCorr};
+	cumCorr += (ratio - 1.0) * samplesPerLine;
 	if (historyCount < kHistory)
 		{
 			history[historyCount++] = obs;
@@ -124,26 +128,82 @@ void MmsstvSlantTracker::observeLine(const short *bufRow, int samplesPerLine)
 
 void MmsstvSlantTracker::recalc()
 {
-	// Fit offset = a + slope*relativeLine over the current history window.
-	// Offsets already reflect whatever ratio is currently applied, so a
-	// converged/correct ratio should show slope ~= 0; a nonzero slope is
-	// the *residual* per-line drift the current ratio isn't accounting
-	// for yet -- same regression shape as QSSTV's own
-	// syncProcessor::regression() (syncprocessor.cpp), adapted to a
-	// running correction that's refined incrementally instead of
-	// recomputed from an untouched raw signal each time.
-	int n = historyCount;
+	// Fit (offset + correction applied so far) = a + slope*relativeLine over every line of the picture so far,
+	// i.e. the drift of the raw, uncorrected signal, and move the ratio toward the value that cancels it. The
+	// edge position the search finds depends on the picture content near the line start, which makes it wander
+	// by tens of samples over a picture; a long baseline averages that out where a short sliding window followed
+	// it and bent the picture (issue #51).
+	// A robust fit (median start, then rejection of observations that do not sit on the line): the edge search
+	// picks the steepest edge in its window, and in a picture with strong contrast of its own (or in the first
+	// rows, before the picture proper) that is sometimes picture content, hundreds of samples away from the sync
+	// edge. A plain least-squares fit let those outliers swing the ratio and wobble the picture sideways
+	// (issue #51). Offsets recorded before the ratio converged curve a little, so the rejection threshold
+	// starts wide and tightens to the scatter of what remains.
+	//
+	// The demodulated value saturates at black, so the sync pulse only shows as an edge when the line's first
+	// picture pixels are brighter than black. On lines that start dark the "steepest edge" is some other, weaker
+	// transition up to a few ms away. Those weak observations are left out: only edges at least half as sharp as
+	// the typical (median) one take part.
 	double baseLine = history[0].line; // relative x-axis, keeps numbers small
-	double sumX = 0, sumY = 0, sumYY = 0, sumXY = 0;
-	for (int i = 0; i < n; i++)
+	std::vector<double> allScores;
+	for (int i = 0; i < historyCount; i++) allScores.push_back(history[i].score);
+	std::nth_element(allScores.begin(), allScores.begin() + allScores.size() / 2, allScores.end());
+	double refScore = allScores[allScores.size() / 2];   // the median, not the maximum: line 0 reads the demodulator's initial fill and scores far above any real edge
+	std::vector<double> lines, offsets;
+	for (int i = 0; i < historyCount; i++)
 		{
-			double y = history[i].line - baseLine;
-			double x = history[i].offset;
-			sumX += x; sumY += y; sumYY += y * y; sumXY += x * y;
+			if (history[i].score < 0.5 * refScore) continue;
+			lines.push_back(history[i].line - baseLine);
+			offsets.push_back(history[i].offset + history[i].corr);   // undo the correction applied so far
 		}
-	double denom = n * sumYY - sumY * sumY;
-	if (std::fabs(denom) < 1e-9) return;
-	double slope = (n * sumXY - sumX * sumY) / denom; // samples of residual drift per line
+	int n = (int)lines.size();
+	if (n < kWarmupLines)
+		{
+			if (getenv("MMSSTV_SLANT_DEBUG")) fprintf(stderr, "[slant] recalc: only %d sharp edges in %d lines\n", n, historyCount);
+			return;
+		}
+	auto median = [](std::vector<double> v) -> double
+		{
+			std::nth_element(v.begin(), v.begin() + v.size() / 2, v.end());
+			return v[v.size() / 2];
+		};
+	std::vector<double> pairSlopes;
+	int lag = std::max(1, n / 4);
+	for (int i = 0; i + lag < n; i++)
+		pairSlopes.push_back((offsets[i + lag] - offsets[i]) / (lines[i + lag] - lines[i]));
+	double slope = median(pairSlopes);
+	std::vector<double> rest(n);
+	for (int i = 0; i < n; i++) rest[i] = offsets[i] - slope * lines[i];
+	double icpt = median(rest);
+	double thr = lastSamplesPerLine * 0.0015;
+	int used = 0;
+	for (int pass = 0; pass < 6; pass++)
+		{
+			double sumX = 0, sumY = 0, sumYY = 0, sumXY = 0;
+			used = 0;
+			for (int i = 0; i < n; i++)
+				{
+					if (std::fabs(offsets[i] - (icpt + slope * lines[i])) > thr) continue;
+					sumX += offsets[i]; sumY += lines[i]; sumYY += lines[i] * lines[i]; sumXY += offsets[i] * lines[i];
+					used++;
+				}
+			double denom = used * sumYY - sumY * sumY;
+			if (used < kWarmupLines || std::fabs(denom) < 1e-9)
+				{
+					if (getenv("MMSSTV_SLANT_DEBUG")) fprintf(stderr, "[slant] recalc: no consistent edge track (%d of %d lines)\n", used, n);
+					return;
+				}
+			slope = (used * sumXY - sumX * sumY) / denom;
+			icpt = (sumX - slope * sumY) / used;
+			double s2 = 0;
+			for (int i = 0; i < n; i++)
+				{
+					double e = offsets[i] - (icpt + slope * lines[i]);
+					if (std::fabs(e) <= thr) s2 += e * e;
+				}
+			thr = std::max(3.0, 3.0 * std::sqrt(s2 / used));
+		}
+	// samples of drift per line in the raw signal: `slope`
 
 	// Sanity guard mirroring syncprocessor.cpp's own bar against a false
 	// lock: a real soundcard clock mismatch is never anywhere near this
@@ -177,8 +237,8 @@ void MmsstvSlantTracker::recalc()
 	// that full-strength updates (kDamping=1) let a transient false trend
 	// swing ratio by >1% over ~20 recalcs even though no real drift exists.
 	constexpr double kDamping = 0.25;
-	ratio *= (1.0 + kDamping * slope / lastSamplesPerLine);
+	ratio += kDamping * ((1.0 + slope / lastSamplesPerLine) - ratio);
 	if (ratio < 0.95) ratio = 0.95;
 	if (ratio > 1.05) ratio = 1.05;
-	if (getenv("MMSSTV_SLANT_DEBUG")) fprintf(stderr, "[slant] recalc slope=%.4f new ratio=%.6f\n", slope, ratio);
+	if (getenv("MMSSTV_SLANT_DEBUG")) fprintf(stderr, "[slant] recalc raw slope=%.4f new ratio=%.6f\n", slope, ratio);
 }
