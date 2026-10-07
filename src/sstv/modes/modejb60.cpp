@@ -330,12 +330,10 @@ namespace
   // filter's smear, reach into it: Cb collapses over the last ~8 px, which shows as a vertical green/yellow strip at
   // the right edge (issue #18). Reproduced even through the ideal (unfiltered) loopback, so it is not a radio-path
   // effect. Those slots are replaced by the last unaffected one (the edge replication every filter here already
-  // Sized for the application, not the harness: the loopback's ideal channel needs only 1 Cb slot and its filtered
-  // chain 2, but the application's own front end (decoding the loopback's WAV through qsstv --batch, a sweep of 2..8
-  // slots) smears the step across about 5 Cb / 3 Cr slots: 2 left a ~60-count blue error, 4 still ~14, 5 brought it
-  // down to the image's own noise. The cost is the last ~18 px of chroma detail.
-  const unsigned int kRxTailHoldCb=5;
-  const unsigned int kRxTailHoldCr=3;
+  // assumes). Measured with tests/jb60_loopback on card, right-edge B 70 -> 1..10 before, 69 after (ideal); with the
+  // real chain 2 Cb slots are needed (1 leaves a residual dip) and PSNR rises slightly on every run.
+  const unsigned int kRxTailHoldCb=2;
+  const unsigned int kRxTailHoldCr=1;
 
   void holdTail(std::vector<unsigned char> &v,unsigned int n)
   {
