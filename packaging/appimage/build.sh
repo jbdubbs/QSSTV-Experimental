@@ -1,11 +1,11 @@
 #!/bin/bash
 # Build the glibc-2.39-floor, fully self-contained AppImage in an Ubuntu 24.04 container.
-#   packaging/appimage/build.sh            # VERSION=10.0-Pre6 by default; output lands in the repo root
+#   packaging/appimage/build.sh            # VERSION=10.0-Pre7 by default; output lands in the repo root
 # Expects sibling checkouts ../hamlib-upstream-sstv (as the cmake build does).
 set -euo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 PARENT=$(dirname "$HERE")
-VERSION=${VERSION:-10.0-Pre6}
+VERSION=${VERSION:-10.0-Pre7}
 OUT_DIR=${OUT_DIR:-$HERE}
 IMAGE=qsstv-appimage-builder
 
