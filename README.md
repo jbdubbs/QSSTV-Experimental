@@ -24,8 +24,8 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 ### Platforms
 
 - **Windows** (64-bit, 10 1809 or later), in addition to Linux x86 and arm64
-- **macOS** (pending: a build and a pre-built release are planned but not yet available)
 - **Self-contained Linux AppImage** that bundles Qt6 and every runtime dependency
+- **macOS** (Not yet available - lack of hardware)
 
 ### Features
 
@@ -37,9 +37,9 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 - **Image viewer zoom and pan:** smooth mouse-wheel zoom and drag-to-pan
 - **Clipboard support:** copy images from anywhere, paste into the transmit window or TX stock
 - **WebP, AVIF and HEIC** image formats, with EXIF/HEIF orientation applied on import
-- **DRM MER readout** (formerly labelled "SNR") plus an MSC MER, with tooltips on the MER and Time/Frame/FAC/MSC indicators
 - **ADIF logbook broadcast over UDP**, on every OS
 - **Smooth display scaling** option for the RX canvas
+- **DRM MER readout** (formerly labelled "SNR") plus an MSC MER, with tooltips on the MER and Time/Frame/FAC/MSC indicators
 - **Live DRM size-slider preview:** the picture preview updates as the slider is dragged
 
 ### Changes
@@ -60,7 +60,7 @@ Ready-to-run builds are published on the [Releases page](https://github.com/jbdu
 
 - **Linux:** download the `.AppImage`, make it executable (`chmod +x QSSTV-Experimental-*.AppImage`) and run it. It bundles Qt6 and its other runtime dependencies.
 - **Windows:** download the `-win64.zip`, extract it anywhere and run `qsstv.exe`.
-- **macOS:** pending.
+- **macOS:** (Not yet available - lack of hardware)
 
 ## Building
 
