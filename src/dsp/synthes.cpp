@@ -160,8 +160,7 @@ SOUNDFRAME synthesizer::filter(double sample)
 void synthesizer::write(double sample)
 {
   quint32 smp=filter(sample);
-//  while((!soundIOPtr->txBuffer.put(smp)) && (soundIOPtr->isPlaying()))
-     while((!soundIOPtr->txBuffer.put(smp)))
+  while((!soundIOPtr->txBuffer.put(smp)) && (soundIOPtr->isPlaying()))
     {
       usleep(2000);
     }

@@ -337,12 +337,19 @@ void dispatcher::startRX()
   rxWidgetPtr->functionsPtr()->startRX();
 }
 
-void dispatcher::startTX(txFunctions::etxState state)
+bool dispatcher::startTX(txFunctions::etxState state)
 {
   idleAll();
+  if(!soundIOPtr->startPlayback())
+    {
+      // e.g. the wav save dialog was cancelled: nothing would drain the TX buffer
+      // and the TX thread would block forever, so do not start the transmission
+      startRX();
+      return false;
+    }
   rigControllerPtr->activatePTT(true);
-  soundIOPtr->startPlayback();
   txWidgetPtr->functionsPtr()->startTX(state);
+  return true;
 }
 
 

@@ -28,7 +28,7 @@ public:
   void init();
   void idleAll();
   void startRX();
-  void startTX(txFunctions::etxState state);
+  bool startTX(txFunctions::etxState state);
   void readSettings();
   void writeSettings();
   void customEvent( QEvent * e );

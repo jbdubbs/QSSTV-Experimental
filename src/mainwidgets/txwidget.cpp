@@ -486,6 +486,7 @@ void txWidget::startTxImage()
   fn=imageViewerPtr->getFilename();
   QFileInfo finf(fn);
 
+  bool started=false;
   switch(transmissionModeIndex)
     {
     case TRXSSTV:
@@ -496,7 +497,7 @@ void txWidget::startTxImage()
           galleryWidgetPtr->txImageChanged();
         }
       addToLog("dispatch startTx",LOGTXMAIN);
-      dispatcherPtr->startTX(txFunctions::TXSSTVIMAGE);
+      started=dispatcherPtr->startTX(txFunctions::TXSSTVIMAGE);
       break;
     case TRXDRM:
       if(saveTXimages && !calTxActive)
@@ -505,14 +506,21 @@ void txWidget::startTxImage()
           imageViewerPtr->save(fn,defaultImageFormat,true,false);
           galleryWidgetPtr->txImageChanged();
         }
-      dispatcherPtr->startTX(txFunctions::TXSENDDRMPIC);
+      started=dispatcherPtr->startTX(txFunctions::TXSENDDRMPIC);
       break;
       //    case FAX:
       //    break;
     case TRXNOMODE:
       break;
     }
-  ui->startToolButton->setEnabled(false);
+  if(started)
+    {
+      ui->startToolButton->setEnabled(false);
+    }
+  else if(calTxActive)
+    {
+      restoreAfterCalibrationTx();
+    }
 }
 
 void txWidget::sendBSR()
