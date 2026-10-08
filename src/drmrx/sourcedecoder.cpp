@@ -342,6 +342,8 @@ bool sourceDecoder::addHeaderSegment()
 
   while(currentDataPacket.ba.count())
     {
+      // advance() removes from the front of the array, which Qt 6 does by moving its start pointer: re-read it
+      dataPtr=(unsigned char *)currentDataPacket.ba.data();
       PLI=dataPtr[0]>>6;
       paramID=dataPtr[0]&0x3F;
       switch (PLI)
