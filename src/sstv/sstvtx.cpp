@@ -285,7 +285,7 @@ void sstvTx::createTestPattern(imageViewer *ivPtr,etpSelect sel)
     {
       // DRM has no fixed image size: load the pattern as an ordinary source image so the
       // compression / size slider path (applyTemplate) has a source to work from
-      ivPtr->openImage(src.scaled(320,240,Qt::IgnoreAspectRatio,Qt::SmoothTransformation).convertToFormat(QImage::Format_ARGB32_Premultiplied));
+      ivPtr->openImage(src.scaled(640,496,Qt::IgnoreAspectRatio,Qt::SmoothTransformation).convertToFormat(QImage::Format_ARGB32_Premultiplied));
       emit ivPtr->imageChanged();
       return;
     }
