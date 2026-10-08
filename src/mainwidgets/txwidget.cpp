@@ -950,6 +950,13 @@ void txWidget::slotHybridToggled()
 
 void txWidget::txTestPattern(etpSelect sel)
 {
+  // the pattern is a single full-size image: drop any stitched grid first
+  if(gridLayout!=0 || ui->sstvGridComboBox->currentIndex()!=0)
+    {
+      gridLayout=0;
+      ui->sstvGridComboBox->setCurrentIndex(0);
+      updateGridControl();
+    }
   txFunctionsPtr->txTestPattern(imageViewerPtr,sel);
 }
 
