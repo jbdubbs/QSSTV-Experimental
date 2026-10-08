@@ -66,6 +66,7 @@ private slots:
 
 private:
   Ui::MainWindow *ui;
+  bool quitting=false; // set once quit is confirmed; QApplication::quit() re-sends closeEvent
   void closeEvent ( QCloseEvent *e );
   void readSettings();
   void writeSettings();

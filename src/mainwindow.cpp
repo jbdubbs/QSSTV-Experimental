@@ -422,16 +422,18 @@ void mainWindow::slotSaveWaterfallImage()
 
 void mainWindow::slotExit()
 {
-  int exit=QMessageBox::Ok;
+  if(quitting) return;
+  int exit=QMessageBox::Yes;
   if(confirmClose)
     {
       // "QSSTV" here is this fork's continued reference to the original QSSTV 9.5.11 by
       // Johan Maes, ON4QZ (https://www.qsl.net/o/on4qz), renamed QSSTV-Experimental below.
-      exit=QMessageBox::information(nullptr, tr("Quit..."),tr("Do you really want to quit QSSTV-Experimental?"), QMessageBox::Ok, QMessageBox::Cancel);
+      exit=QMessageBox::question(nullptr, tr("Quit..."),tr("Do you really want to quit QSSTV-Experimental?"), QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
     }
 
-  if(exit==QMessageBox::Ok)
+  if(exit==QMessageBox::Yes)
     {
+      quitting=true;
       shutdown(true);
       QApplication::quit();
     }
@@ -454,6 +456,12 @@ void mainWindow::shutdown(bool interactive)
 
 void  mainWindow::closeEvent ( QCloseEvent *e )
 {
+  if(quitting)
+    {
+      // quit() closes every window first; accept so it can complete (shutdown already ran)
+      e->accept();
+      return;
+    }
   slotExit();
   e->ignore();
 }
