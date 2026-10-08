@@ -82,6 +82,10 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   connect(ui->snapshotToolButton, SIGNAL(clicked()), this, SLOT(slotSnapshot()));
   connect(ui->binaryPushButton,SIGNAL(clicked()),this,SLOT(slotBinary()));
   connect(ui->sizeSlider,SIGNAL(valueChanged(int)),SLOT(slotSize(int)));
+  connect(ui->sizeSlider,SIGNAL(sliderReleased()),SLOT(slotSizeReleased()));
+  sizeApplyTimer.setSingleShot(true);
+  sizeApplyTimer.setInterval(100);
+  connect(&sizeApplyTimer,SIGNAL(timeout()),SLOT(slotSizeApply()));
   connect(ui->settingsTableWidget,SIGNAL(currentChanged(int)),this, SLOT(slotTransmissionMode(int)));
   connect(imageViewerPtr,SIGNAL(imageChanged()),SLOT(slotImageChanged()));
   connect(ui->templateCheckBox,SIGNAL(toggled(bool)),SLOT(slotImageChanged()));
@@ -825,19 +829,31 @@ void txWidget::slotSize(int fsize)
     {
       sizeChanged=true;
       compressedSize=fsize;
-      slotSizeApply();
+      if(ui->sizeSlider->isSliderDown())
+        {
+          // live update while dragging; coalesce the expensive re-encode
+          if(!sizeApplyTimer.isActive()) sizeApplyTimer.start();
+        }
+      else slotSizeApply();
     }
+}
+
+void txWidget::slotSizeReleased()
+{
+  sizeApplyTimer.stop();
+  if(sizeChanged) slotSizeApply();
 }
 
 void txWidget::slotSizeApply()
 {
 
-  QApplication::setOverrideCursor(Qt::WaitCursor);
+  bool dragging=ui->sizeSlider->isSliderDown();
+  if(!dragging) QApplication::setOverrideCursor(Qt::WaitCursor);
   sizeChanged=false;
   imageViewerPtr->setSize(compressedSize,transmissionModeIndex==TRXDRM);
   imageViewerPtr->displayImage();
   updateTxTime();
-  QApplication::restoreOverrideCursor();
+  if(!dragging) QApplication::restoreOverrideCursor();
 }
 
 void txWidget::setModeLock(int busy)

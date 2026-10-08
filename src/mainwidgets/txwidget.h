@@ -106,6 +106,7 @@ public slots:
   void slotSnapshot();
   void slotSize(int fsize);
   void slotSizeApply();
+  void slotSizeReleased();
   void slotTransmissionMode(int rxtxMode);
   void slotProfileChanged(int );
 
@@ -158,6 +159,7 @@ private:
   uint maxSize;
   uint compressedSize;
   bool sizeChanged;
+  QTimer sizeApplyTimer;
   int drmProfileIdx;
   QString previewFilename;
   etxMode doTx;
