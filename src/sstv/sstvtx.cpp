@@ -280,7 +280,16 @@ void sstvTx::createTestPattern(imageViewer *ivPtr,etpSelect sel)
   default: fn=":/icons/testpatterns/smptebars.png"; break;
   }
   QImage src(fn);
-  if(src.isNull() || nb<=0 || nl<=0) return;
+  if(src.isNull()) return;
+  if(transmissionModeIndex==TRXDRM)
+    {
+      // DRM has no fixed image size: load the pattern as an ordinary source image so the
+      // compression / size slider path (applyTemplate) has a source to work from
+      ivPtr->openImage(src.scaled(320,240,Qt::IgnoreAspectRatio,Qt::SmoothTransformation).convertToFormat(QImage::Format_ARGB32_Premultiplied));
+      emit ivPtr->imageChanged();
+      return;
+    }
+  if(nb<=0 || nl<=0) return;
   // stretch to the mode's image size
   QImage im=src.scaled(nb,nl,Qt::IgnoreAspectRatio,Qt::SmoothTransformation).convertToFormat(QImage::Format_ARGB32_Premultiplied);
   ivPtr->clear();
