@@ -151,7 +151,7 @@ int main( int argc, char ** argv )
   QCommandLineOption wavOutOpt("wav-out","With --encode: the wav file to write (default: <image>.wav).","file");
   QCommandLineOption listOpt("list-modes","Print the mode names that --mode accepts and exit.");
   QCommandLineOption drmOpt("drm","With --batch: receive DRM (digital SSTV) instead of analog SSTV; the received file is saved as <file>_<n>_drm.<ext> and a "
-                            "'drm-stats:' line (sync / FAC / MSC percentages, MSC flaps, SNR) is printed per file. With --encode: transmit the picture as DRM.");
+                            "'drm-stats:' line (sync / FAC / MSC percentages, MSC flaps, FAC and MSC MER) is printed per file. With --encode: transmit the picture as DRM.");
   QCommandLineOption drmModeOpt("drm-mode","With --encode --drm: robustness mode A, B or E (default: your TX setting).","mode");
   QCommandLineOption drmBwOpt("drm-bw","With --encode --drm: bandwidth 2.2 or 2.5 (kHz).","kHz");
   QCommandLineOption drmQamOpt("drm-qam","With --encode --drm: 4, 16 or 64.","qam");

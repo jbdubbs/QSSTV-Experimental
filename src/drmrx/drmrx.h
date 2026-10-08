@@ -12,8 +12,10 @@ struct drmRxStats
 {
   long mscBlocks=0,pktCrcOk=0,pktCrcBad=0,pktBad=0,hdrSeg=0,dataSeg=0,newSeg=0;
   long stripes=0,timeSync=0,frameSync=0,facValid=0,mscValid=0,mscFlaps=0;
-  double snrSum=0;
-  int snrCount=0;
+  double merSum=0;
+  int merCount=0;
+  double merMscSum=0;
+  int merMscCount=0;
   int mode=-1,occupancy=-1;
   bool prevMsc=false;
   //! equalised MSC cell amplitude per carrier (sum of |z|, count): a flat profile means the channel estimate is right

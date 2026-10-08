@@ -139,7 +139,7 @@ QSSTV 9.2.x has the following new features compared to QSSTV 8.2.x
 
 \li 20190803 QSSTV 9.4.3
     - added -Wno-implicit-fallthrough to qsstv.pro
-    - macro text \%s (SNR) is now supported in template
+    - macro text \%s (MER, formerly labelled SNR) is now supported in template
     - change in Test FTP Connections
     - improved sync detection in SSTV mode
     - documentation update
@@ -720,7 +720,7 @@ When RX and TX calibration is finished, press the OK button to accept the new va
 \image html wftextpopup.png
 <br>
 Send the text by clicking the tx button next to it<br>
-The %%m will be substituted by your callsign and the %%s by the average SNR of the last received DRM stream.
+The %%m will be substituted by your callsign and the %%s by the average MER (FAC) of the last received DRM stream.
 <br><br>
 
 - BSR: When a file is not completely received, you can ask for a retransmission.
@@ -854,8 +854,8 @@ Right clicking on this image also allows you to load other images for insertion.
 \page RXDRM Receive DRM Window
 \image html receivedrm.png
 
-SNR (vu-meter S):
-- SNR in dB
+MER (vu-meter S):
+- Smoothed FAC MER in dB (see "MER" below)
 
 Volume (vu-meter V):
 - adjust your recording level to half scale (better too low than too high).
@@ -879,9 +879,11 @@ Receive status
 - Interleave (Short or Long)
 - Protection (Normal or High)
 - QAM (4,16 or 64)
-- SNR (should be above 6 dBm)
+- MER, FAC / MSC, in dB (the FAC value should stay above 3 dB or the receiver resynchronises; see "MER" below)
 - Offset (0 Hz if no frequency offset)
 - Total Segm.: total number of segments in the file
+
+MER (modulation error ratio): the "SNR" of earlier versions was in fact a MER. It is the error power of the equalised cells relative to their ideal constellation points, -10*log10(error / signal), weighted per cell by the channel gain |H|^2. It includes thermal noise but also residual channel-estimation error, phase noise, sample clock error and transmitter distortion, so it is not an SNR. The status frame shows two values, FAC / MSC. FAC: the always-4-QAM service channel cells, computed every frame; it drives the S-meter (smoothed 0.95/0.05), the dB figure in saved image info text and the resynchronisation logic. MSC: the data cells that carry the picture (pilots excluded), for 4, 16 and 64-QAM; "--" for modes where it is not available. A healthy FAC with a much lower MSC value points at a receiver or channel-estimation problem rather than noise.
 - RX Sgmnts.: number of correctly received segment
 - Cur. Sgmnt.: segment currently transmitted
 - Transp. ID: unique identifier for the current stream
@@ -1275,7 +1277,7 @@ Macro's where the value is defined by the system
 \li %%t - time in hours: minutes format
 \li %%d - date in year/month/day format
 \li %%v - qsstv_version
-\li %%s - SNR only in DRM mode
+\li %%s - MER (FAC) only in DRM mode
 - in version 9.3 only used in the WF Text see also \ref statusbar
 - in version 9.4 and higher used in the WF Text and in the template images
 

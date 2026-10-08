@@ -1265,7 +1265,7 @@ int imageViewer::applyTemplate()
           tscene.addConversion('x',comment1);
           tscene.addConversion('y',comment2);
           tscene.addConversion('z',comment3);
-          tscene.addConversion('s',QString::number(lastAvgSNR,'g',2));
+          tscene.addConversion('s',QString::number(lastAvgMER,'g',2));
 
           addToLog(QString("Template size=%1,%2, SourceW,H=%3,%4 TargetW,H=%5,%6").
                    arg(tscene.width()).arg(tscene.height()).

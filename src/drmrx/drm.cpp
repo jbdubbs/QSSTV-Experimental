@@ -133,6 +133,7 @@ struct dfltMOTobj default_MOT_object;
 int channel_decoded_data_buffer_data_valid;
 double channel_decoded_data_buffer[110000];
 float WMERFAC;
+float WMERMSC=-1;
 
 
 
@@ -151,9 +152,9 @@ QList<short unsigned int> drmBlockList;
 sourceDecoder *srcDecoder;
 uint txTransportID;
 bool stopDRM;
-float avgSNR;
-float lastAvgSNR;
-bool avgSNRAvailable;
+float avgMER;
+float lastAvgMER;
+bool avgMERAvailable;
 QString drmCallsign;
 bool drmBusy;
 

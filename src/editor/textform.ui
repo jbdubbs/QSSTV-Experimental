@@ -166,10 +166,10 @@
      </item>
      <item>
       <property name="text">
-       <string>%s - SNR</string>
+       <string>%s - MER (FAC)</string>
       </property>
       <property name="toolTip">
-       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;SNR - only to be used for DRM in the WF Text&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;MER (FAC) - only to be used for DRM in the WF Text&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
       </property>
      </item>
     </widget>

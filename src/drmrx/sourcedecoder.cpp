@@ -529,7 +529,7 @@ void sourceDecoder::saveImage(transportBlock *tbPtr)
       return ;
     }
   if(tbPtr->fileName.isEmpty()) return ;
-  if(tbPtr->retrieveTries==0) lastAvgSNR=avgSNR;
+  if(tbPtr->retrieveTries==0) lastAvgMER=avgMER;
   isHybrid=false;
   if((tbPtr->fileName.left(3)==".de") || (tbPtr->fileName.left(3)=="de_"))
     {
@@ -587,7 +587,7 @@ void sourceDecoder::slotDownloadDone(bool err,QString filename)
   QFileInfo fi(filename);
   QString fn=fi.fileName();
 
-  QString notificationFn = "Dummy"+fn+"+++."+myCallsign+QString("  %1dB SNR").arg(lastAvgSNR,0,'f',0);
+  QString notificationFn = "Dummy"+fn+"+++."+myCallsign+QString("  %1dB MER").arg(lastAvgMER,0,'f',0);
   if (enableHybridNotify && !hybridNotifyDir.isEmpty())
     {
       ff->changeThreadName("Notify RX");
@@ -636,7 +636,7 @@ void sourceDecoder::displayReceivedImage(bool isHybrid,QString filename)
     {
       QFileInfo tfi(filename);
       QString modestr(tfi.fileName());
-      modestr+=QString(" %1dB ").arg(lastAvgSNR,0,'f',0);
+      modestr+=QString(" %1dB ").arg(lastAvgMER,0,'f',0);
       if(isHybrid) modestr+="Hybrid ";
       modestr+=compactModeToString(modeCodeTmp);
       logBookPtr->logQSO(callsignTmp,"DSSTV",modestr);
@@ -648,7 +648,7 @@ void sourceDecoder::displayReceivedImage(bool isHybrid,QString filename)
       if (isHybrid) info+="Hybrid";
       else info+=compactModeToString(modeCodeTmp);
 
-      info+=QString(" %2dB de %3").arg(lastAvgSNR,0,'f',0).arg(callsignTmp);
+      info+=QString(" %2dB de %3").arg(lastAvgMER,0,'f',0).arg(callsignTmp);
       //    slotRXNotification("*** "+info);
       saveDRMImageEvent *ce = new saveDRMImageEvent(filename,info);
       ce->waitFor(&done);

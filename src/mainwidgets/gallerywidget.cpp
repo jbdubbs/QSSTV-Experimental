@@ -195,7 +195,7 @@ void galleryWidget::putRxImage ( QString fn )
     }
   else
     {
-      statusBarPtr->showMessage ( "Saved: "+fn+QString("  (%1dB)").arg(lastAvgSNR,0,'f',0) );
+      statusBarPtr->showMessage ( "Saved: "+fn+QString("  (%1dB)").arg(lastAvgMER,0,'f',0) );
       ui->rxDRMMatrix->changed();
     }
 }

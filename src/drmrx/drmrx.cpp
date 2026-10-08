@@ -21,8 +21,8 @@ drmRx::~drmRx()
 
 void drmRx::init()
 {
-  avgSNR=0;
-  avgSNRAvailable=false;
+  avgMER=0;
+  avgMERAvailable=false;
   n = DRMBUFSIZE;
   /* initialisations */
   demodulatorPtr->init();
@@ -49,10 +49,10 @@ void drmRx::run(DSPFLOAT *dataPtr)
 
   temp=WMERFAC;
   if(temp<0) temp=0;
-  if(avgSNRAvailable)
+  if(avgMERAvailable)
     {
-      avgSNR=(1-0.05)*avgSNR+0.05*temp;
-      ce1 = new displayDRMStatEvent(avgSNR);
+      avgMER=(1-0.05)*avgMER+0.05*temp;
+      ce1 = new displayDRMStatEvent(avgMER);
       ce1->waitFor(&done);
       QApplication::postEvent(dispatcherPtr, ce1);
       while(!done) { usleep(10);}
@@ -75,8 +75,13 @@ void drmRx::run(DSPFLOAT *dataPtr)
     if(fac_valid==1)
       {
         drmStats.facValid++;
-        drmStats.snrSum+=(WMERFAC<0 ? 0 : WMERFAC);
-        drmStats.snrCount++;
+        drmStats.merSum+=(WMERFAC<0 ? 0 : WMERFAC);
+        drmStats.merCount++;
+        if(WMERMSC>=0 && msc_valid!=INVALID)
+          {
+            drmStats.merMscSum+=WMERMSC;
+            drmStats.merMscCount++;
+          }
         drmStats.mode=robustness_mode;
         drmStats.occupancy=spectrum_occupancy;
       }

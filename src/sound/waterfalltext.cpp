@@ -165,7 +165,7 @@ QString  waterfallText::convert(QString txt)
 {
   mexp.clear();
   mexp.addConversion('m',myCallsign);
-  mexp.addConversion('s',QString::number(lastAvgSNR,'g',2));
+  mexp.addConversion('s',QString::number(lastAvgMER,'g',2));
   mexp.addConversion('c',lastReceivedCall);
 
   QString t=mexp.convert(txt);

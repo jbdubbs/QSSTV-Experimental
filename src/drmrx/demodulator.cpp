@@ -47,7 +47,7 @@ void demodulator::init()
   symbol_counter = 0;
   N_samples_needed = N_symbols_mode_detection * 320;
   input_samples_buffer_request = N_samples_needed;
-  SNR_time_out_counter = SNR_TIMEOUT;
+  MER_time_out_counter = MER_TIMEOUT;
   fac_not_valid_counter = FACVALIDCNTR;
   mode_and_occupancy_code_last = -1;
   timeSyncFlag = false;
@@ -80,7 +80,7 @@ void demodulator::init()
   sigmaq_noise_list[1] = (float) pow(10.0, -14.0 / 10.0);
   sigmaq_noise_list[2] = (float) pow(10.0, -14.0 / 10.0);
   sigmaq_noise_list[3] = (float) pow(10.0, -12.0 / 10.0);
-  SNR_timeout_counter=0;
+  MER_timeout_counter=0;
   delta_freq_offset=0;
 }
 
@@ -555,7 +555,7 @@ bool demodulator::channelEstimation()
   float tmp1, tmp2, tmp3;
   int gain_ref_cells_per_window;
   float temp1, temp2;
-  float sum_MERFAC, sum_WMERFAC, sum_weight_FAC, SNR_dB;
+  float sum_MERFAC, sum_WMERFAC, sum_weight_FAC, MER_dB;
   float MERFAC;
   float FAC_squared_noise_sequence[200];
   float squared_weight_sequence[200];
@@ -1075,25 +1075,25 @@ bool demodulator::channelEstimation()
     }
 
   FACAvailable=true;
-  avgSNRAvailable=true;
+  avgMERAvailable=true;
   MERFAC = (float) (log(sum_MERFAC / lFAC + 1.0E-10));
   MERFAC /= (log(10.0));
   MERFAC *= -10.0;
   WMERFAC =(float) (log(sum_WMERFAC /(mean_energy_of_used_cells * (sum_weight_FAC + lFAC * 1.0E-10))));
   WMERFAC /= (log(10.0));
   WMERFAC *= -10.0;
-  SNR_dB = WMERFAC;
+  MER_dB = WMERFAC;
 
-  addToLog(QString("SNR-FAC =%1").arg(SNR_dB),LOGDRMDEMOD);
+  addToLog(QString("MER-FAC =%1").arg(MER_dB),LOGDRMDEMOD);
   //  N_samples_needed = (symbols_per_frame + 1) * Ts - rsbufwidx;
 
-  if (SNR_dB < SNR_MIN_DB)
+  if (MER_dB < MER_MIN_DB)
     {
-      SNR_timeout_counter--;
-      if (SNR_timeout_counter <= 0)
+      MER_timeout_counter--;
+      if (MER_timeout_counter <= 0)
         {
           doSynchronize = true;
-          SNR_timeout_counter = SNR_TIMEOUT;
+          MER_timeout_counter = MER_TIMEOUT;
         }
       transmission_frame_buffer_data_valid = 0;
       fac_not_valid_counter--;
@@ -1105,7 +1105,7 @@ bool demodulator::channelEstimation()
     }
   else
     {
-      SNR_timeout_counter = SNR_TIMEOUT;
+      MER_timeout_counter = MER_TIMEOUT;
       transmission_frame_buffer_data_valid = 1;
       fac_valid = 1;
     }

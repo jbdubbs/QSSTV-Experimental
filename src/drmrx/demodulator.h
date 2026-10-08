@@ -6,9 +6,9 @@
 #include "sourcedecoder.h"
 
 
-#define SNR_TIMEOUT  10
+#define MER_TIMEOUT  10
 #define FACVALIDCNTR 10
-#define SNR_MIN_DB 3
+#define MER_MIN_DB 3
 #define DRMNUMMODES 4
 
 
@@ -36,7 +36,7 @@ private:
   bool channelEstimation();
   int symbol_counter;
   int N_samples_needed;
-  int SNR_time_out_counter;
+  int MER_time_out_counter;
   int fac_not_valid_counter;
   int mode_and_occupancy_code_last;
   int rsbufwidx;
@@ -88,7 +88,7 @@ private:
   float W_symbol[208];
   float W_pilots_blk[5][208][205];
   float W_pilots[208];
-  int SNR_timeout_counter;
+  int MER_timeout_counter;
   float delta_freq_offset;
   int mode_and_occupancy_code;
   int carrier_per_symbol;

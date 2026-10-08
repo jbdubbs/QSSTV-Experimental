@@ -282,8 +282,8 @@ void fileDecoder::printDrmStats()
 {
   const drmRxStats &s=drmStats;
   const double n=s.stripes>0 ? s.stripes : 1;
-  printf("drm-stats: file=%s stripes=%ld time=%.0f%% frame=%.0f%% fac=%.0f%% msc=%.0f%% msc_flaps=%ld snr=%.1f mode=%d occupancy=%d images=%d amp_dev=%.2f msc_blocks=%ld crc_ok=%ld crc_bad=%ld pkt_bad=%ld hdr_seg=%ld data_seg=%ld\n",
+  printf("drm-stats: file=%s stripes=%ld time=%.0f%% frame=%.0f%% fac=%.0f%% msc=%.0f%% msc_flaps=%ld mer=%.1f mer_msc=%.1f mode=%d occupancy=%d images=%d amp_dev=%.2f msc_blocks=%ld crc_ok=%ld crc_bad=%ld pkt_bad=%ld hdr_seg=%ld data_seg=%ld\n",
          currentFile.toLocal8Bit().constData(),s.stripes,100*s.timeSync/n,100*s.frameSync/n,100*s.facValid/n,100*s.mscValid/n,s.mscFlaps,
-         s.snrCount>0 ? s.snrSum/s.snrCount : 0.0,s.mode,s.occupancy,imagesInFile,s.ampDeviation(),s.mscBlocks,s.pktCrcOk,s.pktCrcBad,s.pktBad,s.hdrSeg,s.dataSeg);
+         s.merCount>0 ? s.merSum/s.merCount : 0.0,s.merMscCount>0 ? s.merMscSum/s.merMscCount : 0.0,s.mode,s.occupancy,imagesInFile,s.ampDeviation(),s.mscBlocks,s.pktCrcOk,s.pktCrcBad,s.pktBad,s.hdrSeg,s.dataSeg);
   fflush(stdout);
 }

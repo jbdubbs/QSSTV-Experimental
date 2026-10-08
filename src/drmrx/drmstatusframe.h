@@ -50,6 +50,7 @@ private:
   int prevMscMode;
   int prevBodyTotalSegments;
   float prevWMERFAC;
+  float prevWMERMSC;
   int prevFreqOff;
   int prevBlockCount;
   int drmBusyCount;

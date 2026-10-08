@@ -91,6 +91,7 @@ extern struct dfltMOTobj default_MOT_object;
 extern int channel_decoded_data_buffer_data_valid;
 extern double channel_decoded_data_buffer[110000];
 extern float WMERFAC;
+extern float WMERMSC;   //!< weighted MER of the equalised MSC cells (dB), -1 when not available
 
 extern bool callsignValid;
 
@@ -120,9 +121,9 @@ extern unsigned int rxTransportID;
 extern QList<short unsigned int> drmBlockList;
 extern uint txTransportID;
 extern bool stopDRM;
-extern float avgSNR;
-extern float lastAvgSNR;
-extern bool avgSNRAvailable;
+extern float avgMER;
+extern float lastAvgMER;
+extern bool avgMERAvailable;
 extern sourceDecoder *srcDecoder;
 extern QString drmCallsign;
 

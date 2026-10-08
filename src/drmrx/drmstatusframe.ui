@@ -212,10 +212,13 @@
       </widget>
      </item>
      <item row="2" column="3">
-      <widget class="QLabel" name="snrEdit">
+      <widget class="QLabel" name="merEdit">
+       <property name="toolTip">
+        <string>Modulation error ratio, FAC / MSC (dB). Error of the equalised cells from their ideal constellation points, weighted by channel gain. The FAC is always 4-QAM; the MSC carries the picture.</string>
+       </property>
        <property name="minimumSize">
         <size>
-         <width>40</width>
+         <width>80</width>
          <height>0</height>
         </size>
        </property>
@@ -228,9 +231,12 @@
       </widget>
      </item>
      <item row="2" column="2">
-      <widget class="QLabel" name="snrLabel">
+      <widget class="QLabel" name="merLabel">
+       <property name="toolTip">
+        <string>Modulation error ratio, FAC / MSC (dB)</string>
+       </property>
        <property name="text">
-        <string>SNR</string>
+        <string>MER</string>
        </property>
       </widget>
      </item>

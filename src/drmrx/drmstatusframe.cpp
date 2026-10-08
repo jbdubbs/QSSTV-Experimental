@@ -52,6 +52,7 @@ void drmStatusFrame::init()
   prevMscMode=-1;
   prevBodyTotalSegments=-1;
   prevWMERFAC=-9999;
+  prevWMERMSC=-9999;
   prevFreqOff=-9999;
   prevBlockCount=-1;
   drmBusyCount=0;
@@ -225,10 +226,12 @@ void drmStatusFrame::setStatus()
       ui->rxSegmentsEdit->setText(QString::number(rxSegments));
     }
   int tempWMERFAC =round(WMERFAC);
-  if(prevWMERFAC!=tempWMERFAC)
+  int tempWMERMSC =(WMERMSC<0) ? -1 : (int)round(WMERMSC);
+  if((prevWMERFAC!=tempWMERFAC)||(prevWMERMSC!=tempWMERMSC))
     {
       prevWMERFAC=tempWMERFAC;
-      ui->snrEdit->setText(QString::number(prevWMERFAC)+" dB");
+      prevWMERMSC=tempWMERMSC;
+      ui->merEdit->setText(QString::number(prevWMERFAC)+" / "+((prevWMERMSC<0)?QString("--"):QString::number(prevWMERMSC))+" dB");
     }
   if(prevFreqOff!=((int)round(freqOffset-350)))
     {

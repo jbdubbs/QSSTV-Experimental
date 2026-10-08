@@ -719,6 +719,18 @@ void channel_decoding(void)
 
   if (msc_parameters_valid != 0)
     {
+      // MER of the equalised MSC cells against the ideal unit-energy grid, weighted by |H|^2 like the FAC one
+      double merNoise=0,merWeight=0;
+      double merStep=0,merScale=0;
+      int merMax=0;
+      switch(msc_mode)
+        {
+        case 0: merScale=1.0/sqrt(42.0); merMax=7; break;   // 64-QAM
+        case 1: merScale=1.0/sqrt(10.0); merMax=3; break;   // 16-QAM
+        case 3: merScale=1.0/sqrt(2.0); merMax=1; break;    // 4-QAM
+        default: break;                                      // hierarchical: not supported
+        }
+      merStep=2*merScale;
       for (i = 0; i < lMSC; i++)
         {
           trxfrmbufptr = MSC_Demapper[frame_index - 1][i];
@@ -729,6 +741,18 @@ void channel_decoding(void)
           MSC_cells_sequence[2 * i + 1] = (float) received_imag[i];
           transfer_function_MSC[i * 2] =  channel_transfer_function_buffer[2 * trxfrmbufptr];
           transfer_function_MSC[i * 2 + 1] = channel_transfer_function_buffer[2 * trxfrmbufptr + 1];
+          if(merMax>0)
+            {
+              // nearest ideal level per axis: odd multiples of merScale, clipped to the grid
+              double dr=received_real[i],di=received_imag[i];
+              double lr=floor(dr/merStep)*merStep+merScale,li=floor(di/merStep)*merStep+merScale;
+              if(lr>merMax*merScale) lr=merMax*merScale; else if(lr<-merMax*merScale) lr=-merMax*merScale;
+              if(li>merMax*merScale) li=merMax*merScale; else if(li<-merMax*merScale) li=-merMax*merScale;
+              const double hr=channel_transfer_function_buffer[2 * trxfrmbufptr],hi=channel_transfer_function_buffer[2 * trxfrmbufptr + 1];
+              const double w=hr*hr+hi*hi+1.0E-10;
+              merNoise+=((dr-lr)*(dr-lr)+(di-li)*(di-li))*w;
+              merWeight+=w;
+            }
           {
             const int carrier=trxfrmbufptr%K_modulo;
             if(carrier<512)
@@ -738,6 +762,8 @@ void channel_decoding(void)
               }
           }
         }
+      if(merMax>0 && lMSC>0) WMERMSC=(float)(-10.0*log10(merNoise/merWeight+1.0E-10));
+      else WMERMSC=-1;
       if (enough_frames == 0)
         {
           for (i = 0; i < lMSC; i++)
