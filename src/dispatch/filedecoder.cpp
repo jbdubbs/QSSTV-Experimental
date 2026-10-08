@@ -9,6 +9,7 @@
 #include "dispatcher.h"
 #include "imageviewer.h"
 #include "mainwindow.h"
+#include "drmrx.h"
 #include "rxfunctions.h"
 #include "rxwidget.h"
 #include "soundbase.h"
@@ -60,16 +61,16 @@ void fileDecoder::chooseAndDecode(QWidget *parent)
       QMessageBox::information(parent,tr("Decode from file"),tr("Stop the transmission first."));
       return;
     }
-  if(transmissionModeIndex!=TRXSSTV)
+  if(transmissionModeIndex!=TRXSSTV && transmissionModeIndex!=TRXDRM)
     {
-      QMessageBox::information(parent,tr("Decode from file"),tr("Decoding from a file works in SSTV mode. Switch to the SSTV tab first."));
+      QMessageBox::information(parent,tr("Decode from file"),tr("Decoding from a file works in SSTV or DRM mode. Switch to the SSTV or DRM tab first."));
       return;
     }
   QSettings qSettings;
   qSettings.beginGroup("RX");
   QString dir=qSettings.value("lastDecodeDir",audioPath).toString();
   qSettings.endGroup();
-  QStringList files=QFileDialog::getOpenFileNames(parent,tr("Decode SSTV from audio file"),dir,
+  QStringList files=QFileDialog::getOpenFileNames(parent,transmissionModeIndex==TRXDRM ? tr("Decode DRM from audio file") : tr("Decode SSTV from audio file"),dir,
                                                   tr("Audio files (*.wav *.mp3 *.flac *.ogg *.oga *.opus *.aac *.m4a);;WAV audio (*.wav *.WAV);;All files (*)"));
   if(files.isEmpty()) return;
   qSettings.beginGroup("RX");
@@ -92,7 +93,14 @@ void fileDecoder::decodeFiles(const QStringList &files)
   imagesTotal=0;
   exitCode=EXIT_OK;
   running=true;
-  if(batch) transmissionModeIndex=TRXSSTV;
+  if(batch || drm)
+    {
+      // through the window's own mode switch, so the tabs follow; assigning the global alone would let the mode lock
+      // switch the tab later, which stops the receiver (and so the file) in the middle of the decode.
+      // Without --batch and --drm (menu, RX button, plain --decode) the mode of the tab you are on is kept.
+      const etransmissionMode wanted=drm ? TRXDRM : TRXSSTV;
+      if(transmissionModeIndex!=wanted) mainWindowPtr->switchMode(wanted);
+    }
   timer.start(100);
   // a file that cannot be started is skipped; startNext() returns false when the queue is exhausted
   while(!startNext())
@@ -126,6 +134,7 @@ bool fileDecoder::startNext()
       return false;
     }
   currentSeconds=seconds;
+  drmStats.reset();
   dispatcherPtr->idleAll();
   if(!soundIOPtr->startFileCapture(currentFile,!batch,error))
     {
@@ -180,6 +189,7 @@ void fileDecoder::finishFile()
       note(EXIT_NOIMAGE);
       if(batch) fprintf(stderr,"%s: no image decoded\n",currentFile.toLocal8Bit().constData());
     }
+  if(transmissionModeIndex==TRXDRM && (batch || verbose)) printDrmStats();
   soundIOPtr->clearFileSource();
   while(!startNext())
     {
@@ -234,7 +244,46 @@ void fileDecoder::imageDecoded(esstvMode mode)
     }
 }
 
+//! GUI: the dispatcher has shown and saved a DRM file the normal way
+void fileDecoder::drmImageShown()
+{
+  imagesInFile++;
+}
+
 void fileDecoder::reportError(const QString &title,const QString &text)
 {
   fprintf(stderr,"%s: %s\n",title.toLocal8Bit().constData(),text.toLocal8Bit().constData());
+}
+
+/*!
+  Batch DRM: called by the dispatcher when the receiver has saved a received file (picture or other data).
+*/
+void fileDecoder::drmImageDecoded(const QString &file,const QString &info)
+{
+  QDir().mkpath(outDir);
+  imagesInFile++;
+  QString name=QString("%1/%2_%3_drm.%4").arg(outDir).arg(QFileInfo(currentFile).completeBaseName()).arg(imagesInFile).arg(QFileInfo(file).suffix());
+  QFile::remove(name);
+  if(!QFile::copy(file,name))
+    {
+      imagesInFile--;
+      note(EXIT_BADFILE);
+      fprintf(stderr,"cannot write %s\n",name.toLocal8Bit().constData());
+      return;
+    }
+  QSize size=QImageReader(name).size();
+  printf("%s -> %s (DRM, %dx%d) %s\n",currentFile.toLocal8Bit().constData(),name.toLocal8Bit().constData(),
+         size.width(),size.height(),info.toLocal8Bit().constData());
+  fflush(stdout);
+}
+
+//! one machine readable line per file: percentages are of the RX stripes (1024 samples at 12 kHz) in the file
+void fileDecoder::printDrmStats()
+{
+  const drmRxStats &s=drmStats;
+  const double n=s.stripes>0 ? s.stripes : 1;
+  printf("drm-stats: file=%s stripes=%ld time=%.0f%% frame=%.0f%% fac=%.0f%% msc=%.0f%% msc_flaps=%ld snr=%.1f mode=%d occupancy=%d images=%d amp_dev=%.2f msc_blocks=%ld crc_ok=%ld crc_bad=%ld pkt_bad=%ld hdr_seg=%ld data_seg=%ld\n",
+         currentFile.toLocal8Bit().constData(),s.stripes,100*s.timeSync/n,100*s.frameSync/n,100*s.facValid/n,100*s.mscValid/n,s.mscFlaps,
+         s.snrCount>0 ? s.snrSum/s.snrCount : 0.0,s.mode,s.occupancy,imagesInFile,s.ampDeviation(),s.mscBlocks,s.pktCrcOk,s.pktCrcBad,s.pktBad,s.hdrSeg,s.dataSeg);
+  fflush(stdout);
 }

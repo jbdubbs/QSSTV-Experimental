@@ -27,6 +27,7 @@
 #include "dispatch/dispatcher.h"
 #include "reedsolomoncoder.h"
 #include "demodulator.h"
+#include "drmrx.h"
 #include "ftpfunctions.h"
 #include "configparams.h"
 #include "logbook/logbook.h"
@@ -76,6 +77,7 @@ bool sourceDecoder::decode()
   //  if(!demodulatorPtr->isTimeSync())
 
   if (channel_decoded_data_buffer_data_valid != 1)  return false;
+  drmStats.mscBlocks++;
   if (audio_data_flag == 0)
     {
       addToLog("audio decoding not implemented in qsstv !\n",LOGDRMSRC); return false;
@@ -91,14 +93,17 @@ bool sourceDecoder::decode()
   crc16_bytewise(&checksum, packetBuffer,N_partB);
   if(fabs (checksum) <= DBL_EPSILON)
     {
+      drmStats.pktCrcOk++;
       if(!setupDataBlock(packetBuffer,true,N_partB))
         {
+          drmStats.pktBad++;
           msc_valid=INVALID;
           return false;
         }
     }
   else
     {
+      drmStats.pktCrcBad++;
       msc_valid=INVALID;
       return false;
     }
@@ -298,6 +303,7 @@ bool sourceDecoder::addHeaderSegment()
   transportBlock *tbPtr;
   addToLog(QString("Header segsize: %1").arg(currentDataPacket.segmentSize),LOGDRMSRC);
   tbPtr=getTransporPtr(currentDataPacket.transportID,true);
+  drmStats.hdrSeg++;
   if(!tbPtr->alreadyReceived) msc_valid=VALID;
   else
     {
@@ -410,6 +416,7 @@ void sourceDecoder::addDataSegment()
   transportBlock *tbPtr;
   tbPtr=getTransporPtr(currentDataPacket.transportID,true);
   rxTransportID=currentDataPacket.transportID;
+  drmStats.dataSeg++;
   if(callsignValid) tbPtr->callsign=drmCallsign;
   addToLog(QString("Data segsize: %1 segment# %2").arg(currentDataPacket.segmentSize).arg(currentDataPacket.segmentNumber),LOGDRMSRC);
 

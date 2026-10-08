@@ -358,6 +358,28 @@ bool txWidget::sendCalibrationImage(esstvMode mode,const QImage &image)
   return true;
 }
 
+bool txWidget::sendDrmTestImage(const drmTxParams &params,const QImage &image,uint jp2Bytes)
+{
+  if(calTxActive || mainWindowPtr->busyMode()>=0 || transmissionModeIndex!=TRXDRM) return false;
+  if(imageViewerPtr->gridColumns()*imageViewerPtr->gridRowCount()>1 || image.isNull()) return false;
+  calSavedValid=imageViewerPtr->hasValidImage();
+  calSavedImage=*imageViewerPtr->getImagePtr();
+  calSavedFile=imageViewerPtr->getFilename();
+  calSavedMode=sstvModeIndexTx;
+  calSavedUseTemplate=useTemplate;
+  calTxActive=true;
+  useTemplate=false;
+  copyProfile(params);
+  if(jp2Bytes>0) compressedSize=qBound((uint)MINDRMSIZE,jp2Bytes,(uint)MAXDRMSIZE);
+  // the viewer's compression target is only set by the size slider; without a window it is uninitialised and the
+  // jp2 encode of the picture then divides by garbage
+  imageViewerPtr->setSize(compressedSize,true);
+  imageViewerPtr->openImage(image);
+  doTx=TXNORMAL;
+  prepareTx();
+  return true;
+}
+
 void txWidget::abortCalibrationTx()
 {
   if(!calTxActive) return;
@@ -477,7 +499,7 @@ void txWidget::startTxImage()
       dispatcherPtr->startTX(txFunctions::TXSSTVIMAGE);
       break;
     case TRXDRM:
-      if(saveTXimages)
+      if(saveTXimages && !calTxActive)
         {
           fn=QString("%1/%2_%3.%4").arg(txDRMImagesPath).arg(finf.baseName()).arg(dt.toString("yyyyMMdd_HHmmss")).arg(defaultImageFormat);
           imageViewerPtr->save(fn,defaultImageFormat,true,false);

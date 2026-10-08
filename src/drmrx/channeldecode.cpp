@@ -24,6 +24,7 @@
 *************************************************************************/
 
 #include "appglobal.h"
+#include "drmrx.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -728,6 +729,14 @@ void channel_decoding(void)
           MSC_cells_sequence[2 * i + 1] = (float) received_imag[i];
           transfer_function_MSC[i * 2] =  channel_transfer_function_buffer[2 * trxfrmbufptr];
           transfer_function_MSC[i * 2 + 1] = channel_transfer_function_buffer[2 * trxfrmbufptr + 1];
+          {
+            const int carrier=trxfrmbufptr%K_modulo;
+            if(carrier<512)
+              {
+                drmStats.carrierSum[carrier]+=sqrt(received_real[i]*received_real[i]+received_imag[i]*received_imag[i]);
+                drmStats.carrierN[carrier]++;
+              }
+          }
         }
       if (enough_frames == 0)
         {

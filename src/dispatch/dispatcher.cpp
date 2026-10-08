@@ -232,6 +232,12 @@ void dispatcher::customEvent( QEvent * e )
         QString info;
         ((saveDRMImageEvent*)e)->getFilename(fn);
         ((saveDRMImageEvent*)e)->getInfo(info);
+        if(fileDecoderPtr && fileDecoderPtr->isBatch())
+          {
+            // headless decode from file: just keep the file, none of the gallery / repeater / FTP handling
+            fileDecoderPtr->drmImageDecoded(fn,info);
+            break;
+          }
         if(!rxWidgetPtr->getImageViewerPtr()->openImage(fn,false,false,false,false))
           {
             // simply save the file if it is not an image file
@@ -244,6 +250,7 @@ void dispatcher::customEvent( QEvent * e )
             break;
           }
         saveImage(fn, info);
+        if(fileDecoderPtr && fileDecoderPtr->isActive()) fileDecoderPtr->drmImageShown();
         if(repeaterEnabled)
           {
             txWidgetPtr->sendRepeaterImage();

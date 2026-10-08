@@ -6,6 +6,8 @@
 #include "filters.h"
 
 
+drmRxStats drmStats;
+
 drmRx::drmRx(QObject *parent) : QObject(parent),iqFilter(RXSTRIPE)
 {
   srcDecoder=new sourceDecoder;
@@ -65,6 +67,24 @@ void drmRx::run(DSPFLOAT *dataPtr)
   im=RXSTRIPE;
 
   demodulatorPtr->demodulate(resamp_signal,im);
+
+  {
+    drmStats.stripes++;
+    if(demodulatorPtr->isTimeSync()) drmStats.timeSync++;
+    if(demodulatorPtr->isFrameSync()) drmStats.frameSync++;
+    if(fac_valid==1)
+      {
+        drmStats.facValid++;
+        drmStats.snrSum+=(WMERFAC<0 ? 0 : WMERFAC);
+        drmStats.snrCount++;
+        drmStats.mode=robustness_mode;
+        drmStats.occupancy=spectrum_occupancy;
+      }
+    bool msc=(msc_valid!=INVALID);
+    if(msc) drmStats.mscValid++;
+    else if(drmStats.prevMsc) drmStats.mscFlaps++;
+    drmStats.prevMsc=msc;
+  }
 
   done=false;
   ce2 = new displayDRMInfoEvent;

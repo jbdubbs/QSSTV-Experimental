@@ -31,6 +31,8 @@ public:
   int busyMode();
   //! grey out the tabs of the other mode while SSTV or DRM TX/RX is in progress
   void updateModeLock();
+  //! switch between SSTV and DRM exactly as clicking the tab does (headless decode / encode)
+  void switchMode(int rxtxMode) {slotModeChange(rxtxMode);}
   spectrumWidget *spectrumFramePtr;
 
 private slots:

@@ -6,6 +6,7 @@
 
 #include <QDebug>
 #include <QApplication>
+#include <cmath>
 #include <unistd.h>
 #include <time.h>
 #include <sys/time.h>
@@ -140,6 +141,27 @@ int soundBase::readFileBlock(bool &endAfterBlock)
     {
       got=fileReader.read(tempRXBuffer,DOWNSAMPLESIZE);
       if(got<DOWNSAMPLESIZE) fileEof=true;
+      if(got>0 && (fileGainDb!=0 || fileNoiseDbfs<0))
+        {
+          const double gain=pow(10.0,fileGainDb/20.0);
+          const double sigma=(fileNoiseDbfs<0) ? 32768.0*pow(10.0,fileNoiseDbfs/20.0) : 0;
+          for(int i=0;i<got;i++)
+            {
+              double v=tempRXBuffer[i]*gain;
+              if(sigma>0)
+                {
+                  // approximately gaussian: sum of 12 uniforms
+                  double g=-6;
+                  for(int k=0;k<12;k++)
+                    {
+                      fileNoiseState=fileNoiseState*1664525u+1013904223u;
+                      g+=(fileNoiseState>>8)/16777216.0;
+                    }
+                  v+=g*sigma;
+                }
+              tempRXBuffer[i]=(qint16)(v>32767 ? 32767 : (v<-32768 ? -32768 : v));
+            }
+        }
     }
   if(fileEof)
     {
@@ -373,6 +395,8 @@ void soundBase::clearFileSource()
 
 QString soundBase::txFileName;
 volatile bool soundBase::txFileDone=false;
+double soundBase::fileGainDb=0;
+double soundBase::fileNoiseDbfs=0;
 
 int soundBase::play()
 {

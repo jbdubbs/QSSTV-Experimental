@@ -41,6 +41,8 @@ public:
 
   // Command line --encode: when set, transmit audio goes to this wav file (no dialog, no sound card, not paced to real time)
   static QString txFileName;
+  static double fileGainDb;          //!< file source only (test harness): gain applied to the recording
+  static double fileNoiseDbfs;       //!< file source only: white noise added, RMS in dB full scale; >=0 = none
   static volatile bool txFileDone;   // set by txFunctions::waitEnd() once the TX thread has queued its last sample
 
   explicit soundBase(QObject *parent = 0);

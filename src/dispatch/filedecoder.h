@@ -31,6 +31,10 @@ public:
   //! batch mode: no dialogs, images go to outDir as <input>_<n>_<MODE>.png, results are printed, finished() is emitted
   void setBatch(const QString &outDir,int timeoutSeconds);
   bool isBatch() const {return batch;}
+  //! batch: receive DRM (digital) instead of SSTV; the picture file goes to outDir as <input>_<n>_drm.<ext>
+  void setDrm(bool on) {drm=on;}
+  //! GUI: also print the drm-stats line on stdout (command line --decode --drm)
+  void setVerbose(bool on) {verbose=on;}
   bool isActive() const {return running;}
 
   //! queue files and start decoding (or append to the queue when already decoding)
@@ -40,6 +44,8 @@ public:
 
   // dispatcher hooks
   void imageDecoded(esstvMode mode);                       //!< batch: save the received picture
+  void drmImageShown();                                          //!< GUI DRM: counts a file saved the normal way
+  void drmImageDecoded(const QString &file,const QString &info); //!< batch DRM: keep the received file
   void reportError(const QString &title,const QString &text); //!< batch: message boxes go to stderr
 
 signals:
@@ -52,10 +58,13 @@ private slots:
 private:
   bool startNext();
   void finishFile();
+  void printDrmStats();
   void finishAll(bool cancelled);
   void note(int code) {if(code>exitCode) exitCode=code;}
 
   bool batch;
+  bool drm=false;
+  bool verbose=false;
   QString outDir;
   int timeoutSeconds;      //!< 0 = duration of the file + 30 s
   bool running;

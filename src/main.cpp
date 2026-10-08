@@ -40,6 +40,8 @@
 #include "sound/soundbase.h"
 #include "sstv/sstvparam.h"
 #include <QImageReader>
+#include <QRegularExpression>
+#include "drmtx/drmparams.h"
 #include "supportfunctions.h"
 
 
@@ -137,7 +139,7 @@ int main( int argc, char ** argv )
   QCommandLineOption helpOpt(QStringList() << "h" << "help","Show this help.");
   QCommandLineOption versionOpt(QStringList() << "v" << "version","Show the version.");
   QCommandLineOption decodeOpt(QStringList() << "d" << "decode","Decode the SSTV recording <file> (repeatable; bare arguments are files too). "
-                               "The window opens and you watch it decode, then the sound card receiver resumes.","file");
+                               "The window opens and you watch it decode (add --drm for a DRM recording), then the sound card receiver resumes.","file");
   QCommandLineOption batchOpt(QStringList() << "b" << "batch","Headless: decode the files without a window, save every picture, print the results and exit. "
                               "Exit code 0: every file gave a picture; 1: a file gave none; 2: unusable file or bad option; 3: timeout. "
                               "Your settings are read but never written.");
@@ -148,7 +150,18 @@ int main( int argc, char ** argv )
                                "Your settings are read but never written.","image");
   QCommandLineOption wavOutOpt("wav-out","With --encode: the wav file to write (default: <image>.wav).","file");
   QCommandLineOption listOpt("list-modes","Print the mode names that --mode accepts and exit.");
-  parser.addOptions(QList<QCommandLineOption>() << helpOpt << versionOpt << decodeOpt << batchOpt << outDirOpt << modeOpt << timeoutOpt << encodeOpt << wavOutOpt << listOpt);
+  QCommandLineOption drmOpt("drm","With --batch: receive DRM (digital SSTV) instead of analog SSTV; the received file is saved as <file>_<n>_drm.<ext> and a "
+                            "'drm-stats:' line (sync / FAC / MSC percentages, MSC flaps, SNR) is printed per file. With --encode: transmit the picture as DRM.");
+  QCommandLineOption drmModeOpt("drm-mode","With --encode --drm: robustness mode A, B or E (default: your TX setting).","mode");
+  QCommandLineOption drmBwOpt("drm-bw","With --encode --drm: bandwidth 2.2 or 2.5 (kHz).","kHz");
+  QCommandLineOption drmQamOpt("drm-qam","With --encode --drm: 4, 16 or 64.","qam");
+  QCommandLineOption drmProtOpt("drm-prot","With --encode --drm: protection high or low.","level");
+  QCommandLineOption drmIlvOpt("drm-interleave","With --encode --drm: short or long.","type");
+  QCommandLineOption drmRsOpt("drm-rs","With --encode --drm: Reed-Solomon 0 (none) to 4.","n");
+  QCommandLineOption drmSizeOpt("drm-size","With --encode --drm: compress the picture to about this many bytes (default: the size slider setting, 5000).","bytes");
+  QCommandLineOption rxGainOpt("rx-gain","With --batch: test aid, amplify the recording by <dB> (negative to attenuate) before the receiver.","dB");
+  QCommandLineOption rxNoiseOpt("rx-noise","With --batch: test aid, add white noise of this RMS level in dB full scale (e.g. -40) to the recording.","dBFS");
+  parser.addOptions(QList<QCommandLineOption>() << drmOpt << drmModeOpt << drmBwOpt << drmQamOpt << drmProtOpt << drmIlvOpt << drmRsOpt << drmSizeOpt << rxGainOpt << rxNoiseOpt << helpOpt << versionOpt << decodeOpt << batchOpt << outDirOpt << modeOpt << timeoutOpt << encodeOpt << wavOutOpt << listOpt);
   parser.addPositionalArgument("file","SSTV recordings to decode (same as --decode).","[file ...]");
   if(!parser.parse(app.arguments()))
     {
@@ -185,6 +198,36 @@ int main( int argc, char ** argv )
       return fileDecoder::EXIT_BADFILE;
     }
   const bool encode=parser.isSet(encodeOpt);
+  bool gainOk=true,noiseOk=true;
+  if(parser.isSet(rxGainOpt)) soundBase::fileGainDb=parser.value(rxGainOpt).toDouble(&gainOk);
+  if(parser.isSet(rxNoiseOpt)) soundBase::fileNoiseDbfs=parser.value(rxNoiseOpt).toDouble(&noiseOk);
+  if(!gainOk || !noiseOk)
+    {
+      fprintf(stderr,"--rx-gain and --rx-noise need a number (dB)\n");
+      return fileDecoder::EXIT_BADFILE;
+    }
+  // DRM transmit parameters: indices of the TX combo boxes (see txwidget.ui); unset ones keep the user's setting
+  struct {const QCommandLineOption *opt; const char *name; QStringList values; int drmTxParams::*field;} drmChoices[]=
+    {
+      {&drmModeOpt,"--drm-mode",{"A","B","E"},&drmTxParams::robMode},
+      {&drmBwOpt,"--drm-bw",{"2.2","2.5"},&drmTxParams::bandwith},
+      {&drmQamOpt,"--drm-qam",{"4","16","64"},&drmTxParams::qam},
+      {&drmProtOpt,"--drm-prot",{"high","low"},&drmTxParams::protection},
+      {&drmIlvOpt,"--drm-interleave",{"short","long"},&drmTxParams::interleaver},
+      {&drmRsOpt,"--drm-rs",{"0","1","2","3","4"},&drmTxParams::reedSolomon},
+    };
+  QList<QPair<int drmTxParams::*,int> > drmSet;
+  for(const auto &ch : drmChoices)
+    {
+      if(!parser.isSet(*ch.opt)) continue;
+      int idx=ch.values.indexOf(QRegularExpression(QString("^%1$").arg(QRegularExpression::escape(parser.value(*ch.opt))),QRegularExpression::CaseInsensitiveOption));
+      if(idx<0)
+        {
+          fprintf(stderr,"%s must be one of: %s\n",ch.name,ch.values.join(", ").toLocal8Bit().constData());
+          return fileDecoder::EXIT_BADFILE;
+        }
+      drmSet.append(qMakePair(ch.field,idx));
+    }
 
   QPixmap pixmap(":/icons/qsstvsplash.png");
   QSplashScreen splash(pixmap,Qt::WindowStaysOnTopHint);
@@ -205,6 +248,11 @@ int main( int argc, char ** argv )
   mainWindowPtr=new mainWindow;
   mainWindowPtr->setWindowIcon(QPixmap(":/icons/qsstv.png"));
   if(batch) fileDecoderPtr->setBatch(parser.value(outDirOpt),timeoutSeconds);
+  if(!encode)
+    {
+      fileDecoderPtr->setDrm(parser.isSet(drmOpt));
+      fileDecoderPtr->setVerbose(!files.isEmpty());
+    }
   while(1)
   {
     app.processEvents();
@@ -219,12 +267,46 @@ int main( int argc, char ** argv )
     if(!tm.isActive()) break;
    }
   splash.finish(mainWindowPtr);
-  if(parser.isSet(modeOpt) && !rxWidgetPtr->setRxModeByName(parser.value(modeOpt)))
+  if(parser.isSet(modeOpt) && !(encode && parser.isSet(drmOpt)) && !rxWidgetPtr->setRxModeByName(parser.value(modeOpt)))
     {
       fprintf(stderr,"unknown mode \"%s\" (see --list-modes)\n",parser.value(modeOpt).toLocal8Bit().constData());
       mainWindowPtr->shutdown(false);
       globalEnd();
       return fileDecoder::EXIT_BADFILE;
+    }
+  if(encode && parser.isSet(drmOpt))
+    {
+      // --encode --drm: send the picture through the normal DRM TX path into a wav file
+      QImage img(parser.value(encodeOpt));
+      if(img.isNull())
+        {
+          fprintf(stderr,"--encode needs a readable image\n");
+          mainWindowPtr->shutdown(false);
+          globalEnd();
+          return fileDecoder::EXIT_BADFILE;
+        }
+      mainWindowPtr->switchMode(TRXDRM);   // the window's own switch, so the tabs and both widgets follow
+      drmTxParams prm=drmParams;
+      for(const auto &s : drmSet) prm.*(s.first)=s.second;
+      soundBase::txFileName=parser.isSet(wavOutOpt) ? parser.value(wavOutOpt) : parser.value(encodeOpt)+".wav";
+      QObject::connect(txWidgetPtr,&txWidget::calibrationTxFinished,&app,[&app]()
+      {
+        app.exit(0);
+      },Qt::QueuedConnection);
+      QTimer::singleShot(1800000,&app,[&app](){fprintf(stderr,"--encode timed out\n");app.exit(3);});
+      mainWindowPtr->startRunning(false);   // no sound card receiver: the transmitter writes a file
+      if(!txWidgetPtr->sendDrmTestImage(prm,img,parser.value(drmSizeOpt).toUInt()))
+        {
+          fprintf(stderr,"--encode: could not start the transmission\n");
+          mainWindowPtr->shutdown(false);
+          globalEnd();
+          return fileDecoder::EXIT_BADFILE;
+        }
+      result=app.exec();
+      mainWindowPtr->shutdown(false);
+      globalEnd();
+      fprintf(stderr,"wrote %s\n",qPrintable(soundBase::txFileName));
+      return result;
     }
   if(encode)
     {
