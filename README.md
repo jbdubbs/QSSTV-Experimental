@@ -52,7 +52,6 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 6. **Logbook IPC.** The SysV shared-memory logbook link is replaced by ADIF over UDP.
 7. **Portable paths and code.** Hard-coded Unix paths replaced with Qt equivalents; assorted Qt6, macOS and FreeBSD compatibility fixes; a vendored Hamlib on Windows; a reproducible Ubuntu 24.04 container build with official Qt 6.11 for the AppImage.
 8. **Rebranded** as QSSTV-Experimental (the original copyright and attribution are retained throughout the code and About box).
-9. **Housekeeping.** Typo, manual and desktop-icon fixes; default image directories use neutral names.
 
 ## Download a pre-built release
 
