@@ -64,4 +64,4 @@ Ready-to-run builds are published on the [Releases page](https://github.com/jbdu
 
 ## Building
 
-See `packaging/` for the AppImage recipe and `src/CMakeLists.txt` for the CMake build (Qt6, FFTW, OpenJPEG, Hamlib).
+See [BUILDING.md](BUILDING.md) for building from source on Linux and Windows, the AppImage build, and the image-format plugin requirements.
