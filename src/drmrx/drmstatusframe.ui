@@ -214,7 +214,7 @@
      <item row="2" column="3">
       <widget class="QLabel" name="merEdit">
        <property name="toolTip">
-        <string>Modulation error ratio, FAC / MSC (dB). Error of the equalised cells from their ideal constellation points, weighted by channel gain. The FAC is always 4-QAM; the MSC carries the picture.</string>
+        <string>MER of FAC / MSC</string>
        </property>
        <property name="minimumSize">
         <size>
@@ -233,7 +233,7 @@
      <item row="2" column="2">
       <widget class="QLabel" name="merLabel">
        <property name="toolTip">
-        <string>Modulation error ratio, FAC / MSC (dB)</string>
+        <string>MER of FAC / MSC</string>
        </property>
        <property name="text">
         <string>MER</string>
@@ -407,6 +407,9 @@
        </property>
        <item row="1" column="0">
         <widget class="QLabel" name="timeLED">
+       <property name="toolTip">
+        <string>Time sync: the receiver has found the symbol timing of the signal.</string>
+       </property>
          <property name="minimumSize">
           <size>
            <width>50</width>
@@ -594,6 +597,9 @@
        </item>
        <item row="0" column="1">
         <widget class="QLabel" name="frameLedLabel">
+       <property name="toolTip">
+        <string>Frame sync: the start of the DRM transmission frame is locked.</string>
+       </property>
          <property name="font">
           <font>
            <pointsize>8</pointsize>
@@ -611,6 +617,9 @@
        </item>
        <item row="1" column="2">
         <widget class="QLabel" name="facLED">
+       <property name="toolTip">
+        <string>Fast Access Channel decoded: the signal&apos;s mode and parameters are known.</string>
+       </property>
          <property name="minimumSize">
           <size>
            <width>50</width>
@@ -798,6 +807,9 @@
        </item>
        <item row="1" column="3">
         <widget class="QLabel" name="mscLED">
+       <property name="toolTip">
+        <string>Main Service Channel (the picture data): green = receiving data, yellow = this picture was already received, red = no valid data.</string>
+       </property>
          <property name="minimumSize">
           <size>
            <width>50</width>
@@ -985,6 +997,9 @@
        </item>
        <item row="0" column="0">
         <widget class="QLabel" name="timeLEDLabel">
+       <property name="toolTip">
+        <string>Time sync: the receiver has found the symbol timing of the signal.</string>
+       </property>
          <property name="font">
           <font>
            <pointsize>8</pointsize>
@@ -1002,6 +1017,9 @@
        </item>
        <item row="0" column="2">
         <widget class="QLabel" name="facLEDLabel">
+       <property name="toolTip">
+        <string>Fast Access Channel decoded: the signal&apos;s mode and parameters are known.</string>
+       </property>
          <property name="font">
           <font>
            <pointsize>8</pointsize>
@@ -1019,6 +1037,9 @@
        </item>
        <item row="0" column="3">
         <widget class="QLabel" name="mscLEDLabel">
+       <property name="toolTip">
+        <string>Main Service Channel (the picture data): green = receiving data, yellow = this picture was already received, red = no valid data.</string>
+       </property>
          <property name="minimumSize">
           <size>
            <width>40</width>
@@ -1042,6 +1063,9 @@
        </item>
        <item row="1" column="1">
         <widget class="QLabel" name="frameLED">
+       <property name="toolTip">
+        <string>Frame sync: the start of the DRM transmission frame is locked.</string>
+       </property>
          <property name="minimumSize">
           <size>
            <width>50</width>
