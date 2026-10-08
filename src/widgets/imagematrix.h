@@ -5,6 +5,7 @@
 #include <QList>
 #include <QVBoxLayout>
 #include <QGridLayout>
+#include <QToolButton>
 #include "widgets/imageviewer.h"
 
 
@@ -37,10 +38,10 @@ private:
   QSpacerItem *horizontalSpacer_2;
   QSpacerItem *horizontalSpacer_3;
   QString dirPath;
-  QPushButton *prevPushButton;
-  QPushButton *nextPushButton;
-  QPushButton *beginPushButton;
-  QPushButton *endPushButton;
+  QToolButton *prevPushButton;
+  QToolButton *nextPushButton;
+  QToolButton *beginPushButton;
+  QToolButton *endPushButton;
   QLabel *pageLabel;
   QList<imageViewer *> imageViewerPtrList;
   QFileInfoList fileList;

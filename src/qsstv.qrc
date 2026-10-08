@@ -41,6 +41,10 @@
         <file>icons/tb_decode.png</file>
         <file>icons/tb_replay.png</file>
         <file>icons/tb_save.png</file>
+        <file>icons/tb_gal_begin.png</file>
+        <file>icons/tb_gal_prev.png</file>
+        <file>icons/tb_gal_next.png</file>
+        <file>icons/tb_gal_end.png</file>
         <file>icons/tb_start.png</file>
         <file>icons/tb_stop.png</file>
         <file>icons/tb_sweep.png</file>

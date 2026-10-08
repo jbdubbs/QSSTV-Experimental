@@ -49,36 +49,40 @@ void imageMatrix::setupLayout()
   horizontalSpacer = new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
   horizontalLayout->addItem(horizontalSpacer);
 
-  beginPushButton = new QPushButton(this);
+  beginPushButton = new QToolButton(this);
   beginPushButton->setObjectName(QString::fromUtf8("beginPushButton"));
   QIcon icon2;
-  icon2.addFile(QString::fromUtf8(":/icons/doubleleft.png"), QSize(), QIcon::Normal, QIcon::Off);
+  icon2.addFile(QString::fromUtf8(":/icons/tb_gal_begin.png"), QSize(), QIcon::Normal, QIcon::Off);
   beginPushButton->setIcon(icon2);
+  beginPushButton->setIconSize(QSize(32,32));
   horizontalLayout->addWidget(beginPushButton);
 
-  prevPushButton = new QPushButton(this);
+  prevPushButton = new QToolButton(this);
   prevPushButton->setObjectName(QString::fromUtf8("prevPushButton"));
   QIcon icon;
-  icon.addFile(QString::fromUtf8(":/icons/left.png"), QSize(), QIcon::Normal, QIcon::Off);
+  icon.addFile(QString::fromUtf8(":/icons/tb_gal_prev.png"), QSize(), QIcon::Normal, QIcon::Off);
   prevPushButton->setIcon(icon);
+  prevPushButton->setIconSize(QSize(32,32));
   horizontalLayout->addWidget(prevPushButton);
   pageLabel=new QLabel;
   horizontalLayout->addWidget(pageLabel);
 
 //  horizontalSpacer_2 = new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
 //  horizontalLayout->addItem(horizontalSpacer_2);
-  nextPushButton = new QPushButton(this);
+  nextPushButton = new QToolButton(this);
   nextPushButton->setObjectName(QString::fromUtf8("nextPushButton"));
   QIcon icon1;
-  icon1.addFile(QString::fromUtf8(":/icons/start.png"), QSize(), QIcon::Normal, QIcon::Off);
+  icon1.addFile(QString::fromUtf8(":/icons/tb_gal_next.png"), QSize(), QIcon::Normal, QIcon::Off);
   nextPushButton->setIcon(icon1);
+  nextPushButton->setIconSize(QSize(32,32));
   horizontalLayout->addWidget(nextPushButton);
 
-  endPushButton = new QPushButton(this);
+  endPushButton = new QToolButton(this);
   endPushButton->setObjectName(QString::fromUtf8("endPushButton"));
   QIcon icon3;
-  icon3.addFile(QString::fromUtf8(":/icons/doubleright.png"), QSize(), QIcon::Normal, QIcon::Off);
+  icon3.addFile(QString::fromUtf8(":/icons/tb_gal_end.png"), QSize(), QIcon::Normal, QIcon::Off);
   endPushButton->setIcon(icon3);
+  endPushButton->setIconSize(QSize(32,32));
   horizontalLayout->addWidget(endPushButton);
 
   horizontalSpacer_3 = new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
