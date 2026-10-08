@@ -15,8 +15,7 @@ testPatternSelection::~testPatternSelection()
 
 etpSelect testPatternSelection::getSelection()
 {
- if(ui->rasterRadioButton->isChecked()) return TPRASTER;
- else if(ui->whiteRadioButton->isChecked()) return TPWHITE;
- else if(ui->blackRadioButton->isChecked()) return TPBLACK;
- return TPGRAY;
+ if(ui->pm5544RadioButton->isChecked()) return TPPM5544;
+ else if(ui->indianHeadRadioButton->isChecked()) return TPINDIANHEAD;
+ return TPSMPTE;
 }

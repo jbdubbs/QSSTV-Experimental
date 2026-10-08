@@ -165,7 +165,6 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
   connect(ui->actionScopeOffset,SIGNAL(triggered()),this, SLOT(slotScopeOffset()));
   connect(ui->actionClearScope,SIGNAL(triggered()),this, SLOT(slotClearScope()));
   connect(ui->actionDumpSamplesPerLine,SIGNAL(triggered()),this, SLOT(slotDumpSamplesPerLine()));
-  connect(ui->actionTxTestPattern,SIGNAL(triggered()),this, SLOT(slotTxTestPattern()));
 
 #else
   ui->menuOptions->removeAction(ui->actionDumpSamplesPerLine);
@@ -177,6 +176,7 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
   ui->menuScope->menuAction()->setVisible(false);
 
 #endif
+  connect(ui->actionTxTestPattern,SIGNAL(triggered()),this, SLOT(slotTxTestPattern()));
 
 
 
@@ -738,6 +738,9 @@ void mainWindow::slotClearScope()
   scopeViewerSyncWide->clear();
 }
 
+
+#endif
+
 void mainWindow::slotTxTestPattern()
 {
   etpSelect sel;
@@ -746,8 +749,8 @@ void mainWindow::slotTxTestPattern()
     {
       sel=tpsel.getSelection();
       txWidgetPtr->txTestPattern(sel);
+      // show the loaded pattern
+      int txIdx=ui->maintabWidget->indexOf(ui->txTab);
+      if(ui->maintabWidget->isTabEnabled(txIdx)) ui->maintabWidget->setCurrentIndex(txIdx);
     }
 }
-
-
-#endif

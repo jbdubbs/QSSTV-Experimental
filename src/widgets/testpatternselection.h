@@ -3,7 +3,7 @@
 
 #include <QDialog>
 
-enum etpSelect {TPBLACK,TPWHITE,TPGRAY,TPRASTER};
+enum etpSelect {TPSMPTE,TPPM5544,TPINDIANHEAD};
 
 namespace Ui {
 class testPatternSelection;

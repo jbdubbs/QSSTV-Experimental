@@ -40,9 +40,9 @@
         <item>
          <layout class="QVBoxLayout" name="verticalLayout">
           <item>
-           <widget class="QRadioButton" name="rasterRadioButton">
+           <widget class="QRadioButton" name="smpteRadioButton">
             <property name="text">
-             <string>Raster</string>
+             <string>SMPTE Color Bars</string>
             </property>
             <property name="autoExclusive">
              <bool>true</bool>
@@ -50,9 +50,9 @@
            </widget>
           </item>
           <item>
-           <widget class="QRadioButton" name="whiteRadioButton">
+           <widget class="QRadioButton" name="pm5544RadioButton">
             <property name="text">
-             <string>White</string>
+             <string>PM5544</string>
             </property>
             <property name="autoExclusive">
              <bool>true</bool>
@@ -60,19 +60,9 @@
            </widget>
           </item>
           <item>
-           <widget class="QRadioButton" name="blackRadioButton">
+           <widget class="QRadioButton" name="indianHeadRadioButton">
             <property name="text">
-             <string>Black</string>
-            </property>
-            <property name="autoExclusive">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QRadioButton" name="grayRadioButton">
-            <property name="text">
-             <string>Gray</string>
+             <string>RCA Indian Head</string>
             </property>
             <property name="autoExclusive">
              <bool>true</bool>

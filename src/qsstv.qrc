@@ -1,6 +1,9 @@
 <RCC>
     <qresource prefix="/">
         <file>icons/fileopen.png</file>
+        <file>icons/testpatterns/smptebars.png</file>
+        <file>icons/testpatterns/pm5544.png</file>
+        <file>icons/testpatterns/indianhead.png</file>
         <file>icons/filesave.png</file>
         <file>icons/text.png</file>
         <file>icons/image.png</file>

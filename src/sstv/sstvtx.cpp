@@ -269,91 +269,25 @@ bool sstvTx::aborted()
 
 void sstvTx::createTestPattern(imageViewer *ivPtr,etpSelect sel)
 {
-  int i,j;
-  QRgb *pixelPtr;
+  int i;
   int nb=txSSTVParam.numberOfPixels;
   int nl=txSSTVParam.numberOfDisplayLines;
-  ivPtr->clear();
-  ivPtr->createImage(QSize(nb,nl),imageBackGroundColor,false);
+  QString fn;
   switch (sel)
   {
-  case TPRASTER:
-    for(i=0;i<nl;i++)
+  case TPPM5544: fn=":/icons/testpatterns/pm5544.png"; break;
+  case TPINDIANHEAD: fn=":/icons/testpatterns/indianhead.png"; break;
+  default: fn=":/icons/testpatterns/smptebars.png"; break;
+  }
+  QImage src(fn);
+  if(src.isNull() || nb<=0 || nl<=0) return;
+  // stretch to the mode's image size
+  QImage im=src.scaled(nb,nl,Qt::IgnoreAspectRatio,Qt::SmoothTransformation).convertToFormat(QImage::Format_ARGB32_Premultiplied);
+  ivPtr->clear();
+  ivPtr->createImage(QSize(nb,nl),imageBackGroundColor,false);
+  for(i=0;i<nl;i++)
     {
-      pixelPtr=ivPtr->getScanLineAddress(i);
-      if(i<2)
-      {
-        int val=0;;
-        for(j=0;j<nb;j++) pixelPtr[j]=qRgb(val,val,val);
-      }
-      else if(i>=(nl-2))
-      {
-        {
-          int val=0;;
-          for(j=0;j<nb;j++) pixelPtr[j]=qRgb(val,val,val);
-        }
-      }
-
-      else
-      {
-        for(j=0;j<nb/4;j++)
-        {
-          int val=(j%2)*255;
-          pixelPtr[j]=qRgb(val,val,val);
-        }
-        for(;j<nb/2;j++)
-        {
-          int val=((j/2)%2)*255;
-          pixelPtr[j]=qRgb(val,val,val);
-        }
-        for(;j<3*nb/4;j++)
-        {
-          int val=0;
-          pixelPtr[j]=qRgb(val,val,val);
-        }
-        for(;j<nb;j++)
-        {
-          int val=255;
-          pixelPtr[j]=qRgb(val,val,val);
-        }
-
-      }
-    }
-      break;
-  case TPWHITE:
-        for(i=0;i<nl;i++)
-        {
-          pixelPtr=ivPtr->getScanLineAddress(i);
-          for(j=0;j<nb;j++)
-          {
-            int val=255;
-            pixelPtr[j]=qRgb(val,val,val);
-          }
-        }
-        break;
-      case TPBLACK:
-        for(i=0;i<nl;i++)
-        {
-          pixelPtr=ivPtr->getScanLineAddress(i);
-          for(j=0;j<nb;j++)
-          {
-            int val=0;
-            pixelPtr[j]=qRgb(val,val,val);
-          }
-        }
-        break;
-      case TPGRAY:
-        for(i=0;i<nl;i++)
-        {
-          pixelPtr=ivPtr->getScanLineAddress(i);
-          for(j=0;j<nb;j++)
-          {
-            int val=128;
-            pixelPtr[j]=qRgb(val,val,val);
-          }
-        }
-        break;
-
+      memcpy(ivPtr->getScanLineAddress(i),im.constScanLine(i),nb*sizeof(QRgb));
     }
   ivPtr->setValidImage(true);
   ivPtr->displayImage();

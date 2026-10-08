@@ -61,8 +61,8 @@ private slots:
   void slotScopeOffset();
   void slotClearScope();
   void slotDumpSamplesPerLine();
-  void slotTxTestPattern();
 #endif
+  void slotTxTestPattern();
 
 private:
   Ui::MainWindow *ui;
