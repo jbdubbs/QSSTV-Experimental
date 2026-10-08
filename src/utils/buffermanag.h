@@ -122,7 +122,11 @@ public:
   void putNoCheck(T *cp,unsigned int len) // no boundary check performed
   {
     mutex.lock();
-    memcpy(&memblock[writeIndex],cp,len*sizeof(T));
+    // a block may straddle the end of the ring: copy it in two pieces
+    unsigned int first=(1<<N)-writeIndex;
+    if(first>len) first=len;
+    memcpy(&memblock[writeIndex],cp,first*sizeof(T));
+    if(first<len) memcpy(memblock,cp+first,(len-first)*sizeof(T));
     writeIndex+=len;
     writeIndex&= ((1<<N)-1);
     mutex.unlock();
@@ -206,7 +210,11 @@ public:
   void copyNoCheck(T *dst,int len)
   {
     mutex.lock();
-    memcpy(dst,&memblock[readIndex],len*sizeof(T));
+    // a block may straddle the end of the ring: copy it in two pieces
+    unsigned int first=(1<<N)-readIndex;
+    if(first>(unsigned int)len) first=len;
+    memcpy(dst,&memblock[readIndex],first*sizeof(T));
+    if(first<(unsigned int)len) memcpy(dst+first,memblock,(len-first)*sizeof(T));
     readIndex+=len;
     readIndex&= ((1<<N)-1);
     mutex.unlock();

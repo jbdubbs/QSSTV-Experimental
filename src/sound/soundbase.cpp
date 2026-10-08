@@ -397,16 +397,18 @@ int soundBase::play()
     {
       framesWritten=0;
     }
+  // copy first: the ring buffer wraps, so writing straight from its read pointer ran past the end of the buffer
+  // whenever a block straddled the wrap (garbage in the wav every 65536 frames)
+  txBuffer.copyNoCheck(tempTXBuffer,numFrames);
   if(soundRoutingOutput==SNDOUTTOFILE || !txFileName.isEmpty())  // output the wav-file
     {
 
       if(storedFrames<=(ulong)recordingSize*1048576L)
         {
-          waveOut.write((quint16*)txBuffer.readPointer(),numFrames,true); //always stereo
+          waveOut.write((quint16*)tempTXBuffer,numFrames,true); //always stereo
           storedFrames+=numFrames;
         }
     }
-  txBuffer.copyNoCheck(tempTXBuffer,numFrames);
   addToLog(QString("frames to write: %1 at %2 buffered:%3").arg(numFrames).arg(txBuffer.getReadIndex()).arg(txBuffer.count()),LOGSOUND);
 
   //  framesWritten=write(numFrames);
