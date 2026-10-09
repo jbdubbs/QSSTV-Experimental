@@ -19,7 +19,7 @@ cmake --install $B/qsstv-experimental/build-cmake --prefix $APPDIR/usr
 
 # linuxdeploy's default excludelist drops these (assumed present on the host); bundle them all
 # so the AppImage runs on a bare system. --library overrides the excludelist.
-L=/usr/lib/x86_64-linux-gnu
+L=/usr/lib/$(gcc -dumpmachine)
 FORCE=()
 for pat in libasound libusb-1.0 libudev libEGL libGLX libGL libGLdispatch libOpenGL libX11 libX11-xcb \
   libxcb 'libxcb-*' libXau libXdmcp libbsd libmd libfontconfig libfreetype libharfbuzz libexpat libXrandr libXrender libXext libXfixes libSM libICE libdrm libfribidi libwayland-client; do
@@ -42,6 +42,11 @@ export LIBHEIF_PLUGIN_PATH="${APPDIR:-$this_dir}/usr/lib/libheif/plugins"
 export LD_LIBRARY_PATH="${APPDIR:-$this_dir}/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 H
 
+# The aarch64 Qt also ships a GStreamer multimedia plugin (the x86_64 Qt only has FFmpeg, which is what we
+# use). Drop it now -- after the cmake configure, which references it as an imported target -- or linuxdeploy
+# tries to bundle the whole GStreamer stack.
+rm -f $QT_ROOT/plugins/multimedia/libgstreamermediaplugin.so
+
 cd $B
 export APPIMAGE_EXTRACT_AND_RUN=1 QMAKE=$QT_ROOT/bin/qmake LD_LIBRARY_PATH=$QT_ROOT/lib VERSION NO_STRIP=1 PATCHELF=/usr/bin/patchelf
 export EXTRA_PLATFORM_PLUGINS=libqoffscreen.so   # --batch headless mode needs offscreen
@@ -50,6 +55,6 @@ linuxdeploy --appdir $APPDIR "${FORCE[@]}" \
   --desktop-file $APPDIR/usr/share/applications/qsstv.desktop \
   --icon-file $APPDIR/usr/share/icons/hicolor/128x128/apps/qsstv.png \
   --plugin qt --output appimage
-OUT=QSSTV-Experimental-$VERSION-x86_64.AppImage
+OUT=QSSTV-Experimental-$VERSION-$(uname -m).AppImage
 cp $OUT /out/$OUT
 chown "$HOST_UID:$HOST_GID" /out/$OUT

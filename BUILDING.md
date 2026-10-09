@@ -66,6 +66,49 @@ ARCH=aarch64 packaging/appimage/build.sh     # arm64, built under QEMU emulation
 The result is `QSSTV-Experimental-<version>-<arch>.AppImage` in the repository root (override with `OUT_DIR`).
 The AppImage also bundles `kimageformats` and the libheif codec plugins, which provide the AVIF and HEIC formats.
 
+### arm64 (aarch64) AppImage
+
+`ARCH=aarch64` (or `arm64`) builds the same AppImage for 64-bit ARM Linux (Raspberry Pi and other SBCs), named
+`QSSTV-Experimental-<version>-aarch64.AppImage`. It uses the same scripts and the same bundled dependencies as the
+x86_64 build; the arch-specific parts are Docker build arguments that `build.sh` sets for you.
+
+On an x86_64 machine it builds under QEMU user emulation (`--platform linux/arm64`), so it needs Docker plus QEMU
+binfmt support for aarch64 (on Fedora `qemu-user-static`; on Debian/Ubuntu `qemu-user-static` and `binfmt-support`;
+check that `/proc/sys/fs/binfmt_misc/qemu-aarch64` exists). Expect a cold build to take one to two hours because
+the Qt-dependent compile runs emulated; Docker caches the image layers, so later builds only redo the container step.
+On a native arm64 host it is an ordinary, fast build with the same command.
+
+```
+ARCH=aarch64 VERSION=10.0-Pre8 OUT_DIR=/some/dir packaging/appimage/build.sh
+```
+
+Notes on how the arm64 build differs (all handled in the scripts, listed here for when something breaks):
+
+- **Qt:** the official `linux_arm64` / `linux_gcc_arm64` Qt 6.11.2 from `aqtinstall`, restricted with
+  `--archives qtbase qtdeclarative qtsvg qtwayland qttranslations icu`. The automatically pulled `qttools` archive
+  fails to extract under QEMU (`zipfile.BadZipFile`), and nothing here uses it. The install also uses the native
+  `7z` (`--external 7z`) and retries up to three times.
+- **linuxdeploy:** the `aarch64` AppImages. Their ELF header carries the `AI\x02` marker that stops QEMU's binfmt
+  from executing them, so the Dockerfile zeroes those three bytes before `--appimage-extract`.
+- **Extra libraries:** the official aarch64 Qt's `libQt6XcbQpa` links `libSM`/`libICE` (the x86_64 one does not), so
+  `libsm6 libice6` are installed; nothing else extra is bundled, to stay in parity with x86_64.
+- **Multimedia plugin:** the aarch64 Qt also ships a GStreamer plugin. `inside.sh` deletes it after the CMake
+  configure step (deleting it earlier breaks Qt6Multimedia's CMake targets); only the FFmpeg backend is shipped,
+  as on x86_64.
+
+The container builds whatever is in the working tree, including uncommitted changes. For a release, build from a
+clean export of the commit instead, for example:
+
+```
+mkdir -p /tmp/rel && git archive HEAD | tar -x -C /tmp/rel/qsstv-experimental   # plus a sibling /tmp/rel/hamlib-upstream-sstv
+ARCH=aarch64 /tmp/rel/qsstv-experimental/packaging/appimage/build.sh
+```
+
+Verify the result before publishing: `file` shows an aarch64 ELF; the highest `GLIBC_` symbol (via `objdump -T`) is
+at most 2.39; `ldd` of the binary and the Qt plugins shows nothing "not found" in a bare `ubuntu:24.04` arm64
+container; and `QT_QPA_PLATFORM=offscreen ./QSSTV-Experimental-*.AppImage --batch some.wav` decodes a recording.
+Emulation cannot test audio, so run RX and TX on real hardware as well.
+
 ## Windows (cross-compiled from Fedora)
 
 The Windows build is a MinGW cross-compile.

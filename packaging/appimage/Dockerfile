@@ -18,9 +18,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # glibc floor is set by this image's glibc, not by Qt, so the floor stays 2.39 (the Qt
 # binaries themselves are built against an older glibc).
 ARG QT_VERSION=6.11.2
-RUN pip3 install --break-system-packages aqtinstall \
- && aqt install-qt linux desktop $QT_VERSION linux_gcc_64 -m qtmultimedia qtserialport qtimageformats -O /opt/Qt
-ENV QT_ROOT=/opt/Qt/$QT_VERSION/gcc_64
+# x86_64: aqt host "linux", arch "linux_gcc_64" (dir gcc_64); aarch64: "linux_arm64" / "linux_gcc_arm64" (dir gcc_arm64)
+ARG AQT_HOST=linux
+ARG QT_ARCH=linux_gcc_64
+# arm64: skip the qttools archive (its extraction fails under QEMU and nothing here needs it)
+ARG AQT_EXTRA=
+# --external 7z: aqt's pure-python py7zr extractor dies with BadZipFile under QEMU emulation (arm64 build on x86)
+RUN apt-get update && apt-get install -y --no-install-recommends p7zip-full && rm -rf /var/lib/apt/lists/* \
+ && pip3 install --break-system-packages aqtinstall \
+ && for i in 1 2 3; do rm -rf /opt/Qt; aqt install-qt --external 7z $AQT_HOST desktop $QT_VERSION $QT_ARCH -m qtmultimedia qtserialport qtimageformats $AQT_EXTRA -O /opt/Qt && break; [ $i = 3 ] && exit 1; done \
+ && ln -s /opt/Qt/$QT_VERSION/${QT_ARCH#linux_} /opt/Qt/$QT_VERSION/current
+ENV QT_ROOT=/opt/Qt/$QT_VERSION/current
 # AVIF/HEIC: Qt itself has no plugin for them (qtimageformats gives WebP/TIFF/TGA/...), so
 # build KDE's kimageformats heif/avif plugins against this Qt and drop them in its plugin dir
 # where linuxdeploy-plugin-qt picks them up. Ubuntu 24.04's ECM (5.115) is too old for KF6, so
@@ -34,13 +42,21 @@ RUN git clone --depth 1 --branch $KIMAGEFORMATS_TAG https://invent.kde.org/frame
       -DKIMAGEFORMATS_HEIF=ON -DKDE_INSTALL_QTPLUGINDIR=$QT_ROOT/plugins -DBUILD_TESTING=OFF \
  && cmake --build /tmp/kif/build -j"$(nproc)" && cmake --install /tmp/kif/build \
  && ls $QT_ROOT/plugins/imageformats/ && rm -rf /tmp/kif
-# linuxdeploy tools, extracted (no FUSE inside a container)
+# linuxdeploy tools, extracted (no FUSE inside a container). The dd zeroes the AppImage 'AI\x02' marker
+# in the ELF header (bytes 8-10) so QEMU's binfmt will exec the file when building for a foreign arch;
+# --appimage-extract doesn't need the marker.
 WORKDIR /opt/linuxdeploy
-RUN wget -q -O linuxdeploy.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \
- && wget -q -O linuxdeploy-plugin-qt.AppImage https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage \
+ARG LD_ARCH=x86_64
+RUN wget -q -O linuxdeploy.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-$LD_ARCH.AppImage \
+ && wget -q -O linuxdeploy-plugin-qt.AppImage https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-$LD_ARCH.AppImage \
  && chmod +x *.AppImage \
+ && for f in *.AppImage; do dd if=/dev/zero of=$f bs=1 count=3 seek=8 conv=notrunc 2>/dev/null; done \
  && ./linuxdeploy.AppImage --appimage-extract >/dev/null && mv squashfs-root linuxdeploy.dir \
  && ./linuxdeploy-plugin-qt.AppImage --appimage-extract >/dev/null && mv squashfs-root linuxdeploy-plugin-qt.dir \
  && ln -s /opt/linuxdeploy/linuxdeploy.dir/AppRun /usr/local/bin/linuxdeploy \
  && ln -s /opt/linuxdeploy/linuxdeploy-plugin-qt.dir/AppRun /usr/local/bin/linuxdeploy-plugin-qt
+# The official aarch64 Qt's libQt6XcbQpa has a hard NEEDED on libSM/libICE (the x86_64 build doesn't),
+# so they must be present for linuxdeploy to resolve and bundle them. Nothing else extra is installed.
+RUN apt-get update && apt-get install -y --no-install-recommends libsm6 libice6 \
+ && rm -rf /var/lib/apt/lists/*
 WORKDIR /work
