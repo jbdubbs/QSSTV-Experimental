@@ -30,7 +30,7 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 ### Features
 
 - **Decode SSTV from audio files** (WAV, MP3, FLAC, OGG, AAC), from the GUI (*File > Decode SSTV From File...*) at about 10x real time, or from the command line with `qsstv --batch`, headless, with scriptable exit codes
-- **New SSTV modes:** *JB60*, a ~61 s half-time colour mode, and *PD120W*, a 16:9 widescreen PD120
+- **New SSTV modes:** *JB60*, a ~61 s half-time color mode, and *PD120W*, a 16:9 widescreen PD120
 - **Sample-rate calibration** from WWV time ticks, NTP, or the slant of a received SSTV picture
 - **Stitched grid images:** transmit large pictures as 1x2, 2x1 or 2x2 grids on the larger modes
 - **Gallery multi-select** to delete or send several images to TX, with the Del key for quick deletion
