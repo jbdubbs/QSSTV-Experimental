@@ -87,8 +87,8 @@ slantFitResult fitSlant(const unsigned char *gray,int width,int height,int strid
     {
       const unsigned char *p=gray+(size_t)y*stride;
       int hi=0,peak=0;
-      // the outer edges are not searched: after a shift of the picture the end of the previous line (any colour,
-      // often brighter than the line) shows up in the first or last columns, and the line itself is never there
+      // neither outer edge is searched: the first and last columns often carry the end of the neighbouring line or
+      // sync pulse (slightly off audio or sync timing), often brighter than the line, and the line is never there
       for(int i=edge;i<width-edge;i++) if(p[i]>hi) {hi=p[i];peak=i;}
       // dark level: a low percentile of the row, so a few noisy pixels do not set it
       sorted.assign(p,p+width);
