@@ -9,6 +9,7 @@
 #include <QSpinBox>
 #include <QPushButton>
 #include <QLabel>
+#include <QDebug>
 #include <QCheckBox>
 #include <QGroupBox>
 #include <QVBoxLayout>
@@ -244,6 +245,7 @@ void calibrationSstv::startListening()
   savedAutoSlant=autoSlantAdjust;
   autoSlantAdjust=false;
   dispatcherPtr->setCalibrationRx(true);
+  qDebug() << "CALDBG startListening";
   connect(dispatcherPtr,SIGNAL(sstvImageReceived(int)),this,SLOT(slotImageReceived(int)));
   dispatcherPtr->startRX();
   listening=true;
@@ -255,6 +257,7 @@ void calibrationSstv::startListening()
 void calibrationSstv::stopListening()
 {
   if(!listening) return;
+  qDebug() << "CALDBG stopListening";
   disconnect(dispatcherPtr,SIGNAL(sstvImageReceived(int)),this,SLOT(slotImageReceived(int)));
   dispatcherPtr->setCalibrationRx(false);
   dispatcherPtr->idleAll();
@@ -288,6 +291,7 @@ void calibrationSstv::clearResults()
 void calibrationSstv::slotImageReceived(int m)
 {
   esstvMode mode=(esstvMode)m;
+  qDebug() << "CALDBG slotImageReceived mode=" << m;
   if(mode<0 || mode>=NUMSSTVMODES)
     {
       rxStatusLabel->setText(tr("Picture incomplete (too few lines): waiting for the next one."));

@@ -117,6 +117,7 @@ void dispatcher::customEvent( QEvent * e )
       }
       break;
     case endSSTVImageRX:
+      qDebug() << "CALDBG endSSTVImageRX calibrationRx=" << calibrationRx << "mode=" << (int)((endImageSSTVRXEvent*)e)->getMode();
       if(calibrationRx)
         {
           // the calibration dialog measures the picture: no saving, repeater or gallery handling
