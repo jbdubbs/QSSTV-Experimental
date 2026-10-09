@@ -169,8 +169,8 @@ calibrationSstv::calibrationSstv(QWidget *parent) : calibrationMethod(parent)
   applyTxCheck->setToolTip(tr("Most soundcards and USB interfaces run input and output from the same clock, so the receive "
                               "measurement also applies to transmit. Untick if yours does not."));
   layout->addWidget(applyTxCheck);
-  QLabel *note=new QLabel(tr("Auto Slant is switched off while listening. Every picture received adds to the average. After "
-                             "accepting, listen to one more picture: the line should now be straight."),this);
+  QLabel *note=new QLabel(tr("Auto Slant is switched off while listening. Every picture received adds to the average. Press OK "
+                             "to apply it, reopen this dialog and listen to one more picture: the line should now be straight."),this);
   note->setWordWrap(true);
   layout->addWidget(note);
 
