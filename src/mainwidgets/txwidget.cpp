@@ -38,6 +38,7 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   ui->sstvResizeComboBox->addItem("Stretch");
   ui->sstvResizeComboBox->addItem("Crop");
   ui->sstvResizeComboBox->addItem("Fit");
+  ui->sstvResizeComboBox->addItem("Free");
   ui->sstvGridComboBox->addItem("Single image");
   ui->sstvGridComboBox->addItem("Grid 1x2");
   ui->sstvGridComboBox->addItem("Grid 2x1");
@@ -46,6 +47,7 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
 
   connect(ui->sstvModeComboBox,SIGNAL(activated(int)),SLOT(slotModeChanged(int )));
   connect(ui->sstvResizeComboBox,SIGNAL(activated(int)),SLOT(slotResizeChanged(int)));
+  connect(imageViewerPtr,&imageViewer::fitModeChanged,ui->sstvResizeComboBox,&QComboBox::setCurrentIndex);   // follows the selected grid cell
 
   connect(ui->drmTxBandwidthComboBox,SIGNAL(activated(int)),SLOT(slotGetTXParams()));
   connect(ui->drmTxInterleaveComboBox,SIGNAL(activated(int)),SLOT(slotGetTXParams()));
@@ -844,17 +846,8 @@ void txWidget::rebuildModeComboBox()
 
 void txWidget::slotResizeChanged(int i)
 {
-  switch (i) {
-    case 0: // Stretch
-      imageViewerPtr->setAspectMode(Qt::IgnoreAspectRatio);
-      break;
-    case 1: // Crop
-      imageViewerPtr->setAspectMode(Qt::KeepAspectRatioByExpanding);
-      break;
-    case 2: // Fit
-      imageViewerPtr->setAspectMode(Qt::KeepAspectRatio);
-      break;
-    }
+  // Stretch / Crop / Fit / Free applies to the selected image or grid cell
+  imageViewerPtr->setFitMode(i);
   applyTemplate();
 }
 

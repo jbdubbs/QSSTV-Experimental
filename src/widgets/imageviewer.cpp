@@ -67,6 +67,10 @@ imageViewer::imageViewer(QWidget *parent): QLabel(parent)
   dragMoved=false;
   segImages.resize(MAXSEGMENTS);
   segFiles.resize(MAXSEGMENTS);
+  segFit.fill(FITSTRETCH,MAXSEGMENTS);
+  segZoom.fill(1.0,MAXSEGMENTS);
+  segPan.fill(QPointF(),MAXSEGMENTS);
+  dragSlot=0;
   setFrameStyle(QFrame::Sunken | QFrame::Panel);
   QBrush b;
   QPalette palette;
@@ -77,7 +81,6 @@ imageViewer::imageViewer(QWidget *parent): QLabel(parent)
   setPalette(palette);
   setBackgroundRole(QPalette::Base);
   setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
-  setAspectMode(Qt::IgnoreAspectRatio);
   setBackgroundRole(QPalette::Dark);
 
   popup=new QMenu (this);
@@ -105,6 +108,8 @@ imageViewer::imageViewer(QWidget *parent): QLabel(parent)
   connect(zoomInAct, SIGNAL(triggered()), this, SLOT(slotZoomIn()));
   zoomOutAct = new QAction(tr("Zoom Out (&-)"), this);
   connect(zoomOutAct, SIGNAL(triggered()), this, SLOT(slotZoomOut()));
+  resetFramingAct = new QAction(tr("Reset &zoom/pan"), this);
+  connect(resetFramingAct, SIGNAL(triggered()), this, SLOT(slotResetFraming()));
   copyAct = new QAction(tr("&Copy"), this);
   copyAct->setShortcut(QKeySequence::Copy);
   copyAct->setShortcutContext(Qt::WidgetShortcut);
@@ -282,6 +287,7 @@ bool  imageViewer::processImageDisplay(bool success,bool showMessage,bool fromCa
       orgWidth=tempImage.width();
       orgHeight=tempImage.height();
       displayedImage=sourceImage;
+      resetFraming(curSlot());
       if(gridActive())
         {
           captureSegment(sourceImage,tempFilename);
@@ -345,6 +351,7 @@ bool imageViewer::openImage(QImage im)
       validImage=true;
       sourceImage=im;
       displayedImage=im;
+      resetFraming(curSlot());
       compressedImageData.clear();
       if(gridActive())
         {
@@ -381,6 +388,7 @@ void imageViewer::clear()
   displayedImage=QImage();
   for(int i=0;i<segImages.size();i++) segImages[i]=QImage();
   for(int i=0;i<segFiles.size();i++) segFiles[i].clear();
+  for(int i=0;i<MAXSEGMENTS;i++) resetFraming(i);
   compressedImageData.clear();
   view=QRect();
   setPixmap(QPixmap());
@@ -575,6 +583,7 @@ void imageViewer::setType(thumbType tp)
   popup->removeAction(viewAct);
   popup->removeAction(propertiesAct);
   popup->removeAction(copyAct);
+  popup->removeAction(resetFramingAct);
   popup->removeAction(pasteAct);
   switch(tp)
     {
@@ -596,6 +605,7 @@ void imageViewer::setType(thumbType tp)
       popup->addAction(printAct);
       popup->addAction(viewAct);
       popup->addAction(propertiesAct);
+      popup->addAction(resetFramingAct);
       popup->addAction(deleteAct);   // removes the image (or grid segment) from TX, the file is kept
       break;
 
@@ -684,6 +694,16 @@ void imageViewer::mousePressEvent( QMouseEvent *e )
               selectSegment(segmentAt(e->pos()));
               displayImage();
             }
+          int slot;
+          if(freeSlotAt(e->pos(),slot))
+            {
+              // Free framing: a drag moves the image inside its cell
+              dragging=true;
+              dragMoved=false;
+              dragSlot=slot;
+              dragStartPt=mapToImage(e->pos());
+              dragStartPan=segPan.value(slot);
+            }
           if (ttype==EXTVIEW)
             {
               //              if (pixmap())
@@ -709,6 +729,7 @@ void imageViewer::mousePressEvent( QMouseEvent *e )
               selectSegment(segmentAt(e->pos()));
               displayImage();
             }
+          resetFramingAct->setEnabled(ttype==TXIMG && segFit.value(curSlot())==FITFREE);
           copyAct->setEnabled(gridActive() ? !segImages.value(activeSeg).isNull() : (hasValidImage() || !displayedImage.isNull()));
           pasteAct->setEnabled(!clipboardImage().isNull());
           if(ttype==TXIMG) deleteAct->setEnabled(gridActive() ? !segImages.value(activeSeg).isNull() : hasValidImage());
@@ -736,6 +757,28 @@ void imageViewer::mousePressEvent( QMouseEvent *e )
 // EXTVIEW: the wheel zooms about the cursor
 void imageViewer::wheelEvent(QWheelEvent *e)
 {
+  int slot;
+  if(ttype==TXIMG && freeSlotAt(e->position().toPoint(),slot))
+    {
+      int dy=e->angleDelta().y();
+      if(dy==0) return;
+      QSize frame=displayedImage.size();
+      QRect cell=cellRect(slot,frame);
+      QPoint p=mapToImage(e->position().toPoint());
+      double z=segZoom.value(slot,1.0);
+      double nz=qBound(0.25,z*qPow(1.15,dy/120.0),8.0);
+      // keep the image point under the cursor where it was
+      QPointF centre(cell.x()+cell.width()/2.0+segPan.value(slot).x()*cell.width(),
+                     cell.y()+cell.height()/2.0+segPan.value(slot).y()*cell.height());
+      QPointF nc=p-(p-centre)*(nz/z);
+      segZoom[slot]=nz;
+      segPan[slot]=clampPan(slot,cell.size(),QPointF((nc.x()-cell.x()-cell.width()/2.0)/cell.width(),
+                                                     (nc.y()-cell.y()-cell.height()/2.0)/cell.height()));
+      applyTemplate();
+      displayImage();
+      e->accept();
+      return;
+    }
   if(ttype!=EXTVIEW || !hasValidImage() || displayedImage.isNull())
     {
       QLabel::wheelEvent(e);
@@ -772,6 +815,18 @@ void imageViewer::wheelEvent(QWheelEvent *e)
 // EXTVIEW: dragging with the left button pans the zoomed image
 void imageViewer::mouseMoveEvent(QMouseEvent *e)
 {
+  if(ttype==TXIMG && dragging && (e->buttons() & Qt::LeftButton) && segFit.value(dragSlot)==FITFREE && !displayedImage.isNull())
+    {
+      QPoint d=mapToImage(e->pos())-dragStartPt;
+      if(!dragMoved && d.manhattanLength()<3) return;
+      if(!dragMoved) setCursor(Qt::ClosedHandCursor);
+      dragMoved=true;
+      QRect cell=cellRect(dragSlot,displayedImage.size());
+      segPan[dragSlot]=clampPan(dragSlot,cell.size(),dragStartPan+QPointF(d.x()/(double)cell.width(),d.y()/(double)cell.height()));
+      applyTemplate();
+      displayImage();
+      return;
+    }
   if(ttype!=EXTVIEW || !dragging || !(e->buttons() & Qt::LeftButton) || dragView.isNull())
     {
       QLabel::mouseMoveEvent(e);
@@ -794,6 +849,12 @@ void imageViewer::mouseMoveEvent(QMouseEvent *e)
 
 void imageViewer::mouseReleaseEvent(QMouseEvent *e)
 {
+  if(ttype==TXIMG && dragging && e->button()==Qt::LeftButton)
+    {
+      dragging=false;
+      unsetCursor();
+      return;
+    }
   if(ttype==EXTVIEW && dragging && e->button()==Qt::LeftButton)
     {
       dragging=false;
@@ -850,6 +911,7 @@ void imageViewer::clearTxImage()
     {
       segImages[activeSeg]=QImage();
       segFiles[activeSeg].clear();
+      resetFraming(activeSeg);
       selectSegment(activeSeg);
       applyTemplate();
     }
@@ -1151,9 +1213,112 @@ void imageViewer::setParam(QString templateFn,bool usesTemplate,int width,int he
   displayImage();
 }
 
-void imageViewer::setAspectMode(Qt::AspectRatioMode mode)
+void imageViewer::setFitMode(int mode)
 {
-  aspectRatioMode = mode;
+  int slot=curSlot();
+  mode=qBound((int)FITSTRETCH,mode,(int)FITFREE);
+  if(segFit.value(slot)==mode) return;
+  segFit[slot]=mode;
+  resetFraming(slot);
+}
+
+Qt::AspectRatioMode imageViewer::slotAspect(int slot) const
+{
+  switch(segFit.value(slot))
+    {
+    case FITCROP: return Qt::KeepAspectRatioByExpanding;
+    case FITFIT:
+    case FITFREE: return Qt::KeepAspectRatio;
+    default: return Qt::IgnoreAspectRatio;
+    }
+}
+
+void imageViewer::resetFraming(int slot)
+{
+  if(slot<0 || slot>=MAXSEGMENTS) return;
+  segZoom[slot]=1.0;
+  segPan[slot]=QPointF();
+}
+
+// true when pos is over a TX image / grid cell that is in Free framing mode
+bool imageViewer::freeSlotAt(const QPoint &pos,int &slot)
+{
+  slot=0;
+  if(ttype!=TXIMG || displayedImage.isNull() || targetWidth<=0 || targetHeight<=0 || transmissionModeIndex!=TRXSSTV) return false;
+  slot=gridActive() ? segmentAt(pos) : 0;
+  return segFit.value(slot)==FITFREE && !slotImage(slot).isNull();
+}
+
+void imageViewer::slotResetFraming()
+{
+  resetFraming(curSlot());
+  applyTemplate();
+  displayImage();
+}
+
+// the original image of a slot (the composed frame replaces sourceImage while a grid is active)
+const QImage &imageViewer::slotImage(int slot) const
+{
+  return gridActive() ? segImages[qBound(0,slot,MAXSEGMENTS-1)] : sourceImage;
+}
+
+// cell of a slot inside a frame of the given size (same split as composeGrid)
+QRect imageViewer::cellRect(int slot,const QSize &frame) const
+{
+  if(!gridActive()) return QRect(QPoint(0,0),frame);
+  int w=frame.width(),h=frame.height();
+  int c=slot%gridCols,r=slot/gridCols;
+  return QRect(c*w/gridCols,r*h/gridRows,(c+1)*w/gridCols-c*w/gridCols,(r+1)*h/gridRows-r*h/gridRows);
+}
+
+// keep a Free image covering the cell (if larger than it) or inside it (if smaller)
+QPointF imageViewer::clampPan(int slot,const QSize &cell,const QPointF &pan) const
+{
+  const QImage &img=slotImage(slot);
+  if(img.isNull() || cell.isEmpty()) return QPointF();
+  QSizeF sz=QSizeF(img.size().scaled(cell,Qt::KeepAspectRatio))*segZoom.value(slot,1.0);
+  double mx=qAbs(sz.width()-cell.width())/2.0/cell.width();
+  double my=qAbs(sz.height()-cell.height())/2.0/cell.height();
+  return QPointF(qBound(-mx,pan.x(),mx),qBound(-my,pan.y(),my));
+}
+
+void imageViewer::drawCell(QPainter &painter,const QImage &img,const QRect &cell,int slot)
+{
+  painter.setClipRect(cell);
+  if(segFit.value(slot)==FITFREE)
+    {
+      QSize base=img.size().scaled(cell.size(),Qt::KeepAspectRatio);
+      QSize sz(qMax(1,qRound(base.width()*segZoom.value(slot,1.0))),qMax(1,qRound(base.height()*segZoom.value(slot,1.0))));
+      QPointF pan=clampPan(slot,cell.size(),segPan.value(slot));
+      QImage scaled=img.scaled(sz,Qt::IgnoreAspectRatio,Qt::SmoothTransformation);
+      double cx=cell.x()+cell.width()/2.0+pan.x()*cell.width();
+      double cy=cell.y()+cell.height()/2.0+pan.y()*cell.height();
+      painter.drawImage(qRound(cx-sz.width()/2.0),qRound(cy-sz.height()/2.0),scaled);
+    }
+  else
+    {
+      // same Stretch/Crop/Fit handling as a whole image, applied per cell
+      QImage scaled=img.scaled(cell.size(),slotAspect(slot),Qt::SmoothTransformation);
+      painter.drawImage(cell.x()+(cell.width()-scaled.width())/2,cell.y()+(cell.height()-scaled.height())/2,scaled);
+    }
+}
+
+// single image scaled to the tw x th frame with its framing mode
+QImage imageViewer::frameSingle(int tw,int th)
+{
+  if(!gridActive() && segFit.value(0)==FITFREE)
+    {
+      QImage out(tw,th,QImage::Format_ARGB32_Premultiplied);
+      out.fill(imageBackGroundColor);
+      QPainter painter(&out);
+      drawCell(painter,sourceImage,QRect(0,0,tw,th),0);
+      painter.end();
+      return out;
+    }
+  // a composed grid already has the frame size, so only a single image is really scaled here
+  QImage scaledImage=sourceImage.scaled(tw,th,gridActive() ? Qt::IgnoreAspectRatio : slotAspect(0),Qt::SmoothTransformation);
+  // Crop to intended dimensions at the centre of the image
+  return scaledImage.copy((scaledImage.width()-tw)/2,(scaledImage.height()-th)/2,tw,th);
 }
 
 int imageViewer::applyTemplate()
@@ -1219,23 +1384,7 @@ int imageViewer::applyTemplate()
       addToLog(QString("No Template, targetW,H=%1,%2").arg(targetWidth).arg(targetHeight), LOGIMAG);
       if(tWidth!=0 && tHeight!=0)
         {
-          QImage scaledImage = QImage(sourceImage
-                                      .scaled(tWidth,
-                                              tHeight,
-                                              aspectRatioMode,
-                                              Qt::SmoothTransformation
-                                              )
-                                      );
-          // Crop to intended dimensions at the centre of the image
-          displayedImage = QImage(scaledImage
-                                  .copy((scaledImage.width()-tWidth)/2,
-                                        (scaledImage.height()-tHeight)/2,
-                                        tWidth,
-                                        tHeight
-                                        )
-                                  );
-
-
+          displayedImage=frameSingle(tWidth,tHeight);
         }
       else
         {
@@ -1274,21 +1423,7 @@ int imageViewer::applyTemplate()
                    LOGIMAG);
           if(tWidth!=0 && tHeight!=0)
             {
-              QImage scaledImage = QImage(sourceImage
-                                          .scaled(tWidth,
-                                                  tHeight,
-                                                  aspectRatioMode,
-                                                  Qt::SmoothTransformation
-                                                  )
-                                          );
-              scaledImage=scaledImage.convertToFormat(QImage::Format_ARGB32);
-              overlayedImage= QImage(scaledImage
-                                     .copy((scaledImage.width()-tWidth)/2,
-                                           (scaledImage.height()-tHeight)/2,
-                                           tWidth,
-                                           tHeight
-                                           )
-                                     );
+              overlayedImage=frameSingle(tWidth,tHeight).convertToFormat(QImage::Format_ARGB32);
               tscene.overlay(&overlayedImage);
             }
           else
@@ -1407,6 +1542,7 @@ void imageViewer::setGrid(int cols,int rows)
   gridCols=cols;
   gridRows=rows;
   selectSegment(0);
+  emit fitModeChanged(segFit.value(curSlot()));
   applyTemplate();
   displayImage();
   emit imageChanged();
@@ -1429,6 +1565,7 @@ void imageViewer::selectSegment(int seg)
   const QImage seg_im=segImages.value(activeSeg);
   orgWidth=seg_im.width();
   orgHeight=seg_im.height();
+  emit fitModeChanged(segFit.value(activeSeg));
 }
 
 void imageViewer::captureSegment(const QImage &im,const QString &fn)
@@ -1436,6 +1573,7 @@ void imageViewer::captureSegment(const QImage &im,const QString &fn)
   if(activeSeg>=segImages.size()) return;
   segImages[activeSeg]=im;
   segFiles[activeSeg]=fn;
+  resetFraming(activeSeg);
 }
 
 QImage imageViewer::composeGrid()
@@ -1456,10 +1594,7 @@ QImage imageViewer::composeGrid()
           const QImage seg=segImages.value(r*gridCols+c);
           if(seg.isNull()) continue;
           QRect cell(c*w/gridCols,r*h/gridRows,(c+1)*w/gridCols-c*w/gridCols,(r+1)*h/gridRows-r*h/gridRows);
-          // same Stretch/Crop/Fit handling as a whole image, applied per cell
-          QImage scaled=seg.scaled(cell.size(),aspectRatioMode,Qt::SmoothTransformation);
-          painter.setClipRect(cell);
-          painter.drawImage(cell.x()+(cell.width()-scaled.width())/2,cell.y()+(cell.height()-scaled.height())/2,scaled);
+          drawCell(painter,seg,cell,r*gridCols+c);
         }
     }
   painter.end();

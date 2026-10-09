@@ -91,7 +91,9 @@ public:
   bool copyToBuffer(QByteArray *ba);
   //  int calcSize(int &sizeRatio);
   uint setSize(int tcommpressSize,bool usesCompression);
-  void setAspectMode(Qt::AspectRatioMode mode);
+  enum fitModeType {FITSTRETCH,FITCROP,FITFIT,FITFREE};
+  void setFitMode(int mode);   // framing of the active image / grid cell: Stretch, Crop, Fit or Free (zoom/pan)
+  int fitMode() const {return segFit.value(curSlot());}
   int getFileSize(){return fileSize;}
   QString toCall;
   QString toOperator;
@@ -139,6 +141,7 @@ private slots:
   void slotProperties();
   void slotCopy();
   void slotPaste();
+  void slotResetFraming();
 
   void slotView();
   void slotBGColorChanged();
@@ -154,6 +157,7 @@ signals:
   void toTxSelected(int seg);     // To TX on a selected thumbnail: matrix sends the whole selection
   void layoutChanged();
   void imageChanged();
+  void fitModeChanged(int mode);   // the selected grid cell changed to one with another framing mode
 
 private:
   QImage displayedImage;
@@ -191,6 +195,7 @@ private:
   QAction *propertiesAct;
   QAction *zoomInAct;
   QAction *zoomOutAct;
+  QAction *resetFramingAct;
   QAction *copyAct;
   QAction *pasteAct;
   QImage clipboardImage();
@@ -201,6 +206,21 @@ private:
   int activeSeg;
   QVector<QImage> segImages;
   QVector<QString> segFiles;
+  QVector<int> segFit;          // per slot framing mode (fitModeType)
+  QVector<double> segZoom;      // Free mode: 1.0 = whole image fitted in the cell
+  QVector<QPointF> segPan;      // Free mode: image centre offset from the cell centre, in cell sizes
+  int curSlot() const {return gridActive() ? activeSeg : 0;}
+  Qt::AspectRatioMode slotAspect(int slot) const;
+  void resetFraming(int slot);
+  const QImage &slotImage(int slot) const;
+  QRect cellRect(int slot,const QSize &frame) const;
+  QPointF clampPan(int slot,const QSize &cell,const QPointF &pan) const;
+  void drawCell(QPainter &painter,const QImage &img,const QRect &cell,int slot);
+  QImage frameSingle(int tw,int th);
+  bool freeSlotAt(const QPoint &pos,int &slot);
+  int dragSlot;
+  QPoint dragStartPt;
+  QPointF dragStartPan;
   bool gridActive() const {return (ttype==TXIMG) && (gridCols*gridRows>1);}
   int segmentAt(const QPoint &pos);
   void selectSegment(int seg);
@@ -216,7 +236,6 @@ private:
   bool activeMovie;
   bool useCompression;
   QString templateFileName;
-  Qt::AspectRatioMode aspectRatioMode;
   bool useTemplate;
   int targetWidth;
   int targetHeight;
