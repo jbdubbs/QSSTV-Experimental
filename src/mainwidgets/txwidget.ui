@@ -522,6 +522,9 @@
          </property>
          <item row="0" column="0">
           <widget class="QLabel" name="drmModeLabel">
+           <property name="toolTip">
+            <string>Robustness mode. Higher mode letters are more robust but slower.</string>
+           </property>
            <property name="minimumSize">
             <size>
              <width>30</width>
@@ -541,6 +544,9 @@
          </item>
          <item row="0" column="1">
           <widget class="QComboBox" name="drmTxModeComboBox">
+           <property name="toolTip">
+            <string>Robustness mode. Higher mode letters are more robust but slower.</string>
+           </property>
            <property name="minimumSize">
             <size>
              <width>40</width>
@@ -572,6 +578,9 @@
          </item>
          <item row="0" column="2">
           <widget class="QLabel" name="drmQAMLabel">
+           <property name="toolTip">
+            <string>Bits per carrier. 4 = most robust, 64 = fastest but needs a clean signal.</string>
+           </property>
            <property name="minimumSize">
             <size>
              <width>30</width>
@@ -591,6 +600,9 @@
          </item>
          <item row="0" column="3">
           <widget class="QComboBox" name="drmTxQAMComboBox">
+           <property name="toolTip">
+            <string>Bits per carrier. 4 = most robust, 64 = fastest but needs a clean signal.</string>
+           </property>
            <property name="minimumSize">
             <size>
              <width>45</width>
@@ -622,6 +634,9 @@
          </item>
          <item row="0" column="4">
           <widget class="QLabel" name="drmBandwidthLabel">
+           <property name="toolTip">
+            <string>Occupied bandwidth. Wider is faster.</string>
+           </property>
            <property name="minimumSize">
             <size>
              <width>30</width>
@@ -641,6 +656,9 @@
          </item>
          <item row="0" column="5">
           <widget class="QComboBox" name="drmTxBandwidthComboBox">
+           <property name="toolTip">
+            <string>Occupied bandwidth. Wider is faster.</string>
+           </property>
            <property name="minimumSize">
             <size>
              <width>70</width>
@@ -667,6 +685,9 @@
          </item>
          <item row="1" column="0">
           <widget class="QLabel" name="drmInterleavelabel">
+           <property name="toolTip">
+            <string>Time interleaving. Long survives longer fades but adds delay.</string>
+           </property>
            <property name="minimumSize">
             <size>
              <width>30</width>
@@ -686,6 +707,9 @@
          </item>
          <item row="1" column="1" colspan="2">
           <widget class="QComboBox" name="drmTxInterleaveComboBox">
+           <property name="toolTip">
+            <string>Time interleaving. Long survives longer fades but adds delay.</string>
+           </property>
            <item>
             <property name="text">
              <string>Short</string>
@@ -700,6 +724,9 @@
          </item>
          <item row="1" column="4">
           <widget class="QLabel" name="drmProtectionLabel">
+           <property name="toolTip">
+            <string>Error-correction strength. High is more robust but slower.</string>
+           </property>
            <property name="minimumSize">
             <size>
              <width>30</width>
@@ -719,6 +746,9 @@
          </item>
          <item row="1" column="5">
           <widget class="QComboBox" name="drmTxProtectionComboBox">
+           <property name="toolTip">
+            <string>Error-correction strength. High is more robust but slower.</string>
+           </property>
            <property name="minimumSize">
             <size>
              <width>65</width>
@@ -745,6 +775,9 @@
          </item>
          <item row="2" column="0">
           <widget class="QLabel" name="drmProfileLabel">
+           <property name="toolTip">
+            <string>Saved parameter preset. Edit in Settings > DRM Profiles.</string>
+           </property>
            <property name="text">
             <string>Profile</string>
            </property>
@@ -755,6 +788,9 @@
          </item>
          <item row="2" column="1" colspan="3">
           <widget class="QComboBox" name="drmProfileComboBox">
+           <property name="toolTip">
+            <string>Saved parameter preset. Edit in Settings > DRM Profiles.</string>
+           </property>
            <property name="maximumSize">
             <size>
              <width>16777215</width>
@@ -765,6 +801,9 @@
          </item>
          <item row="2" column="4">
           <widget class="QLabel" name="drmReadSolomonLabel">
+           <property name="toolTip">
+            <string>Extra Reed-Solomon coding on file data. RS1-RS4 add more redundancy: slower, more robust.</string>
+           </property>
            <property name="minimumSize">
             <size>
              <width>30</width>
@@ -784,6 +823,9 @@
          </item>
          <item row="2" column="5">
           <widget class="QComboBox" name="drmTxReedSolomonComboBox">
+           <property name="toolTip">
+            <string>Extra Reed-Solomon coding on file data. RS1-RS4 add more redundancy: slower, more robust.</string>
+           </property>
            <property name="minimumSize">
             <size>
              <width>65</width>
