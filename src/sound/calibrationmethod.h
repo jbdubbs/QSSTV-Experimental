@@ -33,6 +33,8 @@ public:
   virtual double txClockResult() const=0;
   /** true if the dialog's OK button accepts this method; false if the page has its own Save button */
   virtual bool usesOkButton() const {return true;}
+  /** false if pressing the page's Save button applies the result but leaves the dialog open */
+  virtual bool closesOnSave() const {return true;}
 
 signals:
   /** emitted whenever hasResult() or the results change */

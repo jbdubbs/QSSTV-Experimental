@@ -77,7 +77,7 @@ void calibration::addMethod(calibrationMethod *m)
   methods.append(m);
   ui->methodTabs->addTab(m,m->title());
   connect(m,SIGNAL(resultChanged()),this,SLOT(slotResultChanged()));
-  connect(m,SIGNAL(saveRequested()),this,SLOT(accept()));
+  connect(m,SIGNAL(saveRequested()),this,SLOT(slotSaveRequested()));
 }
 
 calibrationMethod *calibration::activeMethod()
@@ -106,6 +106,14 @@ void calibration::slotResultChanged()
   QPushButton *ok=ui->buttonBox->button(QDialogButtonBox::Ok);
   ok->setVisible(m!=nullptr && m->usesOkButton());
   ok->setEnabled(m!=nullptr && m->hasResult());
+}
+
+void calibration::slotSaveRequested()
+{
+  calibrationMethod *m=qobject_cast<calibrationMethod *>(sender());
+  if(m==nullptr) return;
+  if(m->closesOnSave()) accept();
+  else emit clocksSaved(m->rxClockResult(),m->txClockResult());
 }
 
 void calibration::accept()

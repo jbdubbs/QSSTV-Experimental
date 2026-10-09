@@ -36,6 +36,7 @@ public:
   QString title() const {return tr("Other SSTV station");}
   void stop();
   bool usesOkButton() const {return false;}
+  bool closesOnSave() const {return false;}
   bool hasResult() const;
   double rxClockResult() const;
   double txClockResult() const;

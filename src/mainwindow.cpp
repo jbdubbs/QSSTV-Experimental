@@ -547,15 +547,17 @@ void mainWindow::slotCalibrate()
   // the calibration needs the soundcard to itself; resume receive afterwards if it was running
   bool rxWasActive=soundIOPtr->isCapturing();
   calibration calib(this);
-  if(calib.exec()==QDialog::Accepted)
-    {
-      // a method that did not measure a clock returns 0: keep the current value
-      double rx=calib.getRXClock()>0? calib.getRXClock():rxClock;
-      double tx=calib.getTXClock()>0? calib.getTXClock():txClock;
-      // also updates the Configuration > Sound fields, which writeSettings() reads back over the globals
-      configDialogPtr->setSoundClocks(rx,tx);
-      writeSettings();
-    }
+  auto applyClocks=[this](double newRx,double newTx)
+  {
+    // a method that did not measure a clock returns 0: keep the current value
+    double rx=newRx>0? newRx:rxClock;
+    double tx=newTx>0? newTx:txClock;
+    // also updates the Configuration > Sound fields, which writeSettings() reads back over the globals
+    configDialogPtr->setSoundClocks(rx,tx);
+    writeSettings();
+  };
+  connect(&calib,&calibration::clocksSaved,this,applyClocks);
+  if(calib.exec()==QDialog::Accepted) applyClocks(calib.getRXClock(),calib.getTXClock());
   if(rxWasActive) dispatcherPtr->startRX();
 }
 

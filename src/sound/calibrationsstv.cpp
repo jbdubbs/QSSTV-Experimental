@@ -143,7 +143,7 @@ calibrationSstv::calibrationSstv(QWidget *parent) : calibrationMethod(parent)
   listenButton=new QPushButton(tr("Listen"),rxBox);
   rxRow->addWidget(listenButton);
   saveButton=new QPushButton(tr("Save"),rxBox);
-  saveButton->setToolTip(tr("Use this result and close."));
+  saveButton->setToolTip(tr("Use this result as the receive clock."));
   rxRow->addWidget(saveButton);
   rxStatusLabel=new QLabel(rxBox);
   rxStatusLabel->setWordWrap(true);
@@ -254,8 +254,8 @@ void calibrationSstv::slotTxFinished()
 
 void calibrationSstv::slotSave()
 {
-  stop();
   emit saveRequested();
+  rxStatusLabel->setText(tr("Saved: receive clock %1 Hz. Listen again to check the line.").arg(rxClockResult(),0,'f',2));
 }
 
 void calibrationSstv::slotListenStop()

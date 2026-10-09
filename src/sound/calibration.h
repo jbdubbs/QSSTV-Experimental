@@ -31,7 +31,12 @@ public slots:
   void accept();
   void reject();
 
+signals:
+  /** a method's Save button was pressed and the dialog stays open: apply these clocks now (0 = not measured) */
+  void clocksSaved(double rx,double tx);
+
 private slots:
+  void slotSaveRequested();
   void slotTabChanged(int index);
   void slotResultChanged();
 
