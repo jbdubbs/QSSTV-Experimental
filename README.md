@@ -33,6 +33,7 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 - **New SSTV modes:** *JB60*, a ~61 s half-time color mode, and *PD120W*, a 16:9 widescreen PD120
 - **Sample-rate calibration** from WWV time ticks, NTP, or the slant of a received SSTV picture
 - **Stitched grid images:** transmit large pictures as 1x2, 2x1 or 2x2 grids on the larger modes
+- **Pan/Zoom images for transmission** Place images exactly how you want them in-frame (and in grids) before transmission
 - **Gallery multi-select** to delete or send several images to TX, with the Del key for quick deletion
 - **Image viewer zoom and pan:** smooth mouse-wheel zoom and drag-to-pan
 - **Clipboard support:** copy images from anywhere, paste into the transmit window or TX stock
