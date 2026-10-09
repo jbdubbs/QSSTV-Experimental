@@ -1069,6 +1069,7 @@ void txWidget::txTestPattern(etpSelect sel)
       updateGridControl();
     }
   txFunctionsPtr->txTestPattern(imageViewerPtr,sel);
+  if(transmissionModeIndex==TRXSSTV) applyTemplate();   // scale to the mode like any other image
 }
 
 void txWidget::startNotifyCheck(QString fn)

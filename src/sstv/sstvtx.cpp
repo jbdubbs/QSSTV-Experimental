@@ -269,7 +269,6 @@ bool sstvTx::aborted()
 
 void sstvTx::createTestPattern(imageViewer *ivPtr,etpSelect sel)
 {
-  int i;
   int nb=txSSTVParam.numberOfPixels;
   int nl=txSSTVParam.numberOfDisplayLines;
   QString fn;
@@ -290,16 +289,9 @@ void sstvTx::createTestPattern(imageViewer *ivPtr,etpSelect sel)
       return;
     }
   if(nb<=0 || nl<=0) return;
-  // stretch to the mode's image size
-  QImage im=src;
-  if(im.size()!=QSize(nb,nl)) im=im.scaled(nb,nl,Qt::IgnoreAspectRatio,Qt::SmoothTransformation);
-  im=im.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+  // load it as an ordinary source image, like a gallery image: the caller then runs
+  // applyTemplate(), which scales it to the mode (a no-op at native size), and later
+  // mode/size changes re-render it from the original pixels
   ivPtr->clear();
-  ivPtr->createImage(QSize(nb,nl),imageBackGroundColor,false);
-  for(i=0;i<nl;i++)
-    {
-      memcpy(ivPtr->getScanLineAddress(i),im.constScanLine(i),nb*sizeof(QRgb));
-    }
-  ivPtr->setValidImage(true);
-  ivPtr->displayImage();
+  ivPtr->openImage(src.convertToFormat(QImage::Format_ARGB32_Premultiplied));
 }
