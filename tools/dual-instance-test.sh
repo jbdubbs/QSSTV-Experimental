@@ -6,11 +6,11 @@
 #   tools/dual-instance-test.sh down    stop the instances and remove the cable
 #
 # The cable is a null sink: the TX instance plays to "QSSTV_Cable" and the RX instance
-# records from "Monitor of QSSTV_Cable". Each instance gets its own settings/data dir
+# records from the virtual microphone "QSSTV_Cable_In" (a remapped monitor). Each instance gets its own settings/data dir
 # (default /tmp/qsstv-test/{tx,rx}) so they don't share ~/.config.
 #
 # First run only: in each instance set Options > Configuration > Sound
-#   TX instance: output = QSSTV_Cable      RX instance: input = Monitor of QSSTV_Cable
+#   TX instance: output = QSSTV_Cable      RX instance: input = QSSTV_Cable_In
 # (and PTT = none). The choices persist in the per-instance dirs.
 #
 # Env: QSSTV_BIN (default build-cmake/qsstv), TEST_DIR (default /tmp/qsstv-test),
@@ -27,8 +27,10 @@ down() {
     [ -f "$DIR/$i.pid" ] && kill "$(cat "$DIR/$i.pid")" 2>/dev/null || true
     rm -f "$DIR/$i.pid"
   done
-  [ -f "$DIR/module.id" ] && pactl unload-module "$(cat "$DIR/module.id")" 2>/dev/null || true
-  rm -f "$DIR/module.id"
+  for m in source.id module.id; do   # source first, it depends on the sink
+    [ -f "$DIR/$m" ] && pactl unload-module "$(cat "$DIR/$m")" 2>/dev/null || true
+    rm -f "$DIR/$m"
+  done
   echo "stopped"
 }
 
@@ -41,7 +43,11 @@ case "${1:-up}" in
     down >/dev/null
     pactl load-module module-null-sink sink_name=$SINK \
       sink_properties=device.description=QSSTV_Cable > "$DIR/module.id"
-    echo "cable created (TX output: QSSTV_Cable, RX input: Monitor of QSSTV_Cable)"
+    # Qt only lists real sources as input devices, not sink monitors, so expose the
+    # monitor as a proper virtual microphone.
+    pactl load-module module-remap-source master=$SINK.monitor source_name=qsstv_cable_in \
+      source_properties=device.description=QSSTV_Cable_In > "$DIR/source.id"
+    echo "cable created (TX output: QSSTV_Cable, RX input: QSSTV_Cable_In)"
     trap down EXIT INT TERM
     # Both instances run together; each one's full output goes to $DIR/<tx|rx>.log and
     # (filtered by RX_FILTER, prefixed [TX]/[RX]) to this terminal.
