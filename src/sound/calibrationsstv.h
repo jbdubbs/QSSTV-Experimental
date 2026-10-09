@@ -35,6 +35,7 @@ public:
   ~calibrationSstv();
   QString title() const {return tr("Other SSTV station");}
   void stop();
+  bool usesOkButton() const {return false;}
   bool hasResult() const;
   double rxClockResult() const;
   double txClockResult() const;
@@ -42,6 +43,7 @@ public:
 private slots:
   void slotSendStop();
   void slotListenStop();
+  void slotSave();
   void slotTxFinished();
   void slotImageReceived(int mode);
   void slotLineReceived();
@@ -52,6 +54,7 @@ private:
   QSpinBox *positionSpin;
   QPushButton *sendButton;
   QPushButton *listenButton;
+  QPushButton *saveButton;
   QLabel *txStatusLabel;
   QProgressBar *txProgress;
   QLabel *rxStatusLabel;

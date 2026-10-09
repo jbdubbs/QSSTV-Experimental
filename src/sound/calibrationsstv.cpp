@@ -142,6 +142,9 @@ calibrationSstv::calibrationSstv(QWidget *parent) : calibrationMethod(parent)
   QHBoxLayout *rxRow=new QHBoxLayout;
   listenButton=new QPushButton(tr("Listen"),rxBox);
   rxRow->addWidget(listenButton);
+  saveButton=new QPushButton(tr("Save"),rxBox);
+  saveButton->setToolTip(tr("Use this result and close."));
+  rxRow->addWidget(saveButton);
   rxStatusLabel=new QLabel(rxBox);
   rxStatusLabel->setWordWrap(true);
   rxRow->addWidget(rxStatusLabel,1);
@@ -170,13 +173,14 @@ calibrationSstv::calibrationSstv(QWidget *parent) : calibrationMethod(parent)
   applyTxCheck->setToolTip(tr("Most soundcards and USB interfaces run input and output from the same clock, so the receive "
                               "measurement also applies to transmit. Untick if yours does not."));
   layout->addWidget(applyTxCheck);
-  QLabel *note=new QLabel(tr("Auto Slant is switched off while listening. Every picture received adds to the average. Press OK "
-                             "to apply it, reopen this dialog and listen to one more picture: the line should now be straight."),this);
+  QLabel *note=new QLabel(tr("Every picture adds to the average. Click Save to apply the result, then listen again. "
+                             "The line should be straight if the previous result was accurate."),this);
   note->setWordWrap(true);
   layout->addWidget(note);
 
   connect(sendButton,SIGNAL(clicked()),this,SLOT(slotSendStop()));
   connect(listenButton,SIGNAL(clicked()),this,SLOT(slotListenStop()));
+  connect(saveButton,SIGNAL(clicked()),this,SLOT(slotSave()));
   connect(applyTxCheck,SIGNAL(toggled(bool)),this,SIGNAL(resultChanged()));
   connect(txWidgetPtr,SIGNAL(calibrationTxFinished()),this,SLOT(slotTxFinished()));
   connect(txWidgetPtr,SIGNAL(progressChanged(int)),this,SLOT(slotTxProgress(int)));
@@ -246,6 +250,17 @@ void calibrationSstv::slotTxFinished()
   modeCombo->setEnabled(true);
   positionSpin->setEnabled(true);
   updateDisplay();
+}
+
+void calibrationSstv::slotSave()
+{
+  if(!hasResult())
+    {
+      QMessageBox::information(this,tr("Calibration"),tr("No valid result yet. Listen for a calibration picture first."));
+      return;
+    }
+  stop();
+  emit saveRequested();
 }
 
 void calibrationSstv::slotListenStop()
