@@ -318,6 +318,7 @@ void calibrationSstv::clearResults()
   ppms.clear();
   preview->clearPicture();
   detailLabel->clear();
+  saveButton->setEnabled(false);
   if(had) emit resultChanged();
 }
 
@@ -404,6 +405,7 @@ double calibrationSstv::txClockResult() const
 
 void calibrationSstv::updateDisplay()
 {
+  saveButton->setEnabled(hasResult());
   if(sending)
     {
       esstvMode mode=(esstvMode)modeCombo->currentData().toInt();
