@@ -9,9 +9,10 @@
 # records from the virtual microphone "QSSTV_Cable_In" (a remapped monitor). Each instance gets its own settings/data dir
 # (default /tmp/qsstv-test/{tx,rx}) so they don't share ~/.config.
 #
-# First run only: in each instance set Options > Configuration > Sound
-#   TX instance: output = QSSTV_Cable      RX instance: input = QSSTV_Cable_In
-# (and PTT = none). The choices persist in the per-instance dirs.
+# The devices are pre-set on first use (TX output = QSSTV_Cable, RX input = QSSTV_Cable_In).
+# Other settings (e.g. PTT = none) you change in each instance; QSSTV saves them only when
+# you quit it from its own window, so do that rather than Ctrl-C if you want them kept.
+# Delete $TEST_DIR/<tx|rx>/cfg to start an instance from scratch.
 #
 # Env: QSSTV_BIN (default build-cmake/qsstv), TEST_DIR (default /tmp/qsstv-test),
 #      RX_FILTER (grep pattern for terminal output of both instances, default CALDBG; "" = all)
@@ -48,6 +49,16 @@ case "${1:-up}" in
     pactl load-module module-remap-source master=$SINK.monitor source_name=qsstv_cable_in \
       source_properties=device.description=QSSTV_Cable_In > "$DIR/source.id"
     echo "cable created (TX output: QSSTV_Cable, RX input: QSSTV_Cable_In)"
+    # QSSTV only writes its settings on a clean quit, which killing it here is not, so
+    # pre-seed the audio devices on first use (an existing conf is left alone).
+    seed() {  # <instance> <input device> <output device>
+      local f="$DIR/$1/cfg/ON4QZ/qsstv_9.0.conf"
+      [ -f "$f" ] && return
+      mkdir -p "$(dirname "$f")"
+      printf '[SOUND]\ninputAudioDevice=%s\noutputAudioDevice=%s\n' "$2" "$3" > "$f"
+    }
+    seed tx default QSSTV_Cable
+    seed rx QSSTV_Cable_In default
     trap down EXIT INT TERM
     # Both instances run together; each one's full output goes to $DIR/<tx|rx>.log and
     # (filtered by RX_FILTER, prefixed [TX]/[RX]) to this terminal.
