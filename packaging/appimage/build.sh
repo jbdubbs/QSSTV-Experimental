@@ -1,11 +1,11 @@
 #!/bin/bash
 # Build the glibc-2.39-floor, fully self-contained AppImage in an Ubuntu 24.04 container.
-#   packaging/appimage/build.sh            # VERSION=10.0-Pre7 by default; output lands in the repo root
+#   packaging/appimage/build.sh            # VERSION=10.0-Pre8 by default; output lands in the repo root
 # Expects sibling checkouts ../hamlib-upstream-sstv (as the cmake build does).
 set -euo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 PARENT=$(dirname "$HERE")
-VERSION=${VERSION:-10.0-Pre7}
+VERSION=${VERSION:-10.0-Pre8}
 OUT_DIR=${OUT_DIR:-$HERE}
 # ARCH=x86_64 (default) or aarch64/arm64; a foreign arch builds under QEMU user emulation (slow)
 ARCH=${ARCH:-x86_64}

@@ -58,7 +58,7 @@ floor) with the official Qt 6.11 binaries. It needs Docker and a Hamlib checkout
 (a sibling of this repository), which it builds inside the container.
 
 ```
-packaging/appimage/build.sh                  # x86_64, version 10.0-Pre7 by default
+packaging/appimage/build.sh                  # x86_64, version 10.0-Pre8 by default
 VERSION=10.0-Pre8 packaging/appimage/build.sh
 ARCH=aarch64 packaging/appimage/build.sh     # arm64, built under QEMU emulation (slow)
 ```
