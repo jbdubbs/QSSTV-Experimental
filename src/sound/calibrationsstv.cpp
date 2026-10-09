@@ -254,11 +254,6 @@ void calibrationSstv::slotTxFinished()
 
 void calibrationSstv::slotSave()
 {
-  if(!hasResult())
-    {
-      QMessageBox::information(this,tr("Calibration"),tr("No valid result yet. Listen for a calibration picture first."));
-      return;
-    }
   stop();
   emit saveRequested();
 }
