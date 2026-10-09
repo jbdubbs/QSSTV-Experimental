@@ -32,6 +32,7 @@
 class synthesizer
 {
 public:
+	volatile bool abortTone=false; // set by txFunctions::stopAndWait to cut a running test tone short
 	synthesizer(double txSmpClock);
 	~synthesizer();
 	double nextSample(double freq)

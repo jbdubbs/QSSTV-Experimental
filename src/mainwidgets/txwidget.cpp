@@ -568,6 +568,7 @@ void txWidget::slotStop()
   ui->startToolButton->setEnabled(true);
   enableButtons(true);
   dispatcherPtr->startRX();
+  emit txStopped();
 }
 
 
@@ -597,18 +598,81 @@ void txWidget::slotFileOpen()
 void txWidget::slotGenerateSignal()
 {
   QDialog qd;
-  Ui::freqForm *ff=new Ui::freqForm;
+  Ui::freqForm ff;
+  ff.setupUi(&qd);
 
-  ff->setupUi(&qd);
-  int freq;
-  int  duration;
-  if(qd.exec())
-    {
-      getValue(freq,ff->frequencySpinBox);
-      getValue(duration,ff->durationSpinBox);
-      txFunctionsPtr->setToneParam((double)duration,(double)freq);
-      dispatcherPtr->startTX(txFunctions::TXSENDTONE);
-    }
+  QSettings qSettings;
+  qSettings.beginGroup("TX");
+  setValue(qSettings.value("toneFreq",ff.frequencySpinBox->value()).toInt(),ff.frequencySpinBox);
+  setValue(qSettings.value("toneDuration",ff.durationSpinBox->value()).toInt(),ff.durationSpinBox);
+  qSettings.endGroup();
+
+  // keep Transmit/STOP the size of the original Transmit button (the red style would change its size hint)
+  ff.txPushButton->setFixedSize(ff.txPushButton->sizeHint());
+  const QFont txFont=ff.txPushButton->font(); // a stylesheet resets the font, so reapply it
+
+  bool transmitting=false;
+  QTimer toneTimer;
+  toneTimer.setSingleShot(true);
+
+  auto showIdle=[&]()
+  {
+    transmitting=false;
+    toneTimer.stop();
+    ff.txPushButton->setText("Transmit");
+    ff.txPushButton->setStyleSheet("");
+    ff.txPushButton->setFont(txFont);
+    ff.frequencySpinBox->setEnabled(true);
+    ff.durationSpinBox->setEnabled(true);
+  };
+  auto saveValues=[&]()
+  {
+    QSettings qs;
+    qs.beginGroup("TX");
+    qs.setValue("toneFreq",ff.frequencySpinBox->value());
+    qs.setValue("toneDuration",ff.durationSpinBox->value());
+    qs.endGroup();
+  };
+  auto stopTone=[&]()
+  {
+    if(transmitting)
+      {
+        showIdle();
+        slotStop();
+      }
+  };
+
+  // slotStop() runs on any TX end (natural end of tone or manual stop)
+  QMetaObject::Connection endConn=connect(this,&txWidget::txStopped,&qd,showIdle);
+  connect(&toneTimer,&QTimer::timeout,&qd,stopTone);
+  connect(ff.txPushButton,&QPushButton::clicked,&qd,[&]()
+  {
+    if(transmitting)
+      {
+        stopTone();
+        return;
+      }
+    int freq,duration;
+    getValue(freq,ff.frequencySpinBox);
+    getValue(duration,ff.durationSpinBox);
+    saveValues();
+    txFunctionsPtr->setToneParam((double)duration,(double)freq);
+    if(dispatcherPtr->startTX(txFunctions::TXSENDTONE))
+      {
+        transmitting=true;
+        ff.txPushButton->setText("STOP");
+        ff.txPushButton->setStyleSheet("background-color: red; color: white");
+        ff.txPushButton->setFont(txFont);
+        ff.frequencySpinBox->setEnabled(false);
+        ff.durationSpinBox->setEnabled(false);
+        toneTimer.start((duration+3)*1000); // safety net if the end event never arrives
+      }
+  });
+
+  qd.exec(); // Close button accepts, Esc rejects
+  stopTone();
+  saveValues();
+  disconnect(endConn);
 }
 
 void txWidget::slotSweepSignal()

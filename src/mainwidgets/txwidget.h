@@ -127,6 +127,7 @@ private slots:
 
 signals:
   void modeSwitch(int);
+  void txStopped();
   void calibrationTxFinished();
 
 private:

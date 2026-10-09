@@ -435,6 +435,7 @@ void txFunctions::sendPostamble()
 
 void txFunctions::waitEnd()
 {
+  if(synthesPtr->abortTone) return; // stopped by the user: the caller is already tearing TX down
   synthesPtr->sendTone(SILENCEDELAY,00,0,true); // send silence
   soundBase::txFileDone=true;   // --encode: everything is queued now, an empty buffer means the end
   addToLog("waitEnd() posting endTXImage",LOGTXFUNC);
@@ -445,6 +446,7 @@ void txFunctions::waitEnd()
 void txFunctions::stopAndWait()
 {
   stopDRM=true;
+  if(txState==TXSENDTONE) synthesPtr->abortTone=true;
   // abort based on what is actually running, not on the (possibly already changed) mode index
   if(transmissionModeIndex==TRXSSTV || txState==TXPREPARESSTV || txState==TXSSTVIMAGE || txState==TXSSTVPOST)
     {
@@ -461,6 +463,7 @@ void txFunctions::stopAndWait()
     {
       qApp->processEvents();
     }
+  synthesPtr->abortTone=false;
   if(soundIOPtr) soundIOPtr->idleTX();
   addToLog("txFunc: stop executed",LOGTXFUNC);
 }

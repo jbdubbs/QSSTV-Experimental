@@ -77,7 +77,14 @@ void synthesizer::sendTone(double duration,double lowerFrequency,double upperFre
 // convert duration to number of samples
   unsigned int ns=(unsigned int)((duration+adjust)*txSamplingClock+0.5);
   adjust+=duration-((double)ns)/txSamplingClock;
-  sendSamples(ns,lowerFrequency);
+  // send in 1 s chunks so a user stop (abortTone) ends a long test tone promptly
+  while(ns>0)
+    {
+      unsigned int chunk=(ns>(unsigned int)txSamplingClock)?(unsigned int)txSamplingClock:ns;
+      sendSamples(chunk,lowerFrequency);
+      ns-=chunk;
+      if(abortTone) break;
+    }
 }
 
 void synthesizer::sendWFText()
@@ -160,7 +167,7 @@ SOUNDFRAME synthesizer::filter(double sample)
 void synthesizer::write(double sample)
 {
   quint32 smp=filter(sample);
-  while((!soundIOPtr->txBuffer.put(smp)) && (soundIOPtr->isPlaying()))
+  while((!soundIOPtr->txBuffer.put(smp)) && (soundIOPtr->isPlaying()) && !abortTone)
     {
       usleep(2000);
     }

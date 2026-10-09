@@ -170,10 +170,13 @@
           <number>1</number>
          </property>
          <property name="maximum">
-          <number>100</number>
+          <number>180</number>
+         </property>
+         <property name="toolTip">
+          <string>Tone length (max 3 minutes). Press STOP to end it early.</string>
          </property>
          <property name="value">
-          <number>10</number>
+          <number>30</number>
          </property>
         </widget>
        </item>
@@ -231,22 +234,22 @@
       </spacer>
      </item>
      <item>
-      <widget class="QPushButton" name="okButton">
+      <widget class="QPushButton" name="txPushButton">
        <property name="font">
         <font/>
        </property>
        <property name="text">
-        <string>OK</string>
+        <string>Transmit</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="cancelButton">
+      <widget class="QPushButton" name="closePushButton">
        <property name="font">
         <font/>
        </property>
        <property name="text">
-        <string>Cancel</string>
+        <string>Close</string>
        </property>
       </widget>
      </item>
@@ -290,26 +293,10 @@
  <resources/>
  <connections>
   <connection>
-   <sender>okButton</sender>
+   <sender>closePushButton</sender>
    <signal>clicked()</signal>
    <receiver>freqForm</receiver>
    <slot>accept()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>20</x>
-     <y>20</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>20</x>
-     <y>20</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>cancelButton</sender>
-   <signal>clicked()</signal>
-   <receiver>freqForm</receiver>
-   <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
      <x>20</x>
