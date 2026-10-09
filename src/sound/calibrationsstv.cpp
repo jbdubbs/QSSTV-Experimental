@@ -255,7 +255,7 @@ void calibrationSstv::slotTxFinished()
 void calibrationSstv::slotSave()
 {
   emit saveRequested();
-  rxStatusLabel->setText(tr("Saved: receive clock %1 Hz. Listen again to check the line.").arg(rxClockResult(),0,'f',2));
+  rxStatusLabel->setText(tr("Saved: receive clock %1 Hz. Listening for another image to check the line.").arg(rxClockResult(),0,'f',2));
 }
 
 void calibrationSstv::slotListenStop()
