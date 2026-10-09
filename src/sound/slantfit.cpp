@@ -82,11 +82,14 @@ slantFitResult fitSlant(const unsigned char *gray,int width,int height,int strid
 {
   std::vector<double> rows,xs;
   std::vector<unsigned char> sorted;
+  const int edge=width/20;
   for(int y=0;y<height;y++)
     {
       const unsigned char *p=gray+(size_t)y*stride;
       int hi=0,peak=0;
-      for(int i=0;i<width;i++) if(p[i]>hi) {hi=p[i];peak=i;}
+      // the outer edges are not searched: after a shift of the picture the end of the previous line (any colour,
+      // often brighter than the line) shows up in the first or last columns, and the line itself is never there
+      for(int i=edge;i<width-edge;i++) if(p[i]>hi) {hi=p[i];peak=i;}
       // dark level: a low percentile of the row, so a few noisy pixels do not set it
       sorted.assign(p,p+width);
       std::nth_element(sorted.begin(),sorted.begin()+width/10,sorted.end());

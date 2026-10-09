@@ -31,7 +31,7 @@ for d in 0.0001 -0.0001 0.0003; do
   clk=$(awk -v d=$d 'BEGIN{printf "%.6f",48000*(1+d)}')
   printf '[SOUND]\nrxclock=%s\n' "$clk" > "$CONF"
   rm -f "$T"/out/*
-  "$QSSTV" --batch --engine qsstv --out-dir "$T/out" "$T/pd120.wav" > /dev/null 2>&1
+  "$QSSTV" --batch --out-dir "$T/out" "$T/pd120.wav" > /dev/null 2>&1
   res=$("$HERE/slantpng" fit "$T"/out/*.png)
   slope=$(echo "$res" | sed 's/.*slope=\([-0-9.]*\).*/\1/')
   new=$(awk -v c="$clk" -v s="$slope" 'BEGIN{printf "%.3f",c*(1+s*2/2676.1)}')
@@ -39,4 +39,27 @@ for d in 0.0001 -0.0001 0.0003; do
   if awk -v e="$err" 'BEGIN{exit !(e<5 && e>-5)}'; then echo "  ok   rxclock offset $d: proposed $new Hz (residual $err ppm)"
   else echo "  FAIL rxclock offset $d: proposed $new Hz (residual $err ppm) [$res]"; fail=1; fi
 done
+
+# Several pictures in one recording (Listen stays on between pictures): from the 2nd on, a picture sent by the real
+# transmitter is shifted sideways a few pixels and shows the end of the previous line in its last column, which must
+# not hide the line.
+printf '[SOUND]\nrxclock=48000\n' > "$CONF"
+"$QSSTV" --encode "$T/line.png" --mode PD120 --wav-out "$T/tx.wav" > /dev/null 2>&1
+python3 - "$T/tx.wav" "$T/three.wav" <<'PY'
+import sys,wave
+raw=open(sys.argv[1],'rb').read()[44:]   # 48 kHz 16 bit stereo; the streamed header has no valid length
+o=wave.open(sys.argv[2],'wb'); o.setnchannels(2); o.setsampwidth(2); o.setframerate(48000)
+sil=b'\0'*(4*48000*8)
+o.writeframes(raw+sil+raw+sil+raw+sil); o.close()
+PY
+rm -f "$T"/out/*
+"$QSSTV" --batch --out-dir "$T/out" "$T/three.wav" > /dev/null 2>&1
+n=0
+for f in "$T"/out/*.png; do
+  n=$((n+1))
+  res=$("$HERE/slantpng" fit "$f")
+  if echo "$res" | grep -q "valid=1"; then echo "  ok   picture $n of a multi picture recording: line found"
+  else echo "  FAIL picture $n of a multi picture recording: no line [$res]"; fail=1; fi
+done
+[ $n -eq 3 ] || { echo "  FAIL expected 3 pictures, got $n"; fail=1; }
 exit $fail
