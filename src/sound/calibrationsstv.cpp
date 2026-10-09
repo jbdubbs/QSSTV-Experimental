@@ -96,9 +96,9 @@ calibrationSstv::calibrationSstv(QWidget *parent) : calibrationMethod(parent)
 
   QVBoxLayout *layout=new QVBoxLayout(this);
   QLabel *info=new QLabel(tr("Calibrates against another SSTV station, for when neither WWV nor an internet time server is available. "
-                             "The result is relative: it is only as good as the sample rate of the other station. "
-                             "One station sends the reference picture, the other receives it; a difference between the two sample "
-                             "rates shows as a slanted line."),this);
+                             "The sending station must be calibrated in one of those other ways in order to be accurate. "
+                             "The result is relative: it's only as good as the calibration of the other station. "
+                             "One station sends a calibrated image, the other receives it and calculates its deviation from reference."),this);
   info->setWordWrap(true);
   layout->addWidget(info);
 
