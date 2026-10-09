@@ -55,11 +55,18 @@ PY
 rm -f "$T"/out/*
 "$QSSTV" --batch --out-dir "$T/out" "$T/three.wav" > /dev/null 2>&1
 n=0
+first=
 for f in "$T"/out/*.png; do
   n=$((n+1))
   res=$("$HERE/slantpng" fit "$f")
   if echo "$res" | grep -q "valid=1"; then echo "  ok   picture $n of a multi picture recording: line found"
   else echo "  FAIL picture $n of a multi picture recording: no line [$res]"; fail=1; fi
+  # every picture must sit where the first one does (an FSK ID after a picture used to switch off sync tracking of the
+  # next one, which then came out ~5 px to the left)
+  icpt=$(echo "$res" | sed 's/.*icpt=\([-0-9.]*\).*/\1/')
+  if [ -z "$first" ]; then first=$icpt
+  elif awk -v a="$icpt" -v b="$first" 'BEGIN{d=a-b; exit !(d<1.5 && d>-1.5)}'; then echo "  ok   picture $n at the same position as picture 1 ($icpt vs $first)"
+  else echo "  FAIL picture $n shifted: line at $icpt, picture 1 at $first"; fail=1; fi
 done
 [ $n -eq 3 ] || { echo "  FAIL expected 3 pictures, got $n"; fail=1; }
 exit $fail

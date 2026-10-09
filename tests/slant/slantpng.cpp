@@ -24,7 +24,7 @@ int main(int argc,char **argv)
       QImage g=QImage(argv[2]).convertToFormat(QImage::Format_Grayscale8);
       if(g.isNull()) {fprintf(stderr,"cannot read %s\n",argv[2]);return 1;}
       slantFitResult r=fitSlant(g.constBits(),g.width(),g.height(),g.bytesPerLine());
-      printf("valid=%d slope=%.6f rms=%.3f used=%d found=%d total=%d\n",r.valid,r.slope,r.rms,r.used,r.found,r.total);
+      printf("valid=%d slope=%.6f rms=%.3f used=%d found=%d total=%d icpt=%.2f\n",r.valid,r.slope,r.rms,r.used,r.found,r.total,r.intercept);
       return r.valid? 0:1;
     }
   fprintf(stderr,"usage: slantpng make out.png W H x | slantpng fit in.png\n");

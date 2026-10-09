@@ -452,7 +452,9 @@ void  syncProcessor::trackSyncs()
 void syncProcessor::slotNewCall(QString call)
 {
   emit callReceived(call);
-  retraceFlag=true;
+  // the ID follows the picture: only a picture that is still being tracked is told to stop tracking; once it has ended
+  // the flag would stay set and switch off sync tracking for the next picture
+  if(syncProcesState==INSYNC) retraceFlag=true;
 }
 
 void syncProcessor::slotVisCodeDetected(int mode,uint visSampleCounter)
