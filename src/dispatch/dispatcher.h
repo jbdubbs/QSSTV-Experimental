@@ -50,6 +50,7 @@ public:
 
 
 signals:
+  void sstvLineReceived();            //!< a line was drawn in the RX picture; only while setCalibrationRx(true)
   void sstvImageReceived(int mode);   //!< a picture was completed (NOTVALID if too few lines); only while setCalibrationRx(true)
 
 private slots:

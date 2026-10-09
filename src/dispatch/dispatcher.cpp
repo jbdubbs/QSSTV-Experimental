@@ -114,6 +114,7 @@ void dispatcher::customEvent( QEvent * e )
     case lineDisplay:
       {
         rxWidgetPtr->getImageViewerPtr()->displayImage();
+        if(calibrationRx) emit sstvLineReceived();
       }
       break;
     case endSSTVImageRX:

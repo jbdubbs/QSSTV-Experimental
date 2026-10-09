@@ -791,6 +791,7 @@ void 	txWidget::setImage(QString fn)
 void txWidget::setProgress(uint prg)
 {
   ui->txProgressBar->setValue(prg);
+  emit progressChanged((int)prg);
 }
 
 void txWidget::slotModeChanged(int m)

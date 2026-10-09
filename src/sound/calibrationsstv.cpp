@@ -11,6 +11,8 @@
 #include <QLabel>
 #include <QDebug>
 #include <QCheckBox>
+#include <QProgressBar>
+#include <QElapsedTimer>
 #include <QGroupBox>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -90,6 +92,7 @@ calibrationSstv::calibrationSstv(QWidget *parent) : calibrationMethod(parent)
   sending=false;
   listening=false;
   savedAutoSlant=false;
+  lastLivePaint=0;
 
   QVBoxLayout *layout=new QVBoxLayout(this);
   QLabel *info=new QLabel(tr("Calibrates against another SSTV station, for when neither WWV nor an internet time server is available. "
@@ -125,6 +128,11 @@ calibrationSstv::calibrationSstv(QWidget *parent) : calibrationMethod(parent)
   txStatusLabel=new QLabel(txBox);
   txStatusLabel->setWordWrap(true);
   txLayout->addWidget(txStatusLabel);
+  txProgress=new QProgressBar(txBox);
+  txProgress->setRange(0,100);
+  txProgress->setValue(0);
+  txProgress->setFormat(tr("Sent: %p%"));
+  txLayout->addWidget(txProgress);
   layout->addWidget(txBox);
 
   // station to calibrate
@@ -170,6 +178,7 @@ calibrationSstv::calibrationSstv(QWidget *parent) : calibrationMethod(parent)
   connect(listenButton,SIGNAL(clicked()),this,SLOT(slotListenStop()));
   connect(applyTxCheck,SIGNAL(toggled(bool)),this,SIGNAL(resultChanged()));
   connect(txWidgetPtr,SIGNAL(calibrationTxFinished()),this,SLOT(slotTxFinished()));
+  connect(txWidgetPtr,SIGNAL(progressChanged(int)),this,SLOT(slotTxProgress(int)));
   updateDisplay();
 }
 
@@ -221,9 +230,15 @@ void calibrationSstv::slotSendStop()
   updateDisplay();
 }
 
+void calibrationSstv::slotTxProgress(int percent)
+{
+  if(sending) txProgress->setValue(percent);
+}
+
 void calibrationSstv::slotTxFinished()
 {
   if(!sending) return;
+  txProgress->setValue(0);
   sending=false;
   sendButton->setText(tr("Send"));
   listenButton->setEnabled(true);
@@ -247,6 +262,7 @@ void calibrationSstv::startListening()
   dispatcherPtr->setCalibrationRx(true);
   qDebug() << "CALDBG startListening";
   connect(dispatcherPtr,SIGNAL(sstvImageReceived(int)),this,SLOT(slotImageReceived(int)));
+  connect(dispatcherPtr,SIGNAL(sstvLineReceived()),this,SLOT(slotLineReceived()));
   dispatcherPtr->startRX();
   listening=true;
   listenButton->setText(tr("Stop"));
@@ -259,6 +275,7 @@ void calibrationSstv::stopListening()
   if(!listening) return;
   qDebug() << "CALDBG stopListening";
   disconnect(dispatcherPtr,SIGNAL(sstvImageReceived(int)),this,SLOT(slotImageReceived(int)));
+  disconnect(dispatcherPtr,SIGNAL(sstvLineReceived()),this,SLOT(slotLineReceived()));
   dispatcherPtr->setCalibrationRx(false);
   dispatcherPtr->idleAll();
   autoSlantAdjust=savedAutoSlant;
@@ -288,6 +305,22 @@ void calibrationSstv::clearResults()
   if(had) emit resultChanged();
 }
 
+/*!
+  Paints the picture while it is being received (the dialog covers the RX tab), at most about 5 times a second
+*/
+void calibrationSstv::slotLineReceived()
+{
+  static QElapsedTimer clock;
+  if(!clock.isValid()) clock.start();
+  qint64 now=clock.elapsed();
+  if(now-lastLivePaint<200) return;
+  lastLivePaint=now;
+  const QImage *im=rxWidgetPtr->getImageViewerPtr()->getDisplayedImage();
+  if(im->isNull()) return;
+  preview->setPicture(*im,slantFitResult());
+  rxStatusLabel->setText(tr("Receiving the picture..."));
+}
+
 void calibrationSstv::slotImageReceived(int m)
 {
   esstvMode mode=(esstvMode)m;
@@ -308,7 +341,8 @@ void calibrationSstv::slotImageReceived(int m)
   const double pixelsPerPeriod=getLineLength(mode,clk)/pixDur;
   const double rowsPerPeriod=(double)SSTVTable[mode].numberOfDisplayLines/SSTVTable[mode].numberOfDataLines;
 
-  QImage img=*rxWidgetPtr->getImageViewerPtr()->getImagePtr();
+  // the received picture is the displayed one; getImagePtr() is the (stale) source image
+  QImage img=*rxWidgetPtr->getImageViewerPtr()->getDisplayedImage();
   QImage gray=img.convertToFormat(QImage::Format_Grayscale8);
   slantFitResult r=fitSlant(gray.constBits(),gray.width(),gray.height(),gray.bytesPerLine());
   preview->setPicture(img,r);

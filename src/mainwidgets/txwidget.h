@@ -128,6 +128,7 @@ private slots:
 signals:
   void modeSwitch(int);
   void txStopped();
+  void progressChanged(int percent); //!< TX progress 0..100 (calibration dialog)
   void calibrationTxFinished();
 
 private:

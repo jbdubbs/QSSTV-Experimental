@@ -12,6 +12,7 @@ class QSpinBox;
 class QPushButton;
 class QLabel;
 class QCheckBox;
+class QProgressBar;
 class slantPreview;
 
 /*!
@@ -43,6 +44,8 @@ private slots:
   void slotListenStop();
   void slotTxFinished();
   void slotImageReceived(int mode);
+  void slotLineReceived();
+  void slotTxProgress(int percent);
 
 private:
   QComboBox *modeCombo;
@@ -50,6 +53,7 @@ private:
   QPushButton *sendButton;
   QPushButton *listenButton;
   QLabel *txStatusLabel;
+  QProgressBar *txProgress;
   QLabel *rxStatusLabel;
   QLabel *ppmLabel;
   QLabel *clockLabel;
@@ -59,6 +63,7 @@ private:
   bool sending;
   bool listening;
   bool savedAutoSlant;
+  qint64 lastLivePaint;
   // one entry per accepted picture: the clock that would have made its line straight
   std::vector<double> clocks;
   std::vector<double> ppms;
