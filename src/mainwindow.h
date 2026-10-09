@@ -80,6 +80,8 @@ private:
   // transmission would be actively harmful; otherwise just calls restartSound(),
   // which already knows how to re-arm RX only if it was actually running.
   void recoverSound(const QString &reason);
+  bool recovering=false;      // guards recoverSound() against re-entry (issue #73)
+  bool rxWantedActive=false;  // RX was running when the sound device was last torn down
 #ifdef Q_OS_WIN
   // Windows invalidates/suspends audio streams across system sleep with no
   // guarantee the Qt Multimedia backend surfaces that as a stream error (unlike

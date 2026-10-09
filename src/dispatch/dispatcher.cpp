@@ -334,7 +334,7 @@ void dispatcher::idleAll()
 void dispatcher::startRX()
 {
   idleAll();
-  soundIOPtr->startCapture();
+  if(!soundIOPtr->startCapture()) return; // no working capture device (issue #73)
   rxWidgetPtr->functionsPtr()->startRX();
 }
 

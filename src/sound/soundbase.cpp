@@ -6,6 +6,7 @@
 
 #include <QDebug>
 #include <QApplication>
+#include <QElapsedTimer>
 #include <cmath>
 #include <unistd.h>
 #include <time.h>
@@ -38,6 +39,8 @@ soundBase::soundBase(QObject *parent) : QThread(parent)
 {
   captureState=CPINIT;
   playbackState=PBINIT;
+  soundDriverOK=false;
+  stopThread=false; // objects are single-use (restartSound() recreates), so not reset in run(): that raced an early stopSoundThread()
   fileSource=false;
   fileEof=false;
   fileCancelled=false;
@@ -57,7 +60,6 @@ soundBase::~soundBase()
 
 void soundBase::run()
 {
-  stopThread=false;
   unsigned int delay=0;  //todo check use of delay
   while(!stopThread)
     {
@@ -311,9 +313,18 @@ void soundBase::stopSoundThread()
   idleRX();
   idleTX();
   stopThread=true;
-  while(isRunning())
+  // Bounded: a backend call wedged on a dead device must not hang the GUI forever.
+  QElapsedTimer waitTimer;
+  waitTimer.start();
+  while(isRunning() && waitTimer.elapsed()<3000)
     {
       QApplication::processEvents();
+      wait(10);
+    }
+  if(isRunning())
+    {
+      addToLog("sound thread did not stop in time; abandoning it",LOGSOUND);
+      return; // closeDevices() under a still-running thread would be unsafe
     }
   closeDevices();
 }

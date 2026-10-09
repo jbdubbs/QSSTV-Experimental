@@ -239,7 +239,9 @@ void mainWindow::restartSound(bool inStartUp)
   // once the new device is up. At startup rxFunctionsPtr hasn't run yet (ctor
   // default is RXIDLE), so this is a no-op there -- startRunning()'s own
   // dispatcherPtr->startRX() call still does the real first-start.
-  bool rxWasActive=!rxWidgetPtr->functionsPtr()->isIdle();
+  // rxWantedActive carries the intent across a failed (re)start: with no working device
+  // RX is idle, but it should come back once the user picks one that works (issue #73).
+  bool rxWasActive=!rxWidgetPtr->functionsPtr()->isIdle() || rxWantedActive;
   //first check if sound
   if(soundIOPtr!=nullptr)
     {
@@ -252,7 +254,8 @@ void mainWindow::restartSound(bool inStartUp)
   // to be redone every time too -- see soundBase::deviceLost()'s doc comment and
   // recoverSound() for why.
   connect(soundIOPtr,&soundBase::deviceLost,this,&mainWindow::recoverSound);
-  if(!soundIOPtr->init(BASESAMPLERATE))
+  bool soundOK=soundIOPtr->init(BASESAMPLERATE);
+  if(!soundOK)
     {
       if(inStartUp)
         {
@@ -265,6 +268,8 @@ void mainWindow::restartSound(bool inStartUp)
         }
     }
   soundIOPtr->start();
+  rxWantedActive=rxWasActive && !soundOK;
+  if(!soundOK) return; // leave RX idle; fixing the device in Settings calls restartSound() again
   // Re-arm RX on the new device the same way every other resume path already does
   // (rxwidget.cpp's Start button, txwidget.cpp's post-TX handoff, filedecoder.cpp's
   // post-decode resume) -- dispatcher::startRX() calls soundIOPtr->startCapture()
@@ -291,8 +296,16 @@ void mainWindow::recoverSound(const QString &reason)
       addToLog(QString("Sound device recovery skipped (TX active): %1").arg(reason),LOGSOUND);
       return;
     }
+  // deviceLost() is emitted from inside the QAudioSource/Sink that restartSound() deletes,
+  // so never rebuild synchronously; drop repeats that arrive while one is pending.
+  if(recovering) return;
+  recovering=true;
   addToLog(QString("Recovering sound device: %1").arg(reason),LOGSOUND);
-  restartSound(false);
+  QTimer::singleShot(0,this,[this]()
+    {
+      restartSound(false);
+      recovering=false;
+    });
 }
 
 #ifdef Q_OS_WIN

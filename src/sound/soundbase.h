@@ -8,6 +8,7 @@
 #include "downsamplefilter.h"
 
 
+#include <atomic>
 #include <QThread>
 #include <QMutex>
 #include <vector>
@@ -120,7 +121,7 @@ protected:
   int sampleRate;
   qint16 tempRXBuffer[DOWNSAMPLESIZE*2*2]; // in some cases the hardware interface is stereo (can be S16_LE or S32_LE)
   quint32 tempTXBuffer[DOWNSAMPLESIZE*2];
-  bool stopThread;
+  std::atomic<bool> stopThread; // set from the GUI thread, polled by run()
   eplaybackState playbackState;
   ecaptureState  captureState;
 

@@ -1,6 +1,7 @@
 #include "soundqtmultimedia.h"
 #include "configparams.h" // inputAudioDevice/outputAudioDevice (via soundconfig.h)
 
+#include <QElapsedTimer>
 #include <QMediaDevices>
 #include <QAudioDevice>
 #include <QAudioFormat>
@@ -108,6 +109,25 @@ bool soundQtMultimedia::init(int samplerate)
   audioSourcePtr=new QAudioSource(inDev,inFormat,this);
   audioSinkPtr=new QAudioSink(outDev,outFormat,this);
 
+  captureDevicePtr=audioSourcePtr->start();
+  playbackDevicePtr=audioSinkPtr->start();
+  // A backend can hand back a device yet already be stopped/errored (e.g. PipeWire's
+  // pw_stream_connect failing, issue #73). Report that through the return value; the
+  // deviceLost() connections below are made only afterwards so an init-time failure can't
+  // re-enter restartSound() while this init() is still running.
+  if(!captureDevicePtr || !playbackDevicePtr ||
+     audioSourcePtr->state()==QAudio::StoppedState || audioSourcePtr->error()!=QAudio::NoError ||
+     audioSinkPtr->state()==QAudio::StoppedState || audioSinkPtr->error()!=QAudio::NoError)
+    {
+      QString why;
+      if(audioSourcePtr->error()!=QAudio::NoError) why=QString("capture: %1").arg(audioErrorString(audioSourcePtr->error()));
+      else if(audioSinkPtr->error()!=QAudio::NoError) why=QString("playback: %1").arg(audioErrorString(audioSinkPtr->error()));
+      else why="Unable to start the audio input/output device";
+      closeDevices();
+      errorHandler("Audio init error",why);
+      return false;
+    }
+
   // See soundbase.h's deviceLost() doc comment. error()!=NoError excludes our own
   // clean stop()s (flushPlayback()'s stop()/start() cycle, closeDevices()'s teardown)
   // from being mistaken for an unexpected device loss -- those always leave error()
@@ -123,13 +143,6 @@ bool soundQtMultimedia::init(int samplerate)
         emit deviceLost(QString("playback: %1").arg(audioErrorString(audioSinkPtr->error())));
     });
 
-  captureDevicePtr=audioSourcePtr->start();
-  playbackDevicePtr=audioSinkPtr->start();
-  if(!captureDevicePtr || !playbackDevicePtr)
-    {
-      errorHandler("Audio init error","Unable to start the audio input/output device");
-      return false;
-    }
 
   isStereo=false;
   soundDriverOK=true;
@@ -169,8 +182,13 @@ int soundQtMultimedia::write(uint numFrames)
   // Retrying until everything is accepted is what gives this the same real-time pacing
   // pa_simple_write's blocking behavior provided for soundPulse -- SSTV TX timing depends
   // on write() not returning until a device has genuinely consumed a full block.
+  // Bounded (issue #73): bail out if the thread is stopping, the sink died, or no
+  // progress is made for a while, instead of spinning forever on a dead device.
+  QElapsedTimer stallTimer;
+  stallTimer.start();
   while(remaining>0)
     {
+      if(stopThread || audioSinkPtr->state()==QAudio::StoppedState) return -1;
       qint64 written=playbackDevicePtr->write(p,remaining);
       if(written<0)
         {
@@ -179,9 +197,15 @@ int soundQtMultimedia::write(uint numFrames)
         }
       if(written==0)
         {
+          if(stallTimer.elapsed()>2000)
+            {
+              errorHandler("Audio playback error","Audio output stalled");
+              return -1;
+            }
           msleep(1);
           continue;
         }
+      stallTimer.restart();
       p+=written;
       remaining-=written;
     }

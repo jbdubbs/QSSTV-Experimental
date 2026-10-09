@@ -36,6 +36,9 @@ public:
 
 
 
+private slots:
+  void refreshDeviceLists();
+
 private:
   Ui::soundConfig *ui;
 

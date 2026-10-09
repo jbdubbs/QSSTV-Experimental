@@ -26,6 +26,7 @@
 #include "soundqtmultimedia.h"
 
 #include <QSettings>
+#include <QMediaDevices>
 
 #include <math.h>
 
@@ -59,6 +60,27 @@ soundConfig::soundConfig(QWidget *parent) :  baseConfig(parent), ui(new Ui::soun
   // existing config file round-trips harmlessly.
   ui->alsaRadioButton->hide();
   ui->pulseRadioButton->hide();
+  // Devices come and go (USB, Bluetooth, PipeWire restarts); keep the lists current so a
+  // newly available device can be picked without restarting the app (issue #73).
+  static QMediaDevices mediaDevices;
+  connect(&mediaDevices,&QMediaDevices::audioInputsChanged,this,&soundConfig::refreshDeviceLists);
+  connect(&mediaDevices,&QMediaDevices::audioOutputsChanged,this,&soundConfig::refreshDeviceLists);
+}
+
+void soundConfig::refreshDeviceLists()
+{
+  QStringList inputPCMList, outputPCMList;
+  getCardList(inputPCMList, outputPCMList);
+  const QString curIn=ui->inputPCMNameComboBox->currentText();
+  const QString curOut=ui->outputPCMNameComboBox->currentText();
+  ui->inputPCMNameComboBox->clear();
+  ui->outputPCMNameComboBox->clear();
+  ui->inputPCMNameComboBox->addItems(inputPCMList);
+  ui->outputPCMNameComboBox->addItems(outputPCMList);
+  int i=ui->inputPCMNameComboBox->findText(curIn);
+  if(i>=0) ui->inputPCMNameComboBox->setCurrentIndex(i);
+  i=ui->outputPCMNameComboBox->findText(curOut);
+  if(i>=0) ui->outputPCMNameComboBox->setCurrentIndex(i);
 }
 
 
