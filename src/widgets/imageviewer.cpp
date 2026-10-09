@@ -439,7 +439,7 @@ void imageViewer::displayImage()
       return;
     }
   if (view.isNull()) {
-      if(hasScaledContents() || (displayedImage.width()>width()) || (displayedImage.height()>height()) || stretch)
+      if(hasScaledContents() || (displayedImage.width()>width()) || (displayedImage.height()>height()) || stretch || ttype==TXIMG)
         {
           setPixmap(withGridOverlay(QPixmap::fromImage(displayedImage.scaled(width()-2,height()-2,Qt::KeepAspectRatio,scaleMode()))));
         }
