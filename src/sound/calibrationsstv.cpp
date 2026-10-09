@@ -112,6 +112,7 @@ calibrationSstv::calibrationSstv(QWidget *parent) : calibrationMethod(parent)
   static const esstvMode modes[]={PD120W,PD120,PD160,MP175,MP140,SC2_120};
   for(unsigned int i=0;i<sizeof(modes)/sizeof(modes[0]);i++)
     modeCombo->addItem(QString("%1  (%2 s)").arg(SSTVTable[modes[i]].name).arg(SSTVTable[modes[i]].imageTime,0,'f',0),(int)modes[i]);
+  modeCombo->setCurrentIndex(modeCombo->findData((int)PD120));
   modeCombo->setToolTip(tr("The longer the transmission and the more pixels, the more accurate the measurement. "
                            "The receiving station needs no setting: it detects the mode."));
   txRow->addWidget(modeCombo,1);
