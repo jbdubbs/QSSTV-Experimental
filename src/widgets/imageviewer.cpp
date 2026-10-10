@@ -120,6 +120,9 @@ imageViewer::imageViewer(QWidget *parent): QLabel(parent)
   connect(pasteAct, SIGNAL(triggered()), this, SLOT(slotPaste()));
   setFocusPolicy(Qt::ClickFocus);
   connect(configDialogPtr,SIGNAL(bgColorChanged()), SLOT(slotBGColorChanged()));
+  framingTimer.setSingleShot(true);
+  framingTimer.setInterval(150);
+  connect(&framingTimer, SIGNAL(timeout()), this, SLOT(slotFramingApply()));
   clickTimer.setSingleShot(true);
   clickTimer.setInterval(40);
   connect(&clickTimer, SIGNAL(timeout()), this, SLOT(slotLeftClick()));
@@ -729,7 +732,7 @@ void imageViewer::mousePressEvent( QMouseEvent *e )
               selectSegment(segmentAt(e->pos()));
               displayImage();
             }
-          resetFramingAct->setEnabled(ttype==TXIMG && segFit.value(curSlot())==FITFREE);
+          resetFramingAct->setEnabled(ttype==TXIMG && fitOf(curSlot())==FITFREE);
           copyAct->setEnabled(gridActive() ? !segImages.value(activeSeg).isNull() : (hasValidImage() || !displayedImage.isNull()));
           pasteAct->setEnabled(!clipboardImage().isNull());
           if(ttype==TXIMG) deleteAct->setEnabled(gridActive() ? !segImages.value(activeSeg).isNull() : hasValidImage());
@@ -774,8 +777,7 @@ void imageViewer::wheelEvent(QWheelEvent *e)
       segZoom[slot]=nz;
       segPan[slot]=clampPan(slot,cell.size(),QPointF((nc.x()-cell.x()-cell.width()/2.0)/cell.width(),
                                                      (nc.y()-cell.y()-cell.height()/2.0)/cell.height()));
-      applyTemplate();
-      displayImage();
+      framingChanged(slot);
       e->accept();
       return;
     }
@@ -815,7 +817,7 @@ void imageViewer::wheelEvent(QWheelEvent *e)
 // EXTVIEW: dragging with the left button pans the zoomed image
 void imageViewer::mouseMoveEvent(QMouseEvent *e)
 {
-  if(ttype==TXIMG && dragging && (e->buttons() & Qt::LeftButton) && segFit.value(dragSlot)==FITFREE && !displayedImage.isNull())
+  if(ttype==TXIMG && dragging && (e->buttons() & Qt::LeftButton) && fitOf(dragSlot)==FITFREE && !displayedImage.isNull())
     {
       QPoint d=mapToImage(e->pos())-dragStartPt;
       if(!dragMoved && d.manhattanLength()<3) return;
@@ -823,8 +825,7 @@ void imageViewer::mouseMoveEvent(QMouseEvent *e)
       dragMoved=true;
       QRect cell=cellRect(dragSlot,displayedImage.size());
       segPan[dragSlot]=clampPan(dragSlot,cell.size(),dragStartPan+QPointF(d.x()/(double)cell.width(),d.y()/(double)cell.height()));
-      applyTemplate();
-      displayImage();
+      framingChanged(dragSlot);
       return;
     }
   if(ttype!=EXTVIEW || !dragging || !(e->buttons() & Qt::LeftButton) || dragView.isNull())
@@ -1222,6 +1223,74 @@ void imageViewer::setFitMode(int mode)
   resetFraming(slot);
 }
 
+// a single DRM image keeps its own dimensions, so zoom/pan is its only framing
+bool imageViewer::drmSingle() const
+{
+  return (ttype==TXIMG) && (transmissionModeIndex==TRXDRM) && !gridActive();
+}
+
+int imageViewer::fitOf(int slot) const
+{
+  return drmSingle() ? (int)FITFREE : segFit.value(slot);
+}
+
+// Free framing has been changed from the default (whole image, centred)
+bool imageViewer::isFramed(int slot) const
+{
+  return segZoom.value(slot,1.0)!=1.0 || !segPan.value(slot).isNull();
+}
+
+// SSTV re-renders at once; DRM re-encodes (JP2), so coalesce the burst of events from a drag or wheel
+void imageViewer::framingChanged(int slot)
+{
+  if(transmissionModeIndex==TRXDRM)
+    {
+      previewFraming(slot);
+      framingTimer.start();
+    }
+  else
+    {
+      applyTemplate();
+      displayImage();
+    }
+}
+
+// Live feedback while zooming/panning in DRM: move the last rendered cell around with a transform
+// (on a copy shrunk to the window), instead of re-rendering and JP2 encoding on every event.
+// The real render happens once the gesture settles (slotFramingApply).
+void imageViewer::previewFraming(int slot)
+{
+  if(displayedImage.isNull()) return;
+  if(previewBase.isNull())
+    {
+      QSize sz=displayedImage.size().scaled(qMax(1,width()-2),qMax(1,height()-2),Qt::KeepAspectRatio);
+      previewBase=displayedImage.scaled(sz,Qt::IgnoreAspectRatio,Qt::FastTransformation).convertToFormat(QImage::Format_ARGB32_Premultiplied);
+    }
+  QImage pv=previewBase;
+  QRect cell=cellRect(slot,pv.size());
+  QImage old=previewBase.copy(cell);
+  double s=segZoom.value(slot,1.0)/renderedZoom.value(slot,1.0);
+  QPointF c0(cell.x()+cell.width()/2.0+renderedPan.value(slot).x()*cell.width(),
+             cell.y()+cell.height()/2.0+renderedPan.value(slot).y()*cell.height());
+  QPointF c1(cell.x()+cell.width()/2.0+segPan.value(slot).x()*cell.width(),
+             cell.y()+cell.height()/2.0+segPan.value(slot).y()*cell.height());
+  QPainter painter(&pv);
+  painter.setClipRect(cell);
+  painter.fillRect(cell,imageBackGroundColor);
+  painter.translate(c1);
+  painter.scale(s,s);
+  painter.translate(-c0);
+  painter.drawImage(cell.topLeft(),old);
+  painter.end();
+  setPixmap(withGridOverlay(QPixmap::fromImage(pv)));
+}
+
+void imageViewer::slotFramingApply()
+{
+  if(transmissionModeIndex==TRXDRM) emit imageChanged();   // txWidget re-encodes through setSize()
+  else {applyTemplate();displayImage();}
+}
+
 Qt::AspectRatioMode imageViewer::slotAspect(int slot) const
 {
   switch(segFit.value(slot))
@@ -1244,16 +1313,15 @@ void imageViewer::resetFraming(int slot)
 bool imageViewer::freeSlotAt(const QPoint &pos,int &slot)
 {
   slot=0;
-  if(ttype!=TXIMG || displayedImage.isNull() || targetWidth<=0 || targetHeight<=0 || transmissionModeIndex!=TRXSSTV) return false;
+  if(ttype!=TXIMG || displayedImage.isNull() || ((transmissionModeIndex!=TRXDRM) && (targetWidth<=0 || targetHeight<=0))) return false;
   slot=gridActive() ? segmentAt(pos) : 0;
-  return segFit.value(slot)==FITFREE && !slotImage(slot).isNull();
+  return fitOf(slot)==FITFREE && !slotImage(slot).isNull();
 }
 
 void imageViewer::slotResetFraming()
 {
   resetFraming(curSlot());
-  applyTemplate();
-  displayImage();
+  framingChanged(curSlot());
 }
 
 // the original image of a slot (the composed frame replaces sourceImage while a grid is active)
@@ -1285,7 +1353,7 @@ QPointF imageViewer::clampPan(int slot,const QSize &cell,const QPointF &pan) con
 void imageViewer::drawCell(QPainter &painter,const QImage &img,const QRect &cell,int slot)
 {
   painter.setClipRect(cell);
-  if(segFit.value(slot)==FITFREE)
+  if(fitOf(slot)==FITFREE)
     {
       QSize base=img.size().scaled(cell.size(),Qt::KeepAspectRatio);
       QSize sz(qMax(1,qRound(base.width()*segZoom.value(slot,1.0))),qMax(1,qRound(base.height()*segZoom.value(slot,1.0))));
@@ -1306,7 +1374,7 @@ void imageViewer::drawCell(QPainter &painter,const QImage &img,const QRect &cell
 // single image scaled to the tw x th frame with its framing mode
 QImage imageViewer::frameSingle(int tw,int th)
 {
-  if(!gridActive() && segFit.value(0)==FITFREE)
+  if(!gridActive() && fitOf(0)==FITFREE)
     {
       QImage out(tw,th,QImage::Format_ARGB32_Premultiplied);
       out.fill(imageBackGroundColor);
@@ -1331,7 +1399,19 @@ int imageViewer::applyTemplate()
   int compRatio;
   int byteCount;
 
-  if(gridActive() && transmissionModeIndex==TRXSSTV) sourceImage=composeGrid();
+  renderedZoom=segZoom;   // what this render shows (reference for the live DRM preview)
+  renderedPan=segPan;
+  previewBase=QImage();
+  if(gridActive())
+    {
+      if(transmissionModeIndex==TRXDRM)
+        {
+          // DRM has no mode size: a grid is composed on a PD120 sized canvas
+          tWidth=DRMGRIDWIDTH;
+          tHeight=DRMGRIDHEIGHT;
+        }
+      sourceImage=composeGrid(tWidth,tHeight);
+    }
   if(sourceImage.isNull()) return 0;
   QFile fi(templateFileName);
   if(ttype!=TXIMG) return 0;
@@ -1377,6 +1457,14 @@ int imageViewer::applyTemplate()
           tHeight=sourceImage.height() / 2;
           //          compRatio -= 38;
         }
+    }
+
+  // a zoomed/panned single DRM image is rendered on a canvas the size of the (possibly pre-scaled) image
+  bool framedSingle=drmSingle() && isFramed(0);
+  if(framedSingle && tWidth==0 && tHeight==0)
+    {
+      tWidth=sourceImage.width();
+      tHeight=sourceImage.height();
     }
 
   if((fi.fileName().isEmpty())  || (!useTemplate))
@@ -1459,7 +1547,7 @@ int imageViewer::applyTemplate()
       //      qDebug() << "byteCount image" << byteCount
       //               << "compRatio"  << compRatio << "filesize" << fileSize  << "ratio"   << (float)byteCount/(float)fileSize;
 
-      if (!useTemplate && !imageFileName.isEmpty())
+      if (!useTemplate && !imageFileName.isEmpty() && !framedSingle && !gridActive())
         {
           QFile original(imageFileName);
           if (original.open(QIODevice::ReadOnly) && (original.size() < fileSize))
@@ -1576,9 +1664,13 @@ void imageViewer::captureSegment(const QImage &im,const QString &fn)
   resetFraming(activeSeg);
 }
 
-QImage imageViewer::composeGrid()
+QImage imageViewer::composeGrid(int w,int h)
 {
-  int w=targetWidth,h=targetHeight;
+  if(w<=0 || h<=0)
+    {
+      w=targetWidth;
+      h=targetHeight;
+    }
   if(w<=0 || h<=0)
     {
       w=gridCols*512;
@@ -1623,6 +1715,7 @@ QPixmap imageViewer::withGridOverlay(const QPixmap &pm)
 
 void imageViewer::resizeEvent(QResizeEvent *)
 {
+  previewBase=QImage();
   displayImage();
 }
 

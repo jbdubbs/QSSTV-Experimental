@@ -43,7 +43,13 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   ui->sstvGridComboBox->addItem("Grid 1x2");
   ui->sstvGridComboBox->addItem("Grid 2x1");
   ui->sstvGridComboBox->addItem("Grid 2x2");
+  // the DRM tab carries its own copy of the two combos; they are kept in step with the SSTV ones
+  for(int j=0;j<4;j++) ui->drmResizeComboBox->addItem(ui->sstvResizeComboBox->itemText(j));
+  for(int j=0;j<4;j++) ui->drmGridComboBox->addItem(ui->sstvGridComboBox->itemText(j));
   connect(ui->sstvGridComboBox,SIGNAL(activated(int)),SLOT(slotGridChanged(int)));
+  connect(ui->drmGridComboBox,SIGNAL(activated(int)),SLOT(slotGridChanged(int)));
+  connect(ui->drmResizeComboBox,SIGNAL(activated(int)),SLOT(slotResizeChanged(int)));
+  connect(imageViewerPtr,&imageViewer::fitModeChanged,ui->drmResizeComboBox,&QComboBox::setCurrentIndex);
 
   connect(ui->sstvModeComboBox,SIGNAL(activated(int)),SLOT(slotModeChanged(int )));
   connect(ui->sstvResizeComboBox,SIGNAL(activated(int)),SLOT(slotResizeChanged(int)));
@@ -277,6 +283,7 @@ void txWidget::setParams()
   setValue(compressedSize,ui->sizeSlider);
   ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex!=TRXSSTV));
   ui->sstvGridComboBox->setCurrentIndex(qBound(0,gridLayout,3));
+  ui->drmGridComboBox->setCurrentIndex(qBound(0,gridLayout,3));
   updateGridControl();
   updateTxTime();
 }
@@ -580,7 +587,10 @@ void txWidget::enableButtons(bool enable)
   ui->hybridCheckBox->setEnabled(enable);
   ui->startToolButton->setEnabled(enable);
   ui->sstvModeComboBox->setEnabled(enable);
+  bool drmSingleImage=(transmissionModeIndex==TRXDRM && ui->sstvGridComboBox->currentIndex()==0);
   ui->sstvResizeComboBox->setEnabled(enable);
+  ui->drmResizeComboBox->setEnabled(enable && !drmSingleImage);
+  ui->drmGridComboBox->setEnabled(enable);
   ui->voxCheckBox->setEnabled(enable);
   ui->cwCheckBox->setEnabled(enable);
   ui->templateCheckBox->setEnabled(enable);
@@ -808,21 +818,27 @@ void txWidget::slotModeChanged(int m)
     }
 }
 
-// stitched grids only make sense for modes larger than PD160 (512x400)
+// SSTV: stitched grids only make sense for modes larger than PD160 (512x400); DRM has no mode size
+// A single DRM image is always zoom/pan, so it has no Stretch/Crop/Fit choice
 void txWidget::updateGridControl()
 {
-  bool large=(transmissionModeIndex==TRXSSTV) &&
+  bool allowed=(transmissionModeIndex==TRXDRM) ||
       (SSTVTable[(int)sstvModeIndexTx].numberOfPixels>512 || SSTVTable[(int)sstvModeIndexTx].numberOfDisplayLines>400);
-  ui->sstvGridComboBox->setEnabled(large);
-  int idx=large ? ui->sstvGridComboBox->currentIndex() : 0;
+  ui->sstvGridComboBox->setEnabled(allowed);
+  ui->drmGridComboBox->setEnabled(allowed);
+  int idx=allowed ? ui->sstvGridComboBox->currentIndex() : 0;
+  ui->drmGridComboBox->setCurrentIndex(idx);
   static const int cols[4]={1,1,2,2};
   static const int rows[4]={1,2,1,2};
   imageViewerPtr->setGrid(cols[idx],rows[idx]);
+  ui->drmResizeComboBox->setEnabled(!(transmissionModeIndex==TRXDRM && idx==0));
 }
 
 void txWidget::slotGridChanged(int i)
 {
   gridLayout=i;
+  ui->sstvGridComboBox->setCurrentIndex(i);
+  ui->drmGridComboBox->setCurrentIndex(i);
   updateGridControl();
   applyTemplate();
 }
@@ -847,6 +863,8 @@ void txWidget::rebuildModeComboBox()
 void txWidget::slotResizeChanged(int i)
 {
   // Stretch / Crop / Fit / Free applies to the selected image or grid cell
+  ui->sstvResizeComboBox->setCurrentIndex(i);
+  ui->drmResizeComboBox->setCurrentIndex(i);
   imageViewerPtr->setFitMode(i);
   applyTemplate();
 }
@@ -975,9 +993,17 @@ void txWidget::changeTransmissionMode(int rxtxMode)
 
     }
   setSettingsTab();
+  updateGridControl();   // grid availability and canvas size depend on the mode
+  static int lastMode=-1;
+  bool modeChanged=(lastMode>=0 && lastMode!=transmissionModeIndex);
+  lastMode=transmissionModeIndex;
   if(transmissionModeIndex==TRXDRM)
     {
-      slotSizeApply();
+      slotSizeApply();   // re-renders through setSize()
+    }
+  else if(modeChanged)
+    {
+      applyTemplate();   // re-render at the SSTV canvas size
     }
 }
 
@@ -1059,6 +1085,7 @@ void txWidget::txTestPattern(etpSelect sel)
     {
       gridLayout=0;
       ui->sstvGridComboBox->setCurrentIndex(0);
+      ui->drmGridComboBox->setCurrentIndex(0);
       updateGridControl();
     }
   txFunctionsPtr->txTestPattern(imageViewerPtr,sel);

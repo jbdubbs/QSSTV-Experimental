@@ -865,6 +865,40 @@
            </item>
           </widget>
          </item>
+         <item row="3" column="0">
+          <widget class="QLabel" name="drmFramingLabel">
+           <property name="text">
+            <string>Framing</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1" colspan="3">
+          <widget class="QComboBox" name="drmResizeComboBox">
+           <property name="toolTip">
+            <string>Stretch, crop, fit or freely zoom/pan the selected grid cell (a single image is always zoom/pan)</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="4">
+          <widget class="QLabel" name="drmGridLabel">
+           <property name="text">
+            <string>Grid</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="5">
+          <widget class="QComboBox" name="drmGridComboBox">
+           <property name="toolTip">
+            <string>Stitch several images together (columns x rows); right-click a segment to load, edit, copy or paste it</string>
+           </property>
+          </widget>
+         </item>
         </layout>
        </widget>
       </widget>

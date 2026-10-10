@@ -20,6 +20,9 @@
  ***************************************************************************/
 #ifndef IMAGEVIEWER_H
 #define IMAGEVIEWER_H
+
+#define DRMGRIDWIDTH  640   // canvas of a DRM grid (PD120 size)
+#define DRMGRIDHEIGHT 496
 #include <QLabel>
 #include <QSettings>
 #include <QEvent>
@@ -148,6 +151,7 @@ private slots:
   void slotZoomIn();
   void slotZoomOut();
   void slotLeftClick();
+  void slotFramingApply();
   void slotJp2ImageDone(bool success, bool fromCache);
 
 
@@ -218,6 +222,11 @@ private:
   void drawCell(QPainter &painter,const QImage &img,const QRect &cell,int slot);
   QImage frameSingle(int tw,int th);
   bool freeSlotAt(const QPoint &pos,int &slot);
+  bool drmSingle() const;
+  int fitOf(int slot) const;
+  bool isFramed(int slot) const;
+  void framingChanged(int slot);
+  void previewFraming(int slot);
   int dragSlot;
   QPoint dragStartPt;
   QPointF dragStartPan;
@@ -225,7 +234,7 @@ private:
   int segmentAt(const QPoint &pos);
   void selectSegment(int seg);
   void captureSegment(const QImage &im,const QString &fn);
-  QImage composeGrid();
+  QImage composeGrid(int w=0,int h=0);
   QPixmap withGridOverlay(const QPixmap &pm);
 
   //  double psizeRatio;
@@ -244,6 +253,10 @@ private:
   QRect view;
   QPoint clickPos;
   QTimer clickTimer;
+  QTimer framingTimer;
+  QImage previewBase;               // last rendered frame shrunk to the window (live DRM zoom/pan preview)
+  QVector<double> renderedZoom;     // framing of the last render, per slot
+  QVector<QPointF> renderedPan;
   QThread *threadIm;
   jp2IO *jp2Ptr;
   bool cacheHit;
