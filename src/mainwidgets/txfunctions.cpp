@@ -105,6 +105,7 @@ void txFunctions::init()
 void txFunctions::run()
 {
   double waterfallTime;
+  bool cwAtEnd=false;
   QString startWFTxt,endWFTxt;
 
 
@@ -200,7 +201,12 @@ void txFunctions::run()
           waitTxOn();
           waterfallTime=waterfallPtr->getDuration(endWFTxt);
           waterfallTime+=waterfallPtr->getDuration(startWFTxt);
-
+          cwAtEnd=useCW && !endWFTxt.isEmpty();
+          if(cwAtEnd)
+            {
+              initCW(cwText);
+              waterfallTime+=0.5+getCWDuration(); // silence gap + morse
+            }
 
           startProgress(drmTxPtr->calcTxTime(waterfallTime));
           addToLog("start of wf",LOGTXFUNC);
@@ -216,6 +222,7 @@ void txFunctions::run()
               waterfallPtr->setText(endWFTxt);
               synthesPtr->sendWFText();
               addToLog("end of wf",LOGTXFUNC);
+              if(cwAtEnd) sendCW();
               addToLog("txFunc: TXSENDDRM waiting for end",LOGTXFUNC);
               waitEnd();
             }
