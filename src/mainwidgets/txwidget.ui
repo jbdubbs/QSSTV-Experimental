@@ -160,11 +160,26 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="binaryPushButton">
+        <widget class="QToolButton" name="binaryToolButton">
+         <property name="toolTip">
+          <string>Send binary file</string>
+         </property>
+         <property name="statusTip">
+          <string>Send binary file</string>
+         </property>
+         <property name="text">
+          <string>...</string>
+         </property>
          <property name="icon">
           <iconset resource="../qsstv.qrc">
            <normaloff>:/icons/tb_binary.png</normaloff>:/icons/tb_binary.png</iconset>
          </property>
+           <property name="iconSize">
+            <size>
+             <width>32</width>
+             <height>32</height>
+            </size>
+           </property>
         </widget>
        </item>
        <item>

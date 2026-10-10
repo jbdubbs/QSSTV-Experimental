@@ -88,7 +88,7 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   connect(ui->openToolButton, SIGNAL(clicked()), this, SLOT(slotFileOpen()));
   connect(ui->editToolButton, SIGNAL(clicked()), this, SLOT(slotEdit()));
   connect(ui->snapshotToolButton, SIGNAL(clicked()), this, SLOT(slotSnapshot()));
-  connect(ui->binaryPushButton,SIGNAL(clicked()),this,SLOT(slotBinary()));
+  connect(ui->binaryToolButton,SIGNAL(clicked()),this,SLOT(slotBinary()));
   connect(ui->sizeSlider,SIGNAL(valueChanged(int)),SLOT(slotSize(int)));
   connect(ui->sizeSlider,SIGNAL(sliderReleased()),SLOT(slotSizeReleased()));
   sizeApplyTimer.setSingleShot(true);
@@ -904,7 +904,7 @@ void txWidget::setSettingsTab()
       {
         ui->hybridCheckBox->setEnabled(true);
         ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex!=TRXSSTV));
-        ui->binaryPushButton->setEnabled(true);
+        ui->binaryToolButton->setEnabled(true);
         ui->sizeLabel->setEnabled(true);
         ui->sizeSlider->setEnabled(true);
         ui->sizeKbLabel->setEnabled(true);
@@ -915,7 +915,7 @@ void txWidget::setSettingsTab()
       {
         ui->hybridCheckBox->setEnabled(false);
         ui->uploadToolButton->setEnabled(false);
-        ui->binaryPushButton->setEnabled(false);
+        ui->binaryToolButton->setEnabled(false);
         ui->sizeLabel->setEnabled(false);
         ui->sizeSlider->setEnabled(false);
         ui->sizeKbLabel->setEnabled(false);
