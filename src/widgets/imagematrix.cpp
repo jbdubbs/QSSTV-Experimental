@@ -88,6 +88,7 @@ void imageMatrix::setupLayout()
   horizontalSpacer_3 = new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
   horizontalLayout->addItem(horizontalSpacer_3);
   verticalLayout->addLayout(horizontalLayout);
+  styleToolButtons(this);
   connect(prevPushButton,SIGNAL(clicked()),SLOT(slotPrev()));
   connect(nextPushButton,SIGNAL(clicked()),SLOT(slotNext()));
   connect(beginPushButton,SIGNAL(clicked()),SLOT(slotBegin()));
