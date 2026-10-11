@@ -73,7 +73,9 @@ void directoriesConfig::readSettings()
   txStockImagesPath=qSettings.value("txStockImagesPath",appDataPath+"/tx_stock/").toString();
   templatesPath=qSettings.value("templatesPath",appDataPath+"/templates/").toString();
   audioPath=qSettings.value("audioPath",appDataPath+"/audio/").toString();
-  docURL=qSettings.value("docURL","https://www.qsl.net/o/on4qz/qsstv/manual").toString();
+  // blank = open the User's Guide bundled with the app; the old default pointed at the original QSSTV manual online
+  docURL=qSettings.value("docURL","").toString();
+  if(docURL=="https://www.qsl.net/o/on4qz/qsstv/manual") docURL.clear();
   saveTXimages=qSettings.value("saveTXimages",false).toBool();
   recursiveScanDirs=qSettings.value("recursiveScanDirs",false).toBool();
   qSettings.endGroup();

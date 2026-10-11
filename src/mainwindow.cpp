@@ -702,8 +702,26 @@ void mainWindow::slotResetLog()
 
 void mainWindow::slotDocumentation()
 {
-  openUrlOrWarn(this,QUrl(docURL));
-
+  // A user-set URL wins; otherwise open the User's Guide shipped with the app
+  if(!docURL.trimmed().isEmpty())
+    {
+      openUrlOrWarn(this,QUrl::fromUserInput(docURL.trimmed()));
+      return;
+    }
+  const QString appDir=QCoreApplication::applicationDirPath();
+  const QStringList candidates={appDir+"/userguide",
+                                appDir+"/../share/doc/qsstv/userguide",
+                                QStringLiteral(QSSTV_USERGUIDE_SRC_DIR)};
+  for(const QString &dir:candidates)
+    {
+      const QString index=QDir(dir).filePath("index.html");
+      if(QFileInfo::exists(index))
+        {
+          openUrlOrWarn(this,QUrl::fromLocalFile(QFileInfo(index).canonicalFilePath()));
+          return;
+        }
+    }
+  QMessageBox::warning(this,tr("Users Guide"),tr("The built-in Users Guide was not found.\nSee https://github.com/jbdubbs/QSSTV-Experimental"));
 }
 
 
