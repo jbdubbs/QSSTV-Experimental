@@ -1,5 +1,5 @@
 /***************************************************************************
- *   mmsstv-linux-port: decode SSTV from audio files                       *
+ *   QSSTV-Experimental: decode SSTV from audio files                       *
  *   See filedecoder.h for what this is and why.                           *
  ***************************************************************************/
 #include "filedecoder.h"

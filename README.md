@@ -65,3 +65,10 @@ Ready-to-run builds are published on the [Releases page](https://github.com/jbdu
 ## Building
 
 See [BUILDING.md](BUILDING.md) for building from source on Linux and Windows, the AppImage build, and the image-format plugin requirements.
+
+## License and attribution
+
+QSSTV-Experimental is free software under the GNU GPL v3 (`COPYING`, `LICENSE`). It contains code from QSSTV (Johan Maes, ON4QZ),
+RXAMADRM (PA0MBO), the Dream DRM software, Phil Karn's Reed-Solomon codec and others, and bundles Qt, Hamlib, FFTW and image libraries
+in binary releases. See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for the full list with licenses; it is also shown in
+*Help > About > Third-party licenses...* and installed with every release.

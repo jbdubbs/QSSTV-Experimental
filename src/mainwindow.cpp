@@ -24,6 +24,11 @@
 #include <QFileInfo>
 #include <QStandardPaths>
 #include <QFileDialog>
+#include <QDialog>
+#include <QPushButton>
+#include <QTextBrowser>
+#include <QVBoxLayout>
+#include <QFile>
 #include <windows.h> // WM_POWERBROADCAST / PBT_APMRESUME* -- see nativeEvent() below
 #endif
 #include "mainwindow.h"
@@ -519,8 +524,25 @@ void mainWindow::slotAboutQSSTV()
   QString temp=tr("QSSTV-Experimental\nVersion ") + MAJORVERSION + MINORVERSION;
   temp += "\nhttps://github.com/jbdubbs/QSSTV-Experimental\nJason Weisberger - NT0Y";
   temp += "\n\nBuilt upon the original:\nQSSTV\nVersion 9.5.11\nhttps://www.qsl.net/o/on4qz\nCopyright 2000-2019 - Johan Maes - ON4QZ\nHAMDRM Software based on RX/TXAMADRM - PA0MBO";
-  QMessageBox::about(this,tr("About..."),temp);
-
+  temp += "\n\nLicensed under the GNU GPL v3. Includes code from Dream (DRM), Phil Karn KA9Q, MiXViews, Maia XML-RPC, the Papirus icons and others; see Third-party licenses.";
+  QMessageBox box(QMessageBox::Information,tr("About..."),temp,QMessageBox::Ok,this);
+  QPushButton *licButton=box.addButton(tr("Third-party licenses..."),QMessageBox::ActionRole);
+  box.exec();
+  if(box.clickedButton()==licButton)
+    {
+      QFile f(":/THIRD_PARTY_LICENSES.md");
+      QString text;
+      if(f.open(QIODevice::ReadOnly)) text=QString::fromUtf8(f.readAll());
+      QDialog dlg(this);
+      dlg.setWindowTitle(tr("Third-party licenses"));
+      QVBoxLayout *lay=new QVBoxLayout(&dlg);
+      QTextBrowser *tb=new QTextBrowser(&dlg);
+      tb->setOpenExternalLinks(true);
+      tb->setMarkdown(text);
+      lay->addWidget(tb);
+      dlg.resize(900,600);
+      dlg.exec();
+    }
 }
 
 void mainWindow::slotAboutQt()

@@ -1,5 +1,5 @@
 /***************************************************************************
- *   mmsstv-linux-port: decode SSTV from audio files                       *
+ *   QSSTV-Experimental: decode SSTV from audio files                       *
  *                                                                         *
  *   Runs recordings through the normal receive chain (sound thread ->     *
  *   RX thread -> dispatcher), one file after the other. Used by the       *

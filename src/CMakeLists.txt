@@ -155,14 +155,11 @@ set(QSSTV_SOURCES
     drmrx/getofdm.cpp
     drmrx/getofdmsync.cpp
     drmrx/getsymbolidx.cpp
-    drmrx/lubksb.cpp
-    drmrx/ludcmp.cpp
     drmrx/mkfacmap.cpp
     drmrx/mkmscmap.cpp
     drmrx/msdhardfac.cpp
     drmrx/msdhardmsc.cpp
     drmrx/newfft.cpp
-    drmrx/nrutil.cpp
     drmrx/psdcmean.cpp
     drmrx/psdmean.cpp
     drmrx/sourcedecoder.cpp
@@ -408,6 +405,15 @@ if(WIN32)
   install(TARGETS qsstv RUNTIME DESTINATION .)
 else()
   install(TARGETS qsstv RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
+# License and attribution files ship with every binary distribution.
+set(QSSTV_LICENSE_FILES
+  "${CMAKE_CURRENT_SOURCE_DIR}/../COPYING"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../THIRD_PARTY_LICENSES.md")
+if(WIN32)
+  install(FILES ${QSSTV_LICENSE_FILES} DESTINATION .)
+else()
+  install(FILES ${QSSTV_LICENSE_FILES} DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/doc/qsstv")
 endif()
 if(UNIX AND NOT APPLE)
   install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../qsstv.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications")

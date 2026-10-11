@@ -1,5 +1,5 @@
 /***************************************************************************
- *   mmsstv-linux-port: JB60 triangle-windowed chroma decimation           *
+ *   QSSTV-Experimental: JB60 triangle-windowed chroma decimation           *
  *   jb60-color-smear-ideas memory, idea 13.                              *
  ***************************************************************************/
 #ifndef CHROMATRIANGLEDECIMATION_H

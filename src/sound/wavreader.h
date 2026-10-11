@@ -1,5 +1,5 @@
 /***************************************************************************
- *   mmsstv-linux-port: WAV reader for "decode from file"                  *
+ *   QSSTV-Experimental: WAV reader for "decode from file"                  *
  *                                                                         *
  *   Streams any common WAV file as mono 16 bit samples at 48 kHz, the     *
  *   format the receiver works in. Unlike wavIO (which only accepts a      *

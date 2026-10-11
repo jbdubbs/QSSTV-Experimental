@@ -1,5 +1,5 @@
 /***************************************************************************
- *   mmsstv-linux-port: TX edge-adaptive chroma pre-emphasis boost for JB60 *
+ *   QSSTV-Experimental: TX edge-adaptive chroma pre-emphasis boost for JB60 *
  *   See chromaedgeboost.h for what this is and why.                       *
  ***************************************************************************/
 #include "chromaedgeboost.h"

@@ -1,5 +1,5 @@
 /***************************************************************************
- *   mmsstv-linux-port: JB60 triangle-windowed chroma decimation           *
+ *   QSSTV-Experimental: JB60 triangle-windowed chroma decimation           *
  *   See chromatriangledecimation.h for what this is and why.             *
  ***************************************************************************/
 #include "chromatriangledecimation.h"

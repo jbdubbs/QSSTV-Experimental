@@ -1,5 +1,5 @@
 /***************************************************************************
- *   mmsstv-linux-port: JB60 pseudo-luma edge cue (experiment only)        *
+ *   QSSTV-Experimental: JB60 pseudo-luma edge cue (experiment only)        *
  *   jb60-color-smear-ideas memory, idea 16.                              *
  ***************************************************************************/
 #ifndef CHROMAPSEUDOLUMA_H

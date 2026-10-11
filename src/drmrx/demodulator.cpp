@@ -3,7 +3,8 @@
 #include "drm.h"
 #include <math.h>
 #include <float.h>
-#include "nrutil.h"
+#include <vector>
+#include <algorithm>
 #include "supportfunctions.h"
 
 #include <QDebug>
@@ -11,8 +12,59 @@
 
 demodulator *demodulatorPtr;
 
-void ludcmp(float **, int, int *, float *);
-void lubksb(float **, int, int *, float *);
+// Inverts the n x n matrix a into inv by LU decomposition (Doolittle, partial pivoting).
+// A zero pivot is replaced by a tiny value so a singular matrix never divides by zero.
+template <size_t N>
+static void invertMatrix(const float (&a)[N][N], float (&inv)[N][N], int n)
+{
+  std::vector<double> lu(static_cast<size_t>(n) * n);
+  std::vector<int> perm(n);
+  std::vector<double> col(n);
+  for (int i = 0; i < n; i++)
+    {
+      perm[i] = i;
+      for (int j = 0; j < n; j++) lu[i * n + j] = a[i][j];
+    }
+  for (int k = 0; k < n; k++)
+    {
+      int piv = k;
+      double big = fabs(lu[k * n + k]);
+      for (int i = k + 1; i < n; i++)
+        if (fabs(lu[i * n + k]) > big)
+          {
+            big = fabs(lu[i * n + k]);
+            piv = i;
+          }
+      if (piv != k)
+        {
+          for (int j = 0; j < n; j++) std::swap(lu[k * n + j], lu[piv * n + j]);
+          std::swap(perm[k], perm[piv]);
+        }
+      if (lu[k * n + k] == 0.0) lu[k * n + k] = 1.0e-20;
+      for (int i = k + 1; i < n; i++)
+        {
+          lu[i * n + k] /= lu[k * n + k];
+          for (int j = k + 1; j < n; j++) lu[i * n + j] -= lu[i * n + k] * lu[k * n + j];
+        }
+    }
+  // solve for each column of the identity: forward substitution on L, back substitution on U
+  for (int c = 0; c < n; c++)
+    {
+      for (int i = 0; i < n; i++)
+        {
+          double sum = (perm[i] == c) ? 1.0 : 0.0;
+          for (int j = 0; j < i; j++) sum -= lu[i * n + j] * col[j];
+          col[i] = sum;
+        }
+      for (int i = n - 1; i >= 0; i--)
+        {
+          double sum = col[i];
+          for (int j = i + 1; j < n; j++) sum -= lu[i * n + j] * col[j];
+          col[i] = sum / lu[i * n + i];
+        }
+      for (int i = 0; i < n; i++) inv[i][c] = static_cast<float>(col[i]);
+    }
+}
 
 int Ts_list[DRMNUMMODES] = { Ts_A, Ts_B, Ts_C, Ts_D };
 int Tu_list[DRMNUMMODES] = { Tu_A, Tu_B, Tu_C, Tu_D };
@@ -536,9 +588,6 @@ bool demodulator::channelEstimation()
   double f_cut_t, f_cut_k;
   //  double f_D_max;
   //  double tau_max;
-  int *indxlu;
-  float dlu = 0.0, *collu;
-  float **amatrix;
   int NP,sortbrkpnt;
   //  float freq_offset_log[100];
   //  float time_offset_log[100];
@@ -789,25 +838,9 @@ bool demodulator::channelEstimation()
               PHI[i][i] += sigmaq_noise * 2.0 /((gain_ref_cells_a[gain_ref_cells_subset_index[nnn][i]]) * (gain_ref_cells_a[gain_ref_cells_subset_index[nnn][i]]));
             }
 
-          //   now the matrix inversion from numerical recipes
+          //   invert PHI
           NP = gain_ref_cells_per_window;
-          amatrix = matrix(1, NP, 1, NP);
-          indxlu = ivector(1, NP);
-          collu = fvector(1, NP);
-          for (i = 1; i <= NP; i++)
-            for (j = 1; j <= NP; j++)
-              amatrix[i][j] = PHI[i - 1][j - 1];
-          ludcmp(amatrix, NP, indxlu, &dlu);	/* decompose just once */
-          for (j = 1; j <= NP; j++)
-            {
-              for (i = 1; i <= NP; i++) collu[i] = 0.0;
-              collu[j] = 1.0;
-              lubksb(amatrix, NP, indxlu, collu);
-              for (i = 1; i <= NP; i++) PHI_INV[i - 1][j - 1] = collu[i];
-            }
-          free_fvector(collu, 1, NP);
-          free_ivector(indxlu, 1, NP);
-          free_matrix(amatrix, 1, NP, 1, NP);
+          invertMatrix(PHI, PHI_INV, NP);
 
           for (k_index1 = 0; k_index1 < (K_max - K_min + 1); k_index1++)
             {

@@ -1,5 +1,5 @@
 /***************************************************************************
- *   mmsstv-linux-port: WAV reader for "decode from file"                  *
+ *   QSSTV-Experimental: WAV reader for "decode from file"                  *
  *   See wavreader.h for what this is and why.                             *
  ***************************************************************************/
 #include "wavreader.h"

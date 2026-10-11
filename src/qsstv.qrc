@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/">
+        <file alias="THIRD_PARTY_LICENSES.md">../THIRD_PARTY_LICENSES.md</file>
         <file>icons/fileopen.png</file>
         <file>icons/testpatterns/smptebars.png</file>
         <file>icons/testpatterns/pm5544.png</file>

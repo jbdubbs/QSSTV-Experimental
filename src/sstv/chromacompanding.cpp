@@ -1,5 +1,5 @@
 /***************************************************************************
- *   mmsstv-linux-port: JB60 chroma magnitude companding (experiment only) *
+ *   QSSTV-Experimental: JB60 chroma magnitude companding (experiment only) *
  *   See chromacompanding.h for what this is and why.                     *
  ***************************************************************************/
 #include "chromacompanding.h"

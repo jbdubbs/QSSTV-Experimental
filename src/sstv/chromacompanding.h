@@ -1,5 +1,5 @@
 /***************************************************************************
- *   mmsstv-linux-port: JB60 chroma magnitude companding (experiment only) *
+ *   QSSTV-Experimental: JB60 chroma magnitude companding (experiment only) *
  *   jb60-color-smear-ideas memory, idea 14.                              *
  ***************************************************************************/
 #ifndef CHROMACOMPANDING_H

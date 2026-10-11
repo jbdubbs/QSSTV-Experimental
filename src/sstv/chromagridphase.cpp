@@ -1,5 +1,5 @@
 /***************************************************************************
- *   mmsstv-linux-port: JB60 chroma sampling-grid phase (experiment only)  *
+ *   QSSTV-Experimental: JB60 chroma sampling-grid phase (experiment only)  *
  *   See chromagridphase.h for what this is and why.                      *
  ***************************************************************************/
 #include "chromagridphase.h"

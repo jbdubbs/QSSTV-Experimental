@@ -1,5 +1,5 @@
 /***************************************************************************
- *   mmsstv-linux-port: JB60 chroma sampling-grid phase (experiment only)  *
+ *   QSSTV-Experimental: JB60 chroma sampling-grid phase (experiment only)  *
  *   jb60-color-smear-ideas memory, idea 12 attempt 3.                    *
  ***************************************************************************/
 #ifndef CHROMAGRIDPHASE_H

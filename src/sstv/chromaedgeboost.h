@@ -1,5 +1,5 @@
 /***************************************************************************
- *   mmsstv-linux-port: TX edge-adaptive chroma pre-emphasis boost for JB60 *
+ *   QSSTV-Experimental: TX edge-adaptive chroma pre-emphasis boost for JB60 *
  *   See chromapreemphasis' history (now unconditional, modejb60.cpp) for  *
  *   the base filter this cascades; jb60-color-smear-ideas memory, idea 12.*
  ***************************************************************************/
