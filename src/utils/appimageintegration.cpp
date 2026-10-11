@@ -1,10 +1,12 @@
 #include "appimageintegration.h"
 #include <QCoreApplication>
+#include <QDesktopServices>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QProcess>
 #include <QStandardPaths>
+#include <QUrl>
 
 namespace
 {
@@ -172,5 +174,37 @@ bool runUpdate()
   env.insert("APPIMAGE_EXTRACT_AND_RUN","1");
   p.setProcessEnvironment(env);
   return p.startDetached();
+}
+
+bool openUrl(const QUrl &url)
+{
+  if(!available()) return QDesktopServices::openUrl(url);
+  // The AppImage's LD_LIBRARY_PATH etc. point at our bundled libs; inherited by xdg-open and the browser it
+  // starts, they make the browser fail to launch. Give the helper a cleaned environment.
+  const QString root=appDir();
+  QProcessEnvironment env=QProcessEnvironment::systemEnvironment();
+  for(const QString &var:{"LD_LIBRARY_PATH","PATH","XDG_DATA_DIRS","QT_PLUGIN_PATH","QML2_IMPORT_PATH","GIO_EXTRA_MODULES"})
+    {
+      if(!env.contains(var)) continue;
+      QStringList keep;
+      for(const QString &e:env.value(var).split(':',Qt::SkipEmptyParts))
+        if(root.isEmpty() || !e.startsWith(root)) keep<<e;
+      if(keep.isEmpty()) env.remove(var); else env.insert(var,keep.join(':'));
+    }
+  for(const QString &var:{"LIBHEIF_PLUGIN_PATH","QT_QPA_PLATFORM","QT_QPA_PLATFORM_PLUGIN_PATH","QT_QPA_PLATFORMTHEME","APPIMAGE_EXTRACT_AND_RUN"})
+    env.remove(var);
+  const QString u=url.toString(QUrl::FullyEncoded);
+  const QList<QStringList> launchers={{"xdg-open"},{"gio","open"},{"kde-open"},{"sensible-browser"}};
+  for(const QStringList &l:launchers)
+    {
+      const QString exe=QStandardPaths::findExecutable(l.first(),env.value("PATH").split(':',Qt::SkipEmptyParts));
+      if(exe.isEmpty()) continue;
+      QProcess p;
+      p.setProgram(exe);
+      p.setArguments(l.mid(1)<<u);
+      p.setProcessEnvironment(env);
+      if(p.startDetached()) return true;
+    }
+  return false;
 }
 }

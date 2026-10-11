@@ -2,6 +2,7 @@
 #define APPIMAGEINTEGRATION_H
 
 #include <QString>
+#include <QUrl>
 
 /*!
   Desktop integration for the AppImage build: adds/removes the application-menu entry, the icons and the AppStream
@@ -21,6 +22,7 @@ namespace appImageIntegration
     Returns 0: up to date, 1: update available, -1: could not check (tool missing/failed).
   */
   int checkForUpdate(QString &message);
+  bool openUrl(const QUrl &url);    //!< open in the default browser; from an AppImage with the bundled-library environment removed
   bool runUpdate();                 //!< start appimageupdatetool detached; it replaces the AppImage file
 }
 

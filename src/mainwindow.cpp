@@ -314,6 +314,12 @@ void mainWindow::slotDesktopIntegration()
     }
 }
 
+static void openUrlOrWarn(QWidget *parent,const QUrl &url)
+{
+  if(!appImageIntegration::openUrl(url))
+    QMessageBox::warning(parent,QObject::tr("Open web page"),QObject::tr("Could not start a web browser. Please open this address yourself:\n%1").arg(url.toString()));
+}
+
 void mainWindow::slotCheckForUpdates()
 {
   QString msg;
@@ -335,7 +341,7 @@ void mainWindow::slotCheckForUpdates()
     {
       if(QMessageBox::question(this,tr("Check for updates"),
                                tr("Could not check automatically (%1).\nOpen the releases page in your browser?").arg(msg))==QMessageBox::Yes)
-        QDesktopServices::openUrl(QUrl("https://github.com/jbdubbs/QSSTV-Experimental/releases"));
+        openUrlOrWarn(this,QUrl("https://github.com/jbdubbs/QSSTV-Experimental/releases"));
     }
 }
 
@@ -347,7 +353,7 @@ static void showUpdateResult(QWidget *parent,const updateChecker::Result &r,bool
       if(quietIfCurrent) return;
       if(QMessageBox::question(parent,QObject::tr("Check for updates"),
                                QObject::tr("Could not check for updates (%1).\nOpen the releases page in your browser?").arg(r.error))==QMessageBox::Yes)
-        QDesktopServices::openUrl(updateChecker::releasesPage());
+        openUrlOrWarn(parent,updateChecker::releasesPage());
       return;
     }
   if(!r.newer)
@@ -365,7 +371,7 @@ static void showUpdateResult(QWidget *parent,const updateChecker::Result &r,bool
       skip=new QCheckBox(QObject::tr("Don't remind me about this version"),&box);
       box.setCheckBox(skip);
     }
-  if(box.exec()==QMessageBox::Yes) QDesktopServices::openUrl(r.pageUrl);
+  if(box.exec()==QMessageBox::Yes) openUrlOrWarn(parent,r.pageUrl);
   else if(skip!=nullptr && skip->isChecked()) qs.setValue("update/skipTag",r.latestTag);
 }
 
@@ -698,7 +704,7 @@ void mainWindow::slotResetLog()
 
 void mainWindow::slotDocumentation()
 {
-  QDesktopServices::openUrl(docURL);
+  openUrlOrWarn(this,QUrl(docURL));
 
 }
 
