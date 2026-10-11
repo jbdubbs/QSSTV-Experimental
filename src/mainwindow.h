@@ -43,6 +43,9 @@ private slots:
   void slotResetLog();
   void slotLogSettings();
   void slotAboutQt();
+  void slotDesktopIntegration();
+  void slotCheckForUpdates();
+  void offerDesktopIntegration();
   void slotAboutQSSTV();
   void slotFullScreen();
   void slotDocumentation();

@@ -47,14 +47,22 @@ H
 # tries to bundle the whole GStreamer stack.
 rm -f $QT_ROOT/plugins/multimedia/libgstreamermediaplugin.so
 
+# not under usr/bin: linuxdeploy would patchelf it and corrupt this static binary
+mkdir -p $APPDIR/usr/share/qsstv && install -m755 /opt/appimageupdatetool $APPDIR/usr/share/qsstv/appimageupdatetool
 cd $B
 export APPIMAGE_EXTRACT_AND_RUN=1 QMAKE=$QT_ROOT/bin/qmake LD_LIBRARY_PATH=$QT_ROOT/lib VERSION NO_STRIP=1 PATCHELF=/usr/bin/patchelf
 export EXTRA_PLATFORM_PLUGINS=libqoffscreen.so   # --batch headless mode needs offscreen
+# Embedded update information (AppImageUpdate / appimageupdatetool, AppImageLauncher, Gear Lever): delta updates via
+# the .zsync file attached to each GitHub release. Release must not be flagged "pre-release" for `latest` to find it.
+case "$(uname -m)" in x86_64) UARCH=x86_64;; *) UARCH=$(uname -m);; esac
+export LDAI_UPDATE_INFORMATION="gh-releases-zsync|jbdubbs|QSSTV-Experimental|latest|QSSTV-Experimental-*-$UARCH.AppImage.zsync"
 linuxdeploy --appdir $APPDIR "${FORCE[@]}" \
   --executable $APPDIR/usr/bin/qsstv \
-  --desktop-file $APPDIR/usr/share/applications/qsstv.desktop \
-  --icon-file $APPDIR/usr/share/icons/hicolor/128x128/apps/qsstv.png \
+  --desktop-file $APPDIR/usr/share/applications/qsstv-experimental.desktop \
+  $(for z in 16 32 48 64 128; do echo --icon-file $APPDIR/usr/share/icons/hicolor/${z}x${z}/apps/qsstv-experimental.png; done) \
   --plugin qt --output appimage
 OUT=QSSTV-Experimental-$VERSION-$(uname -m).AppImage
 cp $OUT /out/$OUT
-chown "$HOST_UID:$HOST_GID" /out/$OUT
+( cd /out && sha256sum $OUT > $OUT.sha256 )
+[ -e $OUT.zsync ] && cp $OUT.zsync /out/$OUT.zsync
+chown "$HOST_UID:$HOST_GID" /out/$OUT /out/$OUT.sha256 /out/$OUT.zsync 2>/dev/null || true

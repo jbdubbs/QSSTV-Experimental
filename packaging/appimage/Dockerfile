@@ -45,6 +45,11 @@ RUN git clone --depth 1 --branch $KIMAGEFORMATS_TAG https://invent.kde.org/frame
 # linuxdeploy tools, extracted (no FUSE inside a container). The dd zeroes the AppImage 'AI\x02' marker
 # in the ELF header (bytes 8-10) so QEMU's binfmt will exec the file when building for a foreign arch;
 # --appimage-extract doesn't need the marker.
+# appimageupdatetool (AppImageUpdate CLI): bundled into the AppImage so Help > Check for updates works out of the box.
+# It is itself an AppImage, run with APPIMAGE_EXTRACT_AND_RUN=1 (no FUSE needed).
+ARG LD_ARCH=x86_64
+RUN wget -q -O /opt/appimageupdatetool https://github.com/AppImageCommunity/AppImageUpdate/releases/download/continuous/appimageupdatetool-$LD_ARCH.AppImage \
+ && chmod +x /opt/appimageupdatetool
 WORKDIR /opt/linuxdeploy
 ARG LD_ARCH=x86_64
 RUN wget -q -O linuxdeploy.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-$LD_ARCH.AppImage \

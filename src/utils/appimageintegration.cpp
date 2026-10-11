@@ -1,0 +1,176 @@
+#include "appimageintegration.h"
+#include <QCoreApplication>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QProcess>
+#include <QStandardPaths>
+
+namespace
+{
+const char *kDesktopName="qsstv-experimental.desktop";
+const char *kIconName="qsstv-experimental.png";
+const char *kMetainfoName="io.github.jbdubbs.qsstv_experimental.metainfo.xml";
+
+QString appImagePath() {return qEnvironmentVariable("APPIMAGE");}
+QString appDir() {return qEnvironmentVariable("APPDIR");}
+QString dataHome() {return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);}
+QString desktopDest() {return dataHome()+"/applications/"+kDesktopName;}
+QString metainfoDest() {return dataHome()+"/metainfo/"+kMetainfoName;}
+QString hicolorDir() {return dataHome()+"/icons/hicolor";}
+
+QString quoted(const QString &p)
+{
+  QString q=p;
+  q.replace('\\',"\\\\").replace('"',"\\\"").replace('$',"\\$").replace('`',"\\`");
+  return "\""+q+"\"";
+}
+
+// Desktop-entry Exec values escape '%' by doubling it
+QString execPath() {QString p=appImagePath(); p.replace('%',"%%"); return quoted(p);}
+
+void refreshCaches()
+{
+  QProcess::execute("update-desktop-database",{dataHome()+"/applications"});
+  QProcess::execute("gtk-update-icon-cache",{"-f","-t",hicolorDir()});
+  QProcess::execute("kbuildsycoca6",{"--noincremental"});   // harmless when KDE is absent
+}
+
+QString findUpdateTool()
+{
+  QString t=appDir()+"/usr/share/qsstv/appimageupdatetool";   // bundled copy
+  if(!QFileInfo(t).isExecutable()) t=QStandardPaths::findExecutable("appimageupdatetool");
+  if(t.isEmpty()) t=QStandardPaths::findExecutable("appimageupdatetool-x86_64.AppImage");
+  if(t.isEmpty()) t=QStandardPaths::findExecutable("appimageupdatetool-aarch64.AppImage");
+  return t;
+}
+}
+
+namespace appImageIntegration
+{
+bool available() {return !appImagePath().isEmpty() && !appDir().isEmpty();}
+
+bool isInstalled() {return QFile::exists(desktopDest());}
+
+bool isCurrent()
+{
+  QFile f(desktopDest());
+  if(!f.open(QIODevice::ReadOnly)) return false;
+  return QString::fromUtf8(f.readAll()).contains("Exec="+execPath()+" ");
+}
+
+bool installedByOtherTool()
+{
+  // AppImageLauncher / appimaged write appimagekit_<md5>-<name>.desktop
+  QDir d(dataHome()+"/applications");
+  const QStringList l=d.entryList({"appimagekit*qsstv*.desktop","appimagekit*QSSTV*.desktop"},QDir::Files);
+  return !l.isEmpty();
+}
+
+bool install(QString &message)
+{
+  if(!available()) {message=QObject::tr("Not running from an AppImage; nothing to integrate."); return false;}
+  QFile in(appDir()+"/usr/share/applications/"+kDesktopName);
+  if(!in.open(QIODevice::ReadOnly))
+    {
+      message=QObject::tr("Cannot read %1").arg(in.fileName());
+      return false;
+    }
+  QStringList out;
+  const QStringList lines=QString::fromUtf8(in.readAll()).split('\n');
+  for(const QString &ln:lines)
+    {
+      if(ln.startsWith("Exec=")) out<<"Exec="+execPath()+" %F";
+      else if(ln.startsWith("TryExec=")) out<<"TryExec="+appImagePath();
+      else if(ln.startsWith("X-AppImage-")) continue;
+      else out<<ln;
+    }
+  QDir().mkpath(QFileInfo(desktopDest()).path());
+  QFile d(desktopDest());
+  if(!d.open(QIODevice::WriteOnly|QIODevice::Truncate))
+    {
+      message=QObject::tr("Cannot write %1").arg(d.fileName());
+      return false;
+    }
+  d.write(out.join('\n').toUtf8());
+  d.close();
+  // every bundled hicolor size
+  QDir icons(appDir()+"/usr/share/icons/hicolor");
+  for(const QString &sz:icons.entryList(QDir::Dirs|QDir::NoDotAndDotDot))
+    {
+      const QString src=icons.filePath(sz+"/apps/"+kIconName);
+      if(!QFile::exists(src)) continue;
+      const QString dst=hicolorDir()+"/"+sz+"/apps/"+kIconName;
+      QDir().mkpath(QFileInfo(dst).path());
+      QFile::remove(dst);
+      QFile::copy(src,dst);
+    }
+  const QString mi=appDir()+"/usr/share/metainfo/"+kMetainfoName;
+  if(QFile::exists(mi))
+    {
+      QDir().mkpath(QFileInfo(metainfoDest()).path());
+      QFile::remove(metainfoDest());
+      QFile::copy(mi,metainfoDest());
+    }
+  refreshCaches();
+  message=QObject::tr("QSSTV-Experimental was added to your application menu:\n%1").arg(desktopDest());
+  return true;
+}
+
+bool uninstall(QString &message)
+{
+  bool removed=false;
+  removed|=QFile::remove(desktopDest());
+  removed|=QFile::remove(metainfoDest());
+  QDir icons(hicolorDir());
+  for(const QString &sz:icons.entryList(QDir::Dirs|QDir::NoDotAndDotDot))
+    removed|=QFile::remove(hicolorDir()+"/"+sz+"/apps/"+kIconName);
+  if(!removed)
+    {
+      message=QObject::tr("QSSTV-Experimental is not integrated (nothing to remove).");
+      return false;
+    }
+  refreshCaches();
+  message=QObject::tr("QSSTV-Experimental was removed from your application menu.");
+  return true;
+}
+
+int checkForUpdate(QString &message)
+{
+  const QString tool=findUpdateTool();
+  if(!available() || tool.isEmpty())
+    {
+      message=QObject::tr("appimageupdatetool was not found.");
+      return -1;
+    }
+  QProcess p;
+  QProcessEnvironment env=QProcessEnvironment::systemEnvironment();
+  env.insert("APPIMAGE_EXTRACT_AND_RUN","1");   // the tool is an AppImage too; do not require FUSE
+  p.setProcessEnvironment(env);
+  p.start(tool,{"--check-for-update",appImagePath()});
+  if(!p.waitForFinished(60000))
+    {
+      p.kill();
+      message=QObject::tr("The update check timed out.");
+      return -1;
+    }
+  // appimageupdatetool: exit 0 = up to date, 1 = update available, other = error
+  if(p.exitStatus()==QProcess::NormalExit && p.exitCode()==0) return 0;
+  if(p.exitStatus()==QProcess::NormalExit && p.exitCode()==1) return 1;
+  message=QObject::tr("no release information could be fetched");   // e.g. offline, or no published release yet
+  return -1;
+}
+
+bool runUpdate()
+{
+  const QString tool=findUpdateTool();
+  if(tool.isEmpty() || !available()) return false;
+  QProcess p;
+  p.setProgram(tool);
+  p.setArguments({appImagePath()});
+  QProcessEnvironment env=QProcessEnvironment::systemEnvironment();
+  env.insert("APPIMAGE_EXTRACT_AND_RUN","1");
+  p.setProcessEnvironment(env);
+  return p.startDetached();
+}
+}

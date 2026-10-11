@@ -43,6 +43,7 @@
 #include <QRegularExpression>
 #include "drmtx/drmparams.h"
 #include "supportfunctions.h"
+#include "appimageintegration.h"
 
 
 QSplashScreen *splash;
@@ -78,7 +79,7 @@ static void chooseHeadlessPlatform(int argc,char **argv)
   for(int i=1;i<argc;i++)
     {
       QString a=QString::fromLocal8Bit(argv[i]);
-      if(a=="-b" || a=="--batch" || a=="-h" || a=="--help" || a=="-v" || a=="--version" || a=="--list-modes" || a=="--encode" || a.startsWith("--encode="))
+      if(a=="-b" || a=="--batch" || a=="-h" || a=="--help" || a=="-v" || a=="--version" || a=="--list-modes" || a=="--install" || a=="--uninstall" || a=="--encode" || a.startsWith("--encode="))
         {
           qputenv("QT_QPA_PLATFORM","offscreen");
           return;
@@ -121,6 +122,7 @@ int main( int argc, char ** argv )
   chooseHeadlessPlatform(argc,argv);
   QCoreApplication::setOrganizationName(ORGANIZATION);
   QCoreApplication::setApplicationName(APPLICATION);
+  QGuiApplication::setDesktopFileName("qsstv-experimental");   // Wayland app id / taskbar-icon match
   QApplication app( argc, argv );
   fixBareFusionLook();
   if(qEnvironmentVariableIsSet("QSSTV_LOG_FORMATS"))
@@ -150,6 +152,8 @@ int main( int argc, char ** argv )
                                "Your settings are read but never written.","image");
   QCommandLineOption wavOutOpt("wav-out","With --encode: the wav file to write (default: <image>.wav).","file");
   QCommandLineOption listOpt("list-modes","Print the mode names that --mode accepts and exit.");
+  QCommandLineOption installOpt("install","AppImage only: add QSSTV-Experimental (menu entry, icons) to your desktop and exit.");
+  QCommandLineOption uninstallOpt("uninstall","AppImage only: remove the menu entry and icons added by --install and exit.");
   QCommandLineOption drmOpt("drm","With --batch: receive DRM (digital SSTV) instead of analog SSTV; the received file is saved as <file>_<n>_drm.<ext> and a "
                             "'drm-stats:' line (sync / FAC / MSC percentages, MSC flaps, FAC and MSC MER) is printed per file. With --encode: transmit the picture as DRM.");
   QCommandLineOption drmModeOpt("drm-mode","With --encode --drm: robustness mode A, B or E (default: your TX setting).","mode");
@@ -161,7 +165,7 @@ int main( int argc, char ** argv )
   QCommandLineOption drmSizeOpt("drm-size","With --encode --drm: compress the picture to about this many bytes (default: the size slider setting, 5000).","bytes");
   QCommandLineOption rxGainOpt("rx-gain","With --batch: test aid, amplify the recording by <dB> (negative to attenuate) before the receiver.","dB");
   QCommandLineOption rxNoiseOpt("rx-noise","With --batch: test aid, add white noise of this RMS level in dB full scale (e.g. -40) to the recording.","dBFS");
-  parser.addOptions(QList<QCommandLineOption>() << drmOpt << drmModeOpt << drmBwOpt << drmQamOpt << drmProtOpt << drmIlvOpt << drmRsOpt << drmSizeOpt << rxGainOpt << rxNoiseOpt << helpOpt << versionOpt << decodeOpt << batchOpt << outDirOpt << modeOpt << timeoutOpt << encodeOpt << wavOutOpt << listOpt);
+  parser.addOptions(QList<QCommandLineOption>() << drmOpt << drmModeOpt << drmBwOpt << drmQamOpt << drmProtOpt << drmIlvOpt << drmRsOpt << drmSizeOpt << rxGainOpt << rxNoiseOpt << helpOpt << versionOpt << decodeOpt << batchOpt << outDirOpt << modeOpt << timeoutOpt << encodeOpt << wavOutOpt << listOpt << installOpt << uninstallOpt);
   parser.addPositionalArgument("file","SSTV recordings to decode (same as --decode).","[file ...]");
   if(!parser.parse(app.arguments()))
     {
@@ -177,6 +181,18 @@ int main( int argc, char ** argv )
     {
       printf("%s\n",qsstvVersion.toLocal8Bit().constData());
       return 0;
+    }
+  if(parser.isSet(installOpt) || parser.isSet(uninstallOpt))
+    {
+      QString msg;
+      if(!appImageIntegration::available())
+        {
+          fprintf(stderr,"--install and --uninstall only work when running as an AppImage.\n");
+          return fileDecoder::EXIT_BADFILE;
+        }
+      bool ok=parser.isSet(installOpt) ? appImageIntegration::install(msg) : appImageIntegration::uninstall(msg);
+      fprintf(ok ? stdout : stderr,"%s\n",msg.toLocal8Bit().constData());
+      return ok ? 0 : 1;
     }
   if(parser.isSet(listOpt))
     {

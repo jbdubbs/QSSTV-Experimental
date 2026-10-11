@@ -99,8 +99,8 @@ OFFSCREEN_PLUGIN="$("$QMAKE_BIN" -query QT_INSTALL_PLUGINS)/platforms/libqoffscr
 
   "$TOOLS_DIR/linuxdeploy.AppImage" --appdir "$APPDIR" \
     --executable "$APPDIR/usr/bin/qsstv" \
-    --desktop-file "$APPDIR/usr/share/applications/qsstv.desktop" \
-    --icon-file "$APPDIR/usr/share/icons/hicolor/128x128/apps/qsstv.png" \
+    --desktop-file "$APPDIR/usr/share/applications/qsstv-experimental.desktop" \
+    --icon-file "$APPDIR/usr/share/icons/hicolor/128x128/apps/qsstv-experimental.png" \
     --plugin qt \
     --output appimage
 )

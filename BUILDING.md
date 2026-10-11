@@ -66,6 +66,20 @@ ARCH=aarch64 packaging/appimage/build.sh     # arm64, built under QEMU emulation
 The result is `QSSTV-Experimental-<version>-<arch>.AppImage` in the repository root (override with `OUT_DIR`).
 The AppImage also bundles `kimageformats` and the libheif codec plugins, which provide the AVIF and HEIC formats.
 
+Next to the AppImage the build writes `<name>.AppImage.zsync` (delta-update data) and `<name>.AppImage.sha256`.
+Upload all three to the GitHub release. The AppImage embeds the update information
+`gh-releases-zsync|jbdubbs|QSSTV-Experimental|latest|QSSTV-Experimental-*-<arch>.AppImage.zsync`, so
+`appimageupdatetool`, AppImageLauncher and Gear Lever can update it; GitHub's `latest` skips releases flagged
+"pre-release", so the public release must be a normal one. Inspect with `./X.AppImage --appimage-updateinfo`.
+
+### Desktop integration and updating (AppImage)
+
+- On first start the AppImage offers to add a menu entry and icons (`~/.local/share/{applications,icons,metainfo}`).
+  `Help > Desktop integration...` or `--install` / `--uninstall` does the same from the menu or a terminal; an entry
+  whose AppImage was moved is re-pointed automatically.
+- `Help > Check for updates...` uses `appimageupdatetool` when it is installed (otherwise it opens the releases page).
+- No FUSE (Ubuntu 24.04+, Fedora)? Run with `APPIMAGE_EXTRACT_AND_RUN=1` or `--appimage-extract-and-run`.
+
 ### arm64 (aarch64) AppImage
 
 `ARCH=aarch64` (or `arm64`) builds the same AppImage for 64-bit ARM Linux (Raspberry Pi and other SBCs), named

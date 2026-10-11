@@ -23,4 +23,4 @@ docker run --rm --platform "$PLATFORM" \
   -v "$OUT_DIR":/out \
   -e VERSION="$VERSION" -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
   "$IMAGE" bash /src/qsstv-experimental/packaging/appimage/inside.sh
-echo "Built: $OUT_DIR/QSSTV-Experimental-$VERSION-$ARCH.AppImage"
+echo "Built: $OUT_DIR/QSSTV-Experimental-$VERSION-$ARCH.AppImage (+ .zsync, .sha256)"

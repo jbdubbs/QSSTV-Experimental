@@ -32,6 +32,12 @@
 #include <windows.h> // WM_POWERBROADCAST / PBT_APMRESUME* -- see nativeEvent() below
 #endif
 #include "mainwindow.h"
+#include "appimageintegration.h"
+#include <QMessageBox>
+#include <QCheckBox>
+#include <QDesktopServices>
+#include <QUrl>
+#include <QSettings>
 #include "appglobal.h"
 #include "logging.h"
 #include "dispatch/dispatcher.h"
@@ -142,6 +148,15 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
   connect(ui->actionAboutQSSTV, SIGNAL(triggered()),SLOT(slotAboutQSSTV()));
   connect(ui->actionAboutQt, SIGNAL(triggered()),SLOT(slotAboutQt()));
   connect(ui->actionUsersGuide, SIGNAL(triggered()),SLOT(slotDocumentation()));
+  if(appImageIntegration::available())
+    {
+      // AppImage-only Help entries: desktop integration and updating
+      ui->menuHelp->addSeparator();
+      QAction *integ=ui->menuHelp->addAction(tr("Desktop integration..."));
+      connect(integ,&QAction::triggered,this,&mainWindow::slotDesktopIntegration);
+      QAction *upd=ui->menuHelp->addAction(tr("Check for updates..."));
+      connect(upd,&QAction::triggered,this,&mainWindow::slotCheckForUpdates);
+    }
   connect(idPushButton, SIGNAL(clicked()), this, SLOT(slotSendWFID()));
   connect(cwPushButton, SIGNAL(clicked()), this, SLOT(slotSendCWID()));
   connect(bsrPushButton, SIGNAL(clicked()), this, SLOT(slotSendBSR()));
@@ -231,6 +246,82 @@ void mainWindow::init()
   lockTimer->start(250);
   if(fileWatcherPtr==nullptr) fileWatcherPtr=new fileWatcher;
   fileWatcherPtr->init();
+  if(!fileDecoderPtr->isBatch() && appImageIntegration::available())
+    QTimer::singleShot(4000,this,&mainWindow::offerDesktopIntegration);
+}
+
+/*!
+  First run from an AppImage: offer to add the menu entry and icons (once). If it is already integrated but the
+  AppImage was moved or renamed, quietly re-point the entry at the new location.
+*/
+void mainWindow::offerDesktopIntegration()
+{
+  QString msg;
+  if(appImageIntegration::isInstalled())
+    {
+      if(!appImageIntegration::isCurrent()) appImageIntegration::install(msg);
+      return;
+    }
+  if(appImageIntegration::installedByOtherTool()) return;
+  QSettings qs;
+  if(qs.value("appimage/integrationAsked",false).toBool()) return;
+  QMessageBox box(QMessageBox::Question,tr("Desktop integration"),
+                  tr("Add QSSTV-Experimental to your application menu?\n\nThis copies a menu entry and icons into your home directory. "
+                     "You can remove them later from Help > Desktop integration or with --uninstall."),
+                  QMessageBox::Yes|QMessageBox::No,this);
+  QCheckBox *dont=new QCheckBox(tr("Don't ask again"),&box);
+  box.setCheckBox(dont);
+  int r=box.exec();
+  if(r==QMessageBox::Yes)
+    {
+      bool ok=appImageIntegration::install(msg);
+      QMessageBox::information(this,tr("Desktop integration"),msg);
+      if(ok) return;
+    }
+  if(dont->isChecked() || r==QMessageBox::No) qs.setValue("appimage/integrationAsked",true);
+}
+
+void mainWindow::slotDesktopIntegration()
+{
+  QString msg;
+  if(appImageIntegration::isInstalled())
+    {
+      if(QMessageBox::question(this,tr("Desktop integration"),tr("QSSTV-Experimental is in your application menu. Remove it?"))==QMessageBox::Yes)
+        {
+          appImageIntegration::uninstall(msg);
+          QMessageBox::information(this,tr("Desktop integration"),msg);
+        }
+    }
+  else
+    {
+      appImageIntegration::install(msg);
+      QMessageBox::information(this,tr("Desktop integration"),msg);
+    }
+}
+
+void mainWindow::slotCheckForUpdates()
+{
+  QString msg;
+  QApplication::setOverrideCursor(Qt::WaitCursor);
+  int r=appImageIntegration::checkForUpdate(msg);
+  QApplication::restoreOverrideCursor();
+  if(r==0)
+    {
+      QMessageBox::information(this,tr("Check for updates"),tr("You are running the latest version."));
+    }
+  else if(r==1)
+    {
+      if(QMessageBox::question(this,tr("Check for updates"),tr("A newer version is available. Download and replace this AppImage now?\n(Restart QSSTV-Experimental afterwards.)"))==QMessageBox::Yes)
+        {
+          if(!appImageIntegration::runUpdate()) QMessageBox::warning(this,tr("Check for updates"),tr("Could not start appimageupdatetool."));
+        }
+    }
+  else
+    {
+      if(QMessageBox::question(this,tr("Check for updates"),
+                               tr("Could not check automatically (%1).\nOpen the releases page in your browser?").arg(msg))==QMessageBox::Yes)
+        QDesktopServices::openUrl(QUrl("https://github.com/jbdubbs/QSSTV-Experimental/releases"));
+    }
 }
 
 void mainWindow::restartSound(bool inStartUp)

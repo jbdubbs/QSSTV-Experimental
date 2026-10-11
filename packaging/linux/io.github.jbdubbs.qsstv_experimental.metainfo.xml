@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.jbdubbs.qsstv_experimental</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>QSSTV-Experimental</name>
+  <summary>Amateur radio slow-scan television and digital SSTV (DRM)</summary>
+  <description>
+    <p>QSSTV-Experimental sends and receives amateur radio slow-scan television (SSTV) pictures and digital SSTV over DRM, using your sound card and optionally a rig-control connection.</p>
+    <p>It is built upon the original QSSTV by Johan Maes, ON4QZ, and adds new modes, an improved receiver, decoding of recordings from files, and batch operation from the command line.</p>
+  </description>
+  <launchable type="desktop-id">qsstv-experimental.desktop</launchable>
+  <url type="homepage">https://github.com/jbdubbs/QSSTV-Experimental</url>
+  <url type="bugtracker">https://github.com/jbdubbs/QSSTV-Experimental/issues</url>
+  <developer id="io.github.jbdubbs">
+    <name>Jason Weisberger</name>
+  </developer>
+  <categories>
+    <category>AudioVideo</category>
+    <category>Audio</category>
+    <category>HamRadio</category>
+  </categories>
+  <provides>
+    <binary>qsstv</binary>
+  </provides>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="10.0-Pre8" date="2026-10-09"/>
+  </releases>
+</component>

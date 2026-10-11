@@ -97,6 +97,7 @@ set(QSSTV_SOURCES
     config/baseconfig.cpp
     config/soundconfig.cpp
     utils/dirdialog.cpp
+    utils/appimageintegration.cpp
     utils/logging.cpp
     utils/loggingparams.cpp
     appglobal.cpp
@@ -416,8 +417,12 @@ else()
   install(FILES ${QSSTV_LICENSE_FILES} DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/doc/qsstv")
 endif()
 if(UNIX AND NOT APPLE)
-  install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../qsstv.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications")
-  install(FILES icons/qsstv.png DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/128x128/apps")
+  install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../qsstv-experimental.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications")
+  install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/linux/io.github.jbdubbs.qsstv_experimental.metainfo.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo")
+  foreach(sz 16 32 48 64 128)
+    install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/linux/icons/qsstv-experimental-${sz}.png"
+            DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/${sz}x${sz}/apps" RENAME qsstv-experimental.png)
+  endforeach()
 endif()
 
 if(WIN32)
