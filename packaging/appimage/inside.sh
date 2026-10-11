@@ -22,7 +22,7 @@ cmake --install $B/qsstv-experimental/build-cmake --prefix $APPDIR/usr
 L=/usr/lib/$(gcc -dumpmachine)
 FORCE=()
 for pat in libasound libusb-1.0 libudev libEGL libGLX libGL libGLdispatch libOpenGL libX11 libX11-xcb \
-  libxcb 'libxcb-*' libXau libXdmcp libbsd libmd libfontconfig libfreetype libharfbuzz libexpat libXrandr libXrender libXext libXfixes libSM libICE libdrm libfribidi libwayland-client; do
+  libxcb 'libxcb-*' libXau libXdmcp libbsd libmd libfontconfig libfreetype libharfbuzz libexpat libXrandr libXrender libXext libXfixes libSM libICE libdrm libfribidi libwayland-client libwayland-cursor libwayland-egl; do
   for f in $L/$pat.so.*; do [ -e "$f" ] && FORCE+=(--library "$f"); done
 done
 
@@ -51,7 +51,8 @@ rm -f $QT_ROOT/plugins/multimedia/libgstreamermediaplugin.so
 mkdir -p $APPDIR/usr/share/qsstv && install -m755 /opt/appimageupdatetool $APPDIR/usr/share/qsstv/appimageupdatetool
 cd $B
 export APPIMAGE_EXTRACT_AND_RUN=1 QMAKE=$QT_ROOT/bin/qmake LD_LIBRARY_PATH=$QT_ROOT/lib VERSION NO_STRIP=1 PATCHELF=/usr/bin/patchelf
-export EXTRA_PLATFORM_PLUGINS=libqoffscreen.so   # --batch headless mode needs offscreen
+# offscreen: --batch headless mode. wayland: without it the AppImage falls back to XWayland (no tooltips on GNOME/Wayland, #89)
+export EXTRA_PLATFORM_PLUGINS="libqoffscreen.so;libqwayland.so"
 # Embedded update information (AppImageUpdate / appimageupdatetool, AppImageLauncher, Gear Lever): delta updates via
 # the .zsync file attached to each GitHub release. Release must not be flagged "pre-release" for `latest` to find it.
 case "$(uname -m)" in x86_64) UARCH=x86_64;; *) UARCH=$(uname -m);; esac

@@ -62,6 +62,6 @@ RUN wget -q -O linuxdeploy.AppImage https://github.com/linuxdeploy/linuxdeploy/r
  && ln -s /opt/linuxdeploy/linuxdeploy-plugin-qt.dir/AppRun /usr/local/bin/linuxdeploy-plugin-qt
 # The official aarch64 Qt's libQt6XcbQpa has a hard NEEDED on libSM/libICE (the x86_64 build doesn't),
 # so they must be present for linuxdeploy to resolve and bundle them. Nothing else extra is installed.
-RUN apt-get update && apt-get install -y --no-install-recommends libsm6 libice6 \
+RUN apt-get update && apt-get install -y --no-install-recommends libsm6 libice6 libwayland-cursor0 libwayland-egl1 \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /work
