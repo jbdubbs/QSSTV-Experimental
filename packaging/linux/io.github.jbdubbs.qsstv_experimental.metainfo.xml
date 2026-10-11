@@ -25,6 +25,7 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="10.0-Pre9" date="2026-10-11"/>
     <release version="10.0-Pre8" date="2026-10-09"/>
   </releases>
 </component>

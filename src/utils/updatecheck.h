@@ -28,7 +28,7 @@ public:
   explicit updateChecker(QObject *parent=nullptr);
   void start();
   /*!
-    Compare version strings such as "10.0-Pre8" or "v10.0" (a release outranks any Pre of the same number).
+    Compare version strings such as "10.0-Pre9" or "v10.0" (a release outranks any Pre of the same number).
     Returns <0, 0 or >0.
   */
   static int compareVersions(const QString &a,const QString &b);
