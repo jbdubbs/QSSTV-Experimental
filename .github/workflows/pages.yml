@@ -1,0 +1,30 @@
+# Publishes the User's Guide (documentation/userguide/) to GitHub Pages:
+# https://jbdubbs.github.io/QSSTV-Experimental/
+# The same folder is bundled into the app (Help > Users Guide), so there is one source of truth.
+name: Publish User's Guide
+on:
+  push:
+    branches: [main]
+    paths: ['documentation/userguide/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: documentation/userguide
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -62,6 +62,10 @@ Ready-to-run builds are published on the [Releases page](https://github.com/jbdu
 - **Windows:** download the `-win64.zip`, extract it anywhere and run `qsstv.exe`.
 - **macOS:** (Not yet available - lack of hardware)
 
+## User's Guide
+
+The guide is built into the app (**Help > Users Guide**) and also published online at <https://jbdubbs.github.io/QSSTV-Experimental/>. Both come from the same files in `documentation/userguide/`.
+
 ## Building
 
 See [BUILDING.md](BUILDING.md) for building from source on Linux and Windows, the AppImage build, and the image-format plugin requirements.
