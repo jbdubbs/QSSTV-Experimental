@@ -66,6 +66,15 @@ soundConfig::soundConfig(QWidget *parent) :  baseConfig(parent), ui(new Ui::soun
   static QMediaDevices mediaDevices;
   connect(&mediaDevices,&QMediaDevices::audioInputsChanged,this,&soundConfig::refreshDeviceLists);
   connect(&mediaDevices,&QMediaDevices::audioOutputsChanged,this,&soundConfig::refreshDeviceLists);
+  connect(ui->duplicateChannelCheckBox,&QCheckBox::toggled,this,&soundConfig::updateChannelEnables);
+}
+
+// Swap and PTT-tone-on-other-channel have no meaning when both channels carry the same audio (issue #88)
+void soundConfig::updateChannelEnables()
+{
+  bool dup=ui->duplicateChannelCheckBox->isChecked();
+  ui->swapChannelCheckBox->setEnabled(!dup);
+  ui->pttToneCheckBox->setEnabled(!dup);
 }
 
 void soundConfig::refreshDeviceLists()
@@ -104,8 +113,9 @@ void soundConfig::readSettings()
   alsaSelected=qSettings.value("alsaSelected",false).toBool();
   pulseSelected=qSettings.value("pulseSelected",false).toBool();
   swapChannel=qSettings.value("swapChannel",false).toBool();
-  duplicateChannel=qSettings.value("duplicateChannel",false).toBool();
   pttToneOtherChannel=qSettings.value("pttToneOtherChannel",false).toBool();
+  // Default on, except for existing configs that rely on the PTT tone channel (duplicate overrides it)
+  duplicateChannel=qSettings.value("duplicateChannel",!pttToneOtherChannel).toBool();
   soundRoutingInput=  (soundBase::edataSrc)qSettings.value("soundRoutingInput",  0 ).toInt();
   soundRoutingOutput= (soundBase::edataDst)qSettings.value("soundRoutingOutput", 0 ).toInt();
   recordingSize= qSettings.value("recordingSize", 100 ).toInt();
@@ -145,6 +155,7 @@ void soundConfig::setParams()
   setValue(swapChannel,ui->swapChannelCheckBox);
   setValue(duplicateChannel,ui->duplicateChannelCheckBox);
   setValue(pttToneOtherChannel,ui->pttToneCheckBox);
+  updateChannelEnables();
   if(soundRoutingInput==soundBase::SNDINCARD) ui->inFromCard->setChecked(true);
   else if (soundRoutingInput==soundBase::SNDINFROMFILE) ui->inFromFile->setChecked(true);
   else ui->inRecordFromCard->setChecked(true);

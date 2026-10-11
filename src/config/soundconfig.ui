@@ -290,7 +290,7 @@
      <item>
       <widget class="QCheckBox" name="duplicateChannelCheckBox">
        <property name="toolTip">
-        <string>Send the transmit audio to both left and right channels. Useful when the interface sums the two channels (e.g. CM108 based rig interfaces), which gives about 3 dB more output. You may need to lower the TX drive level. Ignored when PTT tone on other audio channel is enabled.</string>
+        <string>Send the transmit audio to both left and right channels. Useful when the interface sums the two channels (e.g. CM108 based rig interfaces), which gives about 3 dB more output. You may need to lower the TX drive level. Swap left and right channel and PTT tone on other audio channel are disabled while this is checked.</string>
        </property>
        <property name="text">
         <string>Send audio to both channels</string>

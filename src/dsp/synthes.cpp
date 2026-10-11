@@ -152,18 +152,21 @@ SOUNDFRAME synthesizer::filter(double sample)
 //   {
 //      tst+=tst<<16;
 //   }
- if(duplicateChannel && !pttToneOtherChannel)
+ if(duplicateChannel)
    {
      tst=(tst&0xFFFF)|(tst<<16);
    }
- if(pttToneOtherChannel)
+ else
    {
-     ptt=((quint32)toneBuffer[(pttToneCounter++)%TONEBUFLEN])<< 16;
-     tst+=ptt;
-   }
- if(swapChannel)
-   {
-     tst=((tst>>16) & 0xFFFF)+(tst<<16);
+     if(pttToneOtherChannel)
+       {
+         ptt=((quint32)toneBuffer[(pttToneCounter++)%TONEBUFLEN])<< 16;
+         tst+=ptt;
+       }
+     if(swapChannel)
+       {
+         tst=((tst>>16) & 0xFFFF)+(tst<<16);
+       }
    }
  return tst;
 }
@@ -183,7 +186,7 @@ void synthesizer::write(double sample)
 void synthesizer::writeBuffer(quint32 *buffer, int len)
 {
   int i;
-   if(duplicateChannel && !pttToneOtherChannel)
+   if(duplicateChannel)
      {
        for(i=0;i<len;i++) buffer[i]=(buffer[i]&0xFFFF)|(buffer[i]<<16);
      }
