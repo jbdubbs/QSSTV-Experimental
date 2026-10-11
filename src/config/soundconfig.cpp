@@ -36,6 +36,7 @@ double txClock;
 bool pulseSelected;
 bool alsaSelected;
 bool swapChannel;
+bool duplicateChannel;
 bool pttToneOtherChannel;
 QString inputAudioDevice;
 QString outputAudioDevice;
@@ -103,6 +104,7 @@ void soundConfig::readSettings()
   alsaSelected=qSettings.value("alsaSelected",false).toBool();
   pulseSelected=qSettings.value("pulseSelected",false).toBool();
   swapChannel=qSettings.value("swapChannel",false).toBool();
+  duplicateChannel=qSettings.value("duplicateChannel",false).toBool();
   pttToneOtherChannel=qSettings.value("pttToneOtherChannel",false).toBool();
   soundRoutingInput=  (soundBase::edataSrc)qSettings.value("soundRoutingInput",  0 ).toInt();
   soundRoutingOutput= (soundBase::edataDst)qSettings.value("soundRoutingOutput", 0 ).toInt();
@@ -123,6 +125,7 @@ void soundConfig::writeSettings()
   qSettings.setValue("alsaSelected",alsaSelected);
   qSettings.setValue("pulseSelected",pulseSelected);
   qSettings.setValue("swapChannel",swapChannel);
+  qSettings.setValue("duplicateChannel",duplicateChannel);
   qSettings.setValue("pttToneOtherChannel",pttToneOtherChannel);
   qSettings.setValue ("soundRoutingInput", soundRoutingInput );
   qSettings.setValue ("soundRoutingOutput",soundRoutingOutput );
@@ -140,6 +143,7 @@ void soundConfig::setParams()
   setValue(alsaSelected,ui->alsaRadioButton);
   setValue(pulseSelected,ui->pulseRadioButton);
   setValue(swapChannel,ui->swapChannelCheckBox);
+  setValue(duplicateChannel,ui->duplicateChannelCheckBox);
   setValue(pttToneOtherChannel,ui->pttToneCheckBox);
   if(soundRoutingInput==soundBase::SNDINCARD) ui->inFromCard->setChecked(true);
   else if (soundRoutingInput==soundBase::SNDINFROMFILE) ui->inFromFile->setChecked(true);
@@ -167,6 +171,7 @@ void soundConfig::getParams()
   getValue(alsaSelected,ui->alsaRadioButton);
   getValue(pulseSelected,ui->pulseRadioButton);
   getValue(swapChannel,ui->swapChannelCheckBox);
+  getValue(duplicateChannel,ui->duplicateChannelCheckBox);
   getValue(pttToneOtherChannel,ui->pttToneCheckBox);
 
   if (ui->inFromCard->isChecked()) soundRoutingInput=soundBase::SNDINCARD;

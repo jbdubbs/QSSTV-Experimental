@@ -10,6 +10,7 @@ extern double txClock;
 extern bool pulseSelected;
 extern bool alsaSelected;
 extern bool swapChannel;
+extern bool duplicateChannel;
 extern bool pttToneOtherChannel;
 extern QString inputAudioDevice;
 extern QString outputAudioDevice;
