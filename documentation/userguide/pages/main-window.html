@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Main window tour - QSSTV-Experimental User&#x27;s Guide</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html">Install and first run</a></li><li><a href="main-window.html" aria-current="page">Main window tour</a></li><li><a href="receive.html">Receiving</a></li><li><a href="transmit.html">Transmitting</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="sstv-modes.html">SSTV modes</a></li><li><a href="drm.html">Digital SSTV (DRM)</a></li><li><a href="calibration.html">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
+<main>
+
+<h1>Main window tour</h1>
+<figure><img src="../images/rx-sstv.png" alt="The Receive tab of QSSTV-Experimental with a freshly decoded Rose picture, SSTV settings, spectrum and waterfall" loading="lazy"><figcaption>The main window on the Receive tab, just after a picture has been decoded from a recording.</figcaption></figure>
+
+<h2>Layout</h2>
+<ul>
+<li><strong>Menu bar:</strong> File, Options and Help (see below).</li>
+<li><strong>Main tabs:</strong> <a href="receive.html">Receive</a>, <a href="transmit.html">Transmit</a> and
+ <a href="gallery.html">Gallery</a>.</li>
+<li><strong>Toolbar:</strong> the start, stop and picture buttons of the current tab. Hover over a button to see what it does.</li>
+<li><strong>Picture area:</strong> the picture being received or about to be transmitted.</li>
+<li><strong>Settings panel:</strong> a small tab control with an <strong>SSTV</strong> tab and a <strong>DRM</strong> tab.
+ Switching it switches the program between analog SSTV and digital DRM operation.</li>
+<li><strong>Spectrum and waterfall:</strong> at the right. The top graph is the audio spectrum, the lower one a waterfall.
+ Red vertical markers show the frequencies of interest for the current mode, and move when you switch between SSTV and DRM.
+ The <strong>Max dB</strong>, <strong>Range</strong> and <strong>Avg</strong> boxes underneath adjust how the display is drawn.</li>
+<li><strong>Level meters:</strong> the two vertical bars next to the picture area.</li>
+<li><strong>Status bar:</strong> described below.</li>
+</ul>
+
+<h2>The mode switch</h2>
+<p>The SSTV and DRM tabs in the settings panel are shared between Receive and Transmit: choosing DRM on one tab chooses it on
+the other. While a picture is being received or transmitted, the other mode's tab is locked so a running transmission or
+reception is never interrupted. Stop the receiver or transmitter first if you want to change mode.</p>
+
+<h2>Status bar</h2>
+<p>The bottom row has, from left to right: a message area, the rig frequency, a frequency selector, three buttons and
+the PTT indicator.</p>
+<dl>
+<dt>Rig frequency</dt><dd>Shows the radio's frequency in MHz when CAT control is active, otherwise <strong>No Rig</strong>.</dd>
+<dt>Frequency selector</dt><dd>A drop-down list of the frequencies you entered under <a href="configuration.html#frequencies">Configuration &gt; Frequencies</a>.
+ It lists the SSTV entries while the SSTV tab is active and the DRM entries while DRM is active. Choosing one tunes the rig
+ and sets its mode (needs CAT).</dd>
+<dt>WF Text</dt><dd>Opens a small dialog where you pick or type up to four texts (TX #1 to TX #4) and transmits the chosen one as
+ text that appears in a waterfall display.</dd>
+<dt>WF ID</dt><dd>Transmits your callsign as waterfall text.</dd>
+<dt>CW ID</dt><dd>Transmits the CW identification set up on the <a href="configuration.html#cw">CW</a> page.</dd>
+<dt>PTT</dt><dd>A small indicator: green when not transmitting, red while the transmitter is keyed.</dd>
+</dl>
+
+<h2>Menus</h2>
+<h3>File</h3>
+<figure><img src="../images/menu-file.png" alt="The File menu open, showing Decode SSTV From File, Save Waterfall Image, Exit and TX Test Pattern" loading="lazy"><figcaption>The File menu.</figcaption></figure>
+
+<dl>
+<dt>Decode SSTV From File...</dt><dd><kbd>Ctrl</kbd>+<kbd>O</kbd>. Decodes a recording; see
+ <a href="command-line.html">Decode from file and command line</a>.</dd>
+<dt>Save Waterfall Image</dt><dd>Asks where to save the current waterfall as a JPG or PNG image. It tells you if there is no
+ waterfall image yet or if saving fails.</dd>
+<dt>Exit</dt><dd>Asks for confirmation (this can be turned off in <a href="configuration.html#gui">Configuration &gt; Gui</a>),
+ then stops everything and saves your settings.</dd>
+<dt>TX Test Pattern</dt><dd>Puts a built-in test picture into the transmit tab. Choose between SMPTE Color Bars, PM5544 and RCA Indian Head.
+ Useful for checking levels without needing a picture file.</dd>
+</dl>
+<figure><img src="../images/dlg-test-pattern.png" alt="The Select Test Pattern dialog listing SMPTE Color Bars, PM5544 and RCA Indian Head" loading="lazy"><figcaption>TX Test Pattern: choose a pattern, then OK.</figcaption></figure>
+
+<p>Press <kbd>Ctrl</kbd>+<kbd>F</kbd> to switch the window to full screen and back.</p>
+
+<h3>Options</h3>
+<figure><img src="../images/menu-options.png" alt="The Options menu open, showing Configuration and Calibrate" loading="lazy"><figcaption>The Options menu.</figcaption></figure>
+
+<dl>
+<dt>Configuration</dt><dd>Opens the <a href="configuration.html">Configuration</a> dialog.</dd>
+<dt>Calibrate</dt><dd>Opens the <a href="calibration.html">soundcard calibration</a> dialog.</dd>
+</dl>
+<p>Debug builds and builds made with logging enabled add a few developer entries here; ordinary releases do not show them.</p>
+
+<h3>Help</h3>
+<figure><img src="../images/menu-help.png" alt="The Help menu open, showing About, About Qt, Users Guide, Check for updates and Check for updates at startup" loading="lazy"><figcaption>The Help menu of a non-AppImage build. In the AppImage, the two update entries are replaced by Desktop integration... and Check for updates...</figcaption></figure>
+
+<p>See <a href="help-updates.html">Help menu, updates and desktop integration</a>.</p>
+
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="install.html" rel="prev">&larr; Install and first run</a><a class="next" href="receive.html" rel="next">Receiving &rarr;</a></nav>
+</main>
+<footer class="site-footer"><p>QSSTV-Experimental is based on QSSTV by Johan Maes, ON4QZ, and is released under the GNU GPL v3.</p></footer>
+</body>
+</html>

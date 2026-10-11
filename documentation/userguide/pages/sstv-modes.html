@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>SSTV modes - QSSTV-Experimental User&#x27;s Guide</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html">Install and first run</a></li><li><a href="main-window.html">Main window tour</a></li><li><a href="receive.html">Receiving</a></li><li><a href="transmit.html">Transmitting</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="sstv-modes.html" aria-current="page">SSTV modes</a></li><li><a href="drm.html">Digital SSTV (DRM)</a></li><li><a href="calibration.html">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
+<main>
+
+<h1>SSTV modes</h1>
+<p>A <em>mode</em> defines how a picture is turned into audio: its size, whether it is color, and how long it takes. The sender and receiver must use the
+same mode. When receiving, leave <strong>Mode</strong> on <strong>Auto</strong> and the receiver identifies the mode from the transmission's header; when transmitting,
+pick the mode on the <a href="transmit.html">Transmit</a> tab. The 48 modes below are the list in the program (<code>qsstv --list-modes</code> prints the
+short names).</p>
+<div class="table-wrap"><table class="compact"><tr><th>Family</th><th>Name in the mode list</th><th><code>--mode</code> name</th><th>Duration</th><th>Picture size</th></tr>
+<tr><td>Martin</td><td>Martin 1</td><td><code>M1</code></td><td>114.3 s</td><td>320x256</td></tr>
+<tr><td></td><td>Martin 2</td><td><code>M2</code></td><td>58.1 s</td><td>320x256</td></tr>
+<tr><td>Scottie</td><td>Scottie 1</td><td><code>S1</code></td><td>109.6 s</td><td>320x256</td></tr>
+<tr><td></td><td>Scottie 2</td><td><code>S2</code></td><td>71.1 s</td><td>320x256</td></tr>
+<tr><td></td><td>Scottie DX</td><td><code>SDX</code></td><td>268.9 s</td><td>320x256</td></tr>
+<tr><td>Wraase SC2</td><td>SC2 60</td><td><code>SC2-60</code></td><td>61.5 s</td><td>320x256</td></tr>
+<tr><td></td><td>SC2 120</td><td><code>SC2-120</code></td><td>121.7 s</td><td>320x256</td></tr>
+<tr><td></td><td>SC2 180</td><td><code>SC2-180</code></td><td>182.0 s</td><td>320x256</td></tr>
+<tr><td>Robot</td><td>Robot 24</td><td><code>R24</code></td><td>24.0 s</td><td>160x120</td></tr>
+<tr><td></td><td>Robot 36</td><td><code>R36</code></td><td>36.0 s</td><td>320x240</td></tr>
+<tr><td></td><td>Robot 72</td><td><code>R72</code></td><td>72.0 s</td><td>320x240</td></tr>
+<tr><td>Pasokon</td><td>P3</td><td><code>P3</code></td><td>203.1 s</td><td>640x496</td></tr>
+<tr><td></td><td>P5</td><td><code>P5</code></td><td>304.6 s</td><td>640x496</td></tr>
+<tr><td></td><td>P7</td><td><code>P7</code></td><td>406.1 s</td><td>640x496</td></tr>
+<tr><td>Black and white</td><td>B/W 8</td><td><code>BW8</code></td><td>8.0 s</td><td>160x120</td></tr>
+<tr><td></td><td>B/W 12</td><td><code>BW12</code></td><td>12.0 s</td><td>160x120</td></tr>
+<tr><td>PD</td><td>PD50</td><td><code>PD50</code></td><td>49.7 s</td><td>320x256</td></tr>
+<tr><td></td><td>PD90</td><td><code>PD90</code></td><td>90.0 s</td><td>320x256</td></tr>
+<tr><td></td><td>PD120</td><td><code>PD120</code></td><td>126.1 s</td><td>640x496</td></tr>
+<tr><td></td><td>PD120W</td><td><code>PD120W</code></td><td>130.8 s</td><td>768x432</td></tr>
+<tr><td></td><td>PD160</td><td><code>PD160</code></td><td>160.9 s</td><td>512x400</td></tr>
+<tr><td></td><td>PD180</td><td><code>PD180</code></td><td>187.1 s</td><td>640x496</td></tr>
+<tr><td></td><td>PD240</td><td><code>PD240</code></td><td>248.0 s</td><td>640x496</td></tr>
+<tr><td></td><td>PD290</td><td><code>PD290</code></td><td>288.7 s</td><td>800x616</td></tr>
+<tr><td>MP</td><td>MP73</td><td><code>MP73</code></td><td>73.0 s</td><td>320x256</td></tr>
+<tr><td></td><td>MP115</td><td><code>MP115</code></td><td>115.5 s</td><td>320x256</td></tr>
+<tr><td></td><td>MP140</td><td><code>MP140</code></td><td>139.5 s</td><td>320x256</td></tr>
+<tr><td></td><td>MP175</td><td><code>MP175</code></td><td>175.4 s</td><td>320x256</td></tr>
+<tr><td>MR</td><td>MR73</td><td><code>MR73</code></td><td>73.3 s</td><td>320x256</td></tr>
+<tr><td></td><td>MR90</td><td><code>MR90</code></td><td>90.2 s</td><td>320x256</td></tr>
+<tr><td></td><td>MR115</td><td><code>MR115</code></td><td>115.3 s</td><td>320x256</td></tr>
+<tr><td></td><td>MR140</td><td><code>MR140</code></td><td>140.4 s</td><td>320x256</td></tr>
+<tr><td></td><td>MR175</td><td><code>MR175</code></td><td>175.2 s</td><td>320x256</td></tr>
+<tr><td>ML</td><td>ML180</td><td><code>ML180</code></td><td>180.2 s</td><td>640x496</td></tr>
+<tr><td></td><td>ML240</td><td><code>ML240</code></td><td>239.7 s</td><td>640x496</td></tr>
+<tr><td></td><td>ML280</td><td><code>ML280</code></td><td>280.4 s</td><td>640x496</td></tr>
+<tr><td></td><td>ML320</td><td><code>ML320</code></td><td>320.1 s</td><td>640x496</td></tr>
+<tr><td>JB60</td><td>JB60</td><td><code>JB60</code></td><td>61.3 s</td><td>640x496</td></tr>
+<tr><td>Fax</td><td>FAX480</td><td><code>FAX480</code></td><td>133.6 s</td><td>512x500</td></tr>
+<tr><td>AVT</td><td>AVT24</td><td><code>AVT24</code></td><td>22.5 s</td><td>128x120</td></tr>
+<tr><td></td><td>AVT90</td><td><code>AVT90</code></td><td>90.0 s</td><td>320x240</td></tr>
+<tr><td></td><td>AVT94</td><td><code>AVT94</code></td><td>93.8 s</td><td>320x200</td></tr>
+<tr><td>MP/MC narrow</td><td>MP73-Narrow</td><td><code>MP73-N</code></td><td>73.0 s</td><td>320x256</td></tr>
+<tr><td></td><td>MP110-Narrow</td><td><code>MP110-N</code></td><td>109.8 s</td><td>320x256</td></tr>
+<tr><td></td><td>MP140-Narrow</td><td><code>MP140-N</code></td><td>139.5 s</td><td>320x256</td></tr>
+<tr><td></td><td>MC110-Narrow</td><td><code>MC110-N</code></td><td>109.7 s</td><td>320x256</td></tr>
+<tr><td></td><td>MC140-Narrow</td><td><code>MC140-N</code></td><td>140.4 s</td><td>320x256</td></tr>
+<tr><td></td><td>MC180-Narrow</td><td><code>MC180-N</code></td><td>180.4 s</td><td>320x256</td></tr>
+</table></div>
+<p>Durations are the picture transmission time in seconds, not counting the calibration header. The exact time for your picture is shown on the
+Transmit tab.</p>
+
+<h2>Notes</h2>
+<ul>
+<li><strong>Which mode to use.</strong> Martin 1, Scottie 1 and PD120 are widely used on the HF SSTV frequencies, and PD modes give a larger, better
+ picture. Your local nets and calling frequencies matter more than anything else, so check what the other stations use.</li>
+<li><strong>JB60</strong> is a mode added in QSSTV-Experimental: a color mode of about 61 seconds with a 640x496 picture. As far as is known, no other SSTV program decodes it.</li>
+<li><strong>PD120W</strong> is a widescreen (16:9, 768x432) variant of PD120, also new here.</li>
+<li><strong>Grids:</strong> modes larger than PD160 can send a grid of several pictures stitched together
+ (see <a href="transmit.html#grid">Framing and grids</a>).</li>
+<li>Black and white modes (B/W 8, B/W 12) are the quickest. Robot 24 and AVT24 are low-resolution fast color modes.</li>
+<li>The <em>Narrow</em> modes are narrow-bandwidth variants.</li>
+</ul>
+
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="configuration.html" rel="prev">&larr; Configuration</a><a class="next" href="drm.html" rel="next">Digital SSTV (DRM) &rarr;</a></nav>
+</main>
+<footer class="site-footer"><p>QSSTV-Experimental is based on QSSTV by Johan Maes, ON4QZ, and is released under the GNU GPL v3.</p></footer>
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Configuration - QSSTV-Experimental User&#x27;s Guide</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html">Install and first run</a></li><li><a href="main-window.html">Main window tour</a></li><li><a href="receive.html">Receiving</a></li><li><a href="transmit.html">Transmitting</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="configuration.html" aria-current="page">Configuration</a></li><li><a href="sstv-modes.html">SSTV modes</a></li><li><a href="drm.html">Digital SSTV (DRM)</a></li><li><a href="calibration.html">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
+<main>
+
+<h1>Configuration</h1>
+<p>Open <span class="ui">Options &gt; Configuration</span>. The dialog has one tab per topic. Changes take effect when you click
+<span class="ui">OK</span>; <span class="ui">Cancel</span> discards them. If the tab strip is too narrow for all tabs, use the small arrows at its right
+end to scroll.</p>
+<div class="page-toc"><strong>On this page</strong><ul>
+<li><a href="#operator">Operator</a></li><li><a href="#directories">Directories</a></li><li><a href="#gui">Gui</a></li>
+<li><a href="#sound">Sound</a></li><li><a href="#cat">CAT</a></li><li><a href="#cw">CW</a></li><li><a href="#repeater">Repeater</a></li>
+<li><a href="#ftp">FTP</a></li><li><a href="#waterfall">Waterfall</a></li><li><a href="#hybrid">Hybrid</a></li>
+<li><a href="#drmprofiles">DRM Profiles</a></li><li><a href="#frequencies">Frequencies</a></li></ul></div>
+
+<h2 id="operator">Operator</h2>
+<figure><img src="../images/cfg-operator.png" alt="The Operator configuration page with placeholder name, callsign, QTH and locator fields" loading="lazy"><figcaption>Operator page (placeholder values shown).</figcaption></figure>
+
+<p>Your <strong>Firstname</strong>, <strong>Lastname</strong>, <strong>Callsign</strong>, <strong>QTH</strong> and <strong>Locator</strong>. The callsign is
+what the program sends for the waterfall ID, and it identifies you in hybrid-mode notifications.</p>
+<p><strong>Allow other users to see your online status via the notification server</strong> publishes that you are on air through the hybrid FTP
+server (see <a href="#hybrid">Hybrid</a>). <strong>Online Status Text</strong> is a short text, for example <em>locator_antenna_power</em>;
+use only a-z, A-Z, 0-9 and underscore, with no spaces or special characters.</p>
+
+<h2 id="directories">Directories</h2>
+<figure><img src="../images/cfg-directories.png" alt="The Directories configuration page listing RX and TX image directories, templates and audio records" loading="lazy"><figcaption>Directories page, top part. The paths shown here are from a throwaway test profile.</figcaption></figure>
+
+<p>Where the program stores things: <strong>RX SSTV Images</strong>, <strong>RX DRM Images</strong>, <strong>TX SSTV Images</strong>,
+<strong>TX DRM Images</strong>, <strong>TX Stock Images</strong>, <strong>Templates</strong> and <strong>Audio Records</strong> (recordings made when you choose a
+recording option on the Sound page). Use <span class="ui">Browse ...</span> to pick another folder. By default these are subfolders of the
+program's data folder, for example <code>~/.local/share/QSSTV-Experimental/rx_sstv/</code> on Linux.</p>
+<dl>
+<dt>Save TX images in TX SSTV or TX DRM directory</dt><dd>Keeps a copy of every picture you transmit.</dd>
+<dt>Recursively scan directories for files</dt><dd>Also looks in subfolders when building the gallery.</dd>
+<dt>Documentation URL</dt><dd>Leave blank to open this built-in guide from <span class="ui">Help &gt; Users Guide</span>. Enter a web address to open that page instead.</dd>
+</dl>
+
+<h2 id="gui">Gui</h2>
+<figure><img src="../images/cfg-gui.png" alt="The Gui configuration page with colour buttons, gallery rows and columns, performance and confirmation options" loading="lazy"><figcaption>Gui page.</figcaption></figure>
+
+<dl>
+<dt>Images: Background Color, Image Background color, Stretch</dt><dd>Colors used behind pictures in the viewers, and whether pictures are stretched to
+ fill their area.</dd>
+<dt>Gallery: Rows and Columns</dt><dd>How many thumbnails the gallery shows per page.</dd>
+<dt>Check if slow CPU</dt><dd>Performance option for slow computers.</dd>
+<dt>Check if Low Screen Resolution</dt><dd>Option for small screens; restart the program after changing it.</dd>
+<dt>Ask for confirmation when deleting file / when closing</dt><dd>Turn the confirmation questions on or off.</dd>
+</dl>
+<p>The two options <em>slow CPU</em> and <em>Low Screen Resolution</em> take effect after you exit and restart the program.</p>
+
+<h2 id="sound">Sound</h2>
+<figure><img src="../images/cfg-sound.png" alt="The Sound configuration page with input and output device choices, clock frequencies, input and output options" loading="lazy"><figcaption>Sound page.</figcaption></figure>
+
+<dl>
+<dt>Input Audio Device, Output Audio Device</dt><dd>Your sound devices (the program uses Qt Multimedia, so it sees the devices your operating system offers).</dd>
+<dt>Input Clock Frequency, Output Clock Frequency</dt><dd>The sample rate of the sound card, nominally 48000. The calibration tools adjust these; see
+ <a href="calibration.html">Calibration</a>. Normally you do not edit them by hand.</dd>
+<dt>Sound Input</dt><dd>From sound card; From file; or From sound card and record.</dd>
+<dt>Sound Output</dt><dd>To sound card; or To sound card and record.</dd>
+<dt>Swap left and right channel</dt><dd>Swaps the stereo channels of the transmit audio.</dd>
+<dt>Send audio to both channels</dt><dd>Sends the transmit audio to both left and right channels. This is useful when the interface sums the two channels (for example CM108-based
+ rig interfaces), which gives about 3 dB more output; you may need to lower the TX drive level. While it is ticked, <em>Swap left and right channel</em> and
+ <em>PTT tone on other audio channel</em> are greyed out. It is ticked by default.</dd>
+<dt>PTT tone on other audio channel</dt><dd>Puts a PTT tone on the channel that does not carry the picture audio, for interfaces that derive PTT from audio.</dd>
+<dt>Maximum recording size (in MB)</dt><dd>Limit for recordings made with the record options.</dd>
+</dl>
+<p>If you change the audio devices, the program restarts its sound handling when you click OK. If the audio device disappears (for example after a USB
+unplug or Windows sleep and resume), the program recovers when it comes back.</p>
+
+<h2 id="cat">CAT</h2>
+<figure><img src="../images/cfg-cat.png" alt="The CAT configuration page with PTT serial port, Hamlib control, XMLRPC interface and TX on delay" loading="lazy"><figcaption>CAT page.</figcaption></figure>
+
+<p>Rig control and PTT. There are three independent parts.</p>
+<h3>Special Serial Port</h3>
+<p>Enable a plain serial port for PTT: tick <strong>Enable PTT serial Interface</strong>, set <strong>PTT Serial Port</strong>, and choose which lines key
+the transmitter with <strong>+RTS</strong>, <strong>+DTR</strong>, <strong>-RTS</strong> and <strong>-DTR</strong> (the sign sets the polarity).</p>
+<h3>Hamlib Control</h3>
+<p>Tick <strong>Enable Hamlib Cat Interface</strong> to control a rig through Hamlib. Pick your <strong>Radio Model</strong>, the <strong>Serial Port/Host</strong>,
+and the serial settings the rig needs: <strong>Baudrate</strong>, <strong>Parity</strong>, <strong>Databits</strong>, <strong>StopBits</strong> and <strong>Handshake</strong>.
+For Icom radios fill in the <strong>CIV Address</strong>. <strong>PTT Control via</strong> selects how Hamlib keys the radio: <em>CAT (Voice port)</em>,
+<em>CAT (Data port)</em>, <em>RTS</em>, <em>DTR</em> or <em>None</em>. <strong>Restart CAT Interface</strong> applies changes without leaving the dialog.
+With CAT working, the status bar shows the rig frequency.</p>
+<h3>XMLRPC Interface</h3>
+<p><strong>Enable XMLRPC Interface</strong> lets another program (for example a logger or a digital-mode suite) control the radio through the XML-RPC port
+(default 7362). When it is enabled, the program does not send the extra Hamlib data command from the Frequencies page.</p>
+<h3>TX on Delay</h3>
+<p>The time in seconds between keying the transmitter and starting the audio, for radios that need a moment to switch.</p>
+
+<h2 id="cw">CW</h2>
+<figure><img src="../images/cfg-cw.png" alt="The CW configuration page with words per minute, text to send and tone" loading="lazy"><figcaption>CW page.</figcaption></figure>
+
+<p><strong>Words PerMinute</strong>, <strong>Text to send</strong> and <strong>Tone</strong> (audio frequency in Hz) for your CW identification. It is sent by the
+<span class="ui">CW ID</span> button in the status bar, and at the end of a transmission if the <strong>CW</strong> checkbox on the Transmit tab is ticked. This works
+for SSTV and DRM pictures.</p>
+
+<h2 id="repeater">Repeater</h2>
+<figure><img src="../images/cfg-repeater.png" alt="The Repeater configuration page with enable checkbox, image interval, TX modes, idle images and templates" loading="lazy"><figcaption>Repeater page.</figcaption></figure>
+
+<p>Settings for running the program as an unattended SSTV repeater. Tick <strong>Enable Repeater</strong> to turn it on. You choose the
+<strong>Repeater TX mode</strong> (<em>Same as RX</em> by default), the <strong>Tx Delay</strong> in seconds, and
+the <strong>DRM Image Size</strong> in kB. While idle, the repeater transmits one of up to four <strong>Idle Images</strong> or an <strong>Idle Template</strong>
+every <strong>Image Interval</strong> minutes in the <strong>Idle Image TX mode</strong>. The <strong>Repeater Template</strong> and <strong>Idle Template</strong> are the templates used for repeated and idle pictures.</p>
+
+<h2 id="ftp">FTP</h2>
+<figure><img src="../images/cfg-ftp.png" alt="The FTP configuration page with enable checkbox, host, login, password, remote directories and image store options" loading="lazy"><figcaption>FTP page.</figcaption></figure>
+
+<p>Uploads received pictures to a web or FTP server. Tick <strong>Enable File Upload to FTP Server</strong> and fill in <strong>Host</strong>, <strong>FTP Port</strong>
+(21 by default), <strong>Login</strong> and <strong>Password</strong>, the remote <strong>Directory SSTV</strong> and <strong>Directory DRM</strong>, and the
+<strong>Default Image Format</strong>. <strong>Test connection</strong> checks the settings.</p>
+<p>Under <strong>Image store</strong> choose how files are named on the server: as a rotating sequence <em>image1 to image N</em> (image1 is always the latest and
+the highest number the oldest), optionally with the image-format extension added, or under their own <strong>filename</strong>.</p>
+<p>Use a dedicated FTP account that has access only to the upload directory.</p>
+
+<h2 id="waterfall">Waterfall</h2>
+<figure><img src="../images/cfg-waterfall.png" alt="The Waterfall configuration page with start and end texts, font, size and bold options" loading="lazy"><figcaption>Waterfall page.</figcaption></figure>
+
+<p>Short texts that are transmitted as part of the audio so that they show up as readable text on a waterfall display: <strong>Start Picture</strong>,
+<strong>End Picture</strong>, <strong>FIX</strong>, <strong>BSR</strong>, <strong>Start Binary</strong>, <strong>End Binary</strong>, <strong>Start Repeater</strong>
+and <strong>End Repeater</strong>. The <strong>Font</strong>, <strong>Size</strong> and <strong>Bold</strong> settings control how the text is drawn; the
+<strong>Sample</strong> box previews it. The defaults are fine for normal use.</p>
+
+<h2 id="hybrid">Hybrid</h2>
+<figure><img src="../images/cfg-hybrid.png" alt="The Hybrid configuration page with enable reception, notification options, server login and directory names" loading="lazy"><figcaption>Hybrid page.</figcaption></figure>
+
+<p>Hybrid mode combines a DRM transmission over the air with an internet server. The sender uploads the picture (Transmit tab, <em>Hybrid</em> and
+<em>Upload Now</em>) and the receiving station can fetch it. This page holds the server settings: <strong>Enable Reception in Hybrid Mode</strong>,
+the FTP <strong>Host</strong>, <strong>FTP Port</strong>, <strong>Login</strong>, <strong>Password</strong> and <strong>Directory</strong>, the
+<strong>Hybrid Files Directory</strong>, and, if you tick <strong>Send RX Notifications in Hybrid Mode</strong>, the <strong>Notifications Directory</strong> and
+<strong>Online Status Directory</strong>. <strong>Test connection</strong> checks the server. Both stations must use the same server.</p>
+
+<h2 id="drmprofiles">DRM Profiles</h2>
+<figure><img src="../images/cfg-drmprofiles.png" alt="The DRM Profiles configuration page showing Profile 2 with name, mode, bandwidth, QAM, interleave, protection and Reed-Solomon" loading="lazy"><figcaption>DRM Profiles page, Profile 2 tab.</figcaption></figure>
+
+<p>Three saved sets of DRM transmit parameters, on the tabs <strong>Profile 1</strong>, <strong>Profile 2</strong> and <strong>Profile 3</strong>. Each has a
+<strong>Profile Name</strong>, <strong>Mode</strong> (A, B or E), <strong>BW</strong> (2.2 or 2.5 kHz), <strong>QAM</strong> (4, 16 or 64),
+<strong>Interleave</strong> (Short or Long), <strong>Prot.</strong> (High or Low) and <strong>Rs</strong> (Reed-Solomon: None, RS1 to RS4). The profiles
+appear in the <strong>Profile</strong> list on the Transmit tab's DRM settings. See <a href="drm.html">Digital SSTV (DRM)</a> for what the parameters mean.</p>
+
+<h2 id="frequencies">Frequencies</h2>
+<figure><img src="../images/cfg-frequencies.png" alt="The Frequencies configuration page with a table of frequency, mode, modulation and passband, Add and Delete buttons" loading="lazy"><figcaption>Frequencies page.</figcaption></figure>
+
+<p>A list of frequencies for the selector in the main window's status bar. Click <strong>Add</strong> and fill in the row; <strong>Delete</strong> removes one;
+the arrow buttons reorder the list. The columns are:</p>
+<ul>
+<li><strong>Frequency</strong>: in MHz.</li>
+<li><strong>Mode</strong>: <code>SSTV</code> or <code>DRM</code>. This decides in which of the two lists the entry appears.</li>
+<li><strong>Modulation</strong>: the rig mode to set, for example USB.</li>
+<li><strong>Passband</strong>: for example Normal or Wide. It is not used when a <code>PKTxxx</code> mode is selected (at least not on Icom).</li>
+</ul>
+<p>Examples from the dialog: <code>14.230 SSTV USB Wide</code> and <code>7.058 DRM PKTUSB Normal</code>.</p>
+<p><strong>Hamlib Data Command</strong> (with the <strong>Hex</strong> checkbox) is an optional raw command sent to the rig after the frequency and mode have been set.
+Frequency selection needs CAT control to be enabled.</p>
+
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="gallery.html" rel="prev">&larr; Gallery</a><a class="next" href="sstv-modes.html" rel="next">SSTV modes &rarr;</a></nav>
+</main>
+<footer class="site-footer"><p>QSSTV-Experimental is based on QSSTV by Johan Maes, ON4QZ, and is released under the GNU GPL v3.</p></footer>
+</body>
+</html>

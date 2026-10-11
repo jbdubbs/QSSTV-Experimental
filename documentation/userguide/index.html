@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>QSSTV-Experimental User&#x27;s Guide</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header"><div class="inner"><a class="brand" href="index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="index.html" aria-current="page">Contents</a></li><li><a href="pages/introduction.html">Introduction</a></li><li><a href="pages/install.html">Install and first run</a></li><li><a href="pages/main-window.html">Main window tour</a></li><li><a href="pages/receive.html">Receiving</a></li><li><a href="pages/transmit.html">Transmitting</a></li><li><a href="pages/gallery.html">Gallery</a></li><li><a href="pages/configuration.html">Configuration</a></li><li><a href="pages/sstv-modes.html">SSTV modes</a></li><li><a href="pages/drm.html">Digital SSTV (DRM)</a></li><li><a href="pages/calibration.html">Calibration</a></li><li><a href="pages/command-line.html">Decode from file and command line</a></li><li><a href="pages/help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="pages/troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="pages/credits.html">Credits and licenses</a></li></ul></nav></div></header>
+<main>
+
+<h1>QSSTV-Experimental User's Guide</h1>
+<p class="lead">QSSTV-Experimental sends and receives slow-scan television (SSTV) and digital SSTV (HAMDRM) pictures through your sound card.
+This guide explains how to install it, set it up and use it. It is built on the original QSSTV by Johan Maes, ON4QZ, and maintained by Jason Weisberger, NT0Y;
+free software under the GNU GPL v3.</p>
+
+<h2>Contents</h2>
+<ol class="toc"><li><a href="pages/introduction.html"><span class="t">1. Introduction</span><span class="d">What QSSTV-Experimental is, what it can do, and where it came from.</span></a></li><li><a href="pages/install.html"><span class="t">2. Install and first run</span><span class="d">Getting the program on Linux or Windows, building from source, and the first things to set up.</span></a></li><li><a href="pages/main-window.html"><span class="t">3. Main window tour</span><span class="d">The menus, the three main tabs, the spectrum and waterfall, and the status bar.</span></a></li><li><a href="pages/receive.html"><span class="t">4. Receiving</span><span class="d">Receiving SSTV and DRM pictures: toolbar, settings, indicators and saving.</span></a></li><li><a href="pages/transmit.html"><span class="t">5. Transmitting</span><span class="d">Loading a picture, choosing a mode, sending it, plus tones, templates and the other TX buttons.</span></a></li><li><a href="pages/gallery.html"><span class="t">6. Gallery</span><span class="d">Browsing, viewing, sending and deleting received and transmitted pictures.</span></a></li><li><a href="pages/configuration.html"><span class="t">7. Configuration</span><span class="d">Every page of Options &gt; Configuration explained.</span></a></li><li><a href="pages/sstv-modes.html"><span class="t">8. SSTV modes</span><span class="d">Every analog SSTV mode the program knows, with duration, picture size and the name for --mode.</span></a></li><li><a href="pages/drm.html"><span class="t">9. Digital SSTV (DRM)</span><span class="d">HAMDRM digital pictures: how they differ from SSTV, the transmit parameters, hybrid mode, and fixing incomplete pictures.</span></a></li><li><a href="pages/calibration.html"><span class="t">10. Calibration</span><span class="d">Measure your sound card&#x27;s real sample rate with WWV, NTP, or another SSTV station.</span></a></li><li><a href="pages/command-line.html"><span class="t">11. Decode from file and command line</span><span class="d">Decoding recordings in the window or headless, encoding pictures to WAV, and all command-line options.</span></a></li><li><a href="pages/help-updates.html"><span class="t">12. Help menu, updates and desktop integration</span><span class="d">Users Guide, About, update checks, and adding the AppImage to your application menu.</span></a></li><li><a href="pages/troubleshooting.html"><span class="t">13. Troubleshooting and FAQ</span><span class="d">Answers to common problems with audio, PTT, slanted pictures, files and updates.</span></a></li><li><a href="pages/credits.html"><span class="t">14. Credits and licenses</span><span class="d">Who wrote what, and the licences that apply.</span></a></li></ol>
+
+<h2>Quick start</h2>
+<ol>
+<li><strong>Install.</strong> Linux: download the AppImage, <code>chmod +x</code> it and run it. Windows: extract the zip and run <code>qsstv.exe</code>.
+ See <a href="pages/install.html">Install and first run</a>.</li>
+<li><strong>Set up.</strong> Open <span class="ui">Options &gt; Configuration</span>. On <em>Operator</em> enter your callsign; on <em>Sound</em> choose the audio input and output devices
+ connected to your radio. On <em>CAT</em> set up rig control and PTT if you want the program to key your transmitter. See <a href="pages/configuration.html">Configuration</a>.</li>
+<li><strong>Receive.</strong> Tune your radio (USB) to an SSTV frequency and watch the <span class="ui">Receive</span> tab. With <em>Mode</em> on <em>Auto</em>, pictures start
+ and are saved by themselves; they appear in the <span class="ui">Gallery</span>. See <a href="pages/receive.html">Receiving</a>.</li>
+<li><strong>Transmit.</strong> On the <span class="ui">Transmit</span> tab load a picture (or use <span class="ui">File &gt; TX Test Pattern</span>), choose a mode and press the green button.
+ See <a href="pages/transmit.html">Transmitting</a>.</li>
+<li><strong>Try it without a radio.</strong> Use <span class="ui">File &gt; Decode SSTV From File...</span> on a recording, or from a terminal:
+ <code>qsstv --batch --out-dir pics recording.wav</code>. See <a href="pages/command-line.html">Decode from file and command line</a>.</li>
+</ol>
+
+<h2>Conventions</h2>
+<p>Menu items and button names are written like <span class="ui">Options &gt; Configuration</span>. Screenshots were made with default settings and placeholder operator data.
+This guide works offline: every page and picture is in the same folder and no network access is needed to read it. It can be opened from <span class="ui">Help &gt; Users Guide</span>.</p>
+<div class="pager"><a class="next" href="pages/introduction.html" rel="next">Introduction &rarr;</a></div>
+
+
+</main>
+<footer class="site-footer"><p>QSSTV-Experimental is based on QSSTV by Johan Maes, ON4QZ, and is released under the GNU GPL v3.</p></footer>
+</body>
+</html>

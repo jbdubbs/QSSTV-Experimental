@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Help menu, updates and desktop integration - QSSTV-Experimental User&#x27;s Guide</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html">Install and first run</a></li><li><a href="main-window.html">Main window tour</a></li><li><a href="receive.html">Receiving</a></li><li><a href="transmit.html">Transmitting</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="sstv-modes.html">SSTV modes</a></li><li><a href="drm.html">Digital SSTV (DRM)</a></li><li><a href="calibration.html">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html" aria-current="page">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
+<main>
+
+<h1>Help menu, updates and desktop integration</h1>
+<dl>
+<dt>About QSSTV-Experimental</dt><dd>Shows the version, credits and licence. The <span class="ui">Third-party licenses...</span> button lists the licences of the code and libraries
+ that are included.</dd>
+<dt>About Qt</dt><dd>The standard Qt information box.</dd>
+<dt>Users Guide</dt><dd>Opens this guide in your web browser. If a Documentation URL is set in <a href="configuration.html#directories">Configuration &gt; Directories</a>, that
+ address is opened instead.</dd>
+</dl>
+<figure><img src="../images/dlg-about.png" alt="The About dialog with version, project URL, credits for NT0Y, ON4QZ and PA0MBO, and licence text" loading="lazy"><figcaption>Help > About QSSTV-Experimental.</figcaption></figure>
+
+<h2>Updates</h2>
+<p>The program can tell you when a newer release is available.</p>
+<h3>AppImage</h3>
+<p><span class="ui">Help &gt; Check for updates...</span> uses <code>appimageupdatetool</code> when it is installed to download a delta update and replace the AppImage
+(restart the program afterwards). If it cannot check, you are offered the releases page in your browser. The AppImage can also be updated with external tools such as
+AppImageLauncher or Gear Lever, which read update information embedded in the file.</p>
+<h3>Other builds (for example Windows)</h3>
+<p><span class="ui">Help &gt; Check for updates...</span> asks GitHub for the latest release and, if there is a newer one, offers to open the download page. The check box
+<span class="ui">Check for updates at startup</span> does that automatically each time the program starts; a few seconds after the first start the program asks whether you want it.
+When an update is announced you can choose not to be reminded about that version again.</p>
+<p>Updates are never installed without your say-so.</p>
+
+<h2>Desktop integration (AppImage)</h2>
+<p>The AppImage is a single file and does not install itself. About four seconds after the first start the program offers to add QSSTV-Experimental to your application
+menu, which copies a menu entry and icons into your home directory (under <code>~/.local/share</code>). You can say no and tick <em>Don't ask again</em>.
+Later, <span class="ui">Help &gt; Desktop integration...</span> adds the entry (or, if it is already there, offers to remove it). The same can be done from a terminal with
+<code>--install</code> and <code>--uninstall</code>. If you move the AppImage, the menu entry is re-pointed to the new place automatically the next time you run it.</p>
+<p>If the menu entry has been installed by another tool such as AppImageLauncher, the program leaves it alone.</p>
+<div class="note"><p>These entries are shown only when running as an AppImage. In other builds the Help menu has the update entries described above instead.</p></div>
+
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="command-line.html" rel="prev">&larr; Decode from file and command line</a><a class="next" href="troubleshooting.html" rel="next">Troubleshooting and FAQ &rarr;</a></nav>
+</main>
+<footer class="site-footer"><p>QSSTV-Experimental is based on QSSTV by Johan Maes, ON4QZ, and is released under the GNU GPL v3.</p></footer>
+</body>
+</html>

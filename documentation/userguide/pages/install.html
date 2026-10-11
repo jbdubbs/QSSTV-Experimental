@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Install and first run - QSSTV-Experimental User&#x27;s Guide</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html" aria-current="page">Install and first run</a></li><li><a href="main-window.html">Main window tour</a></li><li><a href="receive.html">Receiving</a></li><li><a href="transmit.html">Transmitting</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="sstv-modes.html">SSTV modes</a></li><li><a href="drm.html">Digital SSTV (DRM)</a></li><li><a href="calibration.html">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
+<main>
+
+<h1>Install and first run</h1>
+<div class="page-toc"><strong>On this page</strong><ul>
+<li><a href="#appimage">Linux AppImage</a></li><li><a href="#windows">Windows</a></li>
+<li><a href="#source">Building from source</a></li><li><a href="#first">First run checklist</a></li></ul></div>
+
+<p>Pre-built releases are on the <a href="https://github.com/jbdubbs/QSSTV-Experimental/releases">Releases page</a>. Most people should use one of those.</p>
+
+<h2 id="appimage">Linux AppImage</h2>
+<p>The AppImage is a single self-contained file that bundles Qt 6 and the other runtime libraries. It is built for
+x86-64 and arm64 (aarch64).</p>
+<ol>
+<li>Download <code>QSSTV-Experimental-&lt;version&gt;-x86_64.AppImage</code> (or the <code>aarch64</code> one) from the Releases page.</li>
+<li>Make it executable: <code>chmod +x QSSTV-Experimental-*.AppImage</code></li>
+<li>Run it: <code>./QSSTV-Experimental-*.AppImage</code></li>
+</ol>
+<p>On first start the program offers to add a menu entry and icons for you (see
+<a href="help-updates.html">Help menu, updates and desktop integration</a>).</p>
+<div class="note"><p><strong>No FUSE?</strong> Recent distributions (Ubuntu 24.04 and later, Fedora) may not provide FUSE 2 by
+default. Run the AppImage with <code>APPIMAGE_EXTRACT_AND_RUN=1 ./QSSTV-Experimental-*.AppImage</code> or with the option
+<code>--appimage-extract-and-run</code>.</p></div>
+
+<h2 id="windows">Windows</h2>
+<p>Requires 64-bit Windows 10 version 1809 or later. Download the <code>-win64.zip</code> from the Releases page, extract it
+anywhere, and run <code>qsstv.exe</code>. Nothing needs to be installed.</p>
+
+<h2 id="source">Building from source</h2>
+<p>The full instructions are in <code>BUILDING.md</code> in the source tree. In short: the build uses CMake and Qt 6
+(Core, Widgets, Network, Xml, SerialPort, Multimedia), plus FFTW3 (double and float), OpenJPEG and Hamlib. CMake 3.16 or newer
+is needed. PulseAudio, ALSA and V4L2 development packages are not needed.</p>
+<p>Fedora:</p>
+<pre><code>sudo dnf install cmake gcc-c++ pkgconf-pkg-config qt6-qtbase-devel qt6-qtmultimedia-devel \
+    qt6-qtserialport-devel fftw-devel openjpeg-devel hamlib-devel</code></pre>
+<p>Debian or Ubuntu (24.04 or newer):</p>
+<pre><code>sudo apt install cmake pkg-config g++ qt6-base-dev qt6-base-dev-tools qt6-multimedia-dev \
+    qt6-serialport-dev libfftw3-dev libopenjp2-7-dev libhamlib-dev</code></pre>
+<p>Build and install:</p>
+<pre><code>cmake -S src -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(nproc)
+sudo cmake --install build</code></pre>
+<p>If your distribution's Hamlib is too old or missing, build Hamlib yourself and pass
+<code>-DHAMLIB_ROOT=/path/to/hamlib/install</code> to the first <code>cmake</code> command. Debug builds additionally need
+Qwt. <code>BUILDING.md</code> also covers the AppImage build, the arm64 build, and the Windows cross-compile from Fedora.</p>
+<p>When you build from source, the AVIF and HEIC image formats depend on the Qt image-format plugins installed on your system.
+The AppImage and Windows packages include them.</p>
+
+<h2 id="first">First run checklist</h2>
+<p>Open <span class="ui">Options &gt; Configuration</span> and work through these pages. Click <span class="ui">OK</span> when you are
+done. Every page is described in <a href="configuration.html">Configuration</a>.</p>
+<ol>
+<li><strong>Operator:</strong> enter your callsign, name, QTH and locator. The callsign is used for the waterfall ID.</li>
+<li><strong>Sound:</strong> choose the input and output audio devices that connect to your radio or interface.</li>
+<li><strong>CAT</strong> (optional): set up rig control and PTT if you want the program to key your transmitter. Without
+ it, use VOX on the radio or a PTT method of your own.</li>
+<li><strong>Directories</strong> (optional): choose where received and transmitted pictures are stored. The defaults are fine
+ to start with.</li>
+</ol>
+<p>Then go to the <span class="ui">Receive</span> tab; the receiver starts listening to your sound card as soon as the
+program has started. See <a href="receive.html">Receiving</a> and <a href="transmit.html">Transmitting</a>.</p>
+<div class="note"><p>The program saves its settings when you quit with <span class="ui">File &gt; Exit</span>. If it is killed or
+crashes, changes made in that session may be lost.</p></div>
+
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="introduction.html" rel="prev">&larr; Introduction</a><a class="next" href="main-window.html" rel="next">Main window tour &rarr;</a></nav>
+</main>
+<footer class="site-footer"><p>QSSTV-Experimental is based on QSSTV by Johan Maes, ON4QZ, and is released under the GNU GPL v3.</p></footer>
+</body>
+</html>

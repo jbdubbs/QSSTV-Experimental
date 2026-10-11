@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Receiving - QSSTV-Experimental User&#x27;s Guide</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html">Install and first run</a></li><li><a href="main-window.html">Main window tour</a></li><li><a href="receive.html" aria-current="page">Receiving</a></li><li><a href="transmit.html">Transmitting</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="sstv-modes.html">SSTV modes</a></li><li><a href="drm.html">Digital SSTV (DRM)</a></li><li><a href="calibration.html">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
+<main>
+
+<h1>Receiving</h1>
+<div class="page-toc"><strong>On this page</strong><ul>
+<li><a href="#basic">Receiving an SSTV picture</a></li><li><a href="#toolbar">Toolbar</a></li>
+<li><a href="#sstv">SSTV settings</a></li><li><a href="#drm">DRM display</a></li>
+<li><a href="#files">Where pictures go</a></li></ul></div>
+
+<h2 id="basic">Receiving an SSTV picture</h2>
+<ol>
+<li>Connect your receiver's audio to the sound card input chosen in <a href="configuration.html#sound">Configuration &gt; Sound</a>.</li>
+<li>Open the <span class="ui">Receive</span> tab and make sure the <strong>SSTV</strong> settings tab is selected.</li>
+<li>Tune the radio to the SSTV frequency (USB on the HF bands). Watch the spectrum: SSTV shows up as a signal moving between
+ about 1200 and 2300 Hz.</li>
+<li>Leave <strong>Mode</strong> on <strong>Auto</strong> and the receiver detects the transmission mode and starts drawing the
+ picture. The line below the settings shows the status, for example <em>No sync</em> or <em>Receiving PD120</em>.</li>
+<li>When the picture is complete it is saved automatically (if <strong>Autosave</strong> is on) and appears in the
+ <a href="gallery.html">Gallery</a>.</li>
+</ol>
+<figure><img src="../images/rx-sstv.png" alt="The Receive tab showing a received picture and the SSTV settings" loading="lazy"><figcaption>The Receive tab with the SSTV settings tab selected.</figcaption></figure>
+
+<h2 id="toolbar">Toolbar</h2>
+<table class="compact"><tr><th>Button</th><th>What it does</th></tr>
+<tr><td>Green triangle</td><td>Start receiver.</td></tr>
+<tr><td>Red square</td><td>Stop receiver.</td></tr>
+<tr><td>Circular arrow</td><td>Restart receiver (start listening for a new picture). Not available in DRM mode.</td></tr>
+<tr><td>Folder with a note</td><td>Decode SSTV from an audio file; same as <span class="ui">File &gt; Decode SSTV From File...</span>.</td></tr>
+<tr><td>Disk</td><td>Save the picture shown. This works for SSTV only; in DRM mode the program tells you it is not available.</td></tr>
+<tr><td>Red circle with a cross</td><td>Clear the picture.</td></tr>
+</table>
+
+<h2 id="sstv">SSTV settings</h2>
+<dl>
+<dt>Auto Slant</dt><dd>Corrects slant automatically. Slant means the picture leans, usually because the transmitting and receiving
+ sound cards run at slightly different sample rates. If it happens on every picture, calibrate your sound card
+ (see <a href="calibration.html">Calibration</a>).</dd>
+<dt>Autosave</dt><dd>Saves the picture when it is complete.</dd>
+<dt>Sensitivity</dt><dd>Low, Normal, High or DX. Higher is more sensitive: the receiver starts on weaker signals, but may start on noise more often.</dd>
+<dt>Mode</dt><dd><strong>Auto</strong> detects the mode from the transmission header. You can instead force one mode from the list
+ (all the modes in <a href="sstv-modes.html">SSTV modes</a>).</dd>
+<dt>Default Image format</dt><dd>The file format used for saved pictures (the common formats the build can write, such as png and jpg).</dd>
+<dt>Save if Complete (%)</dt><dd>Interrupted pictures are only kept if at least this percentage of the picture's lines was received. The default is 25.</dd>
+<dt>Smooth Display Scaling</dt><dd>Smooths the received picture when it is scaled to fit the window. Turn it off to see the raw scan lines.</dd>
+<dt>Call and LOG QSO</dt><dd>When the sender includes an FSK ID, the callsign is filled in here and logged automatically. You can type a
+ callsign yourself and press <span class="ui">LOG QSO</span>. The log entry is broadcast as an ADIF record over UDP to
+ <code>localhost</code>, port 2333 by default, which logging programs with an ADIF UDP listener can pick up.</dd>
+</dl>
+
+<h2 id="drm">DRM display</h2>
+<p>Select the <strong>DRM</strong> settings tab to receive digital SSTV. See <a href="drm.html">Digital SSTV (DRM)</a> for background.</p>
+<figure><img src="../images/rx-drm.png" alt="The Receive tab with the DRM settings tab: mode parameters, TIME FRAME FAC MSC indicators, constellation plots, Fix File and Who is on" loading="lazy"><figcaption>The DRM settings tab, with no signal present.</figcaption></figure>
+
+<dl>
+<dt>Mode, Bandw, QAM, Offset, InterL., Protec</dt><dd>The parameters of the signal being received, once decoded.</dd>
+<dt>MER</dt><dd>Modulation error ratio, in dB, of the FAC and the MSC. Higher is better.</dd>
+<dt>Transp. ID, Cur. Seg, RX Seg, Total Seg</dt><dd>Which picture and how many of its segments have arrived.</dd>
+<dt>Callsign</dt><dd>The sender's callsign, if sent.</dd>
+<dt>TIME</dt><dd>Time sync: the receiver has found the symbol timing of the signal.</dd>
+<dt>FRAME</dt><dd>Frame sync: the start of the DRM transmission frame is locked.</dd>
+<dt>FAC</dt><dd>Fast Access Channel decoded: the signal's mode and parameters are known.</dd>
+<dt>MSC</dt><dd>Main Service Channel (the picture data): green means receiving data, yellow means this picture was already
+ received, red means no valid data.</dd>
+<dt>FAC and MSC plots</dt><dd>The constellation diagrams. A tight cluster of points means a clean signal.</dd>
+<dt>Fix File</dt><dd>Asks the sender to resend the missing segments of an incomplete DRM picture (a BSR, "block status report").
+ See <a href="drm.html#fix">Fixing an incomplete picture</a>.</dd>
+<dt>Who is on?</dt><dd>Lists stations that have published an online status through the hybrid notification server (see
+ <a href="configuration.html#hybrid">Hybrid</a>).</dd>
+<dt>Notification list</dt><dd>The large box at the bottom shows RX notifications seen for the last DRM hybrid item. You usually get only
+ a partial list because of timing, internet speeds, and the sender having read and deleted them already.</dd>
+</dl>
+
+<h2 id="files">Where pictures go</h2>
+<p>Received SSTV pictures are saved to the <strong>RX SSTV Images</strong> directory and received DRM pictures to the
+<strong>RX DRM Images</strong> directory (<a href="configuration.html#directories">Configuration &gt; Directories</a>). Both appear in the
+gallery. If FTP upload is enabled, received pictures are also uploaded (see <a href="configuration.html#ftp">FTP</a>).</p>
+<p>You can also feed the receiver from a recording instead of the sound card; see
+<a href="command-line.html">Decode from file and command line</a>.</p>
+
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="main-window.html" rel="prev">&larr; Main window tour</a><a class="next" href="transmit.html" rel="next">Transmitting &rarr;</a></nav>
+</main>
+<footer class="site-footer"><p>QSSTV-Experimental is based on QSSTV by Johan Maes, ON4QZ, and is released under the GNU GPL v3.</p></footer>
+</body>
+</html>

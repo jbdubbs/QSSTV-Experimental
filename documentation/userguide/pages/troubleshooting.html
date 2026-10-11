@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Troubleshooting and FAQ - QSSTV-Experimental User&#x27;s Guide</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html">Install and first run</a></li><li><a href="main-window.html">Main window tour</a></li><li><a href="receive.html">Receiving</a></li><li><a href="transmit.html">Transmitting</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="sstv-modes.html">SSTV modes</a></li><li><a href="drm.html">Digital SSTV (DRM)</a></li><li><a href="calibration.html">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html" aria-current="page">Troubleshooting and FAQ</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
+<main>
+
+<h1>Troubleshooting and FAQ</h1>
+<div class="page-toc"><strong>On this page</strong><ul>
+<li><a href="#start">The program will not start</a></li><li><a href="#audio">Audio</a></li><li><a href="#rx">Receiving</a></li>
+<li><a href="#tx">Transmitting and PTT</a></li><li><a href="#files">Files and settings</a></li><li><a href="#faq">FAQ</a></li></ul></div>
+
+<h2 id="start">The program will not start</h2>
+<dl>
+<dt>The AppImage does nothing or complains about FUSE</dt><dd>Run it with <code>APPIMAGE_EXTRACT_AND_RUN=1 ./QSSTV-Experimental-*.AppImage</code>, or install FUSE 2 for your distribution.</dd>
+<dt>"Permission denied"</dt><dd>Make it executable: <code>chmod +x QSSTV-Experimental-*.AppImage</code>.</dd>
+<dt>Building from source fails</dt><dd>Check <code>BUILDING.md</code> for the exact packages. When reporting a problem include your operating system and version, the Qt version and the real compiler or linker error.</dd>
+</dl>
+
+<h2 id="audio">Audio</h2>
+<dl>
+<dt>No signal, flat spectrum</dt><dd>Open <a href="configuration.html#sound">Configuration &gt; Sound</a> and check that the right <strong>Input Audio Device</strong> is chosen and that the
+ radio's audio is connected to that device. Check the operating system's own volume and mute settings and microphone privacy settings.</dd>
+<dt>Wrong or missing devices</dt><dd>The device lists show the devices the operating system offers when the dialog opens. After plugging in a USB sound interface, reopen the dialog. If the device vanishes and comes
+ back (USB unplug, Windows sleep and resume), the program re-arms the audio on its own.</dd>
+<dt>An error box titled "Soundcard error"</dt><dd>The device could not be opened. Choose another device or close the other program that is using it.</dd>
+<dt>Output level too low with an interface that sums the two channels</dt><dd>Tick <strong>Send audio to both channels</strong> on the Sound page (it is on by default); lower the drive level on the radio or interface if that is too much.</dd>
+</dl>
+
+<h2 id="rx">Receiving</h2>
+<dl>
+<dt>The receiver never starts on a picture</dt><dd>Increase <strong>Sensitivity</strong>; make sure <strong>Mode</strong> is <strong>Auto</strong>; check the radio is in USB mode and tuned so the signal sits between the red markers in the spectrum; check the audio level.</dd>
+<dt>Pictures are slanted</dt><dd>Turn on <strong>Auto Slant</strong>. If it happens with every station, <a href="calibration.html">calibrate</a> your sound card.</dd>
+<dt>Pictures are noisy or have colored streaks</dt><dd>This is weak signal or interference; the picture mirrors the band conditions. A more sensitive setting does not help once the signal is that weak.</dd>
+<dt>An interrupted picture was not saved</dt><dd>It was below the <strong>Save if Complete (%)</strong> threshold. Lower it if you want to keep partial pictures.</dd>
+<dt>I cannot switch to the other tab (DRM/SSTV)</dt><dd>The other mode's tabs are locked while a reception or transmission is in progress. Stop it first.</dd>
+<dt>The "Fix File" button does nothing</dt><dd>It needs an incomplete DRM picture and DRM mode with the program idle; otherwise you are told that there is nothing to request.</dd>
+<dt>DRM never gets past TIME or FRAME</dt><dd>The signal is too weak or off-frequency. Check that the other station's mode, bandwidth and robustness are within what you can receive, and watch the MER values.</dd>
+</dl>
+
+<h2 id="tx">Transmitting and PTT</h2>
+<dl>
+<dt>The radio does not go to transmit</dt><dd>Check <a href="configuration.html#cat">Configuration &gt; CAT</a>: the PTT method must match your hardware. The status bar's PTT indicator turns red when the program is keying. Use <em>Restart CAT Interface</em> after changing settings. If the radio switches too late, increase <strong>TX on Delay</strong>, or tick <strong>VOX</strong> on the Transmit tab to send a leading tone.</dd>
+<dt>"No image loaded"</dt><dd>Load a picture first (or use <span class="ui">File &gt; TX Test Pattern</span>).</dd>
+<dt>"Transmission busy, editor not available"</dt><dd>You cannot open the editor while transmitting. Stop the transmission first.</dd>
+<dt>Distorted transmit audio</dt><dd>Lower the output level and check the radio's ALC. Use the tone test (see <a href="transmit.html#tones">Tones and sweeps</a>).</dd>
+<dt>The picture is cropped or letterboxed on the transmit side</dt><dd>Change <strong>Framing</strong> between Stretch, Crop, Fit and Free.</dd>
+</dl>
+
+<h2 id="files">Files and settings</h2>
+<dl>
+<dt>Where are my pictures?</dt><dd>In the folders on <a href="configuration.html#directories">Configuration &gt; Directories</a>; by default subfolders of the program's data folder.</dd>
+<dt>My settings were not saved</dt><dd>Settings are written when you quit normally with <span class="ui">File &gt; Exit</span>. A crash or a kill loses the changes since the program started.</dd>
+<dt>Which image formats can I load?</dt><dd>PNG, JPEG, GIF, BMP and JPEG 2000, and WebP, AVIF and HEIC (the latter two need the format plugins; the AppImage and Windows packages include them).</dd>
+<dt>The program does not log to my logger</dt><dd>Contacts are broadcast as ADIF records over UDP to <code>localhost</code>, port 2333 by default. Point your logger's ADIF UDP listener at that port.</dd>
+</dl>
+
+<h2 id="faq">FAQ</h2>
+<dl>
+<dt>Can I use it without a radio connected?</dt><dd>Yes. Leave CAT disabled; you can still decode recordings, encode WAV files, browse the gallery and edit pictures.</dd>
+<dt>Is it compatible with other SSTV programs?</dt><dd>It is compatible with most of MMSSTV and EasyPal modes. The new JB60 mode is only available in QSSTV-Experimental.</dd>
+<dt>Can I decode a recording of an SSTV transmission?</dt><dd>Yes: <span class="ui">File &gt; Decode SSTV From File...</span>, or <code>--batch</code> from the command line.</dd>
+<dt>Where do I report a bug or ask for a feature?</dt><dd>On the <a href="https://github.com/jbdubbs/QSSTV-Experimental/issues">GitHub issue tracker</a>. Include your operating system, the program version (Help &gt; About), and what you were doing.</dd>
+</dl>
+
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="help-updates.html" rel="prev">&larr; Help menu, updates and desktop integration</a><a class="next" href="credits.html" rel="next">Credits and licenses &rarr;</a></nav>
+</main>
+<footer class="site-footer"><p>QSSTV-Experimental is based on QSSTV by Johan Maes, ON4QZ, and is released under the GNU GPL v3.</p></footer>
+</body>
+</html>

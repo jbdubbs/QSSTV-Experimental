@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Calibration - QSSTV-Experimental User&#x27;s Guide</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html">Install and first run</a></li><li><a href="main-window.html">Main window tour</a></li><li><a href="receive.html">Receiving</a></li><li><a href="transmit.html">Transmitting</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="sstv-modes.html">SSTV modes</a></li><li><a href="drm.html">Digital SSTV (DRM)</a></li><li><a href="calibration.html" aria-current="page">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
+<main>
+
+<h1>Calibration</h1>
+<p>Every sound card's clock is slightly off its nominal 48000 samples per second. At the very small errors typical of sound cards the effect on voice is nil,
+but SSTV is sensitive to it: a picture received from a perfectly accurate sender will lean (slant) if your sound card is a few parts per million off, and the
+error adds when both stations are off. Calibration measures the real sample rate and stores it in <a href="configuration.html#sound">Configuration &gt; Sound</a>
+(Input Clock Frequency and Output Clock Frequency).</p>
+<p>Open <span class="ui">Options &gt; Calibrate</span>. The dialog has three tabs; use whichever reference you can reach. The receiver is stopped while the dialog is open
+and is resumed afterwards.</p>
+<div class="note"><p>The result is valid for this audio input device only. Using another sound device or interface requires running the calibration again. Tick <strong>Also use
+this result for the transmit clock</strong> to apply the measurement to the output clock as well.</p></div>
+
+<h2 id="wwv">WWV time ticks</h2>
+<figure><img src="../images/cal-wwv.png" alt="The Soundcard Calibration dialog on the WWV time ticks tab with a station choice and Start and Save buttons" loading="lazy"><figcaption>WWV time ticks tab.</figcaption></figure>
+
+<ol>
+<li>Tune a receiver to WWV (2.5, 5, 10, 15 or 20 MHz) or WWVH, in AM or USB mode, and feed its audio to the sound card input.</li>
+<li>Pick the <strong>Station</strong> in the list.</li>
+<li>Press <span class="ui">Start</span> and let it run about 5 minutes. The program measures the sample rate against the 1-per-second time ticks.
+ The graph shows progress and says "waiting for time ticks" until ticks are heard.</li>
+<li>Press <span class="ui">Save</span> when the reading is stable.</li>
+</ol>
+
+<h2 id="ntp">NTP time servers</h2>
+<figure><img src="../images/cal-ntp.png" alt="The Soundcard Calibration dialog on the NTP time servers tab with the server list and Start and Save buttons" loading="lazy"><figcaption>NTP time servers tab.</figcaption></figure>
+
+<p>No radio is needed, but you need an internet connection. The program compares the sound card's sample counter against network time from NTP servers.
+Press <span class="ui">Start</span>, let it run for about 30 minutes, and press <span class="ui">Save</span> when the reading is stable. The
+<strong>Servers</strong> box holds a comma-separated list of servers (default <code>time.nist.gov, time.cloudflare.com, 0.pool.ntp.org</code>). Use a
+direct sound card device, not one that the system resamples. The longer it runs the more accurate the result: in the developer's testing a 30-minute NTP run
+agreed with a 5-minute WWV run to within about 2 ppm on one real sound card.</p>
+
+<h2 id="other">Other SSTV station</h2>
+<figure><img src="../images/cal-other.png" alt="The Soundcard Calibration dialog on the Other SSTV station tab with reference send controls and a listen area" loading="lazy"><figcaption>Other SSTV station tab.</figcaption></figure>
+
+<p>For when neither WWV nor an internet time server is available. This calibrates against another station's sound card, so the result is only as good as that
+station's own calibration: the sending station should have been calibrated in one of the other ways. The result is relative: it is the deviation of the other station's clock from yours.</p>
+<ol>
+<li><strong>Reference station:</strong> pick the <strong>Mode</strong> (default PD120), the <strong>Line at</strong> position in percent, and press <span class="ui">Send</span>.
+ The program transmits a black picture with one straight white line and puts your own TX picture back afterwards.</li>
+<li><strong>Station to calibrate:</strong> press <span class="ui">Listen</span> and have the reference station send its picture. The program measures the slant of the
+ line in the received picture.</li>
+<li>Every picture adds to the average. Click <span class="ui">Save</span> to apply the result (it stays disabled until there is a result), then listen again. The line should be straight
+ if the previous result was accurate.</li>
+</ol>
+
+<h2>After calibrating</h2>
+<p>The new clock values appear in the Sound configuration page and are used for both reception and transmission. If pictures from a particular station still slant
+and others do not, the fault is that station's sound card, not yours; <strong>Auto Slant</strong> on the Receive tab can correct the picture.</p>
+
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="drm.html" rel="prev">&larr; Digital SSTV (DRM)</a><a class="next" href="command-line.html" rel="next">Decode from file and command line &rarr;</a></nav>
+</main>
+<footer class="site-footer"><p>QSSTV-Experimental is based on QSSTV by Johan Maes, ON4QZ, and is released under the GNU GPL v3.</p></footer>
+</body>
+</html>

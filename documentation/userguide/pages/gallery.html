@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Gallery - QSSTV-Experimental User&#x27;s Guide</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html">Install and first run</a></li><li><a href="main-window.html">Main window tour</a></li><li><a href="receive.html">Receiving</a></li><li><a href="transmit.html">Transmitting</a></li><li><a href="gallery.html" aria-current="page">Gallery</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="sstv-modes.html">SSTV modes</a></li><li><a href="drm.html">Digital SSTV (DRM)</a></li><li><a href="calibration.html">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
+<main>
+
+<h1>Gallery</h1>
+<p>The <span class="ui">Gallery</span> tab shows thumbnails of the pictures in your image directories.</p>
+<figure><img src="../images/gallery.png" alt="The Gallery tab with six sub-tabs and a 4 by 4 grid of thumbnails containing one picture" loading="lazy"><figcaption>The Gallery tab, RX SSTV sub-tab.</figcaption></figure>
+
+<h2>Sub-tabs</h2>
+<table class="compact"><tr><th>Tab</th><th>Shows</th></tr>
+<tr><td>RX SSTV</td><td>Received SSTV pictures.</td></tr>
+<tr><td>RX DRM</td><td>Received DRM pictures.</td></tr>
+<tr><td>TX SSTV</td><td>SSTV pictures you transmitted.</td></tr>
+<tr><td>TX DRM</td><td>DRM pictures you transmitted.</td></tr>
+<tr><td>TX Stock</td><td>Your library of ready-to-send pictures.</td></tr>
+<tr><td>Templates</td><td>Your TX templates.</td></tr>
+</table>
+<p>The folders behind these tabs are set in <a href="configuration.html#directories">Configuration &gt; Directories</a>. The number of rows and columns of
+thumbnails is set in <a href="configuration.html#gui">Configuration &gt; Gui</a> (4 x 4 by default). Use the arrow buttons under the grid to page
+through (first, previous, next and last page); the label shows <em>Page n of m</em>.</p>
+
+<h2>Right-click menu</h2>
+<figure><img src="../images/gallery-menu.png" alt="The gallery context menu with Upload to FTP, To TX, Print, Delete, View, Properties and Copy" loading="lazy"><figcaption>Right-click a thumbnail. The selection check mark is visible in its top-left corner.</figcaption></figure>
+
+<dl>
+<dt>Upload to FTP</dt><dd>Uploads the picture to the FTP server set up under <a href="configuration.html#ftp">FTP</a>.</dd>
+<dt>To TX</dt><dd>Loads the picture into the Transmit tab.</dd>
+<dt>Print</dt><dd>Prints the picture.</dd>
+<dt>Delete</dt><dd>Deletes the picture. By default you are asked to confirm; this can be changed in the Gui configuration page.</dd>
+<dt>View</dt><dd>Opens the picture in a viewer window. Use the mouse wheel to zoom smoothly and drag to pan.</dd>
+<dt>Properties</dt><dd>Shows file information about the picture.</dd>
+<dt>Copy (<kbd>Ctrl</kbd>+<kbd>C</kbd>)</dt><dd>Copies the picture to the clipboard. You can paste it, or a picture copied from anywhere else, into the
+ Transmit tab or into TX Stock.</dd>
+</dl>
+<p>The menu differs a little between tabs; for example the TX Stock and Templates tabs offer <span class="ui">New</span>,
+<span class="ui">Load</span> and <span class="ui">Edit</span> in place of some of the entries above.</p>
+
+<h2>Selecting several pictures</h2>
+<p>Click a thumbnail to select it; selected thumbnails are tinted and show a check mark. <kbd>Ctrl</kbd>+click adds or removes a single thumbnail and
+<kbd>Shift</kbd>+click selects a range. With several selected, the right-click menu deletes them all or sends them all to the Transmit tab, and the <kbd>Del</kbd> key deletes the selected pictures.
+Thumbnails are listed newest first.</p>
+
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="transmit.html" rel="prev">&larr; Transmitting</a><a class="next" href="configuration.html" rel="next">Configuration &rarr;</a></nav>
+</main>
+<footer class="site-footer"><p>QSSTV-Experimental is based on QSSTV by Johan Maes, ON4QZ, and is released under the GNU GPL v3.</p></footer>
+</body>
+</html>

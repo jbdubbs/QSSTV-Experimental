@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Digital SSTV (DRM) - QSSTV-Experimental User&#x27;s Guide</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html">Install and first run</a></li><li><a href="main-window.html">Main window tour</a></li><li><a href="receive.html">Receiving</a></li><li><a href="transmit.html">Transmitting</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="sstv-modes.html">SSTV modes</a></li><li><a href="drm.html" aria-current="page">Digital SSTV (DRM)</a></li><li><a href="calibration.html">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
+<main>
+
+<h1>Digital SSTV (DRM)</h1>
+<div class="page-toc"><strong>On this page</strong><ul>
+<li><a href="#what">What it is</a></li><li><a href="#tx">Transmitting</a></li><li><a href="#params">Parameters</a></li>
+<li><a href="#rx">Receiving</a></li><li><a href="#fix">Fixing an incomplete picture</a></li><li><a href="#binary">Binary files</a></li>
+<li><a href="#hybrid">Hybrid mode</a></li></ul></div>
+
+<h2 id="what">What it is</h2>
+<p>HAMDRM, also called DSSTV or just DRM, sends a picture as compressed data using many carriers in a narrow 2.2 or 2.5 kHz channel, with error correction.
+Where analog SSTV degrades gradually with noise (noisy lines, color errors), DRM delivers a clean copy if the signal is good enough and loses
+data in whole segments if it is not. The HAMDRM software in this program is based on RX/TXAMADRM by PA0MBO. DRM and analog SSTV use the same SSTV/DRM
+settings tab on the Receive and Transmit pages; DRM is the <strong>DRM</strong> tab.</p>
+
+<h2 id="tx">Transmitting a DRM picture</h2>
+<ol>
+<li>On the <span class="ui">Transmit</span> tab choose the <strong>DRM</strong> settings tab.</li>
+<li>Load a picture (<a href="transmit.html">Transmitting</a>) and optionally set Framing and Grid.</li>
+<li>Pick a <strong>Profile</strong> or set Mode, QAM, BW, Interleave, Protection and Rs by hand.</li>
+<li>Use the <strong>size slider</strong> to choose how much the picture is compressed. The box beside it shows the size in KB and the transmit time.
+ Smaller means a faster but lower-quality picture.</li>
+<li>Press Start transmit.</li>
+</ol>
+<figure><img src="../images/tx-drm.png" alt="The Transmit tab with the DRM settings: mode, QAM, bandwidth, interleave, protection, profile and Reed-Solomon" loading="lazy"><figcaption>Transmit tab, DRM settings.</figcaption></figure>
+
+<h2 id="params">Parameters</h2>
+<p>These come from the tooltips in the program.</p>
+<table class="compact"><tr><th>Setting</th><th>Choices</th><th>Meaning</th></tr>
+<tr><td>Mode</td><td>A, B, E</td><td>Robustness mode. Higher mode letters are more robust but slower.</td></tr>
+<tr><td>QAM</td><td>4, 16, 64</td><td>Bits per carrier. 4 is the most robust; 64 is the fastest but needs a clean signal.</td></tr>
+<tr><td>BW</td><td>2.2 kHz, 2.5 kHz</td><td>Occupied bandwidth. Wider is faster.</td></tr>
+<tr><td>Interl.</td><td>Short, Long</td><td>Time interleaving. Long survives longer fades but adds delay.</td></tr>
+<tr><td>Prot.</td><td>High, Low</td><td>Error-correction strength. High is more robust but slower.</td></tr>
+<tr><td>Profile</td><td>Profile 1 to 3</td><td>A saved parameter preset; edit them in <a href="configuration.html#drmprofiles">Configuration &gt; DRM Profiles</a>.</td></tr>
+<tr><td>Rs</td><td>None, RS1 to RS4</td><td>Extra Reed-Solomon coding on file data. RS1 to RS4 add more redundancy: slower, more robust.</td></tr>
+</table>
+<p>A good starting point is the default profile. If the other station reports errors, move to a more robust setting (lower QAM, higher protection,
+Long interleave, or a higher Rs).</p>
+<div class="note"><p>Large pictures at 4-QAM can take many minutes. The command line option <code>--drm-size</code> (see
+<a href="command-line.html">command line</a>) and the size slider control the picture size.</p></div>
+
+<h2 id="rx">Receiving</h2>
+<p>Select the <strong>DRM</strong> settings tab on the Receive tab and leave the receiver running. The status indicators TIME, FRAME, FAC and MSC turn on as the signal is
+found, and the picture is assembled segment by segment. The indicators and their meanings are described under <a href="receive.html#drm">Receiving</a>. When the picture
+is complete it is saved in the RX DRM Images directory and shows in the gallery's <em>RX DRM</em> tab. Check the MER numbers: they tell you how clean the signal is.</p>
+
+<h2 id="fix">Fixing an incomplete picture</h2>
+<p>If some segments were lost, press <span class="ui">Fix File</span> on the DRM receive tab. A dialog titled <em>Send BSR (latest on top)</em> lists
+the incomplete pictures. Choose one and press <span class="ui">Compatible</span> or <span class="ui">Easypal</span> to match the style the other station's software
+understands. The program then transmits a BSR (block status report) asking the sender to resend the missing segments.
+If no incomplete DRM picture has been received, you are told there is nothing to request. Fix File is only active in DRM mode when the program is not busy transmitting or receiving.</p>
+
+<h2 id="binary">Binary files</h2>
+<p>The <strong>Send binary file</strong> toolbar button on the Transmit tab sends an arbitrary file as DRM data. If hybrid mode is on, the file is uploaded first
+and you confirm with <span class="ui">Start Transmitting</span>.</p>
+
+<h2 id="hybrid">Hybrid mode</h2>
+<p>With <strong>Hybrid</strong> ticked on the Transmit tab's DRM mode, the picture goes to an internet server as well as over the air. The setup is on the
+<a href="configuration.html#hybrid">Hybrid</a> configuration page. When it is enabled, the <span class="ui">Upload Now</span> button uploads the current picture
+without transmitting. On the receiving side, the Receive tab's DRM page has the notification box and the <span class="ui">Who is on?</span> button.
+The Operator page's <em>online status</em> option controls whether other users can see you.</p>
+
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="sstv-modes.html" rel="prev">&larr; SSTV modes</a><a class="next" href="calibration.html" rel="next">Calibration &rarr;</a></nav>
+</main>
+<footer class="site-footer"><p>QSSTV-Experimental is based on QSSTV by Johan Maes, ON4QZ, and is released under the GNU GPL v3.</p></footer>
+</body>
+</html>

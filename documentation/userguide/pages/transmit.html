@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Transmitting - QSSTV-Experimental User&#x27;s Guide</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html">Install and first run</a></li><li><a href="main-window.html">Main window tour</a></li><li><a href="receive.html">Receiving</a></li><li><a href="transmit.html" aria-current="page">Transmitting</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="sstv-modes.html">SSTV modes</a></li><li><a href="drm.html">Digital SSTV (DRM)</a></li><li><a href="calibration.html">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
+<main>
+
+<h1>Transmitting</h1>
+<div class="page-toc"><strong>On this page</strong><ul>
+<li><a href="#basic">Sending an SSTV picture</a></li><li><a href="#toolbar">Toolbar</a></li>
+<li><a href="#sstv">SSTV settings</a></li><li><a href="#grid">Framing and grids</a></li>
+<li><a href="#common">Options below the settings</a></li><li><a href="#tones">Tones and sweeps</a></li></ul></div>
+
+<h2 id="basic">Sending an SSTV picture</h2>
+<ol>
+<li>Set your operator data, sound output and PTT in <a href="configuration.html">Configuration</a>.</li>
+<li>Open the <span class="ui">Transmit</span> tab and choose the <strong>SSTV</strong> settings tab.</li>
+<li>Load a picture with the <strong>Load image</strong> toolbar button (a folder icon), or send one from the
+ <a href="gallery.html">gallery</a> with <span class="ui">To TX</span>. To try the program without a picture file, use
+ <span class="ui">File &gt; TX Test Pattern</span>.</li>
+<li>Choose the <strong>Mode</strong>. The estimated transmission time is shown below the picture.</li>
+<li>Check your audio level, then press the green <strong>Start transmit</strong> button. <strong>TX Progress</strong> shows how far
+ along it is. The red square stops the transmission and returns to receive.</li>
+</ol>
+<figure><img src="../images/tx-sstv.png" alt="The Transmit tab with the SMPTE color bar test pattern loaded, SSTV mode Martin 1, framing and grid controls" loading="lazy"><figcaption>The Transmit tab with a test pattern loaded and the SSTV settings tab selected.</figcaption></figure>
+
+<div class="warn"><p>Set your transmit audio level so the radio is not overdriven. Use a tone (see <a href="#tones">below</a>) or the
+test pattern into a dummy load to adjust it.</p></div>
+
+<h2 id="toolbar">Toolbar</h2>
+<table class="compact"><tr><th>Button</th><th>What it does</th></tr>
+<tr><td>Green triangle</td><td>Start transmit.</td></tr>
+<tr><td>Red square</td><td>Stop transmit.</td></tr>
+<tr><td>Folder</td><td>Load image.</td></tr>
+<tr><td>Pencil</td><td>Edit image. Opens the current picture in the editor (not available while transmitting).</td></tr>
+<tr><td>Camera</td><td>Camera snapshot, from a connected webcam.</td></tr>
+<tr><td>Binary icon (1 0 101)</td><td>Send binary file. A DRM function: see <a href="drm.html">Digital SSTV (DRM)</a>.</td></tr>
+<tr><td>Hybrid checkbox</td><td>Hybrid mode for DRM transmissions (see <a href="configuration.html#hybrid">Hybrid</a>). It is only available on the DRM tab.</td></tr>
+<tr><td>Cloud arrow</td><td>Upload Now: upload a hybrid picture to the server without transmitting.</td></tr>
+<tr><td>Loop arrows</td><td>Send repeater tone: a 1750 Hz tone for 3 seconds.</td></tr>
+<tr><td>Speaker</td><td>Send tone: opens a dialog for a test tone.</td></tr>
+<tr><td>Sine wave</td><td>Send sweep tones: opens a dialog for a frequency sweep.</td></tr>
+</table>
+
+<h2 id="sstv">SSTV settings</h2>
+<dl>
+<dt>Mode</dt><dd>The transmit mode. All modes are in <a href="sstv-modes.html">SSTV modes</a>.</dd>
+<dt>Framing</dt><dd>How the picture is fitted to the mode's picture size: <strong>Stretch</strong>, <strong>Crop</strong>,
+ <strong>Fit</strong> or <strong>Free</strong>. With <strong>Free</strong> you zoom and pan the picture exactly into the frame
+ (mouse wheel to zoom, drag to pan, and a right-click menu to reset zoom and pan).</dd>
+<dt>Grid</dt><dd>Single image, Grid 1x2, Grid 2x1 or Grid 2x2: stitch several pictures together. This is only offered on modes larger
+ than PD160.</dd>
+</dl>
+
+<h2 id="grid">Framing and grids</h2>
+<p>With a grid selected, the picture area is divided into cells. Right-click a cell to load a picture into it, edit it, copy it or paste
+into it. The <strong>Framing</strong> setting then applies to the selected cell. In the gallery, <span class="ui">To TX</span> fills the
+first empty cell and offers an <em>Auto</em> / <em>Grid N</em> submenu to pick a cell. Press <kbd>Delete</kbd> to remove the picture of the selected
+cell. The same Framing and Grid controls exist on the DRM tab.</p>
+
+<h2 id="common">Options below the settings</h2>
+<dl>
+<dt>VOX</dt><dd>Sends a leading tone before the picture, so a VOX-keyed transmitter is already keyed when the picture starts.</dd>
+<dt>CW (config &gt; CW)</dt><dd>Sends CW at the end of the transmission. The text is set in <a href="configuration.html#cw">Configuration &gt; CW</a>.</dd>
+<dt>Use Template and the template list</dt><dd>Lays the picture into a template (created with the editor), for example with a
+ callsign banner. The <strong>To</strong>, <strong>Op</strong> and <strong>RSV</strong> boxes and the three large text boxes (x, y, z)
+ are values for the template; <strong>Refresh</strong> applies them to the picture.</dd>
+<dt>Size slider and size box</dt><dd>Under the picture: the size and the estimated transmit time. With DRM the slider sets the compressed picture size, and the preview
+ updates while you drag it.</dd>
+</dl>
+<p>When <span class="ui">Save TX images in TX SSTV or TX DRM directory</span> is ticked in
+<a href="configuration.html#directories">Configuration &gt; Directories</a>, every picture you transmit is also stored in that directory and appears
+in the gallery's TX tabs.</p>
+
+<h2 id="tones">Tones and sweeps</h2>
+<p>These are for adjusting audio levels and testing.</p>
+<figure><img src="../images/dlg-test-signal.png" alt="The Test Signal dialog with Frequency 1200, Duration 30 sec, and Transmit and Close buttons" loading="lazy"><figcaption>Send tone: set the frequency and duration, then Transmit. The same button becomes a STOP button while transmitting.</figcaption></figure>
+<figure><img src="../images/dlg-sweep.png" alt="The Test Signal dialog for a sweep, with Lower Frequency 1200, Upper Frequency 2300, Duration 10 sec" loading="lazy"><figcaption>Send sweep tones: a sweep between a lower and an upper frequency.</figcaption></figure>
+
+<p>The tone and sweep dialogs remember their last settings. The repeater-tone button needs no dialog.</p>
+
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="receive.html" rel="prev">&larr; Receiving</a><a class="next" href="gallery.html" rel="next">Gallery &rarr;</a></nav>
+</main>
+<footer class="site-footer"><p>QSSTV-Experimental is based on QSSTV by Johan Maes, ON4QZ, and is released under the GNU GPL v3.</p></footer>
+</body>
+</html>
