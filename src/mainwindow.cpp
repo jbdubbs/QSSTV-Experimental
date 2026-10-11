@@ -80,7 +80,6 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
   inStartup=true;
   QApplication::instance()->thread()->setObjectName("qsstv_main");
   wfTextPushButton=new QPushButton("WF Text",this);
-  bsrPushButton=new QPushButton("BSR",this);
   setObjectName("mainThread");
   freqComboBox=new QComboBox(this);
   idPushButton=new QPushButton("WF ID",this);
@@ -115,7 +114,6 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
   ui->statusBar->addPermanentWidget(freqDisplay);
   ui->statusBar->addPermanentWidget(freqComboBox);
   ui->statusBar->addPermanentWidget(wfTextPushButton);
-  ui->statusBar->addPermanentWidget(bsrPushButton);
   ui->statusBar->addPermanentWidget(idPushButton);
   ui->statusBar->addPermanentWidget(cwPushButton);
   ui->statusBar->addPermanentWidget(&pttText);
@@ -172,7 +170,7 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
     }
   connect(idPushButton, SIGNAL(clicked()), this, SLOT(slotSendWFID()));
   connect(cwPushButton, SIGNAL(clicked()), this, SLOT(slotSendCWID()));
-  connect(bsrPushButton, SIGNAL(clicked()), this, SLOT(slotSendBSR()));
+  connect(rxWidgetPtr,SIGNAL(fixFileRequested()),this,SLOT(slotSendBSR()));
   connect(freqComboBox,SIGNAL(activated(int)),SLOT(slotSetFrequency(int)));
   connect(wfTextPushButton, SIGNAL(clicked()), this, SLOT(slotSendWfText()));
   connect(rxWidgetPtr,SIGNAL(modeSwitch(int)),this, SLOT(slotModeChange(int)));
@@ -753,7 +751,7 @@ void mainWindow::setSSTVDRMPushButton(bool inDRM)
 {
   int i;
   QString modeStr;
-  bsrPushButton->setEnabled(inDRM);
+  if(rxWidgetPtr) rxWidgetPtr->setFixFileEnabled(inDRM);
   freqComboBox->clear();
   if(inDRM) modeStr="DRM";
   else modeStr="SSTV";
@@ -801,8 +799,7 @@ void mainWindow::updateModeLock()
   int busy=busyMode();
   txWidgetPtr->setModeLock(busy);
   rxWidgetPtr->setModeLock(busy);
-  if(busy>=0) bsrPushButton->setEnabled(false);
-  else bsrPushButton->setEnabled(transmissionModeIndex==TRXDRM);
+  rxWidgetPtr->setFixFileEnabled((busy<0)&&(transmissionModeIndex==TRXDRM));
 }
 
 void mainWindow::slotModeChange(int rxtxMode)

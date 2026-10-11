@@ -44,6 +44,7 @@ rxWidget::rxWidget(QWidget *parent):QWidget(parent),ui(new Ui::rxWidget)
   connect(rxFunctionsPtr->sstvRxPtr,SIGNAL(resetCall()),SLOT(slotResetCall()));
   connect(ui->logPushButton,SIGNAL(clicked()),SLOT(slotLogCall()));
   connect(ui->whoPushButton,SIGNAL(clicked()),SLOT(slotWho()));
+  connect(ui->fixFilePushButton,SIGNAL(clicked()),SIGNAL(fixFileRequested()));
   connect(&ff,SIGNAL(listingDone(bool)),SLOT(slotWhoResult(bool)));
   doRemove=false;
 }
@@ -257,6 +258,11 @@ void rxWidget::setModeLock(int busy)
     {
       ui->settingsTableWidget->setTabEnabled(i,(busy<0)||(i==busy));
     }
+}
+
+void rxWidget::setFixFileEnabled(bool enable)
+{
+  ui->fixFilePushButton->setEnabled(enable);
 }
 
 void rxWidget::syncModeTab(int m)

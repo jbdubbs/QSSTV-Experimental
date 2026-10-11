@@ -101,7 +101,6 @@ private:
   QComboBox *transmissionModeComboBox;
   QPushButton *wfTextPushButton;
   QPushButton *fixPushButton;
-  QPushButton *bsrPushButton;
   QPushButton *idPushButton;
   QPushButton *cwPushButton;
   QComboBox *freqComboBox;

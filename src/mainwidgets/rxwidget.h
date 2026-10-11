@@ -55,6 +55,7 @@ public:
   void setModeLock(int busy);
   //! put the tab bar back on mode m without triggering a mode change
   void syncModeTab(int m);
+  void setFixFileEnabled(bool enable);
 private slots:
   void slotStart();
   void slotStop();
@@ -73,6 +74,7 @@ private slots:
 
 signals:
   void modeSwitch(int);
+  void fixFileRequested();
 
 
 private:
