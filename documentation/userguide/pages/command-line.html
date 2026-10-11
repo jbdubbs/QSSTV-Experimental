@@ -23,16 +23,16 @@ appear, and afterwards the sound card receiver resumes. Decoded pictures are han
 tab first.</p>
 
 <h2 id="decode">--decode</h2>
-<p><code>qsstv --decode recording.wav</code> starts the program, opens the window and decodes the file. The <code>--decode</code> option may be repeated, and bare file names are
+<p><code class="wrap"><span class="nb">qsstv</span> <span class="nb">--decode</span> <span class="nb">recording.wav</span></code> starts the program, opens the window and decodes the file. The <code>--decode</code> option may be repeated, and bare file names are
 treated as files to decode too, so you can also give <code>qsstv one.wav two.wav</code>. Add <code>--drm</code> for a DRM recording.</p>
 
 <h2 id="batch">--batch (headless)</h2>
-<p><code>qsstv --batch -o out recording.wav</code> decodes without a window, saves every picture found, prints the results and exits. Your settings are read but never written.</p>
+<p><code class="wrap"><span class="nb">qsstv</span> <span class="nb">--batch</span> <span class="nb">-o</span> <span class="nb">out</span> <span class="nb">recording.wav</span></code> decodes without a window, saves every picture found, prints the results and exits. Your settings are read but never written.</p>
 <pre><code>qsstv --batch --out-dir pictures/ pass1.wav pass2.mp3
 qsstv --batch --mode PD120 --timeout 600 long-recording.flac
 qsstv --batch --drm dsstv.wav</code></pre>
-<p>Pictures are named <code>&lt;file&gt;_&lt;n&gt;_&lt;MODE&gt;.png</code> in the output directory (the current directory by default). With <code>--drm</code> they are
-named <code>&lt;file&gt;_&lt;n&gt;_drm.&lt;ext&gt;</code> and a <code>drm-stats:</code> line (sync, FAC and MSC percentages, MSC flaps, FAC and MSC MER) is printed per file.</p>
+<p>Pictures are named <code class="wrap"><span class="nb">&lt;file&gt;_&lt;n&gt;_&lt;MODE&gt;.png</span></code> in the output directory (the current directory by default). With <code>--drm</code> they are
+named <code class="wrap"><span class="nb">&lt;file&gt;_&lt;n&gt;_drm.&lt;ext&gt;</span></code> and a <code>drm-stats:</code> line (sync, FAC and MSC percentages, MSC flaps, FAC and MSC MER) is printed per file.</p>
 <table class="compact"><tr><th>Exit code</th><th>Meaning</th></tr>
 <tr><td>0</td><td>Every file gave a picture.</td></tr>
 <tr><td>1</td><td>At least one file gave no picture.</td></tr>
@@ -41,7 +41,7 @@ named <code>&lt;file&gt;_&lt;n&gt;_drm.&lt;ext&gt;</code> and a <code>drm-stats:
 <p>The default timeout is the file's length plus 30 seconds; change it with <code>--timeout</code>. From the AppImage, run the AppImage file itself with the same options.</p>
 
 <h2 id="encode">--encode</h2>
-<p><code>qsstv --encode picture.png --mode PD120 --wav-out picture.wav</code> converts a picture into the SSTV audio for the chosen mode, through the normal transmit path,
+<p><code class="wrap"><span class="nb">qsstv</span> <span class="nb">--encode</span> <span class="nb">picture.png</span> <span class="nb">--mode</span> <span class="nb">PD120</span> <span class="nb">--wav-out</span> <span class="nb">picture.wav</span></code> converts a picture into the SSTV audio for the chosen mode, through the normal transmit path,
 and writes it to a WAV file; no sound card is used. The default output name is <code>&lt;image&gt;.wav</code>. As with <code>--batch</code>, your settings are read
 but never written. Add <code>--drm</code> to make a DRM transmission instead; then <code>--drm-mode</code>, <code>--drm-bw</code>, <code>--drm-qam</code>, <code>--drm-prot</code>,
 <code>--drm-interleave</code>, <code>--drm-rs</code> and <code>--drm-size</code> choose the parameters (otherwise your Transmit-tab settings are used).</p>
@@ -60,17 +60,17 @@ qsstv --encode rose.png --drm --drm-mode B --drm-qam 16 --drm-bw 2.5 --wav-out r
 
 <h2 id="ref">Option reference</h2>
 <div class="table-wrap"><table class="compact"><tr><th>Option</th><th>Description</th></tr>
-<tr><td><code>-d, --decode &lt;file&gt;</code></td><td>Decode the recording (repeatable; bare arguments are files too). Opens the window.</td></tr>
+<tr><td><code class="wrap"><span class="nb">-d,</span> <span class="nb">--decode</span> <span class="nb">&lt;file&gt;</span></code></td><td>Decode the recording (repeatable; bare arguments are files too). Opens the window.</td></tr>
 <tr><td><code>-b, --batch</code></td><td>Headless: decode, save the pictures, print results and exit.</td></tr>
-<tr><td><code>-o, --out-dir &lt;dir&gt;</code></td><td>With <code>--batch</code>: directory for the pictures.</td></tr>
+<tr><td><code class="wrap"><span class="nb">-o,</span> <span class="nb">--out-dir</span> <span class="nb">&lt;dir&gt;</span></code></td><td>With <code>--batch</code>: directory for the pictures.</td></tr>
 <tr><td><code>-m, --mode &lt;mode&gt;</code></td><td>Receive only this mode (short name, e.g. PD120, JB60).</td></tr>
-<tr><td><code>--timeout &lt;seconds&gt;</code></td><td>With <code>--batch</code>: give up on a file after this many seconds.</td></tr>
+<tr><td><code class="wrap"><span class="nb">--timeout</span> <span class="nb">&lt;seconds&gt;</span></code></td><td>With <code>--batch</code>: give up on a file after this many seconds.</td></tr>
 <tr><td><code>--drm</code></td><td>With <code>--batch</code>: receive DRM. With <code>--encode</code>: transmit as DRM.</td></tr>
 <tr><td><code>--drm-mode &lt;A|B|E&gt;</code></td><td>With <code>--encode --drm</code>: robustness mode.</td></tr>
 <tr><td><code>--drm-bw &lt;kHz&gt;</code></td><td>With <code>--encode --drm</code>: bandwidth 2.2 or 2.5.</td></tr>
-<tr><td><code>--drm-qam &lt;4|16|64&gt;</code></td><td>With <code>--encode --drm</code>: QAM.</td></tr>
-<tr><td><code>--drm-prot &lt;high|low&gt;</code></td><td>With <code>--encode --drm</code>: protection level.</td></tr>
-<tr><td><code>--drm-interleave &lt;short|long&gt;</code></td><td>With <code>--encode --drm</code>: interleaver.</td></tr>
+<tr><td><code class="wrap"><span class="nb">--drm-qam</span> <span class="nb">&lt;4|16|64&gt;</span></code></td><td>With <code>--encode --drm</code>: QAM.</td></tr>
+<tr><td><code class="wrap"><span class="nb">--drm-prot</span> <span class="nb">&lt;high|low&gt;</span></code></td><td>With <code>--encode --drm</code>: protection level.</td></tr>
+<tr><td><code class="wrap"><span class="nb">--drm-interleave</span> <span class="nb">&lt;short|long&gt;</span></code></td><td>With <code>--encode --drm</code>: interleaver.</td></tr>
 <tr><td><code>--drm-rs &lt;n&gt;</code></td><td>With <code>--encode --drm</code>: Reed-Solomon 0 (none) to 4.</td></tr>
 <tr><td><code>--drm-size &lt;bytes&gt;</code></td><td>With <code>--encode --drm</code>: compress the picture to about this many bytes (default: the size slider setting, 5000).</td></tr>
 <tr><td><code>--rx-gain</code>, <code>--rx-noise</code></td><td>Test aids for <code>--batch</code>.</td></tr>

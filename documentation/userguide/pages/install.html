@@ -22,15 +22,15 @@
 <p>The AppImage is a single self-contained file that bundles Qt 6 and the other runtime libraries. It is built for
 x86-64 and arm64 (aarch64).</p>
 <ol>
-<li>Download <code>QSSTV-Experimental-&lt;version&gt;-x86_64.AppImage</code> (or the <code>aarch64</code> one) from the Releases page.</li>
-<li>Make it executable: <code>chmod +x QSSTV-Experimental-*.AppImage</code></li>
-<li>Run it: <code>./QSSTV-Experimental-*.AppImage</code></li>
+<li>Download <code class="wrap"><span class="nb">QSSTV-Experimental-&lt;version&gt;-x86_64.AppImage</span></code> (or the <code>aarch64</code> one) from the Releases page.</li>
+<li>Make it executable: <code class="wrap"><span class="nb">chmod</span> <span class="nb">+x</span> <span class="nb">QSSTV-Experimental-*.AppImage</span></code></li>
+<li>Run it: <code class="wrap"><span class="nb">./QSSTV-Experimental-*.AppImage</span></code></li>
 </ol>
 <p>On first start the program offers to add a menu entry and icons for you (see
 <a href="help-updates.html">Help menu, updates and desktop integration</a>).</p>
 <div class="note"><p><strong>No FUSE?</strong> Recent distributions (Ubuntu 24.04 and later, Fedora) may not provide FUSE 2 by
-default. Run the AppImage with <code>APPIMAGE_EXTRACT_AND_RUN=1 ./QSSTV-Experimental-*.AppImage</code> or with the option
-<code>--appimage-extract-and-run</code>.</p></div>
+default. Run the AppImage with <code class="wrap"><span class="nb">APPIMAGE_EXTRACT_AND_RUN=1</span> <span class="nb">./QSSTV-Experimental-*.AppImage</span></code> or with the option
+<code class="wrap"><span class="nb">--appimage-extract-and-run</span></code>.</p></div>
 
 <h2 id="windows">Windows</h2>
 <p>Requires 64-bit Windows 10 version 1809 or later. Download the <code>-win64.zip</code> from the Releases page, extract it
@@ -51,7 +51,7 @@ is needed. PulseAudio, ALSA and V4L2 development packages are not needed.</p>
 cmake --build build -j$(nproc)
 sudo cmake --install build</code></pre>
 <p>If your distribution's Hamlib is too old or missing, build Hamlib yourself and pass
-<code>-DHAMLIB_ROOT=/path/to/hamlib/install</code> to the first <code>cmake</code> command. Debug builds additionally need
+<code class="wrap"><span class="nb">-DHAMLIB_ROOT=/path/to/hamlib/install</span></code> to the first <code>cmake</code> command. Debug builds additionally need
 Qwt. <code>BUILDING.md</code> also covers the AppImage build, the arm64 build, and the Windows cross-compile from Fedora.</p>
 <p>When you build from source, the AVIF and HEIC image formats depend on the Qt image-format plugins installed on your system.
 The AppImage and Windows packages include them.</p>

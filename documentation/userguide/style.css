@@ -120,6 +120,10 @@ code, kbd, samp, pre {
   font-size: .9em;
 }
 code, kbd, samp { background: var(--code-bg); padding: .08em .35em; border-radius: 4px; }
+/* keep option names like --batch from breaking after the first hyphen */
+:not(pre) > code { white-space: nowrap; }
+code.wrap { white-space: normal; }
+code.wrap .nb { display: inline-block; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
 kbd { border: 1px solid var(--border); border-bottom-width: 2px; }
 pre {
   background: var(--code-bg);

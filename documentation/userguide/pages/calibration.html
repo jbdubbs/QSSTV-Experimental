@@ -37,7 +37,7 @@ this result for the transmit clock</strong> to apply the measurement to the outp
 
 <p>No radio is needed, but you need an internet connection. The program compares the sound card's sample counter against network time from NTP servers.
 Press <span class="ui">Start</span>, let it run for about 30 minutes, and press <span class="ui">Save</span> when the reading is stable. The
-<strong>Servers</strong> box holds a comma-separated list of servers (default <code>time.nist.gov, time.cloudflare.com, 0.pool.ntp.org</code>). Use a
+<strong>Servers</strong> box holds a comma-separated list of servers (default <code class="wrap"><span class="nb">time.nist.gov,</span> <span class="nb">time.cloudflare.com,</span> <span class="nb">0.pool.ntp.org</span></code>). Use a
 direct sound card device, not one that the system resamples. The longer it runs the more accurate the result: in the developer's testing a 30-minute NTP run
 agreed with a 5-minute WWV run to within about 2 ppm on one real sound card.</p>
 
