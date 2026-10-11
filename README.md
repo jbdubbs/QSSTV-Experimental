@@ -58,7 +58,7 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 
 Ready-to-run builds are published on the [Releases page](https://github.com/jbdubbs/QSSTV-Experimental/releases):
 
-- **Linux:** download the `.AppImage`, make it executable (`chmod +x QSSTV-Experimental-*.AppImage`) and run it. It bundles Qt6 and its other runtime dependencies.
+- **Linux:** download the `.AppImage`, make it executable (`chmod +x QSSTV-Experimental-*.AppImage`) and run it. It bundles Qt6 and its other runtime dependencies. Use Help > Check for updates (optionally at startup) to be told when a new release is out; it opens the download page.
 - **Windows:** download the `-win64.zip`, extract it anywhere and run `qsstv.exe`.
 - **macOS:** (Not yet available - lack of hardware)
 

@@ -33,6 +33,8 @@
 #endif
 #include "mainwindow.h"
 #include "appimageintegration.h"
+#include "updatecheck.h"
+#include <QDateTime>
 #include <QMessageBox>
 #include <QCheckBox>
 #include <QDesktopServices>
@@ -157,6 +159,17 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
       QAction *upd=ui->menuHelp->addAction(tr("Check for updates..."));
       connect(upd,&QAction::triggered,this,&mainWindow::slotCheckForUpdates);
     }
+  else
+    {
+      // other builds (Windows): look at the GitHub releases ourselves and point the user at the download
+      ui->menuHelp->addSeparator();
+      QAction *upd=ui->menuHelp->addAction(tr("Check for updates..."));
+      connect(upd,&QAction::triggered,this,&mainWindow::slotCheckForUpdatesWeb);
+      QAction *autoUpd=ui->menuHelp->addAction(tr("Check for updates at startup"));
+      autoUpd->setCheckable(true);
+      autoUpd->setChecked(QSettings().value("update/autoCheck",false).toBool());
+      connect(autoUpd,&QAction::toggled,this,&mainWindow::slotAutoUpdateToggled);
+    }
   connect(idPushButton, SIGNAL(clicked()), this, SLOT(slotSendWFID()));
   connect(cwPushButton, SIGNAL(clicked()), this, SLOT(slotSendCWID()));
   connect(bsrPushButton, SIGNAL(clicked()), this, SLOT(slotSendBSR()));
@@ -248,6 +261,8 @@ void mainWindow::init()
   fileWatcherPtr->init();
   if(!fileDecoderPtr->isBatch() && appImageIntegration::available())
     QTimer::singleShot(4000,this,&mainWindow::offerDesktopIntegration);
+  if(!fileDecoderPtr->isBatch() && !appImageIntegration::available())
+    QTimer::singleShot(6000,this,&mainWindow::offerUpdateCheck);
 }
 
 /*!
@@ -322,6 +337,87 @@ void mainWindow::slotCheckForUpdates()
                                tr("Could not check automatically (%1).\nOpen the releases page in your browser?").arg(msg))==QMessageBox::Yes)
         QDesktopServices::openUrl(QUrl("https://github.com/jbdubbs/QSSTV-Experimental/releases"));
     }
+}
+
+static void showUpdateResult(QWidget *parent,const updateChecker::Result &r,bool quietIfCurrent)
+{
+  QSettings qs;
+  if(!r.ok)
+    {
+      if(quietIfCurrent) return;
+      if(QMessageBox::question(parent,QObject::tr("Check for updates"),
+                               QObject::tr("Could not check for updates (%1).\nOpen the releases page in your browser?").arg(r.error))==QMessageBox::Yes)
+        QDesktopServices::openUrl(updateChecker::releasesPage());
+      return;
+    }
+  if(!r.newer)
+    {
+      if(!quietIfCurrent) QMessageBox::information(parent,QObject::tr("Check for updates"),QObject::tr("You are running the latest version."));
+      return;
+    }
+  if(quietIfCurrent && qs.value("update/skipTag").toString()==r.latestTag) return;
+  QMessageBox box(QMessageBox::Question,QObject::tr("Check for updates"),
+                  QObject::tr("Version %1 is available (you have %2).\nOpen the download page?").arg(r.latestTag,updateChecker::currentVersion()),
+                  QMessageBox::Yes|QMessageBox::No,parent);
+  QCheckBox *skip=nullptr;
+  if(quietIfCurrent)
+    {
+      skip=new QCheckBox(QObject::tr("Don't remind me about this version"),&box);
+      box.setCheckBox(skip);
+    }
+  if(box.exec()==QMessageBox::Yes) QDesktopServices::openUrl(r.pageUrl);
+  else if(skip!=nullptr && skip->isChecked()) qs.setValue("update/skipTag",r.latestTag);
+}
+
+void mainWindow::slotCheckForUpdatesWeb()
+{
+  updateChecker *uc=new updateChecker(this);
+  QApplication::setOverrideCursor(Qt::WaitCursor);
+  connect(uc,&updateChecker::finished,this,[this,uc](const updateChecker::Result &r)
+  {
+    QApplication::restoreOverrideCursor();
+    QSettings().setValue("update/lastCheck",QDateTime::currentDateTime());
+    showUpdateResult(this,r,false);
+    uc->deleteLater();
+  });
+  uc->start();
+}
+
+void mainWindow::slotAutoUpdateToggled(bool on)
+{
+  QSettings qs;
+  qs.setValue("update/autoCheck",on);
+  qs.setValue("update/asked",true);
+}
+
+/*!
+  Non-AppImage builds: ask once whether to look for new versions at startup, then (if enabled) check at most
+  once a day and only speak up when something newer is out.
+*/
+void mainWindow::offerUpdateCheck()
+{
+  QSettings qs;
+  if(!qs.value("update/asked",false).toBool())
+    {
+      int r=QMessageBox::question(this,tr("Check for updates"),
+                                  tr("Check GitHub for new versions of QSSTV-Experimental when it starts?\n\nYou can change this later in the Help menu."));
+      qs.setValue("update/asked",true);
+      qs.setValue("update/autoCheck",r==QMessageBox::Yes);
+      for(QAction *a:ui->menuHelp->actions())
+        if(a->isCheckable() && a->text()==tr("Check for updates at startup")) a->setChecked(r==QMessageBox::Yes);
+      if(r!=QMessageBox::Yes) return;
+    }
+  if(!qs.value("update/autoCheck",false).toBool()) return;
+  QDateTime last=qs.value("update/lastCheck").toDateTime();
+  if(last.isValid() && last.secsTo(QDateTime::currentDateTime())<24*3600) return;
+  updateChecker *uc=new updateChecker(this);
+  connect(uc,&updateChecker::finished,this,[this,uc](const updateChecker::Result &r)
+  {
+    if(r.ok) QSettings().setValue("update/lastCheck",QDateTime::currentDateTime());
+    showUpdateResult(this,r,true);
+    uc->deleteLater();
+  });
+  uc->start();
 }
 
 void mainWindow::restartSound(bool inStartUp)

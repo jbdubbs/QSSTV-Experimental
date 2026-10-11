@@ -98,6 +98,7 @@ set(QSSTV_SOURCES
     config/soundconfig.cpp
     utils/dirdialog.cpp
     utils/appimageintegration.cpp
+    utils/updatecheck.cpp
     utils/logging.cpp
     utils/loggingparams.cpp
     appglobal.cpp
@@ -508,6 +509,8 @@ if(WIN32)
     message(STATUS "AVIF/HEIC plugins not found in ${QSSTV_IMGFMT_DIR} -- run tools/build-image-plugins-win64.sh to include them")
   endif()
   install(FILES "${MINGW_SYSROOT}/lib/qt6/plugins/styles/qmodernwindowsstyle.dll" DESTINATION styles)
+  # HTTPS for the GitHub update check (Help > Check for updates)
+  install(FILES "${MINGW_SYSROOT}/lib/qt6/plugins/tls/qschannelbackend.dll" DESTINATION tls)
 endif()
 
 # --- CPack ------------------------------------------------------------------------------
