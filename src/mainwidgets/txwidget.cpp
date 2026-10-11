@@ -539,9 +539,19 @@ void txWidget::sendBSR()
   bsrForm::eResult res;
   bsrForm bsrf;
   bsrf.init();
+  if(!bsrf.hasBSR())
+    {
+      QMessageBox::information(this,"BSR","No incomplete DRM image has been received, nothing to request.");
+      return;
+    }
   res=(bsrForm::eResult)bsrf.exec();
   if(res==bsrForm::CANCEL) return;
   p=bsrf.getBA(res==bsrForm::COMPAT);
+  if(p==NULL)
+    {
+      QMessageBox::warning(this,"BSR","The selected image has no missing segments to request.");
+      return;
+    }
   txFunctionsPtr->sendBSR(p,bsrf.getDRMParams());
 }
 

@@ -20,7 +20,7 @@ public:
   ~bsrForm();
   void init();
   QByteArray *getBA(bool compat);
-  bool hasBSR();
+  bool hasBSR() {return bsrPtr&&(bsrPtr->count()>0);}
   drmTxParams getDRMParams() {return  drmParams;}
 public slots:
   void slotCompatible();
@@ -33,7 +33,7 @@ private slots:
 private:
   Ui::bsrForm *ui;
   void displayInfo(int idx);
-  QList <bsrBlock> *bsrPtr;
+  QList <bsrBlock> *bsrPtr=nullptr;
   drmTxParams drmParams;
 
 };

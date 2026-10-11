@@ -247,6 +247,7 @@ int drmTx::processFIX(QByteArray bsrByteArray)
 #endif
 
 
+  if(sl.count()<4) return -1; // truncated or garbled BSR
   if(sl.at(1)!="H_OK")
     {
       return -1;

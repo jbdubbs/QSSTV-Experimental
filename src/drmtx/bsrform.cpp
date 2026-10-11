@@ -28,6 +28,8 @@ void bsrForm::init()
     {
       ui->infoTextEdit->clear();
       ui->infoTextEdit->appendPlainText("No BSR available");
+      ui->easypalPushButton->setEnabled(false);
+      ui->compatiblePushButton->setEnabled(false);
       return;
     }
   for(i=bsrPtr->count()-1;i>=0;i--) //latest first
@@ -37,15 +39,11 @@ void bsrForm::init()
   slotBSRSelection(0);
 }
 
-bool bsrForm::hasBSR()
-{
-  return (bsrPtr->count()>0);
-}
-
 QByteArray *bsrForm::getBA(bool compat)
 {
   int i;
   i=bsrPtr->count()-1-ui->bsrComboBox->currentIndex();
+  if((i<0)||(i>=bsrPtr->count())) return NULL;
   if(srcDecoder->storeBSR(bsrPtr->at(i).tbPtr,compat))
     {
       drmParams.robMode=bsrPtr->at(i).tbPtr->robMode;
@@ -63,6 +61,7 @@ QByteArray *bsrForm::getBA(bool compat)
   int i;
   transportBlock *tbPtr;
   i=bsrPtr->count()-1-idx;
+  if((i<0)||(i>=bsrPtr->count())) return;
   ui->infoTextEdit->clear();
   tbPtr=bsrPtr->at(i).tbPtr;
   ui->infoTextEdit->appendPlainText(tbPtr->callsign);
