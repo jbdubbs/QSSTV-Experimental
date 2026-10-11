@@ -99,6 +99,7 @@ set(QSSTV_SOURCES
     utils/dirdialog.cpp
     utils/appimageintegration.cpp
     utils/updatecheck.cpp
+    utils/guideserver.cpp
     utils/logging.cpp
     utils/loggingparams.cpp
     appglobal.cpp

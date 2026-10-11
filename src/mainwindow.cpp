@@ -34,6 +34,7 @@
 #include "mainwindow.h"
 #include "appimageintegration.h"
 #include "updatecheck.h"
+#include "guideserver.h"
 #include <QDateTime>
 #include <QMessageBox>
 #include <QCheckBox>
@@ -717,7 +718,11 @@ void mainWindow::slotDocumentation()
       const QString index=QDir(dir).filePath("index.html");
       if(QFileInfo::exists(index))
         {
-          openUrlOrWarn(this,QUrl::fromLocalFile(QFileInfo(index).canonicalFilePath()));
+          // served over http on localhost: a file:// URL breaks in sandboxed (Flatpak/Snap) browsers,
+          // which only get the single file and 404 on every link to another page or image
+          QUrl url=guideServer::instance().urlFor(dir);
+          if(url.isEmpty()) url=QUrl::fromLocalFile(QFileInfo(index).canonicalFilePath());
+          openUrlOrWarn(this,url);
           return;
         }
     }
