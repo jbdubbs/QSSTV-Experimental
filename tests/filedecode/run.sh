@@ -99,7 +99,7 @@ if command -v ffmpeg >/dev/null; then
   base=$(luma "$T/jb_src.png" "$T/o_jb/jb_1_JB60.png")
   while read -r name args; do
     ffmpeg -loglevel error -y -i "$T/jb.wav" $args "$T/$name.wav" || { bad "$name: ffmpeg failed"; continue; }
-    [ "$name" = list ] && { grep -aq LIST "$T/list.wav" && ok "list: the file really has a LIST chunk" || bad "list: ffmpeg wrote no LIST chunk, test is void"; }
+    [ "$name" = list ] && { grep -aq LIST "$T/list.wav" && ok "list: the file really has a LIST chunk" || echo "  skip list: this ffmpeg wrote no LIST chunk, so the test is void"; }
     run -o "$T/o_$name" "$T/$name.wav"; rc=$?
     png="$T/o_$name/${name}_1_JB60.png"
     if [ $rc = 0 ] && [ -f "$png" ]; then
@@ -119,10 +119,12 @@ EOF
 
   echo "== compressed formats via Qt Multimedia (mp3, flac, ogg, aac)"
   for ext in mp3 flac ogg aac; do
-    ffmpeg -loglevel error -y -i "$T/jb.wav" "$T/jbc.$ext" || { bad "$ext: ffmpeg cannot encode it, skipped"; continue; }
+    # explicit codec: newer ffmpeg builds default .ogg to Opus, which Qt Multimedia may not decode
+    codec=""; [ "$ext" = ogg ] && codec="-c:a libvorbis"
+    ffmpeg -loglevel error -y -i "$T/jb.wav" $codec "$T/jbc.$ext" || { bad "$ext: ffmpeg cannot encode it, skipped"; continue; }
     run -o "$T/o_c$ext" "$T/jbc.$ext"; rc=$?
     png="$T/o_c$ext/jbc_1_JB60.png"
-    if [ $rc = 0 ] && [ -f "$png" ]; then ok "$ext: decoded a picture"; else bad "$ext: exit $rc, no picture"; fi
+    if [ $rc = 0 ] && [ -f "$png" ]; then ok "$ext: decoded a picture"; else bad "$ext: exit $rc, no picture"; head -c 300 "$T/stderr"; fi
   done
 else
   echo "== (ffmpeg not installed: skipping the format/sample-rate variants)"
