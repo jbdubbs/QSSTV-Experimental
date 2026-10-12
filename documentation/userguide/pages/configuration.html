@@ -26,9 +26,17 @@ end to scroll.</p>
 
 <p>Your <strong>Firstname</strong>, <strong>Lastname</strong>, <strong>Callsign</strong>, <strong>QTH</strong> and <strong>Locator</strong>. The callsign is
 what the program sends for the waterfall ID, and it identifies you in hybrid-mode notifications.</p>
-<p><strong>Allow other users to see your online status via the notification server</strong> publishes that you are on air through the hybrid FTP
-server (see <a href="#hybrid">Hybrid</a>). <strong>Online Status Text</strong> is a short text, for example <em>locator_antenna_power</em>;
+<p><strong>Allow other users to see your online status via the notification server</strong> lets other stations see that you are on air. The
+&ldquo;notification server&rdquo; is the same hybrid FTP server that is set up on the <a href="#hybrid">Hybrid</a> page; there is no separate server and
+no built-in default. The option is on by default but does nothing until a Host is entered on the Hybrid page.</p>
+<p><strong>Online Status Text</strong> is a short text that other stations see next to your callsign, for example <em>locator_antenna_power</em>;
 use only a-z, A-Z, 0-9 and underscore, with no spaces or special characters.</p>
+<p>How it works: when the program starts in DRM mode with the option ticked and a Host configured, it uploads an empty file named
+<code>callsign_statustext</code> to the <em>Online Status Directory</em> on the server. Other stations read that directory with the
+<span class="ui">Who is on?</span> button on the Receive tab's DRM page (see <a href="receive.html">Receiving</a>). The file is removed when you exit the
+program normally with <span class="ui">File &gt; Exit</span>. The status is published once, at start-up, and is not refreshed: it is only listed for one hour, and
+nothing is published if you start in an SSTV mode or switch to DRM later. Restart the program in DRM mode to publish again.
+Changing the callsign or text in the dialog does not republish until the next start.</p>
 
 <h2 id="directories">Directories</h2>
 <figure><img src="../images/cfg-directories.png" alt="The Directories configuration page listing RX and TX image directories, templates and audio records" loading="lazy"><figcaption>Directories page, top part. The paths shown here are from a throwaway test profile.</figcaption></figure>
@@ -133,8 +141,11 @@ and <strong>End Repeater</strong>. The <strong>Font</strong>, <strong>Size</stro
 <p>Hybrid mode combines a DRM transmission over the air with an internet server. The sender uploads the picture (Transmit tab, <em>Hybrid</em> and
 <em>Upload Now</em>) and the receiving station can fetch it. This page holds the server settings: <strong>Enable Reception in Hybrid Mode</strong>,
 the FTP <strong>Host</strong>, <strong>FTP Port</strong>, <strong>Login</strong>, <strong>Password</strong> and <strong>Directory</strong>, the
-<strong>Hybrid Files Directory</strong>, and, if you tick <strong>Send RX Notifications in Hybrid Mode</strong>, the <strong>Notifications Directory</strong> and
-<strong>Online Status Directory</strong>. <strong>Test connection</strong> checks the server. Both stations must use the same server.</p>
+<strong>Hybrid Files Directory</strong>, and, if you tick <strong>Send RX Notifications in Hybrid Mode</strong>, the <strong>Notifications Directory</strong>.
+The <strong>Online Status Directory</strong> is where the online status files are kept; it is used by the Operator page's online status option and the
+<span class="ui">Who is on?</span> button, whether or not RX notifications are ticked. The directories are relative to the server <strong>Directory</strong>
+and must already exist on the server. <strong>Test connection</strong> checks the server and these directories. Both stations must use the same server and
+the same directory names, otherwise they will not see each other.</p>
 
 <h2 id="drmprofiles">DRM Profiles</h2>
 <figure><img src="../images/cfg-drmprofiles.png" alt="The DRM Profiles configuration page showing Profile 2 with name, mode, bandwidth, QAM, interleave, protection and Reed-Solomon" loading="lazy"><figcaption>DRM Profiles page, Profile 2 tab.</figcaption></figure>

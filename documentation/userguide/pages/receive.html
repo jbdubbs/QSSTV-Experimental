@@ -74,8 +74,11 @@
 <dt>FAC and MSC plots</dt><dd>The constellation diagrams. A tight cluster of points means a clean signal.</dd>
 <dt>Fix File</dt><dd>Asks the sender to resend the missing segments of an incomplete DRM picture (a BSR, "block status report").
  See <a href="drm.html#fix">Fixing an incomplete picture</a>.</dd>
-<dt>Who is on?</dt><dd>Lists stations that have published an online status through the hybrid notification server (see
- <a href="configuration.html#hybrid">Hybrid</a>).</dd>
+<dt>Who is on?</dt><dd>Reads the Online Status Directory on the hybrid FTP server and lists, in the notification box below, the stations
+ (callsign and status text) that published an online status within the last hour. Stations publish this when they start the program in DRM mode with the
+ Operator page's online status option ticked (see <a href="configuration.html#operator">Operator</a>). The button needs a Host on the
+ <a href="configuration.html#hybrid">Hybrid</a> page and does nothing without one; an empty list means nobody was seen, not that the server is broken.
+ Your own entry is listed too if you have published one. Not shown on slow or low-resolution displays.</dd>
 <dt>Notification list</dt><dd>The large box at the bottom shows RX notifications seen for the last DRM hybrid item. You usually get only
  a partial list because of timing, internet speeds, and the sender having read and deleted them already.</dd>
 </dl>
