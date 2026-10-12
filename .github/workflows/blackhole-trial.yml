@@ -43,7 +43,12 @@ jobs:
       - name: Generate test transmission (JB60)
         run: |
           export QT_QPA_PLATFORM=offscreen
-          ./build/qsstv.app/Contents/MacOS/qsstv --encode tests/jb60_loopback/images/card.png --mode JB60 --wav-out "$RUNNER_TEMP/tx.wav"
+          # --encode segfaults intermittently on macOS (GLib/QSocketNotifier cross-thread warnings first): retry
+          for i in 1 2 3 4 5; do
+            rm -f "$RUNNER_TEMP/tx.wav"
+            ./build/qsstv.app/Contents/MacOS/qsstv --encode tests/jb60_loopback/images/card.png --mode JB60 --wav-out "$RUNNER_TEMP/tx.wav" > "$RUNNER_TEMP/enc.log" 2>&1 && break
+            echo "attempt $i failed (exit $?)"; grep -v "GLib-WARNING\|^$" "$RUNNER_TEMP/enc.log" | head -5
+          done
           ls -l "$RUNNER_TEMP/tx.wav"
 
       - name: Seed settings (input = BlackHole)
