@@ -14,7 +14,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install dependencies
         run: |
-          brew install qt@6 fftw openjpeg hamlib pkg-config cmake libvorbis switchaudio-osx
+          brew install qt@6 fftw openjpeg hamlib pkg-config cmake libvorbis switchaudio-osx ffmpeg
           echo "QT_PREFIX=$(brew --prefix qt@6)" >> "$GITHUB_ENV"
       - name: Build
         run: |
@@ -55,6 +55,15 @@ jobs:
           ./seed "BlackHole 2ch" "default"
           defaults domains | tr ',' '\n' | grep -i qsstv || true
           ls ~/Library/Preferences | grep -i -E "qsstv|on4qz" || true
+
+      - name: Sanity check BlackHole independent of the app (ffmpeg records while afplay plays)
+        run: |
+          defaults read com.on4qz.qsstv_9.0 || true
+          SwitchAudioSource -s "BlackHole 2ch" -t output
+          ffmpeg -hide_banner -f avfoundation -list_devices true -i "" 2>&1 | grep -i -A6 "audio devices" || true
+          (afplay "$RUNNER_TEMP/tx.wav" &) ; sleep 2
+          ffmpeg -hide_banner -loglevel info -f avfoundation -i ":BlackHole 2ch" -t 8 -af volumedetect -f null - 2>&1 | grep -E "mean_volume|max_volume|Error|error|Input|Stream|denied" || true
+          pkill afplay || true
 
       - name: Receive from BlackHole while playing the transmission into it
         run: |
