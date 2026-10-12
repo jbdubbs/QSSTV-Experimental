@@ -34,7 +34,9 @@ jobs:
       - name: Headless decode test
         env:
           QSSTV_BIN: ${{ github.workspace }}/build/qsstv.app/Contents/MacOS/qsstv
-        run: "$(brew --prefix)/bin/bash" tests/filedecode/run.sh   # the test needs bash 4+ (macOS ships 3.2)
+        # the test needs bash 4+ (macOS ships 3.2)
+        run: |
+          "$(brew --prefix)/bin/bash" tests/filedecode/run.sh
 
       - name: Create app icon
         run: |
