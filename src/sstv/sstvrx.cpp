@@ -106,15 +106,6 @@ void sstvRx::run(DSPFLOAT *dataPtr,DSPFLOAT *volumePtr)
       errorOut() << "videoFltr NULL";
       return;
     }
-  // run AGC
-//  for(i=0;i<RXSTRIPE;i++)
-//    {
-//      DSPFLOAT tmp=sqrt(dataPtr[i]*dataPtr[i]);
-//      if(tmp>agcVolume) agcVolume=tmp;
-//      else agcVolume*=DECAY;
-//      if(agcVolume<1000) agcVolume=1000;  //maximum gain is 8
-//      dataPtr[i]=dataPtr[i]*8000/agcVolume;
-//    }
   videoFilterPtr->process(dataPtr);
   bufferVideoDemod.putNoCheck(videoFilterPtr->demodPtr,RXSTRIPE);
   syncFilterPtr->process(dataPtr);

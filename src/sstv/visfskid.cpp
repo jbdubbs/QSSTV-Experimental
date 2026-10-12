@@ -207,13 +207,6 @@ void fskIdDecoder::reset()
   init();
 }
 
-QString fskIdDecoder::getFSKId()
-{
-  QString tmp(fskIDStr);
-  fskIDStr.clear();
-  return  tmp;
-}
-
 void fskIdDecoder::switchState(efskState newState,unsigned int i)
 {
   Q_UNUSED(i);

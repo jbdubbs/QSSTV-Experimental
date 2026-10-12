@@ -27,7 +27,6 @@
 
 
 #define TXWFNUMTAPS 121
-#define NUMTAPSPOST 0
 #define NUMRXFILTERS 1
 
 
@@ -53,7 +52,6 @@ extern const double z_sync_lp[SYNCLPTAPS];
 
 #define VIDEOBPNUMZEROES 8
 #define VIDEOBPNUMPOLES 8
-#define VIDEOBPGAIN 2284.945151
 extern const double z_video_bp[VIDEOBPNUMZEROES+1];
 extern const double p_video_bp[VIDEOBPNUMPOLES];
 
@@ -73,7 +71,6 @@ enum efilterType {FNARROW,FWIDE};
 enum epostFilterType {NONE};
 extern const  FILTERPARAMTYPE wfFilterCoef[TXWFNUMTAPS];
 
-DSPFLOAT calculateGain(const DSPFLOAT *fp,unsigned int len);
 
 struct sfilters
 {

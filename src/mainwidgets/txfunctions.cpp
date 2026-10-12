@@ -332,11 +332,6 @@ int txFunctions::calcTxTime(bool binary, int overhead)
 
 }
 
-void txFunctions::setDRMTxParams(drmTxParams params)
-{
-  drmTxPtr->setTxParams(params);
-}
-
 
 void txFunctions::startProgress(double duration)
 {

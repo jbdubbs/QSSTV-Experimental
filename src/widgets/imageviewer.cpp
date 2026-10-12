@@ -37,7 +37,6 @@
 #include <QtGui>
 #include <QMenu>
 
-#define RATIOSCALE 1.
 #define MAXSEGMENTS 4
 
 
@@ -414,12 +413,6 @@ void imageViewer::createImage(QSize sz,QColor fill,bool scale)
   emit imageChanged();
 }
 
-//void imageViewer::copy(imageViewer *src)
-//{
-//  imageFileName=src->imageFileName;
-//  ttype=src->ttype;
-//  openImage(imageFileName,false,false,false);
-//}
 
 
 
@@ -1715,19 +1708,6 @@ QImage *imageViewer::getDisplayedImage()
   return &displayedImage;
 }
 
-//void imageViewer::slotTest()
-//{
-//  qDebug() << "alpha" << imageBackGroundColor.alpha() << "red" << imageBackGroundColor.red();
-////  createImage(QSize(800,600),imageBackGroundColor,true);
-//  QFile fi;
-//  dirDialog d(this,"Open File");
-//  QString s=d.openFileName(txStockImagesPath,"*.png");
-//  if (s.isNull()) return ;
-//  if (s.isEmpty()) return ;
-//  fi.setFileName(s);
-//  displayedImage.load(s);
-//  setPixmap(QPixmap::fromImage(displayedImage));
-//}
 
 
 

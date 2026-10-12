@@ -45,7 +45,6 @@ class logFile
     void dummyAdd(QString,int) {}
     void addToAux(QString t);
     bool setEnabled(bool e);
-    void setLogMask(QBitArray logMask);
     void maskSelect(QWidget *wPtr=nullptr);
     void readSettings();
     void writeSettings();

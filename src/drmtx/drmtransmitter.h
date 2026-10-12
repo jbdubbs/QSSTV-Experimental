@@ -14,7 +14,6 @@ public:
   void init(QByteArray *ba, QString name, QString format, drmTxParams params);
   void start(bool startTx);
   double getDuration() {return duration;} // expressed in seconds
-  double transmissionTime;
 private:
   CDRMTransmitter *DRMTransmitter;
   CParameter* TransmParam ;

@@ -151,21 +151,6 @@ void ftpThread::customEvent( QEvent * e)
 }
 
 
-void ftpThread::setupConnection(QString tHost,int tPort,QString tUser,QString tPasswd,QString tDirectory)
-{
-  addToLog(QString("'%1' host: %2, User: %3,directory: %4").arg(idName).arg(tHost).arg(tUser).arg(tDirectory), LOGFTPTHREAD);
-  if(host!=tHost || user!=tUser || passwd!=tPasswd || port!=tPort)
-    {
-      if (qftpPtr) destroy();
-    }
-  host=tHost;
-  port=tPort;
-  user=tUser;
-  passwd=tPasswd;
-  directory=tDirectory;
-  changePath(tDirectory);
-}
-
 
 void ftpThread::destroy()
 {

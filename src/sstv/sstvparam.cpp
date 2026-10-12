@@ -109,22 +109,6 @@ DSPFLOAT getSyncWidth(esstvMode modeIndex,DSPFLOAT clock)
 }
 
 
-/**
-	\brief setup active parameters
-  
-	Setup active parameters given the VIS code 
-  \param[in] viscode VIS code of the mode to select
-  \param[in] tx if set to true then parameters for transmit
-  \return Returns the modeIndex if successful else NOTVALID
-*/
-esstvMode initializeParametersVIS(unsigned int viscode,bool tx)
-{
-  esstvMode t;
-  t=lookupVIS(viscode);
-  initializeSSTVParametersIndex(t,tx);
-	return t;
-}
-
 
 
 /**
@@ -230,70 +214,7 @@ QString getSSTVModeNameShort(esstvMode modeIndex)
 }
 
 
-//QString getFAXModeNameLong(efaxMode modeIndex)
-//{
-//	if(modeIndex>=FAXNONE) return QString("");
-//	return(FAXTable[(int)modeIndex].name);
-//}
 
-//QString getFAXModeShort(efaxMode modeIndex)
-//{
-//  if(modeIndex>=FAXNONE) return QString("");
-//  return(FAXTable[(int)modeIndex].shortName);
-//}
-
-/**
-	\brief lookup mode by line length
-	
-	Returns the closest match for a given line length
-	\param[in] lineLength line length in samples
-	\param clock	the rx or tx clock to be used
-	\return returns the modeIndex or NOTVALID if none found
-*/
-
-esstvMode modeLookup(unsigned int lineLength,DSPFLOAT clock)
-{
-  int i;
-  DSPFLOAT errLine, totalError;
-  totalError=9999999;
-  esstvMode lmode=NOTVALID;
-  for (i=M1;i<NOTVALID;i++)
-    {
-      errLine=1.-(DSPFLOAT)lineLength/((SSTVTable[i].imageTime/((DSPFLOAT)SSTVTable[i].numberOfDataLines))*clock);
-      errLine*=errLine;
-      if(errLine<totalError)
-				{
-	  			lmode=(esstvMode)i;
-	  			totalError=errLine;
-				}
-    }
-	 if (totalError<0.001) return (esstvMode)lmode;
-	 return NOTVALID;
-}
-
-bool lineIsValid(esstvMode mode,unsigned int lineLength,DSPFLOAT clock)
-{
-	DSPFLOAT errLine;
-	errLine=1.-(DSPFLOAT)lineLength/((SSTVTable[mode].imageTime/((DSPFLOAT)SSTVTable[mode].numberOfDataLines))*clock);
-  errLine*=errLine;
-	return (errLine<0.001);
-}
-
-/**
-	returns the value (in samples) of the longest line in the table
-	*/
-DSPFLOAT longestLine(DSPFLOAT clock)
-{
-	int i;
-	DSPFLOAT highest=0;
-	DSPFLOAT length;
-	for(i=0;i<(int)AVT24;i++)
-		{
-			length=(SSTVTable[i].imageTime/(DSPFLOAT)SSTVTable[i].numberOfDataLines)*clock;
-			if (length>highest) highest=length;
-		}
-	return highest;
-}
 
 
 
@@ -372,73 +293,20 @@ sSSTVParam SSTVTable[NUMSSTVMODES+1]=
 //{
 ////  name      shortName     mode      modulation     lpm  ioc  lines  pixels carr dev  start sFreq stop sFreq  phL invert  colorM
 	
-//	{"NOAA"    	 ,"NOAA",		 NOAA       ,DEMODAM,      120.,  576,  800, 1810, 2400, 400,  0   , 300,  0,  450 ,  0,  false,  1},
-//	{"HFFAX"   	 ,"HFFXAX",	 HFFAX      ,DEMODFM,      120.,  288,  800,  905, 1900, 400,  5   , 300,  5,  450 , 20,  false,  1},
-//	{"Custom"    ,"Custom",	 FAXCUSTOM  ,DEMODAM,      121.,  288,  180,  905, 1900, 400,  5   , 300,  5,  450 , 20,  false,  1},
-//	{"No Mode"   ,"NOTVALID",FAXNONE    ,0,         0,    0,    0,     0,  0,   0,  0   ,   0,  0,    0 ,  0,  false,  0},
-//};
 
 //#ifndef QT_NO_DEBUG
 
-//void printActiveFAXParam(bool tx)
-//{
-//  sFAXParam * FAXParam;
-//  if(tx)
-//  {
-//    FAXParam=&txFAXParam;
-//  }
-//  else
-//  {
-//    FAXParam=&rxFAXParam;
-//  }
 
 
-//  addToLog(QString("name=%1, shortname=%2\n").arg(FAXParam->name).arg(FAXParam->shortName),LOGPARAM);
-//  addToLog(QString("modulation=%1,lpm=%2,ioc=%3,numDisplayLines=%4, subcarrier=%5,deviation=%6\n").arg(FAXParam->modulation)
-//              .arg(FAXParam->lpm).arg(FAXParam->ioc).arg(FAXParam->numberOfDisplayLines).arg(FAXParam->subcarrier)
-//              .arg(FAXParam->deviation),LOGPARAM);
-//}
-//#else
-//void printActiveFAXParam(bool ) {}
-//#endif
 
 
 
 
 // * \brief setup active parameters
 
-//		Setup active parameters given the modeIndex
-// * \param[in] modeIndex selected mode
-// * \return true if successful
-//*/
-//bool  initializeFAXParametersIndex(efaxMode modeIndex,bool tx)
-//{
 
-//  if (modeIndex < NUMFAXMODES)
-//    {
-//      if(tx)
-//      {
-//        txFAXParam=FAXTable[modeIndex];
-//        txFAXParam.numberOfPixels=(txFAXParam.ioc*31419+5000)/10000;
-//      }
-//      else
-//      {
-//        rxFAXParam=FAXTable[modeIndex];
-//        rxFAXParam.numberOfPixels=(rxFAXParam.ioc*31419+5000)/10000;
-//      }
 
-//      printActiveFAXParam(tx);
-//      return true;
-//    }
-//	return false;
-//}
 
-//void copyCustomParam(bool tx)
-//{
-////	memmove((char *)&FAXTable[FAXCUSTOM],(char *)&activeFAXParam,sizeof(sFAXParam));
-//  if(tx) FAXTable[FAXCUSTOM]=txFAXParam;
-//  else FAXTable[FAXCUSTOM]=rxFAXParam;;
-//}
 
 /***
  		\brief setup the FAX lineTable 
@@ -446,25 +314,6 @@ sSSTVParam SSTVTable[NUMSSTVMODES+1]=
 	Setup a table containing the relative positions expressed in samples	
 	\param clock the adjusted samplingrate
 */
-//void setupFAXLineTimeTable(DSPFLOAT clock,bool tx)
-//{
-//  unsigned int i;
-//  if(tx)
-//    {
-//      for (i=1;i<=txFAXParam.numberOfDisplayLines;i++)
-//        {
-//          // one lineTime= lpm/60
-//          lineTimeTableTX[i-1]=((60.*(DSPFLOAT)i)/txFAXParam.lpm)*clock;
-//        }
-//    }
-//  else
-//  {
-//    for (i=1;i<=rxFAXParam.numberOfDisplayLines;i++)
-//      {
-//        // one lineTime= lpm/60
-//        lineTimeTableRX[i-1]=((60.*(DSPFLOAT)i)/rxFAXParam.lpm)*clock;
-//      }
-//  }
 
 //}
 

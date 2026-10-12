@@ -26,8 +26,6 @@
 
 
 
-#define PERIODSIZE (DOWNSAMPLESIZE)
-#define BUFFERSIZE (8*DOWNSAMPLESIZE)
 
 
 class soundBase : public QThread

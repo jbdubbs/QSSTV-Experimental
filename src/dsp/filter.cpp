@@ -137,23 +137,6 @@ void filter::processFIR(FILTERPARAMTYPE *dataPtr, double *dataOutputPtr)
 
 void filter::processFIRInt(FILTERPARAMTYPE *dataPtr, quint16 *dataOutputPtr)
 {
-  //  FILTERPARAMTYPE resI=0;
-  //  FILTERPARAMTYPE *fp1;
-  //  const FILTERPARAMTYPE *cf1;
-  //  unsigned int i,k;
-  //  for (k=0;k<dataLen;k++)
-  //    {
-  //      resI=0;
-  //      cf1 = coefZPtr;
-  //      fp1 = sampleBufferIPtr;
-  //      memmove(sampleBufferIPtr+1, sampleBufferIPtr, bufSize);
-  //      sampleBufferIPtr[0]=dataPtr[k];
-  //      for(i=0;i<=nZeroes;i++,fp1++,cf1++)
-  //        {
-  //          resI+=(*fp1)*(*cf1);
-  //        };
-  //      dataOutputPtr[k]=(quint16)rint(resI/gain);
-  //    }
 
   FILTERPARAMTYPE resI=0;
   const FILTERPARAMTYPE *cf1;
@@ -232,31 +215,6 @@ void filter::processFIRDemod(FILTERPARAMTYPE *dataPtr,FILTERPARAMTYPE *dataOutpu
 
 
 
-
-void filter::processHILBVolume(FILTERPARAMTYPE *dataPtr)
-{
-  FILTERPARAMTYPE resI;
-  FILTERPARAMTYPE resQ;
-  const FILTERPARAMTYPE *cf1;
-  FILTERPARAMTYPE *fp1;
-  unsigned int i;
-  uint k;
-  for (k=0;k<dataLen;k++)
-    {
-      resQ=0;
-      cf1 = coefZPtr+1;
-      fp1 = sampleBufferIPtr+1;
-      memmove(sampleBufferIPtr+1, sampleBufferIPtr,bufSize);
-      sampleBufferIPtr[0]=dataPtr[k];
-      for(i=1;i<=nZeroes;i+=2,fp1+=2,cf1+=2)
-        {
-          resQ+=(*fp1)*(*cf1);
-        };
-      resQ/=gain;
-      resI=sampleBufferIPtr[nZeroes/2];
-      volumePtr[k]=sqrt(resQ*resQ+resI*resI);
-    }
-}
 
 
 

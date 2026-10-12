@@ -29,7 +29,6 @@
 
 #include <math.h>
 
-#define VOLINTEGRATOR 0.5
 
 
 

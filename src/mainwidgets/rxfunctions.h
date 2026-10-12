@@ -29,7 +29,6 @@ public:
   void startRX();
   void restartRX();
   void eraseImage();
-  QString getModeStr();
   sstvRx  *sstvRxPtr;
   void stopThread();
   bool rxBusy();

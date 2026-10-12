@@ -44,7 +44,6 @@ public:
   FILTERPARAMTYPE *getVolumePtr() {return volumeBuffer;}
 
 private:
-	void normalizeGain();
   FILTERPARAMTYPE *filteredDataBuffer;
 //  FILTERPARAMTYPE *volumeDataBuffer;
   FILTERPARAMTYPE *volumeBuffer;

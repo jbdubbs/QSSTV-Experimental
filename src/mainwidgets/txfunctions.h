@@ -65,7 +65,6 @@ public:
   void applyTemplate(imageViewer *ivPtr,QString templateFilename);
   void forgetTxFileName();
   etxState getTXState() { return txState;}
-  void setDRMTxParams(drmTxParams params);
 //  void setOnlineStatus(bool online, QString info="");
   //  bool initDRMFIX(txSession *sessionPtr);
   int calcTxTime(bool binary, int overhead);

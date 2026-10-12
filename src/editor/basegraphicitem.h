@@ -118,7 +118,6 @@ enum egraphType {BASE=QGraphicsItem::UserType+1,RECTANGLE,ELLIPSE,IMAGE,LINE,TEX
 protected:
 
   QRectF m_ActualRect;
-  QRectF m_CornerRect;
   bool selected;
   QVector<QRectF> m_ResizeHandles;
   //! Arrow line used as rotation handle

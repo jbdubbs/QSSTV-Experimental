@@ -68,7 +68,6 @@ private:
   QString lastErrorStr;
   QThread* thread;
   QTemporaryFile ftmp;
-  int commandID;
   bool busy;
   bool mremoveCmd;
 

@@ -664,17 +664,6 @@ const double z_sync_lp[SYNCLPTAPS]=
 
 
 
-DSPFLOAT calculateGain(const DSPFLOAT *fp,unsigned int len)
-{
-	unsigned int i;
-	DSPFLOAT fs=0.;
-	for(i=0;i<len;i++)
-		{
-			fs+=fp[i];
-		}
-	return fs;
-}
-
 //sfilters filterStruct[NUMRXFILTERS]=
 //{
 ////	{"800 Hz",narrowRX,1900},

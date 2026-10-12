@@ -78,7 +78,6 @@ private:
 	QMenu *fileMenu;
 	QMenu *editMenu;
 	QFile localFile;
-	QFile externalFile;
 };
 
 #endif

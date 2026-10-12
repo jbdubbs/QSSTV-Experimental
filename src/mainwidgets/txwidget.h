@@ -77,7 +77,6 @@ public:
   }
 
   //  bool prepareHybrid(QString fn);
-  bool prepareText(QString txt);
   void copyProfile(drmTxParams d);
   void setProfileNames();
   void reloadProfiles();
@@ -134,7 +133,6 @@ signals:
 private:
   void initView();
   void setParams();
-  void sendHybrid(QString fn);
   void applyTemplate();
   void updateTxTime();
   void rebuildModeComboBox();
@@ -155,17 +153,13 @@ private:
   QTimer *repeaterTimer;
   QTimer repeaterTxDelayTimer;
   int repeaterIndex;
-  QImage origImage;
   QImage resultImage;
 
   imageViewer *imageViewerPtr;
-  etransmissionMode currentTXMode;
   uint maxSize;
   uint compressedSize;
   bool sizeChanged;
   QTimer sizeApplyTimer;
-  int drmProfileIdx;
-  QString previewFilename;
   etxMode doTx;
   ftpFunctions ff;
   QTimer notifyTimer;

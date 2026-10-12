@@ -5,7 +5,6 @@
 #include "baseconfig.h"
 
 
-#define NUMFTPRXIMAGES 30
 
 enum eftpSaveFormat {FTPIMAGESEQUENCE,FTPFILENAME};
 

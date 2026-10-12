@@ -249,11 +249,6 @@ bool logFile::setEnabled(bool enable)
   return t;
 }
 
-void logFile::setLogMask(QBitArray logMask)
-{
-  maskBA=logMask;
-}
-
 void logFile::maskSelect(QWidget *wPtr)
 {
   int i,j;

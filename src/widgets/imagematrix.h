@@ -18,7 +18,6 @@ public:
   explicit imageMatrix(QWidget *parent = 0);
   ~imageMatrix();
   void init(int numRows, int numColumns, QString dir, imageViewer::thumbType tt);
-  void setupFiles();
   void changed();
   QFileInfoList getFileList(){return fileList;}
   QString getLastFile();
@@ -43,7 +42,6 @@ private:
   QToolButton *beginPushButton;
   QToolButton *endPushButton;
   QLabel *pageLabel;
-  QList<imageViewer *> imageViewerPtrList;
   QFileInfoList fileList;
   int rows;
   int columns;

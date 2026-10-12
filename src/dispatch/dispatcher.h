@@ -54,7 +54,6 @@ signals:
 
 private slots:
 //  void slotRXNotification(QString info);
-  void slotTXNotification(QString);
   void slotRenameListing(bool err);
 
 private:
@@ -67,7 +66,6 @@ private:
   imageViewer *iv;
   int txTimeCounter;
   int prTimerIndex;
-  int logTimerIndex;
   textDisplay *infoTextPtr;
   QMessageBox *mbox;
   QProgressDialog *progressFTP;

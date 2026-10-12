@@ -84,7 +84,6 @@ public slots:
   void slotItemSelected(graphItemBase*);
   //Debug
 
-  void slotTextReturnPressed(const QString &);
 private:
   editorScene *scene;
   bool modified;
@@ -93,7 +92,6 @@ private:
   void setTransform();
   QIcon createColorToolButtonIcon(const QString &imageFile, QColor color);
   QMenu *createColorMenu(const char *,int,QString text);
-  int canvasSizeIndex;
   int pointSize;
   QString fontFamily;
   bool bold;

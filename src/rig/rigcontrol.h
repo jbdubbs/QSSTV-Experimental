@@ -72,10 +72,8 @@ private:
   freq_t freq;            // frequency
   rmode_t rmode;          // radio mode of operation
   pbwidth_t width;
-  vfo_t vfo;              // vfo selection
   int strength;           // S-Meter level
   int retcode;            // generic return code from functions
-  rig_model_t myrig_model;
   bool rigControlEnabled;
   void errorMessage(int errorCode,QString command);
   void getRadioList();

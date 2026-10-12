@@ -30,7 +30,6 @@
 
 class QGraphicsSceneMouseEvent;
 
-#define CHANGECOLOR
 #define CHANGE
 
 
@@ -107,9 +106,7 @@ public slots:
 signals:
   //	void itemInserted(graphItemBase *itm);
   //	void textInserted(graphItemBase *itm);
-  void changeSize(int,int);
   void itemSelected(graphItemBase *itm);
-  void colorSelected( const QPointF &p);
 
 protected:
   void mousePressEvent(QGraphicsSceneMouseEvent *mouseEvent);
@@ -120,7 +117,6 @@ protected:
 private:
   graphItemBase *copyItem;
   graphItemBase::egraphType itemType;
-  bool leftButtonDown;
 
   bool pasted;
   qreal zMax;
@@ -134,7 +130,6 @@ private:
   void makeCopy(graphItemBase *it);
   eImageType imageType;
   QImage *localImage;
-  void flattenImage(int w,int h);
   void convertText();
   //  QString textConversion(QString str);
   //  QString convertedText;

@@ -9,8 +9,6 @@
 
 #define MINCOLSIZE 32
 #define MINROWSIZE 26
-#define MAXCOLSIZE 64
-#define MAXROWSIZE 52
 
 
 imageMatrix::imageMatrix(QWidget *parent) :  QWidget(parent)

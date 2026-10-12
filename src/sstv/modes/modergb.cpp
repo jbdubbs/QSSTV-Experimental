@@ -34,7 +34,6 @@ modeRGB::modeRGB(esstvMode m,unsigned int len, bool tx,bool narrowMode):modeBase
 {
 }
 
-#define MODERGBDEBUG
 
 modeRGB::~modeRGB()
 {
@@ -131,27 +130,6 @@ void  modeRGB::calcPixelPositionTable(unsigned int colorLine,bool tx)
     }
 }
 
-//void modeRGB::calcPixelPositionTable(unsigned int colorLine,bool tx)
-//{
-//	unsigned int i;
-//	int ofx=0;
-//	if(tx) ofx=1;
-//	debugState=colorLine;
-//	switch (colorLine)
-//		{
-//			case REDLINE:
-//				start+=bp;
-//			break;
-//			case GREENLINE:
-//				start+=bp+blank+visibleLineLength;
-//			break;
-//			case BLUELINE:
-//				start+=bp+2.*blank+2.*visibleLineLength;
-//			break;
-//		}
-//  for(i=0;i<activeSSTVParam->numberOfPixels;i++)
-//		{
-//      pixelPositionTable[i]=(unsigned int)round(start+(((float)(i+ofx)*visibleLineLength)/activeSSTVParam->numberOfPixels));
 
 //		}
 //}

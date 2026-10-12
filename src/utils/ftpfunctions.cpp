@@ -60,14 +60,6 @@ bool ftpFunctions::test(QString name,QString tHost,int tPort,QString tUser,QStri
     {
       lastErrorStr=QString("Connection to %1/%2 OK").arg(host).arg(directory);
     }
-//  if(lastTest)
-//    {
-//     thread->quit();
-//    while(thread->isRunning())
-//      {
-//          QApplication::processEvents();
-//       }
-//    }
   return result;
 }
 

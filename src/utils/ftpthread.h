@@ -59,7 +59,6 @@ private:
   bool displayProgress;
   QFtp *qftpPtr;
 
-  void setupConnection(QString tHost,int tPort,QString tUser,QString tPasswd,QString tDirectory);
   void destroy();
   void doConnect();
   void connectToHost();
@@ -108,7 +107,6 @@ private:
   QFile *sourceFn;
   QFile *destFn;
   QList <QUrlInfo> listingResults;
-  bool removeFiles;
 };
 
 #endif // FTPTHREAD_H

@@ -251,16 +251,6 @@ bool browseGetFile(QLineEdit *le,QString deflt, const QString &filter)
 	return true;
 }
 
-bool browseSaveFile(QLineEdit *le,QString deflt,const QString &filter)
-{
-    dirDialog d((QWidget *)le,"Browse");
-	QString s=d.saveFileName(deflt,filter,"");
-  if (s.isNull()) return false;
-	if (s.isEmpty()) return false;
-	le->setText(s);
-	return true;
-}
-
 bool browseDir(QLineEdit *le,QString deflt)
 {
     dirDialog d((QWidget *)le,"Browse");
@@ -273,22 +263,6 @@ bool browseDir(QLineEdit *le,QString deflt)
 
 
 
-
-void deleteFiles(QString dirPath,QString extension)
-{
-  int i;
-  QDir dir(dirPath);
-  QStringList filters;
-  QFile fi;
-  filters << extension;
-  dir.setNameFilters(filters);
-  QFileInfoList entries = dir.entryInfoList(filters,QDir::Files|QDir::NoSymLinks);
-  for(i=0;i<entries.count();i++)
-    {
-      fi.setFileName(entries.at(i).absoluteFilePath());
-      fi.remove();
-    }
-}
 
 bool trash(QString filename,bool forceDelete)
 {

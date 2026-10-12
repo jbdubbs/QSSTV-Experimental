@@ -16,7 +16,6 @@ public:
   void processFIRInt(FILTERPARAMTYPE *dataPtr, quint16 *dataOutputPtr);
   void processFIRDemod(FILTERPARAMTYPE *dataPtr, FILTERPARAMTYPE *dataOutputPtr);
   void processIIRRectified(FILTERPARAMTYPE *dataPtr);
-  void processHILBVolume(FILTERPARAMTYPE *dataPtr);
   void processIQ(FILTERPARAMTYPE *dataPtr,float *dataOutputPtr);
   void setupMatchedFilter(FILTERPARAMTYPE freq, uint numTaps);
   void allocate();

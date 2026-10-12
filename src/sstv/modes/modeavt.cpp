@@ -56,18 +56,6 @@ modeBase::eModeBase modeAVT::process(quint16 *demod,unsigned int ,bool ,unsigned
 {
   unsigned int i=0;
   unsigned char a,b;
-//  if(goToSync)
-//    {
-//      if(syncPos >=length)
-//        {
-//          addToLog(QString("modebase:process: syncPos: %1 > length %2").arg(syncPos).arg(length),LOGMODES);
-//          return MBENDOFIMAGE;
-//        }
-//      else
-//        {
-//            for(i=0;i<syncPos;i++)  debugStatePtr[i]=debugState;
-//        }
-//    }
   if(avtTrailerDetect)
   {
       for(;i<length;i++)

@@ -96,7 +96,6 @@ private:
   bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
 #endif
   void cleanUpCache(QString dirPath);
-  QComboBox *transmissionModeComboBox;
   QPushButton *wfTextPushButton;
   QPushButton *fixPushButton;
   QPushButton *idPushButton;

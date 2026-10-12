@@ -20,7 +20,6 @@
 /** \file */
 
 #define OK true
-#define NOK false
 
 
 
@@ -69,9 +68,7 @@ void setValue(int val, QSlider *input);
 
 
 bool browseGetFile(QLineEdit *le,QString deflt,const QString &filter="*");
-bool browseSaveFile(QLineEdit *le,QString deflt,const QString &filter="*");
 bool browseDir(QLineEdit *le, QString deflt);
-void deleteFiles(QString dirPath,QString extension);
 QStringList commonImageFormats();
 void styleToolButtons(QWidget *parent);
 QString imageNameFilter(const QString &extra=QString());

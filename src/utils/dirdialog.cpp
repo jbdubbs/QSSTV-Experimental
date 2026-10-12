@@ -54,27 +54,6 @@ QString dirDialog::openFileName(const QString &path, const QString &filter)
     \return if canceled or no selection then return an empty string else return string containing absolute dirname
 */
 
-QStringList dirDialog::openFileNames(const QString &path, const QString &filter)
-{
-  QStringList fl;
-  if (path.isEmpty() && lastPath.isEmpty())
-    {
-      lastPath=QDir::homePath();
-    }
-  else if (!path.isEmpty())
-    {
-      lastPath=path;
-    }
-
-  fl=QFileDialog::getOpenFileNames(parentPtr,dialogTitle,lastPath,filter);
-  if(fl.count()>0)
-    {
-      QFileInfo  fi(fl.at(0));
-      lastPath=fi.absolutePath();
-    }
-  return fl;
-}
-
 
 
 /*!

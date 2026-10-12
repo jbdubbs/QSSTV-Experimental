@@ -34,7 +34,6 @@
 #include <QSerialPort>
 
 
-#define MAXCONFLEN 128
 #ifndef HAMLIB_FILPATHLEN
 #define HAMLIB_FILPATHLEN FILPATHLEN
 #endif

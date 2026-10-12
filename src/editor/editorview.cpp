@@ -42,7 +42,6 @@ struct sCanvasSize
   int height;
 };
 
-#define BORDER 4
 /** editorview */
 
 editorView::editorView(QWidget *parent):QWidget(parent), Ui::editorForm()
@@ -473,13 +472,6 @@ void editorView::setTransform()
   scene->hShear=(double)hshearSlider->value()/10.;
   scene->vShear=(double)vshearSlider->value()/10.;
   scene->apply(editorScene::DTRANSFORM);
-}
-
-/*! \todo  check if used
-*/
-void editorView::slotTextReturnPressed(const QString &)
-{
-
 }
 
 

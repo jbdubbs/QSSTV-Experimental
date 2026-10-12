@@ -227,35 +227,11 @@ void synthesizer::setFilter(efilterType txFilterType)
 //  filterLength=TXNUMTAPS;
   switch (txFilterType)
     {
-//      case F400:
-//      case F600:
-//      case F1000:
-//      case F800:
-      //filterI=f800TX;
       default:
       break;
     }
 }
 
-//void synthesizer::fillBuffer()
-//{
-//  unsigned int i;
-//  unsigned int sz;
-//  sz=soundIOPtr->txBuffer.getBufferSize();
-//  for(i=0;i<50000;i++)
-//    {
-//      soundIOPtr->txBuffer.put((SOUNDFRAME)(round(nextSample(2300))));
-//    }
-//  for(;i<(sz);i++)
-//    {
-//      soundIOPtr->txBuffer.put((SOUNDFRAME)(round(nextSample(1500))));
-//    }
-//  for(;i<sz-1;i++)
-//    {
-//      soundIOPtr->txBuffer.put((SOUNDFRAME)(round(0)));
-//    }
-//  addToLog(QString("buffercount %1").arg(soundIOPtr->txBuffer.getWriteIndex()),LOGSYNTHES);
-//}
 
 
 

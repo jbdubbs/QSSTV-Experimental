@@ -646,10 +646,3 @@ void dispatcher::timerEvent(QTimerEvent *event)
 
 
 
-void dispatcher::slotTXNotification(QString info)
-{
-  if (info != "")
-    {
-      txWidgetPtr->appendDRMNotifyText(info);
-    }
-}

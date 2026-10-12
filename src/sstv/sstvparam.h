@@ -19,14 +19,9 @@ SSTV Parameter functions
 #define REDLINE 2		//!< index for red line buffer
 #define YLINEODD 3 //!< index for intensity line buffer 0 
 #define YLINEEVEN 4 //!< index for intensity line buffer 1
-#define VIDEOBW 800 
-#define MAXLINES 800
 
 #define DEMODAM 0
 #define DEMODFM 1
-#define MINSYNCWIDTH 0.004
-#define MAXSYNCWIDTH 0.020
-#define RETRACEWIDTH 0.29
 
 
 
@@ -95,13 +90,6 @@ enum esstvMode
 #define STARTWIDE M1
 #define ENDWIDE FAX480
 
-//enum efaxMode
-//{
-//	NOAA,
-//	HFFAX,
-//	FAXCUSTOM,
-//	FAXNONE
-//};
 
 /*
 
@@ -143,27 +131,6 @@ struct sSSTVParam
   int deviation;
 };
 
-//struct sFAXParam
-//{
-//	~sFAXParam(){}
-//  QString name;
-//  QString shortName;
-////	enum efaxMode mode;
-//	uint modulation;
-//	double lpm;
-//	unsigned int ioc;
-//	unsigned int numberOfDisplayLines;
-//	unsigned int numberOfPixels;
-//	int subcarrier;
-//	int deviation;
-//	int aptStartDuration;
-//	int aptStartFreq;
-//	int aptStopDuration;
-//	int aptStopFreq;
-//	unsigned int numberOfPhasingLines;
-//	bool inverted;
-//	unsigned int colorMode;
-//};
 
 
 extern sSSTVParam SSTVTable[NUMSSTVMODES+1];
@@ -181,7 +148,6 @@ void setupSSTVLineTimeTable(esstvMode modeIndex,DSPFLOAT clock,bool transmit);
 DSPFLOAT getLineLength(esstvMode modeIndex,DSPFLOAT clock);
 DSPFLOAT getSyncWidth(esstvMode modeIndex,DSPFLOAT clock);
 //void setupFAXLineTimeTable(DSPFLOAT clock);
-esstvMode initializeParametersVIS(unsigned int viscode,bool tx);
 bool  initializeSSTVParametersIndex(esstvMode modeIndex,bool tx);
 //bool  initializeFAXParametersIndex(efaxMode modeIndex,bool tx);
 esstvMode lookupVIS(unsigned int vc);
@@ -192,9 +158,6 @@ void dumpSamplesPerLine();
 //QString getFAXModeNameLong(efaxMode m);
 //QString getFAXModeShort(efaxMode m);
 
-esstvMode modeLookup(unsigned int lineLength,DSPFLOAT clock);
-DSPFLOAT longestLine(DSPFLOAT clock);
-bool lineIsValid(esstvMode mode,unsigned int lineLength,DSPFLOAT clock);
 void printActiveSSTVParam(bool tx);
 //void copyCustomParam(bool tx);
 quint32 getMaxLineSamples();

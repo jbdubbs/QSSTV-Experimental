@@ -38,7 +38,6 @@ private:
   int samplingrate;
   double *arMagSAvg;
   double *arMagWAvg;
-  double maxMagnitude;
   QPolygon *fftArray;
   //  bool ready;
   bool showWaterfall;

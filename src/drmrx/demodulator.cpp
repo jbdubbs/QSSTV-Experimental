@@ -145,26 +145,6 @@ bool demodulator::demodulate(float *sigin,int numSamples)
 
 
   addToLog(QString("block %1 samples %2" ).arg(iterationCounter).arg(numSamples),LOGDRMDEMOD);
-  //  if(iterationCounter<40) arrayDump(QString("DEM %1").arg(iterationCounter),sigin,128,true);
-  //  arrayDump(QString("bl%1").arg(iterationCounter),sigin,32,true);
-  //  logfile->addToAux(QString("block %1").arg(iterationCounter));
-  //  arrayDump(QString("rs"),sigin,numSamples*2,true);
-  //  if (fac_valid == 0)
-  //    {
-  //      fac_not_valid_counter--;
-  //      if (fac_not_valid_counter <= 0)
-  //        {
-  //          doSynchronize = true;
-  //          fac_not_valid_counter = FACVALIDCNTR;
-  //        }
-  //    }
-  //  else
-  //    {
-  //      if (fac_valid == 1)
-  //        {
-  //          fac_not_valid_counter = FACVALIDCNTR;
-  //        }
-  //    }
   if (doSynchronize)
     {
       doSynchronize = false;
@@ -294,12 +274,6 @@ bool demodulator::timeSync()
           //          int shift=512;
           memmove(rs_buffer,&rs_buffer[shift*2],sizeof(float)*2*(rsbufwidx-shift));
           rsbufwidx -= shift;
-          //          arrayDump("sig2",rs_buffer,16,true);
-          //          for (i = 0; i < rsbufwidx; i++)	/* pa0mbo was rsbufwidx-1 ? */
-          //            {
-          //              rs_buffer[i * 2] = rs_buffer[(shift + i) * 2];
-          //              rs_buffer[i * 2 + 1] = rs_buffer[(shift + i) * 2 + 1];
-          //            }
           N_samples_needed = N_symbols_mode_detection * 320 - rsbufwidx;
           if (N_samples_needed > 0)
             {

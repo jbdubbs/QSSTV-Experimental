@@ -49,7 +49,6 @@ public:
   QPainterPath shape() const;
   void setText(const QString &t);
   void setFont(QFont f);
-  QRectF boundingRct;
 
 };
 

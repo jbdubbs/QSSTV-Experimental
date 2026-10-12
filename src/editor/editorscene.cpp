@@ -253,19 +253,6 @@ bool editorScene::save(QFile &f,bool templ)
   return true;
 }
 
-void editorScene::flattenImage(int w,int h)
-{
-  if (localImage!=NULL) delete localImage;
-  setSceneRect(border);
-  localImage=new QImage(w,h,QImage::Format_ARGB32_Premultiplied);
-  convertText();
-  convertReplayImage();
-  QPainter painter(localImage);
-  painter.setRenderHint(QPainter::Antialiasing);
-  localImage->fill(0);
-  render(&painter);
-}
-
 
 void editorScene::convertReplayImage()
 {
@@ -450,7 +437,6 @@ void editorScene::setImage(QImage *im)
   itemSetup(item);
   item->setPos(QPointF(0,0));
   item->setSelected(true);
-  emit changeSize(im->width(),im->height());
 }
 
 void editorScene::mousePressEvent(QGraphicsSceneMouseEvent *mouseEvent)

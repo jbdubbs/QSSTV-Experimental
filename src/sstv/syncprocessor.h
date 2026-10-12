@@ -209,9 +209,7 @@ private:
 
   // signal quality
   quint16 falseSlantSync;
-  quint16 unmatchedSyncs;
   quint16 falseSyncs;
-  quint16 avgLineSpacing;
   quint16 missingLines;
 
   bool detectNarrow;

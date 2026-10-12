@@ -5,7 +5,6 @@
 #include "imageviewer.h"
 
 
-#define NUMTHUMBS 12
 
 namespace Ui {
     class galleryWidget;
@@ -29,7 +28,6 @@ public:
   void txStockImageChanged();
   QString getTemplateFileName(int);
   const QStringList &getFilenames();
-  QString getLastRxImage();
 
 public slots:
   void slotDirChanged(QString);

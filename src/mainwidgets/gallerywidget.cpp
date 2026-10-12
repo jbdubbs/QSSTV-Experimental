@@ -221,11 +221,6 @@ void galleryWidget::txStockImageChanged()
   \return QString containing filename, check with QString.isEmpty for validity
 
 */
-QString galleryWidget::getLastRxImage()
-{
-  return ui->rxDRMMatrix->getLastFile();
-}
-
 
 
 
