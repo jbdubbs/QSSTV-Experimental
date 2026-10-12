@@ -51,8 +51,6 @@ compile_commands.json
 # QtCreator local machine specific files for imported projects
 *creator.user*
 
-# project specific (on4qz)
-documentation/api/api_html
 
 # mmsstv-linux-port fork: local build output
 src/build/
@@ -66,7 +64,6 @@ tests/jb60_loopback/loopback
 # ...but the script itself is source, not output -- *build-* above would otherwise catch
 # its own filename.
 !/tools/build-hamlib-win64.sh
-!/tools/build-appimage-linux.sh
 
 # AppImage build output (packaging/appimage/build.sh)
 *.AppImage*
