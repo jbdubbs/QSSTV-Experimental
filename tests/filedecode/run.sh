@@ -83,7 +83,7 @@ echo "== options"
 run --mode PD120 -o "$T/o_mode" "$T/pd.wav"; expect_exit "forced correct mode" 0 $?
 run --mode M1 -o "$T/o_wrongmode" "$T/pd.wav"; expect_exit "forced wrong mode finds nothing" 1 $?
 run -o "$T/o_two" "$T/jb2.wav"; rc=$?
-n=$(ls "$T"/o_two/*.png 2>/dev/null | wc -l)
+n=$(ls "$T"/o_two/*.png 2>/dev/null | wc -l | tr -d ' ')
 [ $rc = 0 ] && [ "$n" = 2 ] && ok "two pictures in one file -> $n files" || bad "two pictures in one file: exit $rc, $n files"
 
 echo "== truncated recording (45% of the picture)"
