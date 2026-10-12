@@ -196,4 +196,24 @@ installed; AVIF works either way. HEIC decoding uses libde265 (LGPL); HEVC paten
 
 ## macOS
 
-Not yet supported; a macOS build and release are pending.
+Apple Silicon (arm64) only, and **experimental**: CI builds and decodes test recordings on every change, but nobody
+has yet verified live audio, microphone access or CAT control on real hardware.
+
+```
+brew install cmake pkg-config qt@6 fftw openjpeg hamlib libvorbis
+cmake -S src -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)"
+cmake --build build -j"$(sysctl -n hw.ncpu)"
+```
+
+This produces `build/qsstv.app`. To make it self-contained, run `"$(brew --prefix qt@6)/bin/macdeployqt" build/qsstv.app`
+and sign it ad hoc with `codesign --force --deep --sign - build/qsstv.app`; `.github/workflows/macos.yml` does exactly
+this, adds the icon, and publishes a `.zip` and `.dmg` as a workflow artifact (Actions > "macOS build" > a run >
+Artifacts).
+
+The build is not notarized, so Gatekeeper blocks the first launch of a downloaded copy. Either right-click the app,
+choose Open, then Open again, or run `xattr -dr com.apple.quarantine QSSTV-Experimental.app`. On first use macOS asks
+for microphone access; if you deny it, re-enable it under System Settings > Privacy & Security > Microphone.
+
+Headless checks work as on Linux: `QSSTV_BIN=build/qsstv.app/Contents/MacOS/qsstv tests/filedecode/run.sh` (needs
+Homebrew bash, `brew install bash`, since macOS ships bash 3.2). Ogg Vorbis files are decoded with libvorbisfile
+because macOS's audio decoder does not handle Vorbis.

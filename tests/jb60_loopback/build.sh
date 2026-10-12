@@ -10,13 +10,24 @@
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 SRC="$HERE/../../src"
-QT=${QT_INCLUDE:-/usr/include/qt6}
+if [ "$(uname)" = Darwin ]; then
+    # Homebrew Qt ships frameworks (QT_PREFIX defaults to `brew --prefix qt@6`)
+    QT_PREFIX=${QT_PREFIX:-$(brew --prefix qt@6)}
+    # frameworks keep their headers in <Name>.framework/Headers, which plain <QString> includes need directly
+    QT_FLAGS="-F$QT_PREFIX/lib"
+    for m in QtCore QtGui QtWidgets; do QT_FLAGS="$QT_FLAGS -I$QT_PREFIX/lib/$m.framework/Headers"; done
+    QT_LIBS="-F$QT_PREFIX/lib -framework QtWidgets -framework QtGui -framework QtCore -Wl,-rpath,$QT_PREFIX/lib"
+else
+    QT=${QT_INCLUDE:-/usr/include/qt6}
+    QT_FLAGS="-I$QT -I$QT/QtCore -I$QT/QtGui -I$QT/QtWidgets"
+    QT_LIBS="-lQt6Widgets -lQt6Gui -lQt6Core"
+fi
 cd "$SRC"
 g++ -O2 -fPIC -std=gnu++17 -w -DQT_NO_DEBUG -DIMAGE_DIR="\"$HERE/images\"" \
     -I"$HERE/stubs" -I. -Iutils -Idsp -Iconfig -Isstv \
-    -I"$QT" -I"$QT/QtCore" -I"$QT/QtGui" -I"$QT/QtWidgets" \
+    $QT_FLAGS \
     -o "$HERE/loopback" "$HERE/loopback.cpp" \
     sstv/modes/modebase.cpp sstv/modes/modejb60.cpp sstv/modes/modepd.cpp sstv/sstvparam.cpp \
     sstv/chromaedgeboost.cpp sstv/chromagridphase.cpp sstv/chromacompanding.cpp sstv/chromapseudoluma.cpp sstv/chromatriangledecimation.cpp \
     dsp/downsamplefilter.cpp dsp/filters.cpp dsp/filter.cpp dsp/filterparam.cpp \
-    -lQt6Widgets -lQt6Gui -lQt6Core
+    $QT_LIBS

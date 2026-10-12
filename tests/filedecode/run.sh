@@ -27,7 +27,9 @@ bad() { echo "  FAIL $1"; fail=$((fail+1)); }
 expect_exit() { [ "$2" = "$3" ] && ok "$1 (exit $3)" || bad "$1: exit $3, expected $2"; }
 luma() { "$LB" --compare "$1" "$2" | awk '{print $3}'; }          # luma PSNR of two PNGs
 ge()   { awk -v a="$1" -v b="$2" 'BEGIN{exit !(a>=b)}'; }         # a >= b
-run()  { timeout 300 "$QSSTV" --batch "$@" 2>"$T/stderr"; }        # batch decode; stdout is the result lines
+# macOS has no timeout(1) (coreutils provides gtimeout); run without a limit if neither exists
+TMO=$(command -v timeout || command -v gtimeout)
+run()  { ${TMO:+$TMO 300} "$QSSTV" --batch "$@" 2>"$T/stderr"; }        # batch decode; stdout is the result lines
 
 echo "== generating recordings"
 for m in jb pd; do
@@ -81,7 +83,7 @@ echo "== options"
 run --mode PD120 -o "$T/o_mode" "$T/pd.wav"; expect_exit "forced correct mode" 0 $?
 run --mode M1 -o "$T/o_wrongmode" "$T/pd.wav"; expect_exit "forced wrong mode finds nothing" 1 $?
 run -o "$T/o_two" "$T/jb2.wav"; rc=$?
-n=$(ls "$T"/o_two/*.png 2>/dev/null | wc -l)
+n=$(ls "$T"/o_two/*.png 2>/dev/null | wc -l | tr -d ' ')
 [ $rc = 0 ] && [ "$n" = 2 ] && ok "two pictures in one file -> $n files" || bad "two pictures in one file: exit $rc, $n files"
 
 echo "== truncated recording (45% of the picture)"
@@ -97,7 +99,7 @@ if command -v ffmpeg >/dev/null; then
   base=$(luma "$T/jb_src.png" "$T/o_jb/jb_1_JB60.png")
   while read -r name args; do
     ffmpeg -loglevel error -y -i "$T/jb.wav" $args "$T/$name.wav" || { bad "$name: ffmpeg failed"; continue; }
-    [ "$name" = list ] && { grep -aq LIST "$T/list.wav" && ok "list: the file really has a LIST chunk" || bad "list: ffmpeg wrote no LIST chunk, test is void"; }
+    [ "$name" = list ] && { grep -aq LIST "$T/list.wav" && ok "list: the file really has a LIST chunk" || echo "  skip list: this ffmpeg wrote no LIST chunk, so the test is void"; }
     run -o "$T/o_$name" "$T/$name.wav"; rc=$?
     png="$T/o_$name/${name}_1_JB60.png"
     if [ $rc = 0 ] && [ -f "$png" ]; then
@@ -117,10 +119,20 @@ EOF
 
   echo "== compressed formats via Qt Multimedia (mp3, flac, ogg, aac)"
   for ext in mp3 flac ogg aac; do
-    ffmpeg -loglevel error -y -i "$T/jb.wav" "$T/jbc.$ext" || { bad "$ext: ffmpeg cannot encode it, skipped"; continue; }
+    # explicit codec: newer ffmpeg builds default .ogg to Opus, which Qt Multimedia may not decode
+    if [ "$ext" = ogg ]; then
+      # must be Vorbis (ffmpeg's default for .ogg can be Opus); some ffmpeg builds (Homebrew) lack libvorbis
+      if ffmpeg -hide_banner -encoders 2>/dev/null | grep -q libvorbis; then
+        ffmpeg -loglevel error -y -i "$T/jb.wav" -c:a libvorbis "$T/jbc.ogg" || { bad "ogg: ffmpeg failed"; continue; }
+      elif command -v oggenc >/dev/null; then
+        oggenc -Q -o "$T/jbc.ogg" "$T/jb.wav" || { bad "ogg: oggenc failed"; continue; }
+      else echo "  skip ogg: no Vorbis encoder available, test is void"; continue; fi
+    else
+      ffmpeg -loglevel error -y -i "$T/jb.wav" "$T/jbc.$ext" || { bad "$ext: ffmpeg cannot encode it, skipped"; continue; }
+    fi
     run -o "$T/o_c$ext" "$T/jbc.$ext"; rc=$?
     png="$T/o_c$ext/jbc_1_JB60.png"
-    if [ $rc = 0 ] && [ -f "$png" ]; then ok "$ext: decoded a picture"; else bad "$ext: exit $rc, no picture"; fi
+    if [ $rc = 0 ] && [ -f "$png" ]; then ok "$ext: decoded a picture"; else bad "$ext: exit $rc, no picture"; head -c 300 "$T/stderr"; fi
   done
 else
   echo "== (ffmpeg not installed: skipping the format/sample-rate variants)"
