@@ -40,16 +40,13 @@ jobs:
           sqlite3 "$HOME/Library/Application Support/com.apple.TCC/TCC.db" "select service,client,auth_value from access where service like '%Microphone%';" 2>&1 || true
           sudo sqlite3 "/Library/Application Support/com.apple.TCC/TCC.db" "select service,client,auth_value from access where service like '%Microphone%';" 2>&1 || true
 
-      - name: Generate test transmission (JB60)
+      - name: Generate test transmission (JB60) with the test harness
         run: |
-          export QT_QPA_PLATFORM=offscreen
-          # --encode segfaults intermittently on macOS (GLib/QSocketNotifier cross-thread warnings first): retry
-          for i in 1 2 3 4 5; do
-            rm -f "$RUNNER_TEMP/tx.wav"
-            ./build/qsstv.app/Contents/MacOS/qsstv --encode tests/jb60_loopback/images/card.png --mode JB60 --wav-out "$RUNNER_TEMP/tx.wav" > "$RUNNER_TEMP/enc.log" 2>&1 && break
-            echo "attempt $i failed (exit $?)"; grep -v "GLib-WARNING\|^$" "$RUNNER_TEMP/enc.log" | head -5
-          done
+          # (qsstv --encode itself crashes mid-transmission on the runner; see the trial notes)
+          (cd tests/jb60_loopback && ./build.sh)
+          tests/jb60_loopback/loopback jb --image card --vis --wav "$RUNNER_TEMP/tx.wav" --out "$RUNNER_TEMP/tx"
           ls -l "$RUNNER_TEMP/tx.wav"
+          afinfo "$RUNNER_TEMP/tx.wav" | head -12
 
       - name: Seed settings (input = BlackHole)
         run: |
@@ -66,9 +63,9 @@ jobs:
           ./build/qsstv.app/Contents/MacOS/qsstv > "$RUNNER_TEMP/rx.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/rx.pid"
           sleep 15
-          SwitchAudioSource -s "BlackHole 2ch" -t output
-          afplay "$RUNNER_TEMP/tx.wav"
-          sleep 10
+          date; SwitchAudioSource -s "BlackHole 2ch" -t output
+          afplay "$RUNNER_TEMP/tx.wav"; echo "afplay exit $?"; date
+          sleep 15
           kill "$(cat "$RUNNER_TEMP/rx.pid")" || true
           echo "--- rx.log"; cat "$RUNNER_TEMP/rx.log" | head -80
           echo "--- pictures written since start:"
