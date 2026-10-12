@@ -9,8 +9,8 @@ int main(int argc,char**argv)
   QCoreApplication::setApplicationName("qsstv_9.0");
   QSettings s;
   s.beginGroup("SOUND");
-  s.setValue("inputAudioDevice",argv[1]);
-  s.setValue("outputAudioDevice",argv[2]);
+  s.setValue("inputAudioDevice",QString::fromUtf8(argv[1]));
+  s.setValue("outputAudioDevice",QString::fromUtf8(argv[2]));
   s.endGroup();
   s.sync();
   return 0;
