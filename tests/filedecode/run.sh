@@ -120,7 +120,10 @@ EOF
   echo "== compressed formats via Qt Multimedia (mp3, flac, ogg, aac)"
   for ext in mp3 flac ogg aac; do
     # explicit codec: newer ffmpeg builds default .ogg to Opus, which Qt Multimedia may not decode
-    codec=""; [ "$ext" = ogg ] && codec="-c:a libvorbis"
+    codec=""
+    if [ "$ext" = ogg ]; then   # some ffmpeg builds (Homebrew) lack libvorbis: use the native encoder
+      if ffmpeg -hide_banner -encoders 2>/dev/null | grep -q libvorbis; then codec="-c:a libvorbis"; else codec="-c:a vorbis -strict -2"; fi
+    fi
     ffmpeg -loglevel error -y -i "$T/jb.wav" $codec "$T/jbc.$ext" || { bad "$ext: ffmpeg cannot encode it, skipped"; continue; }
     run -o "$T/o_c$ext" "$T/jbc.$ext"; rc=$?
     png="$T/o_c$ext/jbc_1_JB60.png"
