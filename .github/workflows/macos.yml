@@ -22,7 +22,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install qt@6 fftw openjpeg hamlib pkg-config cmake coreutils ffmpeg libvorbis bash
+          brew install qt@6 fftw openjpeg hamlib pkg-config cmake coreutils ffmpeg libvorbis vorbis-tools bash
           echo "QT_PREFIX=$(brew --prefix qt@6)" >> "$GITHUB_ENV"
 
       - name: Configure
