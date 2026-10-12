@@ -252,13 +252,7 @@ int main( int argc, char ** argv )
 #ifdef QT_NO_DEBUG
   if(!batch) splash.show();
 #endif
-  QFont f;
-  f.setBold(true);
-  f.setPixelSize(20);
-  splashPtr->setFont(f);
-  splashStr="\n\n\n";
-  splashStr+=QString( "Starting %1").arg(qsstvVersion).rightJustified(25,' ')+"\n";
-  splash.showMessage (splashStr,Qt::AlignLeft,Qt::white);
+  splashMessage("Version "+MAJORVERSION+MINORVERSION);
   tm.start(100);
   globalInit();
   mainWindowPtr=new mainWindow;

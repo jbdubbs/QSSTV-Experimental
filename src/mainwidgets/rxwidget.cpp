@@ -59,8 +59,7 @@ rxWidget::~rxWidget()
 
 void rxWidget::init()
 {
-  splashStr+=QString( "Setting up RX" ).rightJustified(25,' ')+"\n";
-  splashPtr->showMessage ( splashStr ,Qt::AlignLeft,Qt::white);
+  splashMessage(QString( "Setting up RX" ));
 
   qApp->processEvents();
   readSettings();

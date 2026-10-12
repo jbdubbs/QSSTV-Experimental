@@ -101,21 +101,18 @@ void galleryWidget::readSettings()
   QSettings qSettings;
   qSettings.beginGroup ("Gallery");
 
-  splashStr+=QString( "Loading RX images" ).rightJustified(25,' ')+"\n";
-  splashPtr->showMessage ( splashStr ,Qt::AlignLeft,Qt::white);
+  splashMessage(QString( "Loading RX images" ));
   qApp->processEvents();
   ui->rxSSTVMatrix->init(galleryRows,galleryColumns,rxSSTVImagesPath,imageViewer::RXSSTVTHUMB);
   ui->rxDRMMatrix->init(galleryRows,galleryColumns,rxDRMImagesPath,imageViewer::RXDRMTHUMB);
 
-  splashStr+=QString( "Loading TX images" ).rightJustified(25,' ')+"\n";
-  splashPtr->showMessage ( splashStr ,Qt::AlignLeft,Qt::white);
+  splashMessage(QString( "Loading TX images" ));
   qApp->processEvents();
   ui->txSSTVMatrix->init(galleryRows,galleryColumns,txSSTVImagesPath,imageViewer::TXSSTVTHUMB);
   ui->txDRMMatrix->init(galleryRows,galleryColumns,txDRMImagesPath,imageViewer::TXDRMTHUMB);
   ui->txStockMatrix->init(galleryRows,galleryColumns,txStockImagesPath,imageViewer::TXSTOCKTHUMB);
 
-  splashStr+=QString( "Loading Templates" ).rightJustified(25,' ')+"\n";
-  splashPtr->showMessage ( splashStr ,Qt::AlignLeft,Qt::white);
+  splashMessage(QString( "Loading Templates" ));
   ui->templateMatrix->init(galleryRows,galleryColumns,templatesPath,imageViewer::TEMPLATETHUMB);
 }
 

@@ -36,7 +36,7 @@ class configDialog;
 extern mainWindow *mainWindowPtr;
 extern soundBase *soundIOPtr;
 extern QSplashScreen *splashPtr;
-extern QString splashStr;
+void splashMessage(const QString &msg);
 extern dispatcher *dispatcherPtr;
 extern QStatusBar *statusBarPtr;
 extern fileWatcher *fileWatcherPtr;

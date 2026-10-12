@@ -249,8 +249,7 @@ void mainWindow::init()
   rxWidgetPtr->init();
   if(!rigControllerPtr->initError.isEmpty())
     {
-      splashStr+=rigControllerPtr->initError.rightJustified(25,' ')+"\n";
-      splashPtr->showMessage(splashStr ,Qt::AlignLeft,Qt::white);
+      splashMessage(rigControllerPtr->initError);
     }
   startTimer(1000);
   QTimer *lockTimer=new QTimer(this);
@@ -456,8 +455,7 @@ void mainWindow::restartSound(bool inStartUp)
     {
       if(inStartUp)
         {
-          splashStr+=QString("Soundcard error: %1").arg(soundIOPtr->getLastError()).rightJustified(25,' ')+"\n";;
-          splashPtr->showMessage(splashStr ,Qt::AlignLeft,Qt::white);
+          splashMessage(QString("Soundcard error: %1").arg(soundIOPtr->getLastError()));
         }
       else
         {

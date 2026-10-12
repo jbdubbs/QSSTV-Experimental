@@ -3,6 +3,9 @@
 #include "soundbase.h"
 #include <QPixmap>
 #include <QCursor>
+#include <QSplashScreen>
+#include <QPainter>
+#include <QFontMetrics>
 
 
 const QString MAJORVERSION  = "10.0";
@@ -20,7 +23,28 @@ const QString APPNAME=QString("QSSTV-Experimental");
 
 
 QSplashScreen *splashPtr;
-QString splashStr;
+
+// Shows a single status line on the splash screen, centred just below the
+// pixel bar of the logo. The previous line is replaced (the text is painted
+// onto a fresh copy of the base image each time).
+void splashMessage(const QString &msg)
+{
+  static const int textTop=250;     // first pixel row under the pixel bar (image is 736x330)
+  static const int textHeight=40;
+  if(!splashPtr) return;
+  static const QPixmap base(":/icons/qsstvsplash.png");
+  QPixmap pm(base);
+  QPainter painter(&pm);
+  QFont f;
+  f.setBold(true);
+  f.setPixelSize(20);
+  painter.setFont(f);
+  painter.setPen(Qt::black);
+  QString text=QFontMetrics(f).elidedText(msg,Qt::ElideRight,pm.width()-20);
+  painter.drawText(QRect(0,textTop,pm.width(),textHeight),Qt::AlignHCenter|Qt::AlignTop,text);
+  painter.end();
+  splashPtr->setPixmap(pm);
+}
 
 mainWindow *mainWindowPtr;
 soundBase *soundIOPtr;
