@@ -8,7 +8,7 @@ on:
     types: [published]   # also fires for pre-releases
   workflow_dispatch:     # manual run from the Actions tab
 permissions:
-  contents: read
+  contents: write   # attach the build to the release
 concurrency:
   group: macos-${{ github.ref }}
   cancel-in-progress: true
@@ -68,3 +68,15 @@ jobs:
           path: |
             build/QSSTV-Experimental-macos-arm64.zip
             build/QSSTV-Experimental-macos-arm64.dmg
+
+      - name: Attach to the release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -e
+          cd build
+          for ext in zip dmg; do cp QSSTV-Experimental-macos-arm64.$ext "QSSTV-Experimental-$TAG-macos-arm64.$ext"; done
+          shasum -a 256 QSSTV-Experimental-"$TAG"-macos-arm64.* > "QSSTV-Experimental-$TAG-macos-arm64.sha256"
+          gh release upload "$TAG" QSSTV-Experimental-"$TAG"-macos-arm64.* --repo "$GITHUB_REPOSITORY" --clobber
