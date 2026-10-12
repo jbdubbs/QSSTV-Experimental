@@ -8,7 +8,6 @@
 
 class configDialog;
 class spectrumWidget;
-class ftpThread;
 
 namespace Ui {
   class MainWindow;
@@ -97,7 +96,6 @@ private:
   bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
 #endif
   void cleanUpCache(QString dirPath);
-//  void setupFtp(ftpThread *&ptr, QString idName);
   QComboBox *transmissionModeComboBox;
   QPushButton *wfTextPushButton;
   QPushButton *fixPushButton;

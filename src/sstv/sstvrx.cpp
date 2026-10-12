@@ -18,10 +18,6 @@ int minCompletion;
 
 #define DECAY 0.9956
 
-#ifdef DISABLENARROW
-  #pragma message "NARROW DETECTION DISABLED"
-#endif
-
 const QString stateStr[sstvRx::END+1]=
 {
   "Hunting",
@@ -123,9 +119,7 @@ void sstvRx::run(DSPFLOAT *dataPtr,DSPFLOAT *volumePtr)
   bufferVideoDemod.putNoCheck(videoFilterPtr->demodPtr,RXSTRIPE);
   syncFilterPtr->process(dataPtr);
   bufferSync1200Vol.putNoCheck(syncFilterPtr->detect1200Ptr,RXSTRIPE);
-#ifndef DISABLENARROW
   bufferSync1900Vol.putNoCheck(syncFilterPtr->detect1900Ptr,RXSTRIPE);
-#endif
   bufferInputVol.putNoCheck(volumePtr ,RXSTRIPE);
 
   while (bufferVideoDemod.count())

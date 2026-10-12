@@ -30,7 +30,6 @@
 #include "editor/editor.h"
 #include "editor/editorscene.h"
 
-# define IMAGETESTVIEWER
 class QMenu;
 class QAction;
 class editor;
@@ -266,9 +265,6 @@ private:
   QString cacheFileName;
   QString cachePath;
   bool  processImageDisplay(bool success, bool showMessage, bool fromCache);
-#ifdef IMAGETESTVIEWER
-  void imageTestViewer(QImage *im, QString infoStr);
-#endif
 
 
 

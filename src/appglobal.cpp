@@ -52,12 +52,6 @@ logFile *logFilePtr;
 configDialog *configDialogPtr;
 
 
-ftpThread *notifyRXIntfPtr;
-ftpThread *hybridTxIntfPtr;
-ftpThread *notifyTXIntfPtr;
-ftpThread *onlineStatusIntfPtr;
-ftpThread *hybridRxIntfPtr;
-ftpThread *saveImageIntfPtr;
 
 
 

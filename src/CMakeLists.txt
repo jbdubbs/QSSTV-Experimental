@@ -261,7 +261,6 @@ set(QSSTV_SOURCES
     utils/ftpthread.cpp
     utils/ftpfunctions.cpp
     editor/basegraphicitem.cpp
-    editor/templateviewer.cpp
     videocapt/cameradialog.cpp
     videocapt/imagesettings.cpp
 )
@@ -315,7 +314,6 @@ set(QSSTV_FORMS
     config/frequencyselectwidget.ui
     editor/canvassizeform.ui
     widgets/testpatternselection.ui
-    editor/templateviewer.ui
     videocapt/cameradialog.ui
     videocapt/imagesettings.ui
 )

@@ -37,8 +37,6 @@ using std::stringstream;
 #define SAMPLERATE (BASESAMPLERATE/SUBSAMPLINGFACTOR)
 
 
-#undef DISABLENARROW
-
 typedef double DSPFLOAT;
 
 

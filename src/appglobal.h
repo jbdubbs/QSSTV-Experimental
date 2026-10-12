@@ -15,7 +15,6 @@ class xmlInterface;
 class logBook;
 class dispatcher;
 class fileWatcher;
-class ftpThread;
 
 enum etransmissionMode {TRXSSTV,TRXDRM,TRXNOMODE};
 
@@ -61,12 +60,6 @@ extern bool useHybrid;
 extern bool inStartup;
 
 
-extern ftpThread *notifyRXIntfPtr;
-extern ftpThread *hybridTxIntfPtr;
-extern ftpThread *notifyTXIntfPtr;
-extern ftpThread *onlineStatusIntfPtr;
-extern ftpThread *hybridRxIntfPtr;
-extern ftpThread *saveImageIntfPtr;
 
 extern etransmissionMode transmissionModeIndex;  // SSTV , DRM
 

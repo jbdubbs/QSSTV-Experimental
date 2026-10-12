@@ -186,10 +186,6 @@ void dispatcher::customEvent( QEvent * e )
       prTimerIndex=startTimer(((progressTXEvent*)e)->getInfo()*10); // time in seconds -> times 1000 for msec,divide by 100 for progress
       break;
 
-    case stoppingTX:
-      addToLog("dispatcher: endTXImage",LOGDISPATCH);
-      break;
-
     case endImageTX:
       //addToLog("dispatcher: endTXImage",LOGDISPATCH);
       while(soundIOPtr->isPlaying())
@@ -301,11 +297,6 @@ void dispatcher::customEvent( QEvent * e )
         progressFTP->setValue(((displayProgressFTPEvent*)e)->getBytes());
       }
       break;
-//    case notifyAction: // sends notification after reception of hybrid image
-//      // todo     notifyRXIntfPtr->mremove(((notifyActionEvent*)e)->getToRemove());
-//      //      notifyRXIntfPtr->uploadData(((notifyActionEvent*)e)->getMsg().toLatin1(), ((notifyActionEvent*)e)->getFilename());
-//      break;
-
     case notifyCheck:
       txWidgetPtr->startNotifyCheck(((notifyCheckEvent*)e)->getFilename());
       break;

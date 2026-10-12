@@ -32,9 +32,6 @@
 #include "txwidget.h"
 #include "gallerywidget.h"
 
-#ifdef IMAGETESTVIEWER
-#include "templateviewer.h"
-#endif
 
 #include <QStatusBar>
 #include <QtGui>
@@ -296,9 +293,6 @@ bool  imageViewer::processImageDisplay(bool success,bool showMessage,bool fromCa
           captureSegment(sourceImage,tempFilename);
           applyTemplate();   // stitch the segments into the frame
         }
-      //#ifdef IMAGETESTVIEWER
-      //      imageTestViewer(&displayedImage,"processImage");
-      //#endif
     }
   view=QRect();
   imageFileName=tempFilename;
@@ -1540,9 +1534,6 @@ int imageViewer::applyTemplate()
       // so its better to calculate the end result for 3/4 of the source imag
 
       compressedImageData=jp2.encode(resultImage->convertToFormat(QImage::Format_RGB32),compressedImage,fileSize,compRatio);
-      //#ifdef IMAGETESTVIEWER
-      //      imageTestViewer(&compressedImage,"compressedImage");
-      //#endif
 
       //      qDebug() << "byteCount image" << byteCount
       //               << "compRatio"  << compRatio << "filesize" << fileSize  << "ratio"   << (float)byteCount/(float)fileSize;
@@ -1739,25 +1730,6 @@ QImage *imageViewer::getDisplayedImage()
 //}
 
 
-#ifdef IMAGETESTVIEWER
-void imageViewer::imageTestViewer(QImage *im,QString infoStr)
-{
-  Q_UNUSED(infoStr);
-  if(inStartup) return;
-  //  QImage imc=*im;
-
-  //  QPainter painter(im);
-  //  painter.setCompositionMode(QPainter::CompositionMode_DestinationOver);
-  //  painter.fillRect(imc.rect(), imageBackGroundColor);
-  //  painter.end();
-  templateViewer tv;
-  //  qDebug() << infoStr << im->width() << im->height() << "format" << im->format();
-
-
-  tv.setImage(im);
-  tv.exec();
-}
-#endif
 
 
 QImage imageViewer::clipboardImage()

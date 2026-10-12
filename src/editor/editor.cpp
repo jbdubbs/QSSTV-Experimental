@@ -26,9 +26,7 @@
 #include "editorview.h"
 #include "configparams.h"
 
-#ifndef STANDALONE
 #include "dispatcher.h"
-#endif
 
 /*! 
   constructor
@@ -286,10 +284,8 @@ void editor::closeEvent(QCloseEvent *e)
           break;
         }
     }
-#ifndef STANDALONE
   editorFinishedEvent *ce = new editorFinishedEvent(true,localFile.fileName());
   QApplication::postEvent(dispatcherPtr, ce );  // Qt will delete it when done	emit imageAvailable(ev->getImage());
-#endif
   writeSettings();
   e->accept();
 }

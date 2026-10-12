@@ -20,11 +20,6 @@
 
 #define NUMBEROFSENSITIVITIES 4
 
-//#define DISABLERETRACE
-//#define DISABLEDETECT
-#ifdef DISABLENARROW
-#pragma message "NARROW DETECTION DISABLED"
-#endif
 
 
 ssenitivity sensitivityArray[NUMBEROFSENSITIVITIES]=
@@ -180,16 +175,8 @@ void syncProcessor::init()
 
 void syncProcessor::process()
 {
-#ifdef DISABLENARROW
-  if(!detectNarrow)
-  {
-#endif
-
-    streamDecode.process(freqPtr,sampleCounter); // only VIS and FSK if not narrow
-    extractSync();
-#ifdef DISABLENARROW
-  }
-#endif
+  streamDecode.process(freqPtr,sampleCounter); // only VIS and FSK if not narrow
+  extractSync();
 
 #ifndef QT_NO_DEBUG
   if(detectNarrow)
@@ -304,7 +291,6 @@ void syncProcessor::extractSync()
 bool syncProcessor::validateSync()
 {
   bool result;
-#ifndef DISABLERETRACE
   if(syncArray[syncArrayIndex].diffStartEnd()>=MINRETRACEWIDTH)
   {
     syncArray[syncArrayIndex].retrace=true; // simply set retrace true
@@ -324,9 +310,6 @@ bool syncProcessor::validateSync()
     result=true;
   }
   else if((syncArray[syncArrayIndex].diffStartEnd()>=0.004*SAMPLERATE) && (syncArray[syncArrayIndex].diffStartEnd()<=0.025*SAMPLERATE))
-#else
-  if((syncArray[syncArrayIndex].diffStartEnd()>=0.004*SAMPLERATE) && (syncArray[syncArrayIndex].diffStartEnd()<=0.025*SAMPLERATE))
-#endif
   {
     syncArray[syncArrayIndex].retrace=false;
     //      addToLog(QString("index %1, mid:=%2").arg(syncArrayIndex).arg(syncArray[syncArrayIndex].mid),LOGSYNCACCEPTED);
@@ -348,7 +331,6 @@ bool syncProcessor::validateSync()
       if(findMatch())
       {
         visMode=NOTVALID; //reset visMode;
-#ifndef DISABLEDETECT
         //we have a new mode
         if(!createModeBase())
         {
@@ -380,7 +362,6 @@ bool syncProcessor::validateSync()
           switchProcessState(INSYNC);
           addToLog(QString("Mode detected: %1, sync at %2").arg(getSSTVModeNameShort(currentMode)).arg(syncPosition),LOGSYNCEVAL);
         }
-#endif
       }
       break;
     case INSYNC:

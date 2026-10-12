@@ -54,7 +54,6 @@ rxWidget::~rxWidget()
   writeSettings();
   rxFunctionsPtr->terminate();
   delete rxFunctionsPtr;
-  delete notifyRXIntfPtr;
 }
 
 void rxWidget::init()

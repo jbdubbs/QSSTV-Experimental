@@ -12,7 +12,6 @@ class imageViewer;
 
 #include <QProgressDialog>
 
-enum eftpResult {DFTPWAITING,DFTPOK,DFTPERROR};
 
 /**
 @author Johan Maes

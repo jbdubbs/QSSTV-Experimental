@@ -57,10 +57,8 @@ void syncFilter::process(FILTERPARAMTYPE *dataPtr)
 {
   sync1200.processIIRRectified(dataPtr);
   sync1200lp.processFIR(sync1200.filteredPtr,sync1200lp.filteredPtr);
-#ifndef DISABLENARROW
   sync1900.processIIRRectified(dataPtr);
   sync1900lp.processFIR(sync1900.filteredPtr,sync1900lp.filteredPtr);
-#endif
 }
 
 

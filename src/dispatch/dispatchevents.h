@@ -7,41 +7,27 @@
 #include <unistd.h>
 #include "sstvparam.h"
 
-class ftpThread;
-
 
 /** dispatch events are used to communicate with the different threads */
 enum dispatchEventType
 {
-  info = QEvent::User, //!< send when dsp stops running
-  soundcardIdle, //!< send when soundcard stops running
-  displayFFT,
+  displayFFT = QEvent::User,
   displaySync,
   displayDRMStat,
   displayDRMInfo,
-  syncDisp,				//!< synchro display event
   lineDisplay,				//!< display 1 line
-  eraseDisp,
-  createMode,
   startImageRX,
   endSSTVImageRX,
   endImageTX,
-  stoppingTX,
   progressTX,
-  outOfSync,
   rxSSTVStatus,     //! shows message in sstv tab
   rxDRMStatus,     //! shows message in drm tab
   txDRMNotify,  //! shows text in tx notifications box
   txDRMNotifyAppend,
   txPrepareComplete, //!< tx preparations (uploading etc) complete
-  closeWindows,
   callEditor,
   templatesChanged,
   editorFinished,
-  changeRXFilter,
-//  startAutoRepeater,
-//  startRepeater,
-  stopRxTx,
   loadRXImage,
   saveDRMImage,
   prepareFix,
@@ -49,10 +35,7 @@ enum dispatchEventType
   displayMBox,
   displayProgressFTP,
   moveToTx,
-//  notifyAction,
-  ftpSetup,
   notifyCheck,
-  ftpUploadFile,
   statusBarMsg
 };
 
@@ -69,38 +52,6 @@ public:
 private:
   bool *doneIt;
 
-};
-
-/**
-  this event is send when the dspfunc thread stops running
-*/
-class infoEvent : public  baseEvent
-{
-public:
-  /** create event */
-  infoEvent(QString t):baseEvent( (QEvent::Type) info ), str(t)
-  {
-    description="infoEvent";
-  }
-  /** returns info string from the event */
-  QString getStr() const { return str; }
-private:
-  QString str;
-};
-
-/**
-  this event is send when the soundcard thread goes to idle
-*/
-class soundcardIdleEvent : public baseEvent
-{
-public:
-  /** create event */
-  soundcardIdleEvent():baseEvent( (QEvent::Type) soundcardIdle )
-  {
-    {
-      description=" soudcardIdleEvent";
-    }
-  }
 };
 
 
@@ -139,74 +90,7 @@ private:
 };
 
 
-class ftpSetupEvent : public baseEvent
-{
-public:
-  /** create event */
-  ftpSetupEvent(ftpThread * ftpIntf,QString h,int p,QString u,QString pwd,QString d)
-    :baseEvent( (QEvent::Type)ftpSetup ),ftpIntfPtr(ftpIntf), host(h),port(p),user(u),password(pwd),dir(d)
-  {
-    description="ftpSetupEvent";
-  }
-  /** returns settings from the event */
-  ftpThread *getFtpIntfPtr() const { return ftpIntfPtr; }
-  QString getHost() const { return host; }
-  int getPort() const { return port; }
-  QString getUser() const { return user; }
-  QString getPassword() const { return password; }
-  QString getDir() const { return dir; }
-private:
-  ftpThread *ftpIntfPtr;
-  QString host;
-  int port;
-  QString user;
-  QString password;
-  QString dir;
-};
 
-class ftpUploadFileEvent : public baseEvent
-{
-public:
-  /** create event */
-  ftpUploadFileEvent(ftpThread * ftpIntf,QString srcFn,QString dstFn,bool recon)
-    :baseEvent( (QEvent::Type)ftpUploadFile ),ftpIntfPtr(ftpIntf),sourceFilename(srcFn), destFilename(dstFn),reconnect(recon)
-  {
-    description="ftpUploadFileEvent";
-  }
-  /** returns settings from the event */
-  ftpThread *getFtpIntfPtr() const { return ftpIntfPtr; }
-  QString getSrcFn() const { return sourceFilename; }
-  QString getDstFn() const { return destFilename; }
-  bool   getReconnect() const { return reconnect; }
-private:
-  ftpThread *ftpIntfPtr;
-  QString sourceFilename;
-  QString destFilename;
-  bool reconnect;
-};
-
-
-
-//class notifyActionEvent : public baseEvent
-//{
-//public:
-//  /** create event */
-//  notifyActionEvent(hybridCrypt thc,QString toRem,QString message,QString fn)
-//    :baseEvent( (QEvent::Type)notifyAction ),hc(thc), toRemove(toRem),msg(message),filename(fn)
-//  {
-//    description="notifyActionEvent";
-//  }
-//  /** returns settings from the event */
-//  hybridCrypt getHybridCrypt() const { return hc; }
-//  QString getToRemove() const { return toRemove; }
-//  QString getMsg() const { return msg; }
-//  QString getFilename() const { return filename; }
-//private:
-//  hybridCrypt hc;
-//  QString toRemove;
-//  QString msg;
-//  QString filename;
-//};
 
 
 class notifyCheckEvent : public baseEvent
@@ -311,16 +195,6 @@ private:
   uint lineNumber;
 };
 
-class eraseDisplayEvent : public baseEvent
-{
-public:
-  /** create event */
-  eraseDisplayEvent():baseEvent( (QEvent::Type)eraseDisp )
-  {
-    description="eraseDisplayEvent";
-  }
-};
-
 
 
 class displayDRMInfoEvent : public baseEvent
@@ -333,41 +207,6 @@ public:
   }
 };
 
-//class startAutoRepeaterEvent: public baseEvent
-//{
-//public:
-//  /** create event */
-//  startAutoRepeaterEvent():baseEvent( (QEvent::Type)startAutoRepeater )
-//  {
-//    description="startAutoRepeaterEvent";
-//  }
-//};
-
-//class startRepeaterEvent: public baseEvent
-//{
-//public:
-//  /** create event */
-//  startRepeaterEvent():baseEvent( (QEvent::Type)startRepeater )
-//  {
-//    description="startRepeaterEvent";
-//  }
-//};
-
-
-class createModeEvent : public baseEvent
-{
-public:
-  /** create event */
-  createModeEvent(uint m,QString t):baseEvent( (QEvent::Type)createMode ), mode(m) ,str(t)
-  {
-    description="createModeEvent";
-  }
-  /** returns info string from the event */
-  void getMode(uint &m,QString &s) const { m=mode;s=str; }
-private:
-  uint mode;
-  QString str;
-};
 
 class loadRXImageEvent : public baseEvent
 {
@@ -452,28 +291,8 @@ public:
 };
 
 
-class stopTXEvent : public baseEvent
-{
-public:
-  /** create event */
-  stopTXEvent():baseEvent( (QEvent::Type)stoppingTX )
-  {
-    description="stopTXEvent";
-  }
-};
 
 
-
-
-class outOfSyncEvent : public baseEvent
-{
-public:
-  /** create event */
-  outOfSyncEvent():baseEvent( (QEvent::Type)outOfSync )
-  {
-    description="outOfSyncEvent";
-  }
-};
 
 
 
@@ -490,17 +309,6 @@ public:
 
 private:
   double txTime;
-};
-
-class closeWindowsEvent : public baseEvent
-{
-public:
-  /** create event */
-  closeWindowsEvent():baseEvent( (QEvent::Type)closeWindows)
-  {
-    description="closeWindowEvent";
-  }
-  /** returns length and pointer  from the event */
 };
 
 
@@ -562,29 +370,6 @@ public:
 private:
   DSPFLOAT *buffer;
 
-};
-
-class filterRXChangedEvent: public baseEvent
-{
-public:
-  /** create event */
-  filterRXChangedEvent(int fIndex):baseEvent( (QEvent::Type)changeRXFilter),filterIndex(fIndex)
-  {
-    description="filterChangedEvent";
-  }
-  int index() { return filterIndex;}
-private:
-  int filterIndex;
-};
-
-class stopRxTxEvent : public baseEvent
-{
-public:
-  /** create event */
-  stopRxTxEvent():baseEvent( (QEvent::Type)stopRxTx)
-  {
-    description="stopRxTxEvent";
-  }
 };
 
 

@@ -27,17 +27,8 @@
 #include "imageviewer.h"
 #include "supportfunctions.h"
 
-#ifndef STANDALONE
 #include "gallerywidget.h"
 #include "txwidget.h"
-#endif
-
-
-#undef ENABLETEMPLATEVIEWER
-
-#ifdef ENABLETEMPLATEVIEWER
-#include "templateviewer.h"
-#endif
 
 editorScene::editorScene(QGraphicsView *parent)  : QGraphicsScene(parent)
 {
@@ -197,13 +188,6 @@ QImage *editorScene::renderImage(int w,int h)
   localImage->fill(0);
   render(&painter);
   addToLog(QString("editor: post-render size: %1 x %2").arg(localImage->size().width()).arg(localImage->size().height()),LOGEDIT);
-#ifdef ENABLETEMPLATEVIEWER
-  templateViewer tv;
-  qDebug() << "items" << items().count()<<sceneRect();
-  dumpItems();
-  tv.setImage(localImage);
-  tv.exec();
-#endif
   return localImage;
 }
 
@@ -220,12 +204,6 @@ void editorScene::overlay(QImage *ima)
   QPainter painter(localImage);
   painter.setRenderHint(QPainter::Antialiasing);
   render(&painter,QRectF(),QRectF(),Qt::IgnoreAspectRatio);
-#ifdef ENABLETEMPLATEVIEWER
-  templateViewer tv;
-  qDebug() << "items" << items().count()<<sceneRect();
-  tv.setImage(localImage);
-  tv.exec();
-#endif
 }
 
 bool editorScene::save(QFile &f,bool templ)
@@ -252,12 +230,6 @@ bool editorScene::save(QFile &f,bool templ)
       QPainter painter(&im);
       painter.setRenderHint(QPainter::Antialiasing);
       render(&painter);
-#ifdef ENABLETEMPLATEVIEWER
-      templateViewer tv;
-      qDebug() << "items" << items().count()<<sceneRect();
-      tv.setImage(&im);
-      tv.exec();
-#endif
       im.save(&f,"PNG");
       return true;
     }
@@ -297,7 +269,6 @@ void editorScene::flattenImage(int w,int h)
 
 void editorScene::convertReplayImage()
 {
-#ifndef STANDALONE
   QString fn;
   imageViewer imv;
 
@@ -314,8 +285,6 @@ void editorScene::convertReplayImage()
             }
         }
     }
-#endif
-
 }
 
 
