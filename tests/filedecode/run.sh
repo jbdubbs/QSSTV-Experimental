@@ -5,12 +5,12 @@
 # the built qsstv decodes them headless, so VIS detection, line sync, and the file
 # reader are all exercised. The application runs with a throw-away HOME, so your settings are not touched.
 #
-#   tests/filedecode/run.sh                       # uses ../../build-qt6/qsstv
+#   tests/filedecode/run.sh                       # uses ../../build-cmake/qsstv
 #   QSSTV_BIN=/path/to/qsstv tests/filedecode/run.sh
 #
 # Needs: the built qsstv, g++/Qt6 headers (for the harness), and ffmpeg (optional: adds format/rate variants).
 HERE=$(cd "$(dirname "$0")" && pwd)
-QSSTV=${QSSTV_BIN:-$HERE/../../build-qt6/qsstv}
+QSSTV=${QSSTV_BIN:-$HERE/../../build-cmake/qsstv}
 LB="$HERE/../jb60_loopback/loopback"
 [ -x "$QSSTV" ] || { echo "qsstv not found at $QSSTV (set QSSTV_BIN)"; exit 2; }
 [ -x "$LB" ] || (cd "$HERE/../jb60_loopback" && ./build.sh) || { echo "cannot build the loopback harness"; exit 2; }

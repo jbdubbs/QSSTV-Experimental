@@ -67,3 +67,6 @@ tests/jb60_loopback/loopback
 # its own filename.
 !/tools/build-hamlib-win64.sh
 !/tools/build-appimage-linux.sh
+
+# AppImage build output (packaging/appimage/build.sh)
+*.AppImage*

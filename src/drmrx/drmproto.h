@@ -85,7 +85,6 @@ void channel_decoding (void);
 void source_decoding (void);
 void crc8_c (double *, double *, int);
 void psdmean (float *, float *, int, int);
-void psdcmean (float *, float *, int, int);
 struct drmComplex
 {
   float re;

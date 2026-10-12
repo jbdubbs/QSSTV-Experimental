@@ -147,7 +147,6 @@ set(QSSTV_SOURCES
     drmrx/demodulator.cpp
     drmrx/drm.cpp
     drmrx/drmconstellationframe.cpp
-    drmrx/drmpsdframe.cpp
     drmrx/drmrx.cpp
     drmrx/drmstatusframe.cpp
     drmrx/filter1.cpp
@@ -163,7 +162,6 @@ set(QSSTV_SOURCES
     drmrx/msdhardfac.cpp
     drmrx/msdhardmsc.cpp
     drmrx/newfft.cpp
-    drmrx/psdcmean.cpp
     drmrx/psdmean.cpp
     drmrx/sourcedecoder.cpp
     drmrx/viterbi_decode.cpp
@@ -204,7 +202,6 @@ set(QSSTV_SOURCES
     mainwidgets/rxwidget.cpp
     mainwidgets/txfunctions.cpp
     mainwidgets/txwidget.cpp
-    rig/freqdisplay.cpp
     rig/rigcontrol.cpp
     sstv/modes/modeavt.cpp
     sstv/modes/modebase.cpp
@@ -231,7 +228,6 @@ set(QSSTV_SOURCES
     utils/rs.cpp
     xmlrpc/maiaFault.cpp
     xmlrpc/maiaObject.cpp
-    xmlrpc/maiaXmlRpcClient.cpp
     xmlrpc/maiaXmlRpcServer.cpp
     xmlrpc/maiaXmlRpcServerConnection.cpp
     xmlrpc/xmlinterface.cpp
@@ -239,7 +235,6 @@ set(QSSTV_SOURCES
     widgets/extviewer.cpp
     config/guiconfig.cpp
     utils/qftp.cpp
-    sound/resamplefilter.cpp
     widgets/imagematrix.cpp
     widgets/waterfallform.cpp
     config/rigconfig.cpp
@@ -300,7 +295,6 @@ set(QSSTV_FORMS
     widgets/textdisplay.ui
     config/operatorconfig.ui
     drmrx/drmconstellationframe.ui
-    drmrx/drmpsdframe.ui
     drmrx/drmstatusframe.ui
     widgets/extviewer.ui
     widgets/sweepform.ui
@@ -317,8 +311,6 @@ set(QSSTV_FORMS
     mainwidgets/rxwidget.ui
     mainwidgets/txwidget.ui
     widgets/freqform.ui
-    rig/freqdisplay.ui
-    widgets/drmsegmentsview.ui
     drmrx/fixform.ui
     config/frequencyselectwidget.ui
     editor/canvassizeform.ui
