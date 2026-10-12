@@ -25,7 +25,7 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 
 - **Windows** (64-bit, 10 1809 or later, or 11)
 - **Linux AppImage** x86_64/arm64 - Ubuntu 24.04, Fedora 39 or similar and later
-- **macOS** (Not yet available - lack of hardware)
+- **macOS** (Apple Silicon, experimental CI build - not yet tested on real hardware)
 
 ### Features
 
@@ -60,7 +60,7 @@ Ready-to-run builds are published on the [Releases page](https://github.com/jbdu
 
 - **Linux:** download the `.AppImage`, make it executable (`chmod +x QSSTV-Experimental-*.AppImage`) and run it. It bundles Qt6 and its other runtime dependencies. Use Help > Check for updates (optionally at startup) to be told when a new release is out; it opens the download page.
 - **Windows:** download the `-win64.zip`, extract it anywhere and run `qsstv.exe`.
-- **macOS:** (Not yet available - lack of hardware)
+- **macOS (experimental):** no release yet. Apple Silicon test builds are produced by CI (Actions > "macOS build" > Artifacts); see [BUILDING.md](BUILDING.md#macos) for the first-launch steps. Feedback welcome on [issue #67](https://github.com/jbdubbs/QSSTV-Experimental/issues/67).
 
 ## User's Guide
 
@@ -68,7 +68,7 @@ The guide is built into the app (**Help > Users Guide**) and also published onli
 
 ## Building
 
-See [BUILDING.md](BUILDING.md) for building from source on Linux and Windows, the AppImage build, and the image-format plugin requirements.
+See [BUILDING.md](BUILDING.md) for building from source on Linux, Windows and macOS, the AppImage build, and the image-format plugin requirements.
 
 ## License and attribution
 
