@@ -13,9 +13,10 @@ SRC="$HERE/../../src"
 if [ "$(uname)" = Darwin ]; then
     # Homebrew Qt ships frameworks (QT_PREFIX defaults to `brew --prefix qt@6`)
     QT_PREFIX=${QT_PREFIX:-$(brew --prefix qt@6)}
-    QT_FLAGS="-F$QT_PREFIX/lib -I$QT_PREFIX/include"
+    # frameworks keep their headers in <Name>.framework/Headers, which plain <QString> includes need directly
+    QT_FLAGS="-F$QT_PREFIX/lib"
+    for m in QtCore QtGui QtWidgets; do QT_FLAGS="$QT_FLAGS -I$QT_PREFIX/lib/$m.framework/Headers"; done
     QT_LIBS="-F$QT_PREFIX/lib -framework QtWidgets -framework QtGui -framework QtCore -Wl,-rpath,$QT_PREFIX/lib"
-    QT_FLAGS="$QT_FLAGS -I$QT_PREFIX/include/QtCore -I$QT_PREFIX/include/QtGui -I$QT_PREFIX/include/QtWidgets"
 else
     QT=${QT_INCLUDE:-/usr/include/qt6}
     QT_FLAGS="-I$QT -I$QT/QtCore -I$QT/QtGui -I$QT/QtWidgets"
