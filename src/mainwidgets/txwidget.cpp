@@ -828,7 +828,7 @@ void txWidget::slotModeChanged(int m)
     }
 }
 
-// SSTV: stitched grids only make sense for modes larger than PD160 (512x400); DRM has no mode size
+// SSTV: stitched grids only make sense for modes larger than 512x400 (the size of PD160); DRM has no mode size
 // A single DRM image is always zoom/pan, so it has no Stretch/Crop/Fit choice
 void txWidget::updateGridControl()
 {
