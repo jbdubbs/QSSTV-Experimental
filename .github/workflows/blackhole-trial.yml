@@ -79,9 +79,12 @@ jobs:
           sleep 45; screencapture -x "$RUNNER_TEMP/shots/3_after.png" || true
           kill "$(cat "$RUNNER_TEMP/rx.pid")" || true
           echo "--- rx.log"; head -60 "$RUNNER_TEMP/rx.log"
-          echo "--- pictures written since start:"
-          find "$HOME" -newer "$RUNNER_TEMP/marker" \( -name '*.png' -o -name '*.jpg' \) -not -path '*/Library/*' -not -path '*/shots/*' 2>/dev/null | head
-          find "$HOME" -newer "$RUNNER_TEMP/marker" \( -name '*.png' -o -name '*.jpg' \) -not -path '*/Library/*' -not -path '*/shots/*' 2>/dev/null | grep -q . && echo "RESULT: RX picture received over BlackHole" || { echo "RESULT: no picture"; exit 1; }
+          RXDIR="$HOME/Library/Application Support/QSSTV-Experimental/rx_sstv"
+          echo "--- pictures in $RXDIR:"; ls -l "$RXDIR" || true
+          PIC=$(find "$RXDIR" -newer "$RUNNER_TEMP/marker" -name '*.png' 2>/dev/null | head -1)
+          [ -n "$PIC" ] || { echo "RESULT: no picture"; exit 1; }
+          echo "RESULT: RX picture received over BlackHole: $PIC"
+          tests/jb60_loopback/loopback --compare "$RUNNER_TEMP/tx_src.png" "$PIC" || true
 
       - name: Upload logs
         if: always()
