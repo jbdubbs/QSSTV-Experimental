@@ -51,7 +51,15 @@ logBook::logBook()
 
 void logBook::logQSO(QString call,QString mode,QString comment)
 {
-  QDateTime dt(QDateTime::currentDateTimeUtc());
+  // The socket, the rig query and logParamArray belong to the GUI thread; callers run in the RX thread.
+  // Stamp the time now so the queued hop does not shift it.
+  QMetaObject::invokeMethod(this,"doLogQSO",Qt::QueuedConnection,
+                            Q_ARG(QString,call),Q_ARG(QString,mode),Q_ARG(QString,comment),
+                            Q_ARG(QDateTime,QDateTime::currentDateTimeUtc()));
+}
+
+void logBook::doLogQSO(QString call,QString mode,QString comment,QDateTime dt)
+{
   QString tmp;
   getFrequency();
   if(frequency!=-1) setParam(LFREQ,QString::number(frequency/1000000.,'g',9));
