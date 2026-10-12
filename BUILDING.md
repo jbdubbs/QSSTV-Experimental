@@ -76,7 +76,9 @@ Upload all three to the GitHub release. The AppImage embeds the update informati
 
 - On first start the AppImage offers to add a menu entry and icons (`~/.local/share/{applications,icons,metainfo}`).
   `Help > Desktop integration...` or `--install` / `--uninstall` does the same from the menu or a terminal; an entry
-  whose AppImage was moved is re-pointed automatically.
+  whose AppImage was moved or replaced by a newer release is re-pointed automatically, and `--uninstall` removes the
+  entries, icons and metadata of any release (it sweeps `qsstv-experimental*.desktop` and any entry launching a
+  `QSSTV-Experimental*.AppImage`; `appimagekit_*` files from AppImageLauncher are left alone).
 - `Help > Check for updates...` uses `appimageupdatetool` when it is installed (otherwise it opens the releases page).
 - No FUSE (Ubuntu 24.04+, Fedora)? Run with `APPIMAGE_EXTRACT_AND_RUN=1` or `--appimage-extract-and-run`.
 

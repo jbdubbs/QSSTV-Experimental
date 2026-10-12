@@ -299,11 +299,28 @@ void mainWindow::slotDesktopIntegration()
   QString msg;
   if(appImageIntegration::isInstalled())
     {
-      if(QMessageBox::question(this,tr("Desktop integration"),tr("QSSTV-Experimental is in your application menu. Remove it?"))==QMessageBox::Yes)
+      const QString target=appImageIntegration::installedTarget();
+      if(appImageIntegration::isCurrent())
         {
-          appImageIntegration::uninstall(msg);
-          QMessageBox::information(this,tr("Desktop integration"),msg);
+          if(QMessageBox::question(this,tr("Desktop integration"),tr("QSSTV-Experimental is in your application menu. Remove it?"))==QMessageBox::Yes)
+            {
+              appImageIntegration::uninstall(msg);
+              QMessageBox::information(this,tr("Desktop integration"),msg);
+            }
+          return;
         }
+      // the entry belongs to another file or release: say so, and let the user move it here or remove it
+      QMessageBox box(QMessageBox::Question,tr("Desktop integration"),
+                      tr("The application menu entry launches a different AppImage:\n%1\n\nThis one is:\n%2")
+                        .arg(target.isEmpty() ? tr("(unknown)") : target,qEnvironmentVariable("APPIMAGE")),
+                      QMessageBox::Cancel,this);
+      QPushButton *move=box.addButton(tr("Use this AppImage"),QMessageBox::AcceptRole);
+      QPushButton *remove=box.addButton(tr("Remove"),QMessageBox::DestructiveRole);
+      box.exec();
+      if(box.clickedButton()==move) appImageIntegration::install(msg);
+      else if(box.clickedButton()==remove) appImageIntegration::uninstall(msg);
+      else return;
+      QMessageBox::information(this,tr("Desktop integration"),msg);
     }
   else
     {

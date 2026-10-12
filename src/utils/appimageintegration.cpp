@@ -38,6 +38,48 @@ void refreshCaches()
   QProcess::execute("kbuildsycoca6",{"--noincremental"});   // harmless when KDE is absent
 }
 
+QString desktopField(const QString &file,const QString &key)
+{
+  QFile f(file);
+  if(!f.open(QIODevice::ReadOnly)) return QString();
+  const QStringList lines=QString::fromUtf8(f.readAll()).split('\n');
+  for(const QString &ln:lines)
+    if(ln.startsWith(key+"=")) return ln.mid(key.length()+1).trimmed();
+  return QString();
+}
+
+// Menu entries made by any QSSTV-Experimental release: the current fixed name, later/earlier names of ours, and any
+// entry of the user's that launches a QSSTV-Experimental AppImage. appimagekit_* files belong to AppImageLauncher /
+// appimaged and are left alone.
+QStringList ourDesktopFiles()
+{
+  QStringList r;
+  QDir d(dataHome()+"/applications");
+  for(const QString &n:d.entryList({"*.desktop"},QDir::Files))
+    {
+      if(n.startsWith("appimagekit",Qt::CaseInsensitive)) continue;
+      const QString path=d.filePath(n);
+      const QString exec=desktopField(path,"Exec")+" "+desktopField(path,"TryExec");
+      if(n==kDesktopName || n.startsWith("qsstv-experimental") ||
+         (exec.contains("QSSTV-Experimental",Qt::CaseInsensitive) && exec.contains(".AppImage",Qt::CaseInsensitive)))
+        r<<path;
+    }
+  if(!r.contains(desktopDest())) r<<desktopDest();
+  return r;
+}
+
+// Remove everything a release of ours may have put in the user's data directory. True if anything was removed.
+bool removeAll()
+{
+  bool removed=false;
+  for(const QString &f:ourDesktopFiles()) removed|=QFile::remove(f);
+  removed|=QFile::remove(metainfoDest());
+  QDir icons(hicolorDir());
+  for(const QString &sz:icons.entryList(QDir::Dirs|QDir::NoDotAndDotDot))
+    removed|=QFile::remove(hicolorDir()+"/"+sz+"/apps/"+kIconName);
+  return removed;
+}
+
 QString findUpdateTool()
 {
   QString t=appDir()+"/usr/share/qsstv/appimageupdatetool";   // bundled copy
@@ -52,13 +94,28 @@ namespace appImageIntegration
 {
 bool available() {return !appImagePath().isEmpty() && !appDir().isEmpty();}
 
-bool isInstalled() {return QFile::exists(desktopDest());}
+bool isInstalled()
+{
+  for(const QString &f:ourDesktopFiles()) if(QFile::exists(f)) return true;
+  return false;
+}
 
 bool isCurrent()
 {
   QFile f(desktopDest());
   if(!f.open(QIODevice::ReadOnly)) return false;
-  return QString::fromUtf8(f.readAll()).contains("Exec="+execPath()+" ");
+  // the file must also be the only entry of ours, so leftovers from other releases get swept by a reinstall
+  return QString::fromUtf8(f.readAll()).contains("Exec="+execPath()+" ") && ourDesktopFiles().size()==1;
+}
+
+QString installedTarget()
+{
+  for(const QString &f:ourDesktopFiles())
+    {
+      const QString t=desktopField(f,"TryExec");
+      if(!t.isEmpty()) return t;
+    }
+  return QString();
 }
 
 bool installedByOtherTool()
@@ -78,6 +135,7 @@ bool install(QString &message)
       message=QObject::tr("Cannot read %1").arg(in.fileName());
       return false;
     }
+  removeAll();   // replace whatever older releases left behind, whatever it was called
   QStringList out;
   const QStringList lines=QString::fromUtf8(in.readAll()).split('\n');
   for(const QString &ln:lines)
@@ -121,13 +179,7 @@ bool install(QString &message)
 
 bool uninstall(QString &message)
 {
-  bool removed=false;
-  removed|=QFile::remove(desktopDest());
-  removed|=QFile::remove(metainfoDest());
-  QDir icons(hicolorDir());
-  for(const QString &sz:icons.entryList(QDir::Dirs|QDir::NoDotAndDotDot))
-    removed|=QFile::remove(hicolorDir()+"/"+sz+"/apps/"+kIconName);
-  if(!removed)
+  if(!removeAll())
     {
       message=QObject::tr("QSSTV-Experimental is not integrated (nothing to remove).");
       return false;

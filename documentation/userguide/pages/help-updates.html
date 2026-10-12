@@ -37,7 +37,9 @@ When an update is announced you can choose not to be reminded about that version
 <p>The AppImage is a single file and does not install itself. About four seconds after the first start the program offers to add QSSTV-Experimental to your application
 menu, which copies a menu entry and icons into your home directory (under <code>~/.local/share</code>). You can say no and tick <em>Don't ask again</em>.
 Later, <span class="ui">Help &gt; Desktop integration...</span> adds the entry (or, if it is already there, offers to remove it). The same can be done from a terminal with
-<code>--install</code> and <code>--uninstall</code>. If you move the AppImage, the menu entry is re-pointed to the new place automatically the next time you run it.</p>
+<code>--install</code> and <code>--uninstall</code>. If you move the AppImage, the menu entry is re-pointed to the new place automatically the next time you run it. The same happens when you replace the AppImage with a newer release: run the new file and the entry follows it.
+<span class="ui">Help &gt; Desktop integration...</span> and <code>--uninstall</code> remove the entry, icons and metadata made by <em>any</em> release, so you can always clean up from the newest AppImage.
+If the entry points at a different AppImage than the one you are running, the dialog says so and offers to use this one or remove it.</p>
 <p>If the menu entry has been installed by another tool such as AppImageLauncher, the program leaves it alone.</p>
 <div class="note"><p>These entries are shown only when running as an AppImage. In other builds the Help menu has the update entries described above instead.</p></div>
 
