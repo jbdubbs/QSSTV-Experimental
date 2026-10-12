@@ -65,26 +65,30 @@ jobs:
           ffmpeg -hide_banner -loglevel info -f avfoundation -i ":BlackHole 2ch" -t 8 -af volumedetect -f null - 2>&1 | grep -E "mean_volume|max_volume|Error|error|Input|Stream|denied" || true
           pkill afplay || true
 
-      - name: Receive from BlackHole while playing the transmission into it
+      - name: Receive from BlackHole with the real GUI, screenshots along the way
         run: |
-          export QT_QPA_PLATFORM=offscreen
+          mkdir -p "$RUNNER_TEMP/shots"
           touch "$RUNNER_TEMP/marker"
           ./build/qsstv.app/Contents/MacOS/qsstv > "$RUNNER_TEMP/rx.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/rx.pid"
-          sleep 15
-          date; SwitchAudioSource -s "BlackHole 2ch" -t output
-          afplay "$RUNNER_TEMP/tx.wav"; echo "afplay exit $?"; date
-          sleep 15
+          sleep 20
+          screencapture -x "$RUNNER_TEMP/shots/1_started.png" || echo "screencapture failed"
+          SwitchAudioSource -s "BlackHole 2ch" -t output
+          (afplay "$RUNNER_TEMP/tx.wav"; echo "afplay exit $?") &
+          sleep 30; screencapture -x "$RUNNER_TEMP/shots/2_mid.png" || true
+          sleep 45; screencapture -x "$RUNNER_TEMP/shots/3_after.png" || true
           kill "$(cat "$RUNNER_TEMP/rx.pid")" || true
-          echo "--- rx.log"; cat "$RUNNER_TEMP/rx.log" | head -80
+          echo "--- rx.log"; head -60 "$RUNNER_TEMP/rx.log"
           echo "--- pictures written since start:"
-          find "$HOME" -newer "$RUNNER_TEMP/marker" \( -name '*.png' -o -name '*.jpg' \) -not -path '*/Library/*' 2>/dev/null | head
-          find "$HOME" -newer "$RUNNER_TEMP/marker" \( -name '*.png' -o -name '*.jpg' \) -not -path '*/Library/*' 2>/dev/null | grep -q . && echo "RESULT: RX picture received over BlackHole" || { echo "RESULT: no picture"; exit 1; }
+          find "$HOME" -newer "$RUNNER_TEMP/marker" \( -name '*.png' -o -name '*.jpg' \) -not -path '*/Library/*' -not -path '*/shots/*' 2>/dev/null | head
+          find "$HOME" -newer "$RUNNER_TEMP/marker" \( -name '*.png' -o -name '*.jpg' \) -not -path '*/Library/*' -not -path '*/shots/*' 2>/dev/null | grep -q . && echo "RESULT: RX picture received over BlackHole" || { echo "RESULT: no picture"; exit 1; }
 
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: trial-logs
-          path: ${{ runner.temp }}/rx.log
+          path: |
+            ${{ runner.temp }}/rx.log
+            ${{ runner.temp }}/shots
           if-no-files-found: ignore
