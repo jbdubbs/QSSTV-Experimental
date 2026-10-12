@@ -1,14 +1,12 @@
 # macOS (Apple Silicon / arm64) build: compiles, runs the headless file-decode test, and uploads an
 # ad-hoc-signed .app (zip + dmg) for testers. Not notarized -- see BUILDING.md for the Gatekeeper step.
 # CI covers build + decoding only; live audio, the mic permission prompt, the GUI and CAT need a real Mac.
+# Runs only when a release is published (or manually), not on every push.
 name: macOS build
 on:
-  push:
-    branches: [main]
-    paths: ['src/**', 'tests/**', 'packaging/macos/**', 'documentation/userguide/**', '.github/workflows/macos.yml']
-  pull_request:
-    paths: ['src/**', 'tests/**', 'packaging/macos/**', '.github/workflows/macos.yml']
-  workflow_dispatch:
+  release:
+    types: [published]   # also fires for pre-releases
+  workflow_dispatch:     # manual run from the Actions tab
 permissions:
   contents: read
 concurrency:
