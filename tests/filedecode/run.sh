@@ -27,7 +27,9 @@ bad() { echo "  FAIL $1"; fail=$((fail+1)); }
 expect_exit() { [ "$2" = "$3" ] && ok "$1 (exit $3)" || bad "$1: exit $3, expected $2"; }
 luma() { "$LB" --compare "$1" "$2" | awk '{print $3}'; }          # luma PSNR of two PNGs
 ge()   { awk -v a="$1" -v b="$2" 'BEGIN{exit !(a>=b)}'; }         # a >= b
-run()  { timeout 300 "$QSSTV" --batch "$@" 2>"$T/stderr"; }        # batch decode; stdout is the result lines
+# macOS has no timeout(1) (coreutils provides gtimeout); run without a limit if neither exists
+TMO=$(command -v timeout || command -v gtimeout)
+run()  { ${TMO:+$TMO 300} "$QSSTV" --batch "$@" 2>"$T/stderr"; }        # batch decode; stdout is the result lines
 
 echo "== generating recordings"
 for m in jb pd; do

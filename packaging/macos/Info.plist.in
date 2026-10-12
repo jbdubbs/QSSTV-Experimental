@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key>               <string>QSSTV-Experimental</string>
+  <key>CFBundleDisplayName</key>        <string>QSSTV-Experimental</string>
+  <key>CFBundleIdentifier</key>         <string>io.github.jbdubbs.qsstv-experimental</string>
+  <key>CFBundleExecutable</key>         <string>${MACOSX_BUNDLE_EXECUTABLE_NAME}</string>
+  <key>CFBundleIconFile</key>           <string>qsstv-experimental</string>
+  <key>CFBundlePackageType</key>        <string>APPL</string>
+  <key>CFBundleShortVersionString</key> <string>${MACOSX_BUNDLE_SHORT_VERSION_STRING}</string>
+  <key>CFBundleVersion</key>            <string>${MACOSX_BUNDLE_BUNDLE_VERSION}</string>
+  <key>LSMinimumSystemVersion</key>     <string>12.0</string>
+  <key>NSHighResolutionCapable</key>    <true/>
+  <key>NSPrincipalClass</key>           <string>NSApplication</string>
+  <!-- Without these usage strings macOS silently denies microphone/camera access. -->
+  <key>NSMicrophoneUsageDescription</key>
+  <string>QSSTV-Experimental needs the microphone (or audio input from your radio interface) to receive SSTV and digital images.</string>
+  <key>NSCameraUsageDescription</key>
+  <string>QSSTV-Experimental can use a camera to capture pictures for transmission.</string>
+</dict>
+</plist>

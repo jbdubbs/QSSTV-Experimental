@@ -358,7 +358,24 @@ set_target_properties(qsstv PROPERTIES
 )
 
 target_compile_definitions(qsstv PRIVATE QT_DEPRECATED_WARNINGS)
-target_compile_options(qsstv PRIVATE -Wno-implicit-fallthrough -Wno-psabi)
+target_compile_options(qsstv PRIVATE -Wno-implicit-fallthrough)
+if(NOT APPLE)
+  target_compile_options(qsstv PRIVATE -Wno-psabi)   # GCC-only; clang warns about it
+endif()
+
+if(APPLE)
+  # .app bundle; the macOS CI workflow adds the icon, runs macdeployqt and ad-hoc signs it.
+  set_target_properties(qsstv PROPERTIES
+      MACOSX_BUNDLE TRUE
+      MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/macos/Info.plist.in"
+      MACOSX_BUNDLE_SHORT_VERSION_STRING "10.0"
+      MACOSX_BUNDLE_BUNDLE_VERSION "10.0")
+  # The user guide is looked up in Contents/Resources/userguide.
+  add_custom_command(TARGET qsstv POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+              "${CMAKE_CURRENT_SOURCE_DIR}/../documentation/userguide"
+              "$<TARGET_BUNDLE_CONTENT_DIR:qsstv>/Resources/userguide")
+endif()
 
 target_link_libraries(qsstv PRIVATE
     Qt6::Core Qt6::Widgets Qt6::Network Qt6::Xml Qt6::SerialPort Qt6::Multimedia
@@ -397,7 +414,7 @@ if(WIN32)
   # that fails to launch with missing-DLL errors on Windows.
   install(TARGETS qsstv RUNTIME DESTINATION .)
 else()
-  install(TARGETS qsstv RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+  install(TARGETS qsstv RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} BUNDLE DESTINATION .)
 endif()
 # License and attribution files ship with every binary distribution.
 set(QSSTV_LICENSE_FILES

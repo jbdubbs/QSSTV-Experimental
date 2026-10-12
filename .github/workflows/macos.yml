@@ -1,0 +1,70 @@
+# macOS (Apple Silicon / arm64) build: compiles, runs the headless file-decode test, and uploads an
+# ad-hoc-signed .app (zip + dmg) for testers. Not notarized -- see BUILDING.md for the Gatekeeper step.
+# CI covers build + decoding only; live audio, the mic permission prompt, the GUI and CAT need a real Mac.
+name: macOS build
+on:
+  push:
+    branches: [main]
+    paths: ['src/**', 'tests/**', 'packaging/macos/**', 'documentation/userguide/**', '.github/workflows/macos.yml']
+  pull_request:
+    paths: ['src/**', 'tests/**', 'packaging/macos/**', '.github/workflows/macos.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: macos-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: macos-14   # Apple Silicon (arm64)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install qt@6 fftw openjpeg hamlib pkg-config cmake coreutils ffmpeg
+          echo "QT_PREFIX=$(brew --prefix qt@6)" >> "$GITHUB_ENV"
+
+      - name: Configure
+        run: cmake -S src -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$QT_PREFIX"
+
+      - name: Build
+        run: cmake --build build -j "$(sysctl -n hw.ncpu)"
+
+      - name: Headless decode test
+        env:
+          QSSTV_BIN: ${{ github.workspace }}/build/qsstv.app/Contents/MacOS/qsstv
+        run: tests/filedecode/run.sh
+
+      - name: Create app icon
+        run: |
+          set -e
+          mkdir qsstv.iconset
+          for s in 16 32 64 128; do cp packaging/linux/icons/qsstv-experimental-$s.png qsstv.iconset/icon_${s}x${s}.png; done
+          iconutil -c icns qsstv.iconset -o build/qsstv.app/Contents/Resources/qsstv-experimental.icns
+
+      - name: Bundle Qt and sign
+        run: |
+          set -e
+          cd build
+          mv qsstv.app QSSTV-Experimental.app
+          "$QT_PREFIX/bin/macdeployqt" QSSTV-Experimental.app
+          codesign --force --deep --sign - QSSTV-Experimental.app
+          codesign --verify --deep --strict QSSTV-Experimental.app
+          echo "--- non-system libraries still referenced (should be none):"
+          otool -L QSSTV-Experimental.app/Contents/MacOS/qsstv | grep -E "/opt/homebrew|/usr/local" || true
+
+      - name: Package
+        run: |
+          set -e
+          cd build
+          ditto -c -k --keepParent QSSTV-Experimental.app QSSTV-Experimental-macos-arm64.zip
+          hdiutil create -volname QSSTV-Experimental -srcfolder QSSTV-Experimental.app -ov -format UDZO QSSTV-Experimental-macos-arm64.dmg
+          shasum -a 256 QSSTV-Experimental-macos-arm64.*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: QSSTV-Experimental-macos-arm64
+          path: |
+            build/QSSTV-Experimental-macos-arm64.zip
+            build/QSSTV-Experimental-macos-arm64.dmg

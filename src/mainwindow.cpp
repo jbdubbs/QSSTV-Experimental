@@ -727,6 +727,7 @@ void mainWindow::slotDocumentation()
   const QString appDir=QCoreApplication::applicationDirPath();
   const QStringList candidates={appDir+"/userguide",
                                 appDir+"/../share/doc/qsstv/userguide",
+                                appDir+"/../Resources/userguide",   // macOS .app bundle
                                 QStringLiteral(QSSTV_USERGUIDE_SRC_DIR)};
   for(const QString &dir:candidates)
     {
