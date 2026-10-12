@@ -59,7 +59,11 @@ jobs:
           set -e
           cd build
           ditto -c -k --keepParent QSSTV-Experimental.app QSSTV-Experimental-macos-arm64.zip
-          hdiutil create -volname QSSTV-Experimental -srcfolder QSSTV-Experimental.app -ov -format UDZO QSSTV-Experimental-macos-arm64.dmg
+          # stage the app next to an /Applications shortcut so users can drag it across in the mounted disk image
+          mkdir dmg-stage
+          cp -R QSSTV-Experimental.app dmg-stage/
+          ln -s /Applications dmg-stage/Applications
+          hdiutil create -volname QSSTV-Experimental -srcfolder dmg-stage -ov -format UDZO QSSTV-Experimental-macos-arm64.dmg
           shasum -a 256 QSSTV-Experimental-macos-arm64.*
 
       - uses: actions/upload-artifact@v4

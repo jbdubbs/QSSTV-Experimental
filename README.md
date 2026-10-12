@@ -60,7 +60,7 @@ Ready-to-run builds are published on the [Releases page](https://github.com/jbdu
 
 - **Linux:** download the `.AppImage`, make it executable (`chmod +x QSSTV-Experimental-*.AppImage`) and run it. It bundles Qt6 and its other runtime dependencies. Use Help > Check for updates (optionally at startup) to be told when a new release is out; it opens the download page.
 - **Windows:** download the `-win64.zip`, extract it anywhere and run `qsstv.exe`.
-- **macOS (experimental):** no release yet. Apple Silicon test builds are produced by CI (Actions > "macOS build" > Artifacts); see [BUILDING.md](BUILDING.md#macos) for the first-launch steps. Feedback welcome on [issue #67](https://github.com/jbdubbs/QSSTV-Experimental/issues/67).
+- **macOS (experimental):** no release yet. Apple Silicon test builds are produced by CI (Actions > "macOS build" > Artifacts); download the `.dmg` (or the `.zip`), drag the app to Applications, and see [BUILDING.md](BUILDING.md#macos) for the first-launch steps. Feedback welcome on [issue #67](https://github.com/jbdubbs/QSSTV-Experimental/issues/67).
 
 ## User's Guide
 
