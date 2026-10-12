@@ -24,7 +24,7 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 ### Platforms
 
 - **Windows** (64-bit, 10 1809 or later, or 11)
-- **Linux AppImage** that bundles Qt6 and every runtime dependency, Ubuntu 24.04 or similar and later
+- **Linux AppImage** that bundles Qt6 and every runtime dependency, Ubuntu 24.04, Fedora 39 or similar and later
 - **macOS** (Not yet available - lack of hardware)
 
 ### Features
