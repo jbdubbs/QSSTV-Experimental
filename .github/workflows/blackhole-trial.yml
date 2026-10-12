@@ -1,0 +1,79 @@
+# THROWAWAY: trial of a live-audio TX->RX loopback on a macOS runner using the BlackHole virtual device.
+# Not for merging. Runs on pushes to the blackhole-trial branch and manually.
+name: BlackHole trial
+on:
+  push:
+    branches: [blackhole-trial]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  trial:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          brew install qt@6 fftw openjpeg hamlib pkg-config cmake libvorbis switchaudio-osx
+          echo "QT_PREFIX=$(brew --prefix qt@6)" >> "$GITHUB_ENV"
+      - name: Build
+        run: |
+          cmake -S src -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$QT_PREFIX"
+          cmake --build build -j "$(sysctl -n hw.ncpu)"
+
+      - name: Audio devices BEFORE BlackHole
+        run: |
+          system_profiler SPAudioDataType || true
+          SwitchAudioSource -a || true
+
+      - name: Install BlackHole
+        run: |
+          brew install --cask blackhole-2ch || { echo "cask install failed"; exit 1; }
+          sudo killall coreaudiod || true
+          sleep 8
+          SwitchAudioSource -a -t output
+          SwitchAudioSource -a -t input
+
+      - name: Probe microphone permission state
+        run: |
+          # does the runner already allow mic access for a terminal-launched process?
+          sqlite3 "$HOME/Library/Application Support/com.apple.TCC/TCC.db" "select service,client,auth_value from access where service like '%Microphone%';" 2>&1 || true
+          sudo sqlite3 "/Library/Application Support/com.apple.TCC/TCC.db" "select service,client,auth_value from access where service like '%Microphone%';" 2>&1 || true
+
+      - name: Generate test transmission (JB60)
+        run: |
+          export QT_QPA_PLATFORM=offscreen
+          ./build/qsstv.app/Contents/MacOS/qsstv --encode tests/jb60_loopback/images/card.png --mode JB60 --wav-out "$RUNNER_TEMP/tx.wav"
+          ls -l "$RUNNER_TEMP/tx.wav"
+
+      - name: Seed settings (input = BlackHole)
+        run: |
+          clang++ -std=c++17 -fPIC -F"$QT_PREFIX/lib" $(for m in QtCore; do echo -I"$QT_PREFIX/lib/$m.framework/Headers"; done) \
+            -o seed .trial/seed.cpp -F"$QT_PREFIX/lib" -framework QtCore -Wl,-rpath,"$QT_PREFIX/lib"
+          ./seed "BlackHole 2ch" "default"
+          defaults domains | tr ',' '\n' | grep -i qsstv || true
+          ls ~/Library/Preferences | grep -i -E "qsstv|on4qz" || true
+
+      - name: Receive from BlackHole while playing the transmission into it
+        run: |
+          export QT_QPA_PLATFORM=offscreen
+          touch "$RUNNER_TEMP/marker"
+          ./build/qsstv.app/Contents/MacOS/qsstv > "$RUNNER_TEMP/rx.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/rx.pid"
+          sleep 15
+          SwitchAudioSource -s "BlackHole 2ch" -t output
+          afplay "$RUNNER_TEMP/tx.wav"
+          sleep 10
+          kill "$(cat "$RUNNER_TEMP/rx.pid")" || true
+          echo "--- rx.log"; cat "$RUNNER_TEMP/rx.log" | head -80
+          echo "--- pictures written since start:"
+          find "$HOME" -newer "$RUNNER_TEMP/marker" \( -name '*.png' -o -name '*.jpg' \) -not -path '*/Library/*' 2>/dev/null | head
+          find "$HOME" -newer "$RUNNER_TEMP/marker" \( -name '*.png' -o -name '*.jpg' \) -not -path '*/Library/*' 2>/dev/null | grep -q . && echo "RESULT: RX picture received over BlackHole" || { echo "RESULT: no picture"; exit 1; }
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trial-logs
+          path: ${{ runner.temp }}/rx.log
+          if-no-files-found: ignore
