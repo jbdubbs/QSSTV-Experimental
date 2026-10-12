@@ -32,6 +32,9 @@
 #include "mainwindow.h"
 #include <QPixmap>
 #include <QSplashScreen>
+#include <QEventLoop>
+#include <QThread>
+#include <QElapsedTimer>
 #include <QTimer>
 #include "dispatcher.h"
 #include "dispatch/filedecoder.h"
@@ -249,9 +252,16 @@ int main( int argc, char ** argv )
   QSplashScreen splash(pixmap,Qt::WindowStaysOnTopHint);
 
   splashPtr=&splash;
+  QElapsedTimer splashTime;
+  bool splashShown=false;
 #ifdef QT_NO_DEBUG
-  if(!batch) splash.show();
+  if(!batch)
+    {
+      splash.show();
+      splashShown=true;
+    }
 #endif
+  splashTime.start();
   splashMessage("Version "+MAJORVERSION+MINORVERSION);
   tm.start(100);
   globalInit();
@@ -276,7 +286,25 @@ int main( int argc, char ** argv )
     app.processEvents();
     if(!tm.isActive()) break;
    }
-  splash.finish(mainWindowPtr);
+  // The splash stays up for at least 2 seconds so the logo is readable. The main window is not shown
+  // until the splash closes, so it can never cover the splash (Wayland ignores WindowStaysOnTopHint).
+  const int splashMinMs=2000;
+  auto holdSplash=[&]()
+  {
+    if(!splashShown) return;
+    splashMessage("Finished Starting");
+    while(splashTime.elapsed()<splashMinMs)
+      {
+        app.processEvents(QEventLoop::AllEvents,50);
+        QThread::msleep(10);
+      }
+  };
+  if(encode)
+    {
+      // no main window is shown in encode mode
+      holdSplash();
+      splash.finish(mainWindowPtr);
+    }
   if(parser.isSet(modeOpt) && !(encode && parser.isSet(drmOpt)) && !rxWidgetPtr->setRxModeByName(parser.value(modeOpt)))
     {
       fprintf(stderr,"unknown mode \"%s\" (see --list-modes)\n",parser.value(modeOpt).toLocal8Bit().constData());
@@ -367,7 +395,9 @@ int main( int argc, char ** argv )
     }
   else
     {
+      holdSplash();
       mainWindowPtr->show();
+      splash.finish(mainWindowPtr);
     }
   mainWindowPtr->startRunning(files.isEmpty());   // decoding files replaces the sound card receiver until it is done
   if(!files.isEmpty()) fileDecoderPtr->decodeFiles(files);
