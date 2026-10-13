@@ -1,5 +1,9 @@
 # QSSTV-Experimental
 
+<p align="center">
+  <img src="src/icons/qsstvsplash.png" alt="QSSTV-Experimental splash screen" width="560">
+</p>
+
 QSSTV-Experimental is an amateur-radio program for sending and receiving **SSTV** (slow-scan television) and **HAMDRM / DSSTV**
 (digital SSTV) pictures using a sound card. It is compatible with most of MMSSTV and EasyPal.
 
