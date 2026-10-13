@@ -82,6 +82,7 @@ void rxWidget::init()
 
 
 
+  connect(ui->sstvModeComboBox,SIGNAL(currentIndexChanged(int)),SLOT(slotModeChanged()));
   connect(ui->sensitivityComboBox,SIGNAL(currentIndexChanged(int)),SLOT(slotGetParams()));
   connect(ui->settingsTableWidget,SIGNAL(currentChanged(int)),this, SLOT(slotTransmissionMode(int)));
   connect(ui->eraseToolButton, SIGNAL(clicked()),SLOT(slotErase()));
@@ -242,6 +243,13 @@ void rxWidget::slotStop()
 void rxWidget::slotDecodeFile()
 {
   fileDecoderPtr->chooseAndDecode(this);
+}
+
+void rxWidget::slotModeChanged()
+{
+  getParams();
+  // the sync processors cache the mode filter at init, so re-init a running receiver
+  if(!rxFunctionsPtr->isIdle()) rxFunctionsPtr->restartRX();
 }
 
 void rxWidget::slotResync()

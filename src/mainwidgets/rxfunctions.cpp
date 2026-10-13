@@ -95,7 +95,7 @@ void rxFunctions::run()
           break;
         case RXRESTART:
           {
-            init();
+            forceInit();
             switchRxState(RXRUNNING);
           }
           break;
