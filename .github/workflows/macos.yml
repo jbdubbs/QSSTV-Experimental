@@ -36,6 +36,18 @@ jobs:
         run: |
           "$(brew --prefix)/bin/bash" tests/filedecode/run.sh
 
+      - name: Headless encode test (#98)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        # the crash was racy: repeat, and require a complete wav (~12.5 MB) every time
+        run: |
+          for i in 1 2 3 4 5; do
+            rm -f /tmp/tx.wav
+            build/qsstv.app/Contents/MacOS/qsstv --encode tests/jb60_loopback/images/card.png --mode JB60 --wav-out /tmp/tx.wav 2>/tmp/enc.err || { echo "attempt $i failed: $?"; tail -5 /tmp/enc.err; exit 1; }
+            sz=$(stat -f %z /tmp/tx.wav); echo "attempt $i: $sz bytes, $(grep -c 'Bad file' /tmp/enc.err) 'Bad file' lines"
+            [ "$sz" -gt 6000000 ] || exit 1
+          done
+
       - name: Create app icon
         run: |
           set -e
