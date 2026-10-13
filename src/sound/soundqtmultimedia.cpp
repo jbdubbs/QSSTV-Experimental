@@ -152,6 +152,9 @@ bool soundQtMultimedia::init(int samplerate)
 int soundQtMultimedia::read(int &countAvailable)
 {
   if(!soundDriverOK || !captureDevicePtr) return 0;
+  // --encode writes a wav file and never needs the card; reading it from this worker thread while its QAudioSource
+  // lives in the main thread crashes the macOS (CoreAudio) backend (issue #98)
+  if(!txFileName.isEmpty()) return 0;
   const qint64 wanted=qint64(DOWNSAMPLESIZE)*sizeof(qint16);
   // Don't gate on bytesAvailable(): Qt 6.4's PulseAudio capture device (what Ubuntu 24.04's
   // Qt, and so the AppImage, ships) reports 0 there in pull mode even while read() delivers
@@ -215,6 +218,7 @@ int soundQtMultimedia::write(uint numFrames)
 void soundQtMultimedia::flushCapture()
 {
   rxFilled=0;
+  if(!txFileName.isEmpty()) return;   // --encode: the card is not used (issue #98)
   if(captureDevicePtr) captureDevicePtr->readAll(); // discard whatever's buffered
 }
 
@@ -224,6 +228,9 @@ void soundQtMultimedia::flushPlayback()
   // stopped): guarantees a clean, known state -- a fresh QIODevice -- regardless of
   // exactly which internal state reset() would have left it in.
   if(!audioSinkPtr) return;
+  // --encode: the sink belongs to the main thread and nothing is played; stop()/start() from this worker thread
+  // makes Qt's macOS audio backend touch QSocketNotifiers cross-thread and crash (issue #98)
+  if(!txFileName.isEmpty()) return;
   audioSinkPtr->stop();
   playbackDevicePtr=audioSinkPtr->start();
 }
