@@ -60,7 +60,7 @@ private slots:
   void slotStart();
   void slotStop();
   void slotResync();
-  void slotModeChanged();
+  void slotSyncSettingChanged();
   void slotDecodeFile();
   void slotGetParams();
   void slotSmoothDisplayChanged();
