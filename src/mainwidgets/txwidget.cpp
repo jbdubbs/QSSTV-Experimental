@@ -892,15 +892,20 @@ void txWidget::slotSnapshot()
   if(camera.exec()==QDialog::Accepted)
     {
       im=camera.getImage();
-      if(im)
+      if(!im)
         {
-          QTemporaryFile itmp(txStockImagesPath+"/snapshotXXXXXX.jpg");
-          itmp.setAutoRemove(false);
-          if(!itmp.open()) return;
-          im->save(itmp.fileName());
-          setImage(itmp.fileName());
-          galleryWidgetPtr->txStockImageChanged();
+          QMessageBox::warning(this,"Snapshot","No usable frame was received from the camera.");
+          return;
         }
+      QTemporaryFile itmp(txStockImagesPath+"/snapshotXXXXXX.jpg");
+      itmp.setAutoRemove(false);
+      if(!itmp.open() || !im->save(itmp.fileName()))
+        {
+          QMessageBox::warning(this,"Snapshot","Unable to save the camera image.");
+          return;
+        }
+      setImage(itmp.fileName());
+      galleryWidgetPtr->txStockImageChanged();
     }
 }
 

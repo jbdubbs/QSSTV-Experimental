@@ -77,7 +77,16 @@ QImage *cameraDialog::getImage()
 void cameraDialog::slotVideoFrameChanged(const QVideoFrame &frame)
 {
   if(!frame.isValid()) return;
-  lastImage=frame.toImage();
+  QImage img=frame.toImage();
+  if(img.isNull())
+    {
+      // Keep the last good frame; a single undecodable frame must not discard the snapshot.
+      addToLog(QString("camera: toImage() failed, pixelFormat=%1 size=%2x%3")
+               .arg(QVideoFrameFormat::pixelFormatToString(frame.pixelFormat()))
+               .arg(frame.width()).arg(frame.height()),LOGCAM);
+      return;
+    }
+  lastImage=img;
   ui->viewFinder->openImage(lastImage);
 }
 
@@ -173,6 +182,10 @@ bool cameraDialog::restartCapturing()
     }
   cameraPtr=new QCamera(cameraList.at(devIdx),this);
   captureSession.setCamera(cameraPtr);
+  connect(cameraPtr,&QCamera::errorOccurred,this,[](QCamera::Error,const QString &s)
+          {
+            addToLog(QString("camera error: %1").arg(s),LOGCAM);
+          });
   QCameraFormat fmt=selectedFormat();
   if(!fmt.isNull()) cameraPtr->setCameraFormat(fmt);
   cameraPtr->start();
