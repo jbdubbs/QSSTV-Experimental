@@ -161,6 +161,16 @@ void jp2IO::slotStart()
 
 
 
+// decode a (possibly truncated) JPEG2000 file; null image when not even the header could be decoded
+QImage jp2IO::decodePartial(QString fileName)
+{
+  QImage im;
+  partialOk=true;
+  if(check(fileName)) im=decode(fileName);
+  partialOk=false;
+  return im;
+}
+
 QImage jp2IO::decode(QString fileName)
 {
   QImage qimage;
@@ -222,6 +232,11 @@ QImage jp2IO::decode(QString fileName)
     }
 
 
+#if (OPJ_VERSION_MAJOR>2) || (OPJ_VERSION_MAJOR==2 && OPJ_VERSION_MINOR>=5)
+  // non-strict mode lets OpenJPEG decode a truncated codestream instead of failing
+  if(partialOk) opj_decoder_set_strict_mode(l_codec,OPJ_FALSE);
+#endif
+
   /* Read the main header of the codestream and if necessary the JP2 boxes*/
   if(! opj_read_header(l_stream, l_codec, &jp2Image))
     {
@@ -248,7 +263,11 @@ QImage jp2IO::decode(QString fileName)
         }
 
       /* Get the decoded image */
-      if (!(opj_decode(l_codec, l_stream, jp2Image) && opj_end_decompress(l_codec,	l_stream)))
+      bool decodeOk=opj_decode(l_codec, l_stream, jp2Image);
+      // a truncated stream (partial DRM reception) can still yield a usable picture when partial decoding is allowed
+      if(decodeOk && !partialOk) decodeOk=opj_end_decompress(l_codec,	l_stream);
+      else if(decodeOk) opj_end_decompress(l_codec,	l_stream);
+      if (!decodeOk)
         {
           addToLog( "ERROR -> opj_decompress: failed to decode image!",LOGALL);
           destroy_parameters(&parameters);

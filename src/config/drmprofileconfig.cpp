@@ -25,6 +25,7 @@
 #include "configparams.h"
 
 sprofile drmPFArray[NUMBEROFPROFILES];
+bool drmShowPartialImage;
 
 drmProfileConfig *drmProfileConfigPtr;
 
@@ -69,6 +70,7 @@ void drmProfileConfig::readSettings()
   drmPFArray[2].params.protection=qSettings.value("drmPF3Protection",0).toInt();
   drmPFArray[2].params.interleaver=qSettings.value("drmPF3Interleave",0).toInt();
   drmPFArray[2].params.reedSolomon=qSettings.value("drmPF3ReedSolomon",0).toInt();
+  drmShowPartialImage=qSettings.value("drmShowPartialImage",true).toBool();
   qSettings.endGroup();
   setParams();
 
@@ -101,6 +103,7 @@ void drmProfileConfig::writeSettings()
   qSettings.setValue("drmPF3Protection",drmPFArray[2].params.protection);
   qSettings.setValue("drmPF3Interleave",drmPFArray[2].params.interleaver);
   qSettings.setValue("drmPF3ReedSolomon",drmPFArray[2].params.reedSolomon);
+  qSettings.setValue("drmShowPartialImage",drmShowPartialImage);
   qSettings.endGroup();
 }
 
@@ -138,6 +141,7 @@ void drmProfileConfig::getParams()
   getIndex(drmPFArray[2].params.protection,ui->drmPF3ProtectionComboBox);
   getIndex(drmPFArray[2].params.interleaver,ui->drmPF3InterleaveComboBox);
   getIndex(drmPFArray[2].params.reedSolomon,ui->drmPF3ReedSolomonComboBox);
+  getValue(drmShowPartialImage,ui->drmPartialImageCheckBox);
   changed=false;
   if( diff(drmPFArrayCopy[0],drmPFArray[0])
       || diff(drmPFArrayCopy[1],drmPFArray[1])
@@ -184,6 +188,7 @@ void  drmProfileConfig::setParams()
   setIndex(drmPFArray[2].params.protection,ui->drmPF3ProtectionComboBox);
   setIndex(drmPFArray[2].params.interleaver,ui->drmPF3InterleaveComboBox);
   setIndex(drmPFArray[2].params.reedSolomon,ui->drmPF3ReedSolomonComboBox);
+  setValue(drmShowPartialImage,ui->drmPartialImageCheckBox);
 }
 
 

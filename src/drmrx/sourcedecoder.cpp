@@ -32,12 +32,17 @@
 #include "configparams.h"
 #include "logbook/logbook.h"
 #include "drmstatusframe.h"
+#include "dispatch/filedecoder.h"
+#include "jp2io.h"
 
 
 #include <QThread>
 #include <QApplication>
 #include <QFileInfo>
 #include <QFile>
+#include <QDir>
+#include <QImage>
+#include <QDateTime>
 #include <math.h>
 #include <float.h>
 
@@ -461,8 +466,58 @@ void sourceDecoder::addDataSegment()
 
   tbPtr->dataSegmentPtrList.at(currentDataPacket.segmentNumber)->setData(currentDataPacket.ba,currentDataPacket.segmentNumber,true);
 
+  previewPartialImage(tbPtr);
   writeData(tbPtr);
 
+}
+
+// Show what has been received so far while the transmission is still going on.
+// Only the contiguous run of segments from the start of the file is used: that is a valid truncated JPEG / JPEG2000 stream,
+// whereas a gap would corrupt everything behind it. Reed-Solomon files are interleaved, so a partial file is meaningless.
+void sourceDecoder::previewPartialImage(transportBlock *tbPtr)
+{
+  const int minPreviewBytes=1024; // enough for the image header
+  int n=0;
+  qint64 now;
+  QByteArray prefix;
+  QImage im;
+  QString ext;
+  if(!drmShowPartialImage || tbPtr->alreadyReceived || !tbPtr->headerReceived) return;
+  if(fileDecoderPtr && fileDecoderPtr->isBatch()) return;
+  ext=QFileInfo(tbPtr->fileName).suffix().toLower();
+  if(ext!="jp2" && ext!="j2k" && ext!="jpg" && ext!="jpeg") return;
+  while(n<tbPtr->dataSegmentPtrList.count() && tbPtr->dataSegmentPtrList.at(n)->hasData()) n++;
+  if(tbPtr->lastSegmentReceived && n>=tbPtr->totalSegments) return; // complete, the normal path displays it
+  if(n<=tbPtr->previewSegments) return;
+  if(tbPtr->previewSegments>0 && n<tbPtr->previewSegments+qMax(2,tbPtr->totalSegments/20)) return;
+  now=QDateTime::currentMSecsSinceEpoch();
+  if(now-tbPtr->previewMs<1000) return;
+  for(int i=0;i<n;i++) prefix.append(tbPtr->dataSegmentPtrList.at(i)->data);
+  if(prefix.size()<minPreviewBytes) return;
+  tbPtr->previewMs=now;
+  if(ext=="jp2" || ext=="j2k")
+    {
+      QString fn=QDir::tempPath()+"/qsstv-drmpreview.jp2";
+      QFile tf(fn);
+      if(!tf.open(QIODevice::WriteOnly)) return;
+      tf.write(prefix);
+      tf.close();
+      jp2IO jp2;
+      im=jp2.decodePartial(fn);
+      tf.remove();
+    }
+  else
+    {
+      if(!im.loadFromData(prefix))
+        {
+          prefix.append("\xff\xd9",2); // add an end-of-image marker so the decoder accepts the truncated stream
+          im.loadFromData(prefix);
+        }
+    }
+  if(im.isNull()) return;
+  tbPtr->previewSegments=n;
+  addToLog(QString("Preview %1/%2 segments").arg(n).arg(tbPtr->totalSegments),LOGDRMSRC);
+  QApplication::postEvent(dispatcherPtr,new previewDRMImageEvent(im.copy())); // Qt will delete it when done
 }
 
 void sourceDecoder::writeData(transportBlock *tbPtr)

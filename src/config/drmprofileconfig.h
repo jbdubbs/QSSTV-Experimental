@@ -17,6 +17,7 @@ struct sprofile
 };
 
 extern sprofile drmPFArray[NUMBEROFPROFILES];
+extern bool drmShowPartialImage;   //!< DRM RX: show the image while it is still being received
 
 bool getDRMParams(int idx, drmTxParams &d);
 bool getName(int idx,QString &n);

@@ -224,6 +224,12 @@ void dispatcher::customEvent( QEvent * e )
         txWidgetPtr->setImageToSegment(((moveToTxEvent *)e)->getFilename(),((moveToTxEvent *)e)->getSegment());
       }
       break;
+    case previewDRMImage:
+      {
+        // live preview of a DRM image that is still being received; the finished file replaces it later
+        rxWidgetPtr->getImageViewerPtr()->openImage(((previewDRMImageEvent*)e)->getImage());
+      }
+      break;
     case saveDRMImage:
       {
         QString info;

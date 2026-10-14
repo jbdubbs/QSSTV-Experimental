@@ -286,7 +286,7 @@
      </widget>
      <widget class="QWidget" name="profilesTab">
       <attribute name="title">
-       <string>DRM Profiles</string>
+       <string>DRM</string>
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_12">
        <property name="spacing">

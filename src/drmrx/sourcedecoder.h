@@ -115,6 +115,8 @@ struct transportBlock
     retrieveTries=0;
     lastSegmentReceived=false;
     defaultSegmentSize=0;
+    previewSegments=0;
+    previewMs=0;
   }
   bool isComplete()
   {
@@ -155,6 +157,8 @@ struct transportBlock
   bool alreadyReceived;
   int  retrieveTries;
   unsigned short segmentsReceived;
+  int previewSegments;   // number of contiguous segments in the last partial-image preview
+  qint64 previewMs;      // time of the last preview (ms since epoch)
   bool lastSegmentReceived;
   int totalSegments;
   QString callsign;
@@ -205,6 +209,7 @@ private:
   bool addHeaderSegment();
   void loadParams(transportBlock *tbPtr, unsigned char paramID, int len);
   void writeData(transportBlock *tbPtr);
+  void previewPartialImage(transportBlock *tbPtr);
   transportBlock *getTransporPtr(unsigned short tId,bool create);
   void removeTransporPtr(transportBlock * ptr);
   unsigned char packetBuffer[PACKETBUFFERLEN];

@@ -19,7 +19,7 @@ end to scroll.</p>
 <li><a href="#operator">Operator</a></li><li><a href="#directories">Directories</a></li><li><a href="#gui">Gui</a></li>
 <li><a href="#sound">Sound</a></li><li><a href="#cat">CAT</a></li><li><a href="#cw">CW</a></li><li><a href="#repeater">Repeater</a></li>
 <li><a href="#ftp">FTP</a></li><li><a href="#waterfall">Waterfall</a></li><li><a href="#hybrid">Hybrid</a></li>
-<li><a href="#drmprofiles">DRM Profiles</a></li><li><a href="#frequencies">Frequencies</a></li></ul></div>
+<li><a href="#drmprofiles">DRM</a></li><li><a href="#frequencies">Frequencies</a></li></ul></div>
 
 <h2 id="operator">Operator</h2>
 <figure><img src="../images/cfg-operator.png" alt="The Operator configuration page with placeholder name, callsign, QTH and locator fields" loading="lazy"><figcaption>Operator page (placeholder values shown).</figcaption></figure>
@@ -147,13 +147,15 @@ The <strong>Online Status Directory</strong> is where the online status files ar
 and must already exist on the server. <strong>Test connection</strong> checks the server and these directories. Both stations must use the same server and
 the same directory names, otherwise they will not see each other.</p>
 
-<h2 id="drmprofiles">DRM Profiles</h2>
-<figure><img src="../images/cfg-drmprofiles.png" alt="The DRM Profiles configuration page showing Profile 2 with name, mode, bandwidth, QAM, interleave, protection and Reed-Solomon" loading="lazy"><figcaption>DRM Profiles page, Profile 2 tab.</figcaption></figure>
+<h2 id="drmprofiles">DRM</h2>
+<figure><img src="../images/cfg-drmprofiles.png" alt="The DRM configuration page showing Profile 2 with name, mode, bandwidth, QAM, interleave, protection and Reed-Solomon" loading="lazy"><figcaption>DRM page, Profile 2 tab.</figcaption></figure>
 
 <p>Three saved sets of DRM transmit parameters, on the tabs <strong>Profile 1</strong>, <strong>Profile 2</strong> and <strong>Profile 3</strong>. Each has a
 <strong>Profile Name</strong>, <strong>Mode</strong> (A, B or E), <strong>BW</strong> (2.2 or 2.5 kHz), <strong>QAM</strong> (4, 16 or 64),
 <strong>Interleave</strong> (Short or Long), <strong>Prot.</strong> (High or Low) and <strong>Rs</strong> (Reed-Solomon: None, RS1 to RS4). The profiles
 appear in the <strong>Profile</strong> list on the Transmit tab's DRM settings. See <a href="drm.html">Digital SSTV (DRM)</a> for what the parameters mean.</p>
+
+<p><strong>Show partial image while receiving (DRM)</strong>, below the profile tabs, displays a DRM picture while it is still arriving: a JPEG2000 image appears blurry and sharpens as more data comes in, a JPEG fills in from the top. The finished picture then replaces the preview. On by default. Not available for Reed-Solomon coded transmissions, which can only be shown once decoding succeeds.</p>
 
 <h2 id="frequencies">Frequencies</h2>
 <figure><img src="../images/cfg-frequencies.png" alt="The Frequencies configuration page with a table of frequency, mode, modulation and passband, Add and Delete buttons" loading="lazy"><figcaption>Frequencies page.</figcaption></figure>

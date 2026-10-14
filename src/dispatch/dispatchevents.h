@@ -30,6 +30,7 @@ enum dispatchEventType
   editorFinished,
   loadRXImage,
   saveDRMImage,
+  previewDRMImage,
   prepareFix,
   displayText,
   displayMBox,
@@ -249,6 +250,21 @@ public:
 private:
   QString fileName;
   QString info;
+};
+
+
+
+/** partially received DRM image (live preview while the transmission is still in progress) */
+class previewDRMImageEvent : public baseEvent
+{
+public:
+  previewDRMImageEvent(QImage im):baseEvent( (QEvent::Type)previewDRMImage),image(im)
+  {
+    description="previewDRMImageEvent";
+  }
+  QImage getImage() {return image;}
+private:
+  QImage image;
 };
 
 

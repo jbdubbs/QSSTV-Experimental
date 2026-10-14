@@ -838,6 +838,16 @@
     </widget>
    </item>
    <item>
+    <widget class="QCheckBox" name="drmPartialImageCheckBox">
+     <property name="toolTip">
+      <string>Display a DRM image while it is still being received (not available with Reed-Solomon coded files)</string>
+     </property>
+     <property name="text">
+      <string>Show partial image while receiving (DRM)</string>
+     </property>
+    </widget>
+   </item>
+   <item>
     <spacer name="verticalSpacer">
      <property name="orientation">
       <enum>Qt::Vertical</enum>

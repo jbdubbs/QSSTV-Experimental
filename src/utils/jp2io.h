@@ -90,6 +90,7 @@ public:
   jp2IO();
   bool check(QString fileName);
   QImage decode(QString fileName);
+  QImage decodePartial(QString fileName);
   QByteArray encode(QImage qimage, QImage &newImage, int &fileSize, int compressionRatio=0 );
   void setParams(QImage *im,QString filename,bool tFromCache)
   {
@@ -121,6 +122,7 @@ private:
   QImage *threadImage;
   QString threadFilename;
   bool fromCache;
+  bool partialOk=false;
 };
 
 #endif // JP2READER_H
