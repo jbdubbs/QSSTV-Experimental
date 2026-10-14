@@ -320,11 +320,8 @@
           </item>
           <item row="0" column="1">
            <widget class="QComboBox" name="parityComboBox">
-            <property name="maximumSize">
-             <size>
-              <width>70</width>
-              <height>16777215</height>
-             </size>
+            <property name="sizeAdjustPolicy">
+             <enum>QComboBox::AdjustToContents</enum>
             </property>
             <item>
              <property name="text">
@@ -397,14 +394,11 @@
           </item>
           <item row="1" column="1">
            <widget class="QComboBox" name="baudrateComboBox">
-            <property name="maximumSize">
-             <size>
-              <width>70</width>
-              <height>16777215</height>
-             </size>
-            </property>
             <property name="currentIndex">
              <number>5</number>
+            </property>
+            <property name="sizeAdjustPolicy">
+             <enum>QComboBox::AdjustToContents</enum>
             </property>
             <item>
              <property name="text">

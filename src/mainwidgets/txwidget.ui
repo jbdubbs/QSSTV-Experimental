@@ -582,17 +582,8 @@
            <property name="toolTip">
             <string>Robustness mode. Higher mode letters are more robust but slower.</string>
            </property>
-           <property name="minimumSize">
-            <size>
-             <width>40</width>
-             <height>0</height>
-            </size>
-           </property>
-           <property name="maximumSize">
-            <size>
-             <width>40</width>
-             <height>25</height>
-            </size>
+           <property name="sizeAdjustPolicy">
+            <enum>QComboBox::AdjustToContents</enum>
            </property>
            <item>
             <property name="text">
@@ -638,17 +629,8 @@
            <property name="toolTip">
             <string>Bits per carrier. 4 = most robust, 64 = fastest but needs a clean signal.</string>
            </property>
-           <property name="minimumSize">
-            <size>
-             <width>45</width>
-             <height>0</height>
-            </size>
-           </property>
-           <property name="maximumSize">
-            <size>
-             <width>45</width>
-             <height>16777215</height>
-            </size>
+           <property name="sizeAdjustPolicy">
+            <enum>QComboBox::AdjustToContents</enum>
            </property>
            <item>
             <property name="text">
@@ -694,18 +676,9 @@
            <property name="toolTip">
             <string>Occupied bandwidth. Wider is faster.</string>
            </property>
-           <property name="minimumSize">
-            <size>
-             <width>70</width>
-             <height>0</height>
-            </size>
-           </property>
-           <property name="maximumSize">
-            <size>
-             <width>70</width>
-             <height>16777215</height>
-            </size>
-           </property>
+            <property name="sizeAdjustPolicy">
+             <enum>QComboBox::AdjustToContents</enum>
+            </property>
             <item>
             <property name="text">
              <string>2.2 kHz</string>
@@ -784,17 +757,8 @@
            <property name="toolTip">
             <string>Error-correction strength. High is more robust but slower.</string>
            </property>
-           <property name="minimumSize">
-            <size>
-             <width>65</width>
-             <height>0</height>
-            </size>
-           </property>
-           <property name="maximumSize">
-            <size>
-             <width>65</width>
-             <height>25</height>
-            </size>
+           <property name="sizeAdjustPolicy">
+            <enum>QComboBox::AdjustToContents</enum>
            </property>
            <item>
             <property name="text">
@@ -861,17 +825,8 @@
            <property name="toolTip">
             <string>Extra Reed-Solomon coding on file data. RS1-RS4 add more redundancy: slower, more robust.</string>
            </property>
-           <property name="minimumSize">
-            <size>
-             <width>65</width>
-             <height>0</height>
-            </size>
-           </property>
-           <property name="maximumSize">
-            <size>
-             <width>65</width>
-             <height>16777215</height>
-            </size>
+           <property name="sizeAdjustPolicy">
+            <enum>QComboBox::AdjustToContents</enum>
            </property>
            <item>
             <property name="text">
