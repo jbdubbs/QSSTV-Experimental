@@ -40,11 +40,12 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 - **Stitched grid images:** - transmit large pictures as 1x2, 2x1 or 2x2 grids on the larger modes
 - **Pan/Zoom images for transmission** - Place images exactly how you want them in-frame (and in grids) before transmission
 - **Gallery multi-select** - to delete or send several images to TX, with the Del key for quick deletion
+- **WebP, AVIF and HEIC** - image formats, with EXIF/HEIF orientation applied on import
 - **Image viewer zoom and pan:** - smooth mouse-wheel zoom and drag-to-pan
 - **Clipboard support:** - copy images from anywhere, paste into the transmit window or TX stock
 - **ADIF logbook broadcast over UDP** - on every OS
-- **Live DRM size-slider preview:** - the picture preview updates as the slider is dragged
-- **WebP, AVIF and HEIC** - image formats, with EXIF/HEIF orientation applied on import
+- **DRM Live size-slider preview:** - the picture preview updates as the slider is dragged
+- **DRM Progressive Image Reception** - Image previews as you receive, improving in quality over time
 
 #### Changes
 
