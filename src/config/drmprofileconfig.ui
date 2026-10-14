@@ -17,18 +17,6 @@
    <property name="spacing">
     <number>1</number>
    </property>
-   <property name="leftMargin">
-    <number>0</number>
-   </property>
-   <property name="topMargin">
-    <number>0</number>
-   </property>
-   <property name="rightMargin">
-    <number>0</number>
-   </property>
-   <property name="bottomMargin">
-    <number>0</number>
-   </property>
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
@@ -70,9 +58,6 @@
        </item>
        <item>
         <layout class="QGridLayout" name="gridLayout">
-         <property name="horizontalSpacing">
-          <number>6</number>
-         </property>
          <property name="verticalSpacing">
           <number>1</number>
          </property>
