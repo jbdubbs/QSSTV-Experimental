@@ -47,16 +47,32 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 - **DRM Live size-slider preview:** - the picture preview updates as the slider is dragged
 - **DRM Progressive Image Reception** - Image previews as you receive, improving in quality over time
 
-#### Changes
+#### Other changes and updates
 
-1. **Receiver and transmitter robustness.** Audio recovers after a device change or Windows sleep/resume; the QSSTV Engine TX tone level is raised to match MMSSTV; end-of-image footer tones are sent on transmit; and TX aborts cleanly when playback cannot start.
-2. **DRM fixes.** Several long-standing HAMDRM receive bugs were found with a new loopback test harness and fixed: ring-buffer copies at the wrap, a Qt6 MOT-header pointer bug, and the mode-A 2.3 kHz boosted-pilot table.
-3. **Smaller usability fixes.** Working File > TX Test Pattern in release builds with new patterns, Yes/No quit confirmation, the other mode's tabs locked out during TX/RX, a toolbar Edit button, new editor items placed in the centre of the view, larger Papirus toolbar and gallery icons, and a clearer Save Waterfall Image.
-4. **Qt6 and CMake.** Ported from Qt5/qmake to Qt6/CMake.
-5. **Audio, webcam and serial through Qt.** PulseAudio, ALSA and V4L2 are replaced by Qt Multimedia, and serial PTT uses QSerialPort, so one code path serves audio, webcam and PTT on every OS.
-6. **Portable paths and code.** Hard-coded Unix paths replaced with Qt equivalents; assorted Qt6, macOS and FreeBSD compatibility fixes; a vendored Hamlib on Windows; a reproducible Ubuntu 24.04 container build with official Qt 6.11 for the AppImage.
-7. **DRM MER readout** (formerly labelled "SNR") plus an MSC MER, with tooltips on the MER and Time/Frame/FAC/MSC indicators
-8. **Rebranded** as QSSTV-Experimental (the original copyright and attribution are retained throughout the code and About box).
+1. Fixed - Changing audio devices results in the receiver not starting back up correctly
+2. Fixed - Images in the viewer show 0x0 dimensions
+3. Fixed - Loading a new image into TX Stock disappears after relaunching the app
+4. Fixed - When deleting an image from the gallery, image properties don't shift with the rest of the images
+5. Fixed - Various size and fitment UI issues
+6. Fixed - Audio level issues compared to MMSSTV, added stereo output
+7. Fixed - Image editor now places elements in the center of the screen (used to disappear)
+8. Fixed - Save Waterfall Image now works
+9. Fixed - Preamble and Postamble TX tones, including FSK ID
+10. Fixed - TX Test Pattern in both SSTV and DRM modes
+11. Fixed - DRM failed to display an image even though one was received on later builds
+12. Fixed - DRM transmitter and receiver mismatched "boosted pilot tables"
+13. Fixed - Crash when aborting file dialog TX with "To sound card and record"
+14. Fixed - Test signal dialog doesn't save user settings
+15. Fixed - Crash when audio device fails to initialize on startup
+16. Fixed - CW ID at the end of a DRM image
+17. Fixed - Camera will not save over 1280x960 image from certain flakey devices
+18. Fixed - Mode and sensitivity combos in SSTV mode needed receiver restart to take effect
+19. Updated - From Qt5/qmake to Qt6/cmake
+20. Updated - From platform-specific audio, camera, and serial port devices to Qt-based abstracted devices (cross-platform)
+21. Updated - Splash and icons
+22. Updated - Documentation.  Now both offline and online.
+23. Removed - Dead or abandoned code or assets
+24. New - Automatic update notifications
 
 ## Download a pre-built release
 
