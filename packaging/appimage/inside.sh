@@ -60,7 +60,7 @@ export LDAI_UPDATE_INFORMATION="gh-releases-zsync|jbdubbs|QSSTV-Experimental|lat
 linuxdeploy --appdir $APPDIR "${FORCE[@]}" \
   --executable $APPDIR/usr/bin/qsstv \
   --desktop-file $APPDIR/usr/share/applications/qsstv-experimental.desktop \
-  $(for z in 16 32 48 64 128; do echo --icon-file $APPDIR/usr/share/icons/hicolor/${z}x${z}/apps/qsstv-experimental.png; done) \
+  $(for z in 16 32 48 64 128 256 512; do echo --icon-file $APPDIR/usr/share/icons/hicolor/${z}x${z}/apps/qsstv-experimental.png; done) \
   --plugin qt --output appimage
 OUT=QSSTV-Experimental-$VERSION-$(uname -m).AppImage
 cp $OUT /out/$OUT

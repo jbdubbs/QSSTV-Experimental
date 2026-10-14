@@ -332,6 +332,9 @@ if(WIN32)
   # window. main.cpp's attachParentConsoleIfAny() is what keeps --batch/--decode's
   # output reaching a terminal when launched from one despite this.
   set_target_properties(qsstv PROPERTIES WIN32_EXECUTABLE TRUE)
+  # Embed the application icon in qsstv.exe (shown in Explorer / taskbar).
+  target_sources(qsstv PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/windows/qsstv.rc")
+  target_include_directories(qsstv PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/windows")
 endif()
 
 if(WIN32 OR APPLE)
@@ -441,7 +444,7 @@ target_compile_definitions(qsstv PRIVATE QSSTV_USERGUIDE_SRC_DIR="${CMAKE_CURREN
 if(UNIX AND NOT APPLE)
   install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../qsstv-experimental.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications")
   install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/linux/io.github.jbdubbs.qsstv_experimental.metainfo.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo")
-  foreach(sz 16 32 48 64 128)
+  foreach(sz 16 32 48 64 128 256 512)
     install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/linux/icons/qsstv-experimental-${sz}.png"
             DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/${sz}x${sz}/apps" RENAME qsstv-experimental.png)
   endforeach()

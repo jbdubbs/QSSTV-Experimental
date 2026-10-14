@@ -756,6 +756,7 @@ void mainWindow::slotAboutQSSTV()
   temp += "\n\nBuilt upon the original:\nQSSTV\nVersion 9.5.11\nhttps://www.qsl.net/o/on4qz\nCopyright 2000-2019 - Johan Maes - ON4QZ\nHAMDRM Software based on RX/TXAMADRM - PA0MBO";
   temp += "\n\nLicensed under the GNU GPL v3. Includes code from Dream (DRM), Phil Karn KA9Q, MiXViews, Maia XML-RPC, the Papirus icons and others; see Third-party licenses.";
   QMessageBox box(QMessageBox::Information,tr("About..."),temp,QMessageBox::Ok,this);
+  box.setIconPixmap(QPixmap(":/icons/qsstv.png").scaled(64,64,Qt::KeepAspectRatio,Qt::SmoothTransformation));
   QPushButton *licButton=box.addButton(tr("Third-party licenses..."),QMessageBox::ActionRole);
   box.exec();
   if(box.clickedButton()==licButton)
