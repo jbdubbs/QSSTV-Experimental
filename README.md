@@ -28,8 +28,8 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 ### Platforms
 
 - **Windows** (64-bit, 10 1809 or later, or 11)
-- **Linux AppImage** x86_64/arm64 - Ubuntu 24.04, Fedora 39 or similar and later
-- **macOS** Released for Intel/Apple Silicon but no testing hardware.  Give it a try, and file an issue if it doesn't work. MacOS 15 or later.
+- **Linux AppImage** (x86_64/arm64 - Ubuntu 24.04, Fedora 39 or similar and later)
+- **macOS** (macOS 15 or later, Intel or Apple Silicon UNTESTED, no hardware.  File a bug report.)
 
 ### What's New?
 #### Features
