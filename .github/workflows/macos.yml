@@ -1,4 +1,4 @@
-# macOS (Apple Silicon / arm64) build: compiles, runs the headless file-decode test, and uploads an
+# macOS (Apple Silicon arm64 + Intel x86_64) build: compiles, runs the headless file-decode test, and uploads an
 # ad-hoc-signed .app (zip + dmg) for testers. Not notarized -- see BUILDING.md for the Gatekeeper step.
 # CI covers build + decoding only; live audio, the mic permission prompt, the GUI and CAT need a real Mac.
 # Runs only when a release is published (or manually), not on every push.
@@ -14,7 +14,13 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
-    runs-on: macos-14   # Apple Silicon (arm64)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {arch: arm64,  runner: macos-14}          # Apple Silicon
+          - {arch: x86_64, runner: macos-15-intel}    # Intel
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
 
@@ -28,6 +34,11 @@ jobs:
 
       - name: Build
         run: cmake --build build -j "$(sysctl -n hw.ncpu)"
+
+      - name: Check binary architecture
+        run: |
+          lipo -archs build/qsstv.app/Contents/MacOS/qsstv | tee /dev/stderr | grep -qx "${{ matrix.arch }}"
+          otool -l build/qsstv.app/Contents/MacOS/qsstv | grep -A4 LC_BUILD_VERSION | grep minos
 
       - name: Headless decode test
         env:
@@ -74,20 +85,20 @@ jobs:
         run: |
           set -e
           cd build
-          ditto -c -k --keepParent QSSTV-Experimental.app QSSTV-Experimental-macos-arm64.zip
+          ditto -c -k --keepParent QSSTV-Experimental.app QSSTV-Experimental-macos-${{ matrix.arch }}.zip
           # stage the app next to an /Applications shortcut so users can drag it across in the mounted disk image
           mkdir dmg-stage
           cp -R QSSTV-Experimental.app dmg-stage/
           ln -s /Applications dmg-stage/Applications
-          hdiutil create -volname QSSTV-Experimental -srcfolder dmg-stage -ov -format UDZO QSSTV-Experimental-macos-arm64.dmg
-          shasum -a 256 QSSTV-Experimental-macos-arm64.*
+          hdiutil create -volname QSSTV-Experimental -srcfolder dmg-stage -ov -format UDZO QSSTV-Experimental-macos-${{ matrix.arch }}.dmg
+          shasum -a 256 QSSTV-Experimental-macos-${{ matrix.arch }}.*
 
       - uses: actions/upload-artifact@v4
         with:
-          name: QSSTV-Experimental-macos-arm64
+          name: QSSTV-Experimental-macos-${{ matrix.arch }}
           path: |
-            build/QSSTV-Experimental-macos-arm64.zip
-            build/QSSTV-Experimental-macos-arm64.dmg
+            build/QSSTV-Experimental-macos-${{ matrix.arch }}.zip
+            build/QSSTV-Experimental-macos-${{ matrix.arch }}.dmg
 
       - name: Attach to the release
         if: github.event_name == 'release'
@@ -97,6 +108,6 @@ jobs:
         run: |
           set -e
           cd build
-          for ext in zip dmg; do cp QSSTV-Experimental-macos-arm64.$ext "QSSTV-Experimental-$TAG-macos-arm64.$ext"; done
-          shasum -a 256 QSSTV-Experimental-"$TAG"-macos-arm64.* > "QSSTV-Experimental-$TAG-macos-arm64.sha256"
-          gh release upload "$TAG" QSSTV-Experimental-"$TAG"-macos-arm64.* --repo "$GITHUB_REPOSITORY" --clobber
+          for ext in zip dmg; do cp QSSTV-Experimental-macos-${{ matrix.arch }}.$ext "QSSTV-Experimental-$TAG-macos-${{ matrix.arch }}.$ext"; done
+          shasum -a 256 QSSTV-Experimental-"$TAG"-macos-${{ matrix.arch }}.* > "QSSTV-Experimental-$TAG-macos-${{ matrix.arch }}.sha256"
+          gh release upload "$TAG" QSSTV-Experimental-"$TAG"-macos-${{ matrix.arch }}.* --repo "$GITHUB_REPOSITORY" --clobber

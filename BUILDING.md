@@ -196,7 +196,8 @@ installed; AVIF works either way. HEIC decoding uses libde265 (LGPL); HEVC paten
 
 ## macOS
 
-Apple Silicon (arm64) only, and **experimental**: CI builds and decodes test recordings on every change, but nobody
+Apple Silicon (arm64) and Intel (x86_64), both **experimental**: CI builds each natively (the Intel build runs on a
+`macos-15-intel` runner), builds and decodes test recordings on every change, but nobody
 has yet verified live audio, microphone access or CAT control on real hardware.
 
 ```
