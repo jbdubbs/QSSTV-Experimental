@@ -5,7 +5,7 @@
 </p>
 
 QSSTV-Experimental is an amateur-radio program for sending and receiving **SSTV** (slow-scan television) and **HAMDRM / DSSTV**
-(digital SSTV) pictures using a sound card. It is compatible with most of MMSSTV and EasyPal.
+(digital SSTV) pictures using a sound card. It is compatible with most of MMSSTV and EasyPal.  Substantial changes have been made versus upstream QSSTV.
 
 It is a fork of **QSSTV 9.5.11**, written by **Johan Maes, ON4QZ** (copyright 2000-2019, <https://www.qsl.net/o/on4qz>).
 The HAMDRM software in QSSTV is based on RX/TXAMADRM by **PA0MBO**. Further contributions to the Qt6/macOS/FreeBSD
@@ -36,7 +36,7 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 
 - **Sample-rate calibration** - from WWV time ticks, NTP, or the slant of a received SSTV picture
 - **Decode SSTV from audio files** - (WAV, MP3, FLAC, OGG, AAC), from the GUI (*File > Decode SSTV From File...*) at about 10x real time, or from the command line with `qsstv --batch`, headless, with scriptable exit codes
-- **New SSTV modes:** - *JB60*, a ~61 s half-time color mode, and *PD120W*, a 16:9 widescreen PD120
+- **New SSTV modes:** - *JB60*, a ~61 s 640*496 color mode, and *PD120W*, a 16:9 widescreen PD120
 - **Stitched grid images:** - transmit large pictures as 1x2, 2x1 or 2x2 grids on the larger modes
 - **Pan/Zoom images for transmission** - Place images exactly how you want them in-frame (and in grids) before transmission
 - **Gallery multi-select** - to delete or send several images to TX, with the Del key for quick deletion
