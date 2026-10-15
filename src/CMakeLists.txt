@@ -328,11 +328,11 @@ endif()
 add_executable(qsstv ${QSSTV_SOURCES} ${QSSTV_FORMS} qsstv.qrc)
 
 if(WIN32)
-  # GUI subsystem, not console -- double-clicking qsstv.exe shouldn't flash a console
+  # GUI subsystem, not console -- double-clicking qsstv-experimental.exe shouldn't flash a console
   # window. main.cpp's attachParentConsoleIfAny() is what keeps --batch/--decode's
   # output reaching a terminal when launched from one despite this.
   set_target_properties(qsstv PROPERTIES WIN32_EXECUTABLE TRUE)
-  # Embed the application icon in qsstv.exe (shown in Explorer / taskbar).
+  # Embed the application icon in qsstv-experimental.exe (shown in Explorer / taskbar).
   target_sources(qsstv PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/windows/qsstv.rc")
   target_include_directories(qsstv PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/windows")
 endif()
@@ -361,6 +361,10 @@ target_include_directories(qsstv PRIVATE
 # AUTOUIC only looks in the including .cpp's own directory by default -- e.g.
 # mainwidgets/txwidget.cpp includes "ui_freqform.h" for widgets/freqform.ui. Point it at
 # every directory that holds a .ui file instead.
+# The executable is qsstv-experimental (qsstv-experimental.exe / qsstv-experimental.app) so it never collides with
+# the original QSSTV's qsstv binary (issue #114). The target keeps its short name.
+set_target_properties(qsstv PROPERTIES OUTPUT_NAME qsstv-experimental)
+
 set_target_properties(qsstv PROPERTIES
     AUTOUIC_SEARCH_PATHS "${CMAKE_CURRENT_SOURCE_DIR};${CMAKE_CURRENT_SOURCE_DIR}/config;${CMAKE_CURRENT_SOURCE_DIR}/dispatch;${CMAKE_CURRENT_SOURCE_DIR}/drmrx;${CMAKE_CURRENT_SOURCE_DIR}/drmtx;${CMAKE_CURRENT_SOURCE_DIR}/dsp;${CMAKE_CURRENT_SOURCE_DIR}/editor;${CMAKE_CURRENT_SOURCE_DIR}/logbook;${CMAKE_CURRENT_SOURCE_DIR}/mainwidgets;${CMAKE_CURRENT_SOURCE_DIR}/rig;${CMAKE_CURRENT_SOURCE_DIR}/scope;${CMAKE_CURRENT_SOURCE_DIR}/sound;${CMAKE_CURRENT_SOURCE_DIR}/sstv;${CMAKE_CURRENT_SOURCE_DIR}/utils;${CMAKE_CURRENT_SOURCE_DIR}/widgets;${CMAKE_CURRENT_SOURCE_DIR}/xmlrpc;${CMAKE_CURRENT_SOURCE_DIR}/videocapt"
 )

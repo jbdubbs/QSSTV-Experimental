@@ -174,13 +174,13 @@ The Windows build is a MinGW cross-compile.
    cd build-mingw64 && cpack -G ZIP
    ```
 
-   The output is `QSSTV-Experimental-<version>-win64.zip`, containing `qsstv.exe` and every required Qt, MinGW,
+   The output is `QSSTV-Experimental-<version>-win64.zip`, containing `qsstv-experimental.exe` and every required Qt, MinGW,
    FFTW, OpenJPEG and Hamlib DLL plus the Qt plugins.
 
 5. Check that the package bundles every DLL it needs, including indirect ones:
 
    ```
-   tools/check-win-deps.py build-mingw64/qsstv.exe
+   tools/check-win-deps.py build-mingw64/qsstv-experimental.exe
    ```
 
 Supported systems: 64-bit Windows 10 version 1809 or newer, and Windows 11 (Qt 6's own minimum). Run `winver` to
@@ -213,8 +213,8 @@ cmake -S src -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$(brew --p
 cmake --build build -j"$(sysctl -n hw.ncpu)"
 ```
 
-This produces `build/qsstv.app`. To make it self-contained, run `"$(brew --prefix qt@6)/bin/macdeployqt" build/qsstv.app`
-and sign it ad hoc with `codesign --force --deep --sign - build/qsstv.app`; `.github/workflows/macos.yml` does exactly
+This produces `build/qsstv-experimental.app`. To make it self-contained, run `"$(brew --prefix qt@6)/bin/macdeployqt" build/qsstv-experimental.app`
+and sign it ad hoc with `codesign --force --deep --sign - build/qsstv-experimental.app`; `.github/workflows/macos.yml` does exactly
 this, adds the icon, and publishes a `.zip` and `.dmg` as a workflow artifact (Actions > "macOS build" > a run >
 Artifacts).
 
@@ -222,6 +222,6 @@ The build is not notarized, so Gatekeeper blocks the first launch of a downloade
 choose Open, then Open again, or run `xattr -dr com.apple.quarantine QSSTV-Experimental.app`. On first use macOS asks
 for microphone access; if you deny it, re-enable it under System Settings > Privacy & Security > Microphone.
 
-Headless checks work as on Linux: `QSSTV_BIN=build/qsstv.app/Contents/MacOS/qsstv tests/filedecode/run.sh` (needs
+Headless checks work as on Linux: `QSSTV_BIN=build/qsstv-experimental.app/Contents/MacOS/qsstv-experimental tests/filedecode/run.sh` (needs
 Homebrew bash, `brew install bash`, since macOS ships bash 3.2). Ogg Vorbis files are decoded with libvorbisfile
 because macOS's audio decoder does not handle Vorbis.

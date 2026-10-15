@@ -4,12 +4,12 @@
 # receive clock deliberately set wrong; the line slants, and the clock the tab would propose
 # (rxclock * (1 + slope * rowsPerPeriod / pixelsPerPeriod)) must come back to 48000 within a few ppm.
 #
-#   tests/slant/loopback.sh                       # uses ../../build-cmake/qsstv
-#   QSSTV_BIN=/path/to/qsstv tests/slant/loopback.sh
+#   tests/slant/loopback.sh                       # uses ../../build-cmake/qsstv-experimental
+#   QSSTV_BIN=/path/to/qsstv-experimental tests/slant/loopback.sh
 HERE=$(cd "$(dirname "$0")" && pwd)
-QSSTV=${QSSTV_BIN:-$HERE/../../build-cmake/qsstv}
+QSSTV=${QSSTV_BIN:-$HERE/../../build-cmake/qsstv-experimental}
 LB="$HERE/../jb60_loopback/loopback"
-[ -x "$QSSTV" ] || { echo "qsstv not found at $QSSTV (set QSSTV_BIN)"; exit 2; }
+[ -x "$QSSTV" ] || { echo "qsstv-experimental not found at $QSSTV (set QSSTV_BIN)"; exit 2; }
 [ -x "$LB" ] || (cd "$HERE/../jb60_loopback" && ./build.sh) || exit 2
 SRC="$HERE/../../src/sound"
 QT=${QT_INCLUDE:-/usr/include/qt6}

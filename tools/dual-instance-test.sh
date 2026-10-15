@@ -14,11 +14,11 @@
 # you quit it from its own window, so do that rather than Ctrl-C if you want them kept.
 # Delete $TEST_DIR/<tx|rx>/cfg to start an instance from scratch.
 #
-# Env: QSSTV_BIN (default build-cmake/qsstv), TEST_DIR (default /tmp/qsstv-test),
+# Env: QSSTV_BIN (default build-cmake/qsstv-experimental), TEST_DIR (default /tmp/qsstv-test),
 #      RX_FILTER (grep pattern for terminal output of both instances, default: all output)
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BIN="${QSSTV_BIN:-$ROOT/build-cmake/qsstv}"
+BIN="${QSSTV_BIN:-$ROOT/build-cmake/qsstv-experimental}"
 DIR="${TEST_DIR:-/tmp/qsstv-test}"
 SINK=qsstv_cable
 FILTER="${RX_FILTER-}"

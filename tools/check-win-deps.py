@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """Verify the Windows package bundles every non-system DLL it actually needs.
 
-Checking only qsstv.exe's own imports (or those plus the Qt plugins' own imports) is not
+Checking only qsstv-experimental.exe's own imports (or those plus the Qt plugins' own imports) is not
 enough: a bundled DLL like Qt6Gui.dll or Qt6Network.dll can itself depend on further
 non-system DLLs (ICU, fontconfig/freetype/harfbuzz, OpenSSL, pcre2, zlib, ...) that never
 show up until something using them actually runs. That's exactly how "icui18n77.dll was
 not found" made it into a published release: the DLL list in src/CMakeLists.txt was
-checked against qsstv.exe's and each plugin's own direct imports, not the full recursive
+checked against qsstv-experimental.exe's and each plugin's own direct imports, not the full recursive
 closure. This script walks the whole closure with objdump instead of eyeballing it.
 
 Usage:
-    tools/check-win-deps.py build-mingw64/qsstv.exe [build-mingw64/qsstv-9.0-win64/...]
+    tools/check-win-deps.py build-mingw64/qsstv-experimental.exe [build-mingw64/qsstv-9.0-win64/...]
 
 With just the exe, it reports the full set of non-system DLLs needed (including Qt
 plugins found under the mingw sysroot) so you can compare it against
@@ -28,7 +28,7 @@ OBJDUMP = "x86_64-w64-mingw32-objdump"
 # AVIF/HEIC plugins and their libs, cross-built by tools/build-image-plugins-win64.sh (optional)
 VENDORED = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "third_party", "imageformats-win64")
 
-# Plugins this app loads at runtime (not visible in qsstv.exe's own import table --
+# Plugins this app loads at runtime (not visible in qsstv-experimental.exe's own import table --
 # Qt loads them dynamically) -- keep in sync with the install(FILES ... DESTINATION
 # platforms/multimedia/imageformats/styles) rules in src/CMakeLists.txt.
 PLUGIN_DLLS = [
@@ -83,7 +83,7 @@ def transitive_closure(seed_paths):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("exe", help="path to the cross-compiled qsstv.exe")
+    ap.add_argument("exe", help="path to the cross-compiled qsstv-experimental.exe")
     ap.add_argument("--package-dir", help="unzipped package directory to check for completeness")
     args = ap.parse_args()
 

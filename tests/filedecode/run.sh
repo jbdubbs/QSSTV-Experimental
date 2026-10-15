@@ -1,18 +1,18 @@
 #!/bin/bash
-# End-to-end test of decoding from a file with the real application:  qsstv --batch
+# End-to-end test of decoding from a file with the real application:  qsstv-experimental --batch
 #
 # The loopback harness (tests/jb60_loopback) writes WAV files with the real transmitter preamble and VIS, and
-# the built qsstv decodes them headless, so VIS detection, line sync, and the file
+# the built qsstv-experimental decodes them headless, so VIS detection, line sync, and the file
 # reader are all exercised. The application runs with a throw-away HOME, so your settings are not touched.
 #
-#   tests/filedecode/run.sh                       # uses ../../build-cmake/qsstv
-#   QSSTV_BIN=/path/to/qsstv tests/filedecode/run.sh
+#   tests/filedecode/run.sh                       # uses ../../build-cmake/qsstv-experimental
+#   QSSTV_BIN=/path/to/qsstv-experimental tests/filedecode/run.sh
 #
-# Needs: the built qsstv, g++/Qt6 headers (for the harness), and ffmpeg (optional: adds format/rate variants).
+# Needs: the built qsstv-experimental, g++/Qt6 headers (for the harness), and ffmpeg (optional: adds format/rate variants).
 HERE=$(cd "$(dirname "$0")" && pwd)
-QSSTV=${QSSTV_BIN:-$HERE/../../build-cmake/qsstv}
+QSSTV=${QSSTV_BIN:-$HERE/../../build-cmake/qsstv-experimental}
 LB="$HERE/../jb60_loopback/loopback"
-[ -x "$QSSTV" ] || { echo "qsstv not found at $QSSTV (set QSSTV_BIN)"; exit 2; }
+[ -x "$QSSTV" ] || { echo "qsstv-experimental not found at $QSSTV (set QSSTV_BIN)"; exit 2; }
 [ -x "$LB" ] || (cd "$HERE/../jb60_loopback" && ./build.sh) || { echo "cannot build the loopback harness"; exit 2; }
 
 T=$(mktemp -d)

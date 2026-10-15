@@ -5,7 +5,7 @@
 #
 # The Windows qsstv build links this instead of any system/distro Hamlib, so the
 # shipped app can never depend on -- or silently fall back to -- an externally
-# installed Hamlib. Static by default: the whole library is baked into qsstv.exe, which
+# installed Hamlib. Static by default: the whole library is baked into qsstv-experimental.exe, which
 # is the strongest guarantee against resolving a different Hamlib at runtime (no DLL
 # search order to worry about at all).
 #
@@ -66,7 +66,7 @@ cd "$HAMLIB_WORKTREE"
 if [ "$HAMLIB_SHARED" = "1" ]; then
   LINK_FLAGS=(--enable-shared --disable-static)
   echo "Building a shared libhamlib DLL (HAMLIB_SHARED=1) -- remember to bundle it next to"
-  echo "qsstv.exe at packaging time (Phase 6/7); Windows resolves DLLs from the app"
+  echo "qsstv-experimental.exe at packaging time (Phase 6/7); Windows resolves DLLs from the app"
   echo "directory before PATH, so the bundled copy still wins over anything else installed."
 else
   LINK_FLAGS=(--enable-static --disable-shared)

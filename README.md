@@ -35,7 +35,7 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 #### Features
 
 - **Sample-rate calibration** - from WWV time ticks, NTP, or the slant of a received SSTV picture
-- **Decode SSTV from audio files** - (WAV, MP3, FLAC, OGG, AAC), from the GUI (*File > Decode SSTV From File...*) at about 10x real time, or from the command line with `qsstv --batch`, headless, with scriptable exit codes
+- **Decode SSTV from audio files** - (WAV, MP3, FLAC, OGG, AAC), from the GUI (*File > Decode SSTV From File...*) at about 10x real time, or from the command line with `qsstv-experimental --batch`, headless, with scriptable exit codes
 - **New SSTV modes:** - *JB60*, a ~61 s 640*496 color mode, and *PD120W*, a 16:9 widescreen PD120
 - **Stitched grid images:** - transmit large pictures as 1x2, 2x1 or 2x2 grids on the larger modes
 - **Pan/Zoom images for transmission** - Place images exactly how you want them in-frame (and in grids) before transmission
@@ -79,7 +79,7 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 Ready-to-run builds are published on the [Releases page](https://github.com/jbdubbs/QSSTV-Experimental/releases):
 
 - **Linux:** download the `.AppImage`, make it executable (`chmod +x QSSTV-Experimental-*.AppImage`) and run it.
-- **Windows:** download the `-win64.zip`, extract it anywhere and run `qsstv.exe`.
+- **Windows:** download the `-win64.zip`, extract it anywhere and run `qsstv-experimental.exe`.
 - **macOS (experimental):** Released for Intel/Apple Silicon but no testing hardware.  Give it a try, and file an issue if it doesn't work. MacOS 15 or later.
 ## User's Guide
 

@@ -10,7 +10,7 @@
     <p>It is an independent fork of QSSTV 9.5.11 by Johan Maes, ON4QZ, built on Qt 6. It is not affiliated with or endorsed by the original author, and it is a separate application from the original QSSTV, so the two can be installed side by side. Changes from the original include:</p>
     <ul>
       <li>Sample-rate calibration from WWV time ticks, NTP, or the slant of a received SSTV picture</li>
-      <li>Decode SSTV from audio files (WAV, MP3, FLAC, OGG, AAC), from the GUI at about 10x real time, or from the command line with qsstv --batch, headless, with scriptable exit codes</li>
+      <li>Decode SSTV from audio files (WAV, MP3, FLAC, OGG, AAC), from the GUI at about 10x real time, or from the command line with qsstv-experimental --batch, headless, with scriptable exit codes</li>
       <li>New SSTV modes: JB60, a ~61 s 640*496 color mode, and PD120W, a 16:9 widescreen PD120</li>
       <li>Stitched grid images: transmit large pictures as 1x2, 2x1 or 2x2 grids on the larger modes</li>
       <li>Pan/Zoom images for transmission</li>
@@ -36,7 +36,7 @@
     <category>HamRadio</category>
   </categories>
   <provides>
-    <binary>qsstv</binary>
+    <binary>qsstv-experimental</binary>
   </provides>
   <branding>
     <color type="primary" scheme_preference="light">#c8f0f2</color>

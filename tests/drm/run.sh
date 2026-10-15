@@ -1,20 +1,20 @@
 #!/bin/bash
 # DRM (digital SSTV) loopback test harness, headless (issue #61).
 #
-# qsstv --encode --drm writes a DRM transmission of a picture to a wav file with the real transmitter; qsstv --batch
+# qsstv-experimental --encode --drm writes a DRM transmission of a picture to a wav file with the real transmitter; qsstv-experimental --batch
 # --drm decodes it with the real receiver and prints a "drm-stats:" line (sync / FAC / MSC percentages, MSC flaps,
 # MER). --rx-gain and --rx-noise (test aids, file source only) vary the level and add noise.
 #
 #   tests/drm/run.sh                    # the checks; exit status 0 when all pass
 #   tests/drm/run.sh sweep              # report only: modes x gain x noise table, nothing is asserted
-#   tests/drm/run.sh decode file.wav [qsstv --batch options]   # decode one recording, print its drm-stats
-#   QSSTV_BIN=/path/to/qsstv tests/drm/run.sh
+#   tests/drm/run.sh decode file.wav [qsstv-experimental --batch options]   # decode one recording, print its drm-stats
+#   QSSTV_BIN=/path/to/qsstv-experimental tests/drm/run.sh
 #
 # Settings are never touched: the application runs with a throw-away HOME.
 HERE=$(cd "$(dirname "$0")" && pwd)
-QSSTV=${QSSTV_BIN:-$HERE/../../build-cmake/qsstv}
+QSSTV=${QSSTV_BIN:-$HERE/../../build-cmake/qsstv-experimental}
 IMG=${DRM_IMAGE:-$HERE/card160.png}   # small: 4-QAM transmissions of big pictures take many minutes
-[ -x "$QSSTV" ] || { echo "qsstv not found at $QSSTV (set QSSTV_BIN)"; exit 2; }
+[ -x "$QSSTV" ] || { echo "qsstv-experimental not found at $QSSTV (set QSSTV_BIN)"; exit 2; }
 
 T=$(mktemp -d)
 trap 'rm -rf "$T"' EXIT

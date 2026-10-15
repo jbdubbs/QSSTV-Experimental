@@ -58,7 +58,7 @@ export EXTRA_PLATFORM_PLUGINS="libqoffscreen.so;libqwayland.so"
 case "$(uname -m)" in x86_64) UARCH=x86_64;; *) UARCH=$(uname -m);; esac
 export LDAI_UPDATE_INFORMATION="gh-releases-zsync|jbdubbs|QSSTV-Experimental|latest|QSSTV-Experimental-*-$UARCH.AppImage.zsync"
 linuxdeploy --appdir $APPDIR "${FORCE[@]}" \
-  --executable $APPDIR/usr/bin/qsstv \
+  --executable $APPDIR/usr/bin/qsstv-experimental \
   --desktop-file $APPDIR/usr/share/applications/qsstv-experimental.desktop \
   $(for z in 16 32 48 64 128 256 512; do echo --icon-file $APPDIR/usr/share/icons/hicolor/${z}x${z}/apps/qsstv-experimental.png; done) \
   --plugin qt --output appimage

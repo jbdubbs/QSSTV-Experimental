@@ -37,12 +37,12 @@ jobs:
 
       - name: Check binary architecture
         run: |
-          lipo -archs build/qsstv.app/Contents/MacOS/qsstv | tee /dev/stderr | grep -qx "${{ matrix.arch }}"
-          otool -l build/qsstv.app/Contents/MacOS/qsstv | grep -A4 LC_BUILD_VERSION | grep minos
+          lipo -archs build/qsstv-experimental.app/Contents/MacOS/qsstv-experimental | tee /dev/stderr | grep -qx "${{ matrix.arch }}"
+          otool -l build/qsstv-experimental.app/Contents/MacOS/qsstv-experimental | grep -A4 LC_BUILD_VERSION | grep minos
 
       - name: Headless decode test
         env:
-          QSSTV_BIN: ${{ github.workspace }}/build/qsstv.app/Contents/MacOS/qsstv
+          QSSTV_BIN: ${{ github.workspace }}/build/qsstv-experimental.app/Contents/MacOS/qsstv-experimental
         # the test needs bash 4+ (macOS ships 3.2)
         run: |
           "$(brew --prefix)/bin/bash" tests/filedecode/run.sh
@@ -54,7 +54,7 @@ jobs:
         run: |
           for i in 1 2 3 4 5; do
             rm -f /tmp/tx.wav
-            build/qsstv.app/Contents/MacOS/qsstv --encode tests/jb60_loopback/images/card.png --mode JB60 --wav-out /tmp/tx.wav 2>/tmp/enc.err || { echo "attempt $i failed: $?"; tail -5 /tmp/enc.err; exit 1; }
+            build/qsstv-experimental.app/Contents/MacOS/qsstv-experimental --encode tests/jb60_loopback/images/card.png --mode JB60 --wav-out /tmp/tx.wav 2>/tmp/enc.err || { echo "attempt $i failed: $?"; tail -5 /tmp/enc.err; exit 1; }
             sz=$(stat -f %z /tmp/tx.wav); echo "attempt $i: $sz bytes, $(grep -c 'Bad file' /tmp/enc.err) 'Bad file' lines"
             [ "$sz" -gt 6000000 ] || exit 1
           done
@@ -68,18 +68,18 @@ jobs:
           cp $I-32.png qsstv.iconset/icon_32x32.png;     cp $I-64.png  qsstv.iconset/icon_32x32@2x.png
           cp $I-128.png qsstv.iconset/icon_128x128.png;  cp $I-256.png qsstv.iconset/icon_128x128@2x.png
           cp $I-256.png qsstv.iconset/icon_256x256.png;  cp $I-512.png qsstv.iconset/icon_256x256@2x.png
-          iconutil -c icns qsstv.iconset -o build/qsstv.app/Contents/Resources/qsstv-experimental.icns
+          iconutil -c icns qsstv.iconset -o build/qsstv-experimental.app/Contents/Resources/qsstv-experimental.icns
 
       - name: Bundle Qt and sign
         run: |
           set -e
           cd build
-          mv qsstv.app QSSTV-Experimental.app
+          mv qsstv-experimental.app QSSTV-Experimental.app
           "$QT_PREFIX/bin/macdeployqt" QSSTV-Experimental.app
           codesign --force --deep --sign - QSSTV-Experimental.app
           codesign --verify --deep --strict QSSTV-Experimental.app
           echo "--- non-system libraries still referenced (should be none):"
-          otool -L QSSTV-Experimental.app/Contents/MacOS/qsstv | grep -E "/opt/homebrew|/usr/local" || true
+          otool -L QSSTV-Experimental.app/Contents/MacOS/qsstv-experimental | grep -E "/opt/homebrew|/usr/local" || true
 
       - name: Package
         run: |
