@@ -231,8 +231,17 @@ void soundQtMultimedia::flushPlayback()
   // --encode: the sink belongs to the main thread and nothing is played; stop()/start() from this worker thread
   // makes Qt's macOS audio backend touch QSocketNotifiers cross-thread and crash (issue #98)
   if(!txFileName.isEmpty()) return;
-  audioSinkPtr->stop();
-  playbackDevicePtr=audioSinkPtr->start();
+  // Otherwise the sink still belongs to the thread that created it (the GUI thread) while this runs on the sound
+  // worker thread. Qt's PulseAudio backend then enables/disables its QSocketNotifiers cross-thread, leaves one
+  // invalid, and the GUI event loop spins warning about it forever -- a frozen app on every send (issue #113).
+  // So run the restart on the sink's own thread and wait for it; stopSoundThread() keeps pumping events meanwhile.
+  auto restart=[this]()
+    {
+      audioSinkPtr->stop();
+      playbackDevicePtr=audioSinkPtr->start();
+    };
+  if(QThread::currentThread()==thread()) restart();
+  else if(!stopThread) QMetaObject::invokeMethod(this,restart,Qt::BlockingQueuedConnection);
 }
 
 void soundQtMultimedia::closeDevices()
