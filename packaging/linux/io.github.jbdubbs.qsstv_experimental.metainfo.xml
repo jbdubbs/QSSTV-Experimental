@@ -6,8 +6,23 @@
   <name>QSSTV-Experimental</name>
   <summary>Amateur radio slow-scan television and digital SSTV (DRM)</summary>
   <description>
-    <p>QSSTV-Experimental sends and receives amateur radio slow-scan television (SSTV) pictures and digital SSTV over DRM, using your sound card and optionally a rig-control connection.</p>
-    <p>It is built upon the original QSSTV by Johan Maes, ON4QZ, and adds new modes, an improved receiver, decoding of recordings from files, and batch operation from the command line.</p>
+    <p>QSSTV-Experimental sends and receives amateur radio slow-scan television (SSTV) pictures and digital SSTV over DRM, using your sound card and optionally a rig-control connection through Hamlib.</p>
+    <p>It is an independent fork of QSSTV 9.5.11 by Johan Maes, ON4QZ, built on Qt 6. It is not affiliated with or endorsed by the original author, and it is a separate application from the original QSSTV, so the two can be installed side by side. Changes from the original include:</p>
+    <ul>
+      <li>Sample-rate calibration from WWV time ticks, NTP, or the slant of a received SSTV picture</li>
+      <li>Decode SSTV from audio files (WAV, MP3, FLAC, OGG, AAC), from the GUI at about 10x real time, or from the command line with qsstv --batch, headless, with scriptable exit codes</li>
+      <li>New SSTV modes: JB60, a ~61 s 640*496 color mode, and PD120W, a 16:9 widescreen PD120</li>
+      <li>Stitched grid images: transmit large pictures as 1x2, 2x1 or 2x2 grids on the larger modes</li>
+      <li>Pan/Zoom images for transmission</li>
+      <li>Gallery multi-select, to delete or send several images to TX</li>
+      <li>WebP, AVIF and HEIC image formats, with EXIF/HEIF orientation applied on import</li>
+      <li>Image viewer zoom and pan</li>
+      <li>Clipboard support: copy images from anywhere, paste into the transmit window or TX stock</li>
+      <li>ADIF logbook broadcast over UDP</li>
+      <li>DRM Live size-slider preview</li>
+      <li>DRM Progressive Image Reception: image previews as you receive, improving in quality over time</li>
+    </ul>
+    <p>The original QSSTV features are kept: Martin, Scottie, Robot, PD and many other SSTV modes, HAMDRM (digital SSTV) receive and transmit, an image gallery, a transmit image editor with templates, and CW and FSK identification.</p>
   </description>
   <launchable type="desktop-id">qsstv-experimental.desktop</launchable>
   <url type="homepage">https://github.com/jbdubbs/QSSTV-Experimental</url>
