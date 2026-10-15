@@ -432,8 +432,17 @@ endif()
 set(QSSTV_LICENSE_FILES
   "${CMAKE_CURRENT_SOURCE_DIR}/../COPYING"
   "${CMAKE_CURRENT_SOURCE_DIR}/../THIRD_PARTY_LICENSES.md")
+# Flatpak (Flathub) requires the desktop file, icon and metainfo launchable to be named
+# after the app ID, and the license files to be installed in share/licenses/<app ID>. The
+# AppImage and native installs keep the short "qsstv-experimental" names (the AppImage
+# scripts and self-integration code depend on them), so the app-ID layout is opt-in:
+# cmake -DQSSTV_APPID_NAMES=ON
+option(QSSTV_APPID_NAMES "Install files named after the app ID, licenses in share/licenses (Flatpak)" OFF)
+set(QSSTV_APP_ID "io.github.jbdubbs.qsstv_experimental")
 if(WIN32)
   install(FILES ${QSSTV_LICENSE_FILES} DESTINATION .)
+elseif(QSSTV_APPID_NAMES AND UNIX AND NOT APPLE)
+  install(FILES ${QSSTV_LICENSE_FILES} DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/licenses/${QSSTV_APP_ID}")
 else()
   install(FILES ${QSSTV_LICENSE_FILES} DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/doc/qsstv")
 endif()
@@ -446,12 +455,7 @@ endif()
 # Dev-tree fallback so Help > Users Guide works from an uninstalled build
 target_compile_definitions(qsstv PRIVATE QSSTV_USERGUIDE_SRC_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../documentation/userguide")
 if(UNIX AND NOT APPLE)
-  # Flatpak (Flathub) requires the desktop file, icon and metainfo launchable to be named
-  # after the app ID. The AppImage and native installs keep the short "qsstv-experimental"
-  # names (the AppImage scripts and self-integration code depend on them), so the app-ID
-  # names are opt-in: cmake -DQSSTV_APPID_NAMES=ON
-  option(QSSTV_APPID_NAMES "Install desktop file/icons named after the app ID (Flatpak)" OFF)
-  set(QSSTV_APP_ID "io.github.jbdubbs.qsstv_experimental")
+  # QSSTV_APPID_NAMES / QSSTV_APP_ID are declared with the license install above.
   set(QSSTV_DESKTOP_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../qsstv-experimental.desktop")
   set(QSSTV_METAINFO_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/linux/${QSSTV_APP_ID}.metainfo.xml")
   if(QSSTV_APPID_NAMES)
