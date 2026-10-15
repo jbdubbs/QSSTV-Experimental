@@ -54,8 +54,8 @@ QtCreator can open `src/CMakeLists.txt` directly. If you have trouble compiling,
 ### Flatpak naming
 
 Flatpak requires the desktop file, icon and metainfo launchable to be named after the app ID
-(`io.github.jbdubbs.qsstv_experimental`), and the license files to be installed in
-`share/licenses/io.github.jbdubbs.qsstv_experimental`. Configure with `-DQSSTV_APPID_NAMES=ON` to install them that way;
+(`io.github.jbdubbs.qsstv-experimental`), and the license files to be installed in
+`share/licenses/io.github.jbdubbs.qsstv-experimental`. Configure with `-DQSSTV_APPID_NAMES=ON` to install them that way;
 the default keeps the short `qsstv-experimental.*` names and `share/doc/qsstv` that the AppImage and native installs use. Under Flatpak the app also
 takes its Wayland app ID from `$FLATPAK_ID`.
 

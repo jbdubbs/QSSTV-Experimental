@@ -438,7 +438,7 @@ set(QSSTV_LICENSE_FILES
 # scripts and self-integration code depend on them), so the app-ID layout is opt-in:
 # cmake -DQSSTV_APPID_NAMES=ON
 option(QSSTV_APPID_NAMES "Install files named after the app ID, licenses in share/licenses (Flatpak)" OFF)
-set(QSSTV_APP_ID "io.github.jbdubbs.qsstv_experimental")
+set(QSSTV_APP_ID "io.github.jbdubbs.qsstv-experimental")
 if(WIN32)
   install(FILES ${QSSTV_LICENSE_FILES} DESTINATION .)
 elseif(QSSTV_APPID_NAMES AND UNIX AND NOT APPLE)

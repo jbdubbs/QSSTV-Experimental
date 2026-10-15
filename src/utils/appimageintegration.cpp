@@ -12,13 +12,16 @@ namespace
 {
 const char *kDesktopName="qsstv-experimental.desktop";
 const char *kIconName="qsstv-experimental.png";
-const char *kMetainfoName="io.github.jbdubbs.qsstv_experimental.metainfo.xml";
+const char *kMetainfoName="io.github.jbdubbs.qsstv-experimental.metainfo.xml";
+// early prerelease AppImages installed the metainfo under this name (underscore); clean it up
+const char *kLegacyMetainfoName="io.github.jbdubbs.qsstv_experimental.metainfo.xml";
 
 QString appImagePath() {return qEnvironmentVariable("APPIMAGE");}
 QString appDir() {return qEnvironmentVariable("APPDIR");}
 QString dataHome() {return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);}
 QString desktopDest() {return dataHome()+"/applications/"+kDesktopName;}
 QString metainfoDest() {return dataHome()+"/metainfo/"+kMetainfoName;}
+QString legacyMetainfoDest() {return dataHome()+"/metainfo/"+kLegacyMetainfoName;}
 QString hicolorDir() {return dataHome()+"/icons/hicolor";}
 
 QString quoted(const QString &p)
@@ -74,6 +77,7 @@ bool removeAll()
   bool removed=false;
   for(const QString &f:ourDesktopFiles()) removed|=QFile::remove(f);
   removed|=QFile::remove(metainfoDest());
+  removed|=QFile::remove(legacyMetainfoDest());
   QDir icons(hicolorDir());
   for(const QString &sz:icons.entryList(QDir::Dirs|QDir::NoDotAndDotDot))
     removed|=QFile::remove(hicolorDir()+"/"+sz+"/apps/"+kIconName);
@@ -170,6 +174,7 @@ bool install(QString &message)
     {
       QDir().mkpath(QFileInfo(metainfoDest()).path());
       QFile::remove(metainfoDest());
+      QFile::remove(legacyMetainfoDest());
       QFile::copy(mi,metainfoDest());
     }
   refreshCaches();
