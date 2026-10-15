@@ -89,6 +89,14 @@ The guide is built into the app (**Help > Users Guide**) and also published onli
 
 See [BUILDING.md](BUILDING.md) for building from source on Linux, Windows and macOS, the AppImage build, and the image-format plugin requirements.
 
+## AI-assisted development disclosure
+
+The original QSSTV by Johan Maes, ON4QZ, contains no AI-generated material. QSSTV-Experimental, this fork, was developed
+with extensive AI involvement: AI tools (Anthropic's Claude, via Claude Code) generated or assisted with the
+fork's new and changed code, documentation, build/packaging scripts and metadata. Every change has been tested by humans, and
+the result was quality-controlled by multiple individuals involved in the project; nothing is released on the basis of AI
+output alone.
+
 ## License and attribution
 
 QSSTV-Experimental is free software under the GNU GPL v3 (`COPYING`, `LICENSE`). It contains code from QSSTV (Johan Maes, ON4QZ),
