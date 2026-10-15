@@ -125,7 +125,9 @@ int main( int argc, char ** argv )
   chooseHeadlessPlatform(argc,argv);
   QCoreApplication::setOrganizationName(ORGANIZATION);
   QCoreApplication::setApplicationName(APPLICATION);
-  QGuiApplication::setDesktopFileName("qsstv-experimental");   // Wayland app id / taskbar-icon match
+  // Wayland app id / taskbar-icon match; under Flatpak the desktop file is named after the app ID
+  QGuiApplication::setDesktopFileName(qEnvironmentVariableIsSet("FLATPAK_ID") ? qEnvironmentVariable("FLATPAK_ID")
+                                                                              : QStringLiteral("qsstv-experimental"));
   QApplication app( argc, argv );
   fixBareFusionLook();
   if(qEnvironmentVariableIsSet("QSSTV_LOG_FORMATS"))

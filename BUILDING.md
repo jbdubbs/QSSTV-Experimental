@@ -51,6 +51,13 @@ cmake -S src -B build-debug -DCMAKE_BUILD_TYPE=Debug
 QtCreator can open `src/CMakeLists.txt` directly. If you have trouble compiling, please report the OS and version
 (for example Fedora 44, Ubuntu 24.04, Windows 11), the Qt version, and the actual compiler or linker error.
 
+### Flatpak naming
+
+Flatpak requires the desktop file, icon and metainfo launchable to be named after the app ID
+(`io.github.jbdubbs.qsstv_experimental`). Configure with `-DQSSTV_APPID_NAMES=ON` to install them that way; the default
+keeps the short `qsstv-experimental.*` names that the AppImage and native installs use. Under Flatpak the app also
+takes its Wayland app ID from `$FLATPAK_ID`.
+
 ## Linux AppImage
 
 `packaging/appimage/build.sh` builds the self-contained AppImage inside an Ubuntu 24.04 container (glibc 2.39

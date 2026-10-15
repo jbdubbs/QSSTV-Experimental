@@ -442,11 +442,33 @@ endif()
 # Dev-tree fallback so Help > Users Guide works from an uninstalled build
 target_compile_definitions(qsstv PRIVATE QSSTV_USERGUIDE_SRC_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../documentation/userguide")
 if(UNIX AND NOT APPLE)
-  install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../qsstv-experimental.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications")
-  install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/linux/io.github.jbdubbs.qsstv_experimental.metainfo.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo")
+  # Flatpak (Flathub) requires the desktop file, icon and metainfo launchable to be named
+  # after the app ID. The AppImage and native installs keep the short "qsstv-experimental"
+  # names (the AppImage scripts and self-integration code depend on them), so the app-ID
+  # names are opt-in: cmake -DQSSTV_APPID_NAMES=ON
+  option(QSSTV_APPID_NAMES "Install desktop file/icons named after the app ID (Flatpak)" OFF)
+  set(QSSTV_APP_ID "io.github.jbdubbs.qsstv_experimental")
+  set(QSSTV_DESKTOP_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../qsstv-experimental.desktop")
+  set(QSSTV_METAINFO_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/linux/${QSSTV_APP_ID}.metainfo.xml")
+  if(QSSTV_APPID_NAMES)
+    set(QSSTV_ICON_NAME "${QSSTV_APP_ID}")
+    file(READ "${QSSTV_DESKTOP_SRC}" _desktop)
+    string(REPLACE "Icon=qsstv-experimental" "Icon=${QSSTV_APP_ID}" _desktop "${_desktop}")
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/${QSSTV_APP_ID}.desktop" "${_desktop}")
+    file(READ "${QSSTV_METAINFO_SRC}" _metainfo)
+    string(REPLACE "<launchable type=\"desktop-id\">qsstv-experimental.desktop<"
+                   "<launchable type=\"desktop-id\">${QSSTV_APP_ID}.desktop<" _metainfo "${_metainfo}")
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/${QSSTV_APP_ID}.metainfo.xml" "${_metainfo}")
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${QSSTV_APP_ID}.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications")
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${QSSTV_APP_ID}.metainfo.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo")
+  else()
+    set(QSSTV_ICON_NAME "qsstv-experimental")
+    install(FILES "${QSSTV_DESKTOP_SRC}" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications")
+    install(FILES "${QSSTV_METAINFO_SRC}" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo")
+  endif()
   foreach(sz 16 32 48 64 128 256 512)
     install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/linux/icons/qsstv-experimental-${sz}.png"
-            DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/${sz}x${sz}/apps" RENAME qsstv-experimental.png)
+            DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/${sz}x${sz}/apps" RENAME ${QSSTV_ICON_NAME}.png)
   endforeach()
 endif()
 
