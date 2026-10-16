@@ -1278,7 +1278,7 @@
         <bool>false</bool>
        </property>
        <property name="toolTip">
-        <string>Rx Notifications seen for the last DSSTV Hybrid image sent</string>
+        <string>Rx Notifications seen for the last DRM Hybrid image sent</string>
        </property>
        <property name="statusTip">
         <string/>

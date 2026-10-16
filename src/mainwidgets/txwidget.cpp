@@ -1007,6 +1007,7 @@ void txWidget::changeTransmissionMode(int rxtxMode)
 
     }
   setSettingsTab();
+  ui->txNotificationList->setVisible(transmissionModeIndex==TRXDRM && !lowRes);   // hybrid notifications are DRM-only
   updateGridControl();   // grid availability and canvas size depend on the mode
   static int lastMode=-1;
   bool modeChanged=(lastMode>=0 && lastMode!=transmissionModeIndex);
