@@ -46,6 +46,7 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 - **ADIF logbook broadcast over UDP** - on every OS
 - **DRM Live size-slider preview:** - the picture preview updates as the slider is dragged
 - **DRM Progressive Image Reception** - Image previews as you receive, improving in quality over time
+- **Follows Desktop Themes** - On Linux builds
 
 #### Other changes and updates
 
