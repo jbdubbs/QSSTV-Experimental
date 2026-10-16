@@ -12,7 +12,7 @@ The HAMDRM software in QSSTV is based on RX/TXAMADRM by **PA0MBO**. Further cont
 porting and fixes came from Jörg Wunsch (DL8DTL), Daniele Forsi, hspil, Ruxton, AsciiWolf, Barry de Graaff, Greg Tangey and
 Sam Saccone. This program is based in part on QSSTV and, like it, is released under the GNU GPL v3 (see `COPYING` and `LICENSE`).
 
-## Features
+## Original QSSTV Features
 
 - Receive and transmit SSTV in the common mode families: Martin, Scottie, Robot, PD, Wraase SC2, Pasokon, AVT, BW, FAX480, and the MP/MR/ML/MC families
 - HAMDRM (DSSTV) receive and transmit
