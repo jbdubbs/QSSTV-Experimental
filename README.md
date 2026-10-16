@@ -104,3 +104,11 @@ QSSTV-Experimental is free software under the GNU GPL v3 (`COPYING`, `LICENSE`).
 RXAMADRM (PA0MBO), the Dream DRM software, Phil Karn's Reed-Solomon codec and others, and bundles Qt, Hamlib, FFTW and image libraries
 in binary releases. See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for the full list with licenses; it is also shown in
 *Help > About > Third-party licenses...* and installed with every release.
+
+## Thank you!
+
+I'd like to record a special thank you to all the testers of QSSTV-Experimental:
+
+Stephen WA8LMF (http://wa8lmf.net/) (Extensive Windows SSTV and DRM testing of nearly every test release)
+Rick LC8LOQ (Testing and feedback on several Windows releases)
+Finn KF8GTK (Testing and feedback on Linux releases)
