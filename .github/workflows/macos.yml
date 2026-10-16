@@ -109,5 +109,4 @@ jobs:
           set -e
           cd build
           for ext in zip dmg; do cp QSSTV-Experimental-macos-${{ matrix.arch }}.$ext "QSSTV-Experimental-$TAG-macos-${{ matrix.arch }}.$ext"; done
-          shasum -a 256 QSSTV-Experimental-"$TAG"-macos-${{ matrix.arch }}.* > "QSSTV-Experimental-$TAG-macos-${{ matrix.arch }}.sha256"
           gh release upload "$TAG" QSSTV-Experimental-"$TAG"-macos-${{ matrix.arch }}.* --repo "$GITHUB_REPOSITORY" --clobber
