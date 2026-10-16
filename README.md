@@ -37,7 +37,7 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 - **Sample-rate calibration** - from WWV time ticks, NTP, or the slant of a received SSTV picture
 - **Decode SSTV from audio files** - (WAV, MP3, FLAC, OGG, AAC), from the GUI (*File > Decode SSTV From File...*) at about 10x real time, or from the command line with `qsstv-experimental --batch`, headless, with scriptable exit codes
 - **New SSTV modes:** - *JB60*, a ~61 s 640*496 color mode, and *PD120W*, a 16:9 widescreen PD120
-- **Stitched grid images:** - transmit large pictures as 1x2, 2x1 or 2x2 grids on the larger modes
+- **Stitched grid images:** - transmit pictures as 1x2, 2x1 or 2x2 grids on the higher resolution SSTV modes and DRM
 - **Pan/Zoom images for transmission** - Place images exactly how you want them in-frame (and in grids) before transmission
 - **Gallery multi-select** - to delete or send several images to TX, with the Del key for quick deletion
 - **WebP, AVIF and HEIC** - image formats, with EXIF/HEIF orientation applied on import
