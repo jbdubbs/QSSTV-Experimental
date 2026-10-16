@@ -12,12 +12,12 @@ const QString MAJORVERSION  = "10.0";
 const QString CONFIGVERSION = "9.0";
 const QString MINORVERSION  = "-Pre9";
 // QSSTV-Experimental is built upon the original QSSTV 9.5.11 by Johan Maes, ON4QZ
-// (https://www.qsl.net/o/on4qz). CONFIGVERSION is intentionally left at its original
-// value -- it names the QSettings storage location (see APPLICATION below), and bumping
-// it would silently reset every existing user's saved settings.
+// (https://www.qsl.net/o/on4qz). CONFIGVERSION is the settings-format version written into
+// saved editor files; it no longer names the QSettings storage location.
 const QString LOGVERSION = ("qsstv."+MAJORVERSION+MINORVERSION+".log");
-const QString ORGANIZATION = "ON4QZ";
-const QString APPLICATION  = ("qsstv_" +CONFIGVERSION);
+// QSettings location: ~/.config/qsstv-experimental/qsstv-experimental.conf on Linux
+const QString ORGANIZATION = "qsstv-experimental";
+const QString APPLICATION  = "qsstv-experimental";
 const QString qsstvVersion=QString("QSSTV-Experimental " + MAJORVERSION+MINORVERSION);
 const QString APPNAME=QString("QSSTV-Experimental");
 

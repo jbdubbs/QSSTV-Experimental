@@ -62,8 +62,8 @@ void directoriesConfig::readSettings()
   QSettings qSettings;
   // getenv("HOME") isn't reliably set on Windows; QStandardPaths gives the portable location.
   // GenericDataLocation + APPNAME is used instead of AppDataLocation because the latter embeds
-  // the QSettings organization/application names (ON4QZ/qsstv_9.0), which are kept only so
-  // existing users' settings still load and shouldn't leak into user-visible directories.
+  // the QSettings organization/application names, which would nest the data directory
+  // under a doubled qsstv-experimental/qsstv-experimental path.
   QString appDataPath=QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)+"/"+APPNAME;
   qSettings.beginGroup("DIRECTORIES");
   rxSSTVImagesPath=qSettings.value("rxSSTVImagesPath",appDataPath+"/rx_sstv/").toString();

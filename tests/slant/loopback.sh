@@ -18,9 +18,8 @@ g++ -O2 -fPIC -std=gnu++17 -w -I"$SRC" -I"$QT" -I"$QT/QtCore" -I"$QT/QtGui" -o "
 T=$(mktemp -d)
 trap 'rm -rf "$T"' EXIT
 export HOME=$T/home XDG_CONFIG_HOME=$T/home/.config XDG_DATA_HOME=$T/home/.local/share QT_QPA_PLATFORM=offscreen
-mkdir -p "$HOME/.config/ON4QZ" "$T/out"
-CONF=$HOME/.config/ON4QZ/$(basename "$(find "$HERE/../../src" -name appglobal.cpp | head -1 | xargs grep -o 'CONFIGVERSION *= *"[^"]*"' | head -1 | sed 's/.*"\(.*\)"/qsstv_\1.conf/')")
-[ -f "$CONF" ] || CONF=$HOME/.config/ON4QZ/qsstv_9.0.conf
+mkdir -p "$HOME/.config/qsstv-experimental" "$T/out"
+CONF=$HOME/.config/qsstv-experimental/qsstv-experimental.conf
 
 "$HERE/slantpng" make "$T/line.png" 640 496 320
 "$LB" pd --image "$T/line.png" --vis --wav "$T/pd120.wav" > /dev/null

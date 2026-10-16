@@ -52,7 +52,7 @@ case "${1:-up}" in
     # QSSTV only writes its settings on a clean quit, which killing it here is not, so
     # pre-seed the audio devices on first use (an existing conf is left alone).
     seed() {  # <instance> <input device> <output device>
-      local f="$DIR/$1/cfg/ON4QZ/qsstv_9.0.conf"
+      local f="$DIR/$1/cfg/qsstv-experimental/qsstv-experimental.conf"
       [ -f "$f" ] && return
       mkdir -p "$(dirname "$f")"
       printf '[SOUND]\ninputAudioDevice=%s\noutputAudioDevice=%s\n' "$2" "$3" > "$f"
