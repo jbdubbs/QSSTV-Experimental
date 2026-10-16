@@ -19,6 +19,10 @@ endif()
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network Xml SerialPort Multimedia)
+if(UNIX AND NOT APPLE)
+  # only used to probe for xdg-desktop-portal at startup (native file dialogs, see preferPortalTheme())
+  find_package(Qt6 REQUIRED COMPONENTS DBus)
+endif()
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(FFTW3 REQUIRED IMPORTED_TARGET fftw3 fftw3f)
@@ -387,6 +391,10 @@ if(APPLE)
       COMMAND ${CMAKE_COMMAND} -E copy_directory
               "${CMAKE_CURRENT_SOURCE_DIR}/../documentation/userguide"
               "$<TARGET_BUNDLE_CONTENT_DIR:qsstv>/Resources/userguide")
+endif()
+
+if(UNIX AND NOT APPLE)
+  target_link_libraries(qsstv PRIVATE Qt6::DBus)
 endif()
 
 target_link_libraries(qsstv PRIVATE

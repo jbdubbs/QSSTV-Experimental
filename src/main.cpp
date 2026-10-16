@@ -28,6 +28,10 @@
 #ifdef Q_OS_WIN
 #include <windows.h>
 #endif
+#if defined(Q_OS_LINUX)
+#include <QDBusConnection>
+#include <QDBusConnectionInterface>
+#endif
 #include "appglobal.h"
 #include "mainwindow.h"
 #include <QPixmap>
@@ -91,6 +95,29 @@ static void chooseHeadlessPlatform(int argc,char **argv)
 }
 
 /*!
+  Use the desktop's own file dialogs through xdg-desktop-portal. The AppImage bundles Qt without a GTK/KDE platform
+  theme (so it would show Qt's own dialog), and an unpackaged build only gets a native one if the distro's Qt happens to
+  ship a matching theme. Qt's xdgdesktopportal theme works everywhere without GTK/KDE libraries. It is opted into only
+  when the user has not chosen a theme, we are not headless or in Flatpak (which already uses it), and the portal is
+  actually on the session bus: a missing portal would otherwise stop the dialog from appearing at all. Must run before
+  QApplication is constructed.
+*/
+static void preferPortalTheme()
+{
+#ifdef Q_OS_LINUX
+  if(qEnvironmentVariableIsSet("QT_QPA_PLATFORMTHEME") || qEnvironmentVariableIsSet("FLATPAK_ID")) return;
+  if(qgetenv("QT_QPA_PLATFORM")=="offscreen") return;
+  QDBusConnection bus=QDBusConnection::sessionBus();
+  if(!bus.isConnected() || !bus.interface()) return;
+  const QString portal=QStringLiteral("org.freedesktop.portal.Desktop");
+  // the portal is normally bus-activated, so it need not be running yet
+  if(bus.interface()->isServiceRegistered(portal).value() ||
+     bus.interface()->activatableServiceNames().value().contains(portal))
+    qputenv("QT_QPA_PLATFORMTHEME","xdgdesktopportal");
+#endif
+}
+
+/*!
   The AppImage bundles Qt without a desktop platform theme (no GTK/KDE), so it falls back to plain Fusion with a
   near-white window colour: text boxes and unchecked checkboxes then vanish into the background. Darken the window
   and button colours (Fusion paints tab pages with the button colour) of a light scheme so the white fields and indicator boxes stand out. Dark schemes and desktops with a
@@ -123,6 +150,7 @@ int main( int argc, char ** argv )
   attachParentConsoleIfAny();
 #endif
   chooseHeadlessPlatform(argc,argv);
+  preferPortalTheme();
   QCoreApplication::setOrganizationName(ORGANIZATION);
   QCoreApplication::setApplicationName(APPLICATION);
   // Wayland app id / taskbar-icon match; under Flatpak the desktop file is named after the app ID
