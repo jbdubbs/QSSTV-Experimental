@@ -31,6 +31,12 @@
 #if defined(Q_OS_LINUX)
 #include <QDBusConnection>
 #include <QDBusConnectionInterface>
+#include <QDir>
+#include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QLibraryInfo>
+#include <QPluginLoader>
 #endif
 #include "appglobal.h"
 #include "mainwindow.h"
@@ -94,19 +100,44 @@ static void chooseHeadlessPlatform(int argc,char **argv)
     }
 }
 
+static bool platformThemeAvailable(const QString &name)
+{
+#ifdef Q_OS_LINUX
+  QStringList dirs=qEnvironmentVariable("QT_PLUGIN_PATH").split(':',Qt::SkipEmptyParts);
+  dirs<<QLibraryInfo::path(QLibraryInfo::PluginsPath);
+  for(const QString &d:dirs)
+    for(const QFileInfo &fi:QDir(d+"/platformthemes").entryInfoList({"*.so"},QDir::Files))
+      {
+        // metadata only: the plugin itself is not loaded
+        const QJsonArray keys=QPluginLoader(fi.absoluteFilePath()).metaData().value("MetaData").toObject().value("Keys").toArray();
+        for(const QJsonValue &k:keys)
+          if(k.toString().compare(name,Qt::CaseInsensitive)==0) return true;
+      }
+#else
+  Q_UNUSED(name)
+#endif
+  return false;
+}
+
 /*!
   Use the desktop's own file dialogs through xdg-desktop-portal. The AppImage bundles Qt without a GTK/KDE platform
   theme (so it would show Qt's own dialog), and an unpackaged build only gets a native one if the distro's Qt happens to
   ship a matching theme. Qt's xdgdesktopportal theme works everywhere without GTK/KDE libraries. It is opted into only
-  when the user has not chosen a theme, we are not headless or in Flatpak (which already uses it), and the portal is
+  when the user has not chosen a loadable theme (a named one that has no plugin here, e.g. kde inside the AppImage, is replaced), we are not headless or in Flatpak (which already uses it), and the portal is
   actually on the session bus: a missing portal would otherwise stop the dialog from appearing at all. Must run before
   QApplication is constructed.
 */
 static void preferPortalTheme()
 {
 #ifdef Q_OS_LINUX
-  if(qEnvironmentVariableIsSet("QT_QPA_PLATFORMTHEME") || qEnvironmentVariableIsSet("FLATPAK_ID")) return;
-  if(qgetenv("QT_QPA_PLATFORM")=="offscreen") return;
+  if(qEnvironmentVariableIsSet("FLATPAK_ID") || qgetenv("QT_QPA_PLATFORM")=="offscreen") return;
+  if(qEnvironmentVariableIsSet("QT_QPA_PLATFORMTHEME"))
+    {
+      // a desktop session names its own theme (kde, gtk3, qt6ct, ...); honour it only if that plugin can be loaded.
+      // The AppImage bundles none of them, so there it would silently fall back to bare Fusion with no native dialogs.
+      for(const QString &n:qEnvironmentVariable("QT_QPA_PLATFORMTHEME").split(':',Qt::SkipEmptyParts))
+        if(platformThemeAvailable(n)) return;
+    }
   QDBusConnection bus=QDBusConnection::sessionBus();
   if(!bus.isConnected() || !bus.interface()) return;
   const QString portal=QStringLiteral("org.freedesktop.portal.Desktop");
@@ -118,24 +149,32 @@ static void preferPortalTheme()
 }
 
 /*!
-  The AppImage bundles Qt without a desktop platform theme (no GTK/KDE), so it falls back to plain Fusion with a
-  near-white window colour: text boxes and unchecked checkboxes then vanish into the background. Darken the window
-  and button colours (Fusion paints tab pages with the button colour) of a light scheme so the white fields and indicator boxes stand out. Dark schemes and desktops with a
-  real platform theme are left alone.
+  Qt's xdgdesktopportal theme (and bare Fusion with no theme) reports the desktop's light/dark preference but does not
+  refresh the widget palette from it, so the app stayed light on a dark desktop. Build the palette from Fusion itself,
+  which follows the current colour scheme, and rebuild it when the scheme changes. A light palette is near-white, which
+  hides text boxes and unchecked checkboxes, so its window and button colours are darkened (Fusion paints tab pages with
+  the button colour) to make the white fields and indicator boxes stand out. Real platform themes (kde, gtk3, qt6ct, ...)
+  and non-Fusion styles are left alone.
 */
-static void fixBareFusionLook()
+static void applySchemeAwareFusionPalette()
 {
 #ifdef Q_OS_LINUX
-  if(!qEnvironmentVariableIsSet("APPIMAGE")) return;
-  QString theme=qEnvironmentVariable("QT_QPA_PLATFORMTHEME");
-  if(theme.contains("gtk") || theme.contains("kde")) return;
+  const QString theme=qEnvironmentVariable("QT_QPA_PLATFORMTHEME");
+  if(!theme.isEmpty() && theme!="xdgdesktopportal") return;
   if(QApplication::style()->name().compare("fusion",Qt::CaseInsensitive)!=0) return;
-  QPalette pal=QApplication::palette();
-  if(pal.color(QPalette::Window).lightness()<200) return;
-  pal.setColor(QPalette::Window,QColor(0xe6,0xe6,0xe6));
-  pal.setColor(QPalette::Button,QColor(0xdc,0xdc,0xdc));
-  pal.setColor(QPalette::Base,Qt::white);
-  QApplication::setPalette(pal);
+  static const auto apply=[]
+    {
+      QPalette pal=QApplication::style()->standardPalette();
+      if(pal.color(QPalette::Window).lightness()>=200)
+        {
+          pal.setColor(QPalette::Window,QColor(0xe6,0xe6,0xe6));
+          pal.setColor(QPalette::Button,QColor(0xdc,0xdc,0xdc));
+          pal.setColor(QPalette::Base,Qt::white);
+        }
+      QApplication::setPalette(pal);
+    };
+  apply();
+  QObject::connect(QGuiApplication::styleHints(),&QStyleHints::colorSchemeChanged,qApp,[]{apply();});
 #endif
 }
 
@@ -157,7 +196,7 @@ int main( int argc, char ** argv )
   QGuiApplication::setDesktopFileName(qEnvironmentVariableIsSet("FLATPAK_ID") ? qEnvironmentVariable("FLATPAK_ID")
                                                                               : QStringLiteral("qsstv-experimental"));
   QApplication app( argc, argv );
-  fixBareFusionLook();
+  applySchemeAwareFusionPalette();
   if(qEnvironmentVariableIsSet("QSSTV_LOG_FORMATS"))
     {
       // diagnostic: which image formats this Qt/plugin set can read, and the dialog filter built from them
