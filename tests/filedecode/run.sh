@@ -79,6 +79,29 @@ timing_check() {
 }
 timing_check "jb narrow filter" "$T/jbref_rx.png" "$T/o_jb/jb_1_JB60.png"
 
+echo "== Robot transmit/receive timing regression"
+# The Robot rows in src/sstv/sstvparam.cpp follow the MMSSTV timing (R24: sync 6, porch 2, Y 92, gap 4, chroma 46 ms;
+# R36/R72: sync 9, porch 3, Y 88/138, gap 6, chroma 44/69 ms) and the exact line periods (200/150/300 ms). They were
+# off by ~1 ms both ways, so a picture came out ~2 px shifted left with a coloured line at the right edge (issue #117),
+# and with the slightly long line periods it also slanted by up to 11 px. A TX -> RX round trip through the real
+# application against the picture that was sent. Luma PSNR after the fix / before it:
+# R24 27.9 / 18.6 dB, R36 20.3 / 17.3 dB, R72 26.5 / 18.3 dB (R36 is limited by its chroma subsampling), BW8
+# 24.3 / 19.3 dB, BW12 19.7 / 18.7 dB (BW8/BW12: sync 6, porch 2, Y 58.9/92 ms; the round trip hides a TX error that
+# the receiver shares, so for BW12 the margin is small -- the timing itself was checked against a spec signal).
+if command -v ffmpeg >/dev/null; then
+  for spec in R24:160x120:24 R36:320x240:19 R72:320x240:23 BW8:160x120:23 BW12:160x120:19; do
+    m=${spec%%:*}; rest=${spec#*:}; size=${rest%%:*}; min=${rest##*:}
+    ffmpeg -loglevel error -y -i "$HERE/../jb60_loopback/images/card.png" -vf "scale=${size/x/:}:flags=lanczos" "$T/${m}src.png" \
+      && "$QSSTV" --encode "$T/${m}src.png" --mode $m --wav-out "$T/$m.wav" >/dev/null 2>&1 \
+      && mkdir -p "$T/o_$m" && run -o "$T/o_$m" "$T/$m.wav" >/dev/null
+    png=$(ls "$T"/o_$m/*.png 2>/dev/null | head -1)
+    if [ -n "$png" ]; then
+      l=$(luma "$T/${m}src.png" "$png")
+      ge "$l" $min && ok "$m round trip: luma PSNR $l dB" || bad "$m round trip: luma PSNR $l dB (want >= $min dB)"
+    else bad "$m round trip: no picture to check"; fi
+  done
+else echo "  skip Robot round trips: ffmpeg not installed (needed to scale the test image)"; fi
+
 echo "== options"
 run --mode PD120 -o "$T/o_mode" "$T/pd.wav"; expect_exit "forced correct mode" 0 $?
 run --mode M1 -o "$T/o_wrongmode" "$T/pd.wav"; expect_exit "forced wrong mode finds nothing" 1 $?
