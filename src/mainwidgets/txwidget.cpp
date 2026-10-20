@@ -1290,7 +1290,7 @@ void txWidget::slotRepeaterTimer()
 
 void txWidget::beaconSkipped(const QString &reason)
 {
-  QString msg=QString("Beacon not sent %1: %2").arg(QTime::currentTime().toString("HH:mm")).arg(reason);
+  QString msg=QString("WA8LMF Beacon Mode not sent %1: %2").arg(QTime::currentTime().toString("HH:mm")).arg(reason);
   addToLog(msg,LOGTXMAIN);
   beaconError=msg;
   if(beaconRunning)
@@ -1318,13 +1318,13 @@ void txWidget::updateBeaconUi()
       painter.end();
       icon=QIcon(pm);
       ui->snapshotToolButton->setStyleSheet("QToolButton { background-color: rgba(0,200,0,70); border: 1px solid rgb(0,140,0); border-radius: 4px; }");
-      ui->snapshotToolButton->setToolTip(QString("Webcam beacon running (every %1 min) - click to stop").arg(beaconMinutes));
+      ui->snapshotToolButton->setToolTip(QString("WA8LMF Beacon Mode running (every %1 min) - click to stop").arg(beaconMinutes));
     }
   else
     {
       icon=QIcon(":/icons/tb_camera.png");
       ui->snapshotToolButton->setStyleSheet(QString());
-      ui->snapshotToolButton->setToolTip("Camera snapshot / webcam beacon");
+      ui->snapshotToolButton->setToolTip("Camera snapshot / WA8LMF Beacon Mode");
     }
   ui->snapshotToolButton->setIcon(icon);
 }
@@ -1368,10 +1368,10 @@ void txWidget::slotBeaconTick()
   if(beaconTimer.isActive())
     {
       int sec=(beaconTimer.remainingTime()+999)/1000;
-      txt=QString("Webcam beacon: next in %1:%2").arg(sec/60).arg(sec%60,2,10,QChar('0'));
+      txt=QString("WA8LMF Beacon Mode: next in %1:%2").arg(sec/60).arg(sec%60,2,10,QChar('0'));
     }
-  else if(beaconCap.isBusy()) txt="Webcam beacon: grabbing camera image";
-  else txt="Webcam beacon: preparing transmission";
+  else if(beaconCap.isBusy()) txt="WA8LMF Beacon Mode: grabbing camera image";
+  else txt="WA8LMF Beacon Mode: preparing transmission";
   emit beaconCountdownChanged(txt,false);
 }
 
