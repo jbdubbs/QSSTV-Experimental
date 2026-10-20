@@ -458,6 +458,7 @@ void txWidget::prepareTxComplete(bool ok)
           beaconSkipped("the picture could not be prepared for transmission");
         }
       if(calTxActive) restoreAfterCalibrationTx();
+      enableButtons(true);   // prepareTx() locked the controls
       ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex!=TRXSSTV));
     }
   ui->startToolButton->setEnabled(true);
@@ -628,6 +629,13 @@ void txWidget::enableButtons(bool enable)
   ui->templateCheckBox->setEnabled(enable);
   ui->templatesComboBox->setEnabled(enable);
   ui->refreshPushButton->setEnabled(enable);
+  // the size slider re-encodes the picture being transmitted: lock it during TX (DRM mode only)
+  bool drmSize=enable && (transmissionModeIndex==TRXDRM);
+  if(!drmSize) sizeApplyTimer.stop();
+  ui->sizeSlider->setEnabled(drmSize);
+  ui->sizeLabel->setEnabled(drmSize);
+  ui->sizeKbLabel->setEnabled(drmSize);
+  ui->sizeDurationLabel->setEnabled(drmSize);
 }
 
 
@@ -1007,6 +1015,7 @@ void txWidget::slotSizeReleased()
 
 void txWidget::slotSizeApply()
 {
+  if(txFunctionsPtr->txBusy()) return;   // never re-encode the picture while it is being transmitted
 
   bool dragging=ui->sizeSlider->isSliderDown();
   if(!dragging) QApplication::setOverrideCursor(Qt::WaitCursor);
