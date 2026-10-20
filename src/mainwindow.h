@@ -104,6 +104,9 @@ private:
   QLabel pttText;
   QLabel *pttIcon;
   QLabel *freqDisplay;
+  QLabel *beaconCountdownLabel;
+  bool beaconCountdownError=false;
+  void updateBeaconCountdownVisibility();
   void timerEvent(QTimerEvent *);
   QStringList modModeList;
   QStringList modPassBandList;

@@ -156,6 +156,59 @@
         <widget class="QComboBox" name="sizeComboBox"/>
        </item>
        <item>
+        <widget class="QLabel" name="beaconLabel">
+         <property name="text">
+          <string>WA8LMF Beacon Mode</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="beaconComboBox">
+         <property name="toolTip">
+          <string>On: periodically send a webcam picture using the current Transmit settings, until stopped from the camera button</string>
+         </property>
+         <item>
+          <property name="text">
+           <string>Off</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>On</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="beaconEveryLabel">
+         <property name="text">
+          <string>Beacon every</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSpinBox" name="beaconIntervalSpinBox">
+         <property name="suffix">
+          <string> min</string>
+         </property>
+         <property name="minimum">
+          <number>1</number>
+         </property>
+         <property name="maximum">
+          <number>60</number>
+         </property>
+         <property name="value">
+          <number>6</number>
+         </property>
+        </widget>
+       </item>
+       <item>
         <spacer name="verticalSpacer">
          <property name="orientation">
           <enum>Qt::Vertical</enum>

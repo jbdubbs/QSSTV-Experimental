@@ -266,6 +266,7 @@ set(QSSTV_SOURCES
     utils/ftpfunctions.cpp
     editor/basegraphicitem.cpp
     videocapt/cameradialog.cpp
+    videocapt/beaconcapture.cpp
     videocapt/imagesettings.cpp
 )
 

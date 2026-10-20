@@ -120,6 +120,11 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
   ui->statusBar->addPermanentWidget(&pttText);
   ui->statusBar->addPermanentWidget(pttIcon);
   statusBarPtr=statusBar(); // must be after setup UI
+  // webcam beacon countdown: a normal (left) status bar widget, so Qt hides it while a status message is showing
+  beaconCountdownLabel=new QLabel(this);
+  beaconCountdownLabel->setAlignment(Qt::AlignLeft|Qt::AlignVCenter);
+  beaconCountdownLabel->hide();
+  ui->statusBar->addWidget(beaconCountdownLabel);
   spectrumFramePtr=ui->spectrumFrame;
 
 
@@ -176,6 +181,19 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
   connect(wfTextPushButton, SIGNAL(clicked()), this, SLOT(slotSendWfText()));
   connect(rxWidgetPtr,SIGNAL(modeSwitch(int)),this, SLOT(slotModeChange(int)));
   connect(txWidgetPtr,SIGNAL(modeSwitch(int)),this, SLOT(slotModeChange(int)));
+  // The beacon countdown/error is a normal status bar widget. It must never share the line with a status/hover
+  // message, so its visibility is decided in one place from (beacon text present) && (no status message showing).
+  connect(txWidgetPtr,&txWidget::beaconCountdownChanged,this,[this](const QString &t,bool error)
+          {
+            if(error!=beaconCountdownError)
+              {
+                beaconCountdownError=error;
+                beaconCountdownLabel->setStyleSheet(error ? "color: #c00000;" : "");
+              }
+            beaconCountdownLabel->setText(t);
+            updateBeaconCountdownVisibility();
+          });
+  connect(statusBarPtr,&QStatusBar::messageChanged,this,[this](const QString &){updateBeaconCountdownVisibility();});
 
   QAction *fs = new QAction(this);
   fs->setShortcut(Qt::Key_F | Qt::CTRL);
@@ -840,6 +858,12 @@ void mainWindow::updateModeLock()
   txWidgetPtr->setModeLock(busy);
   rxWidgetPtr->setModeLock(busy);
   rxWidgetPtr->setFixFileEnabled((busy<0)&&(transmissionModeIndex==TRXDRM));
+}
+
+void mainWindow::updateBeaconCountdownVisibility()
+{
+  bool show=!beaconCountdownLabel->text().isEmpty() && statusBarPtr->currentMessage().isEmpty();
+  if(show!=beaconCountdownLabel->isVisibleTo(this)) beaconCountdownLabel->setVisible(show);
 }
 
 void mainWindow::slotModeChange(int rxtxMode)

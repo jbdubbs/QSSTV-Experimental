@@ -13,6 +13,8 @@
 
 #include <QWidget>
 #include <QVector>
+#include <QTimer>
+#include "beaconcapture.h"
 
 enum etxMode {TXUPLOAD,TXBINARY,TXNORMAL};
 
@@ -105,6 +107,10 @@ public slots:
   void slotRepeaterTimer();
   void slotFileOpen();
   void slotSnapshot();
+  void slotBeaconTick();
+  void slotBeaconTimer();
+  void slotBeaconFrame(const QImage &image);
+  void slotBeaconFailed(const QString &reason);
   void slotSize(int fsize);
   void slotSizeApply();
   void slotSizeReleased();
@@ -129,6 +135,7 @@ signals:
   void txStopped();
   void progressChanged(int percent); //!< TX progress 0..100 (calibration dialog)
   void calibrationTxFinished();
+  void beaconCountdownChanged(const QString &text,bool error); //!< status bar text for the running webcam beacon (countdown, or the reason it is not transmitting); empty: not running
 
 private:
   void initView();
@@ -140,6 +147,13 @@ private:
   void startTxImage();
   void restoreAfterCalibrationTx();
   void enableButtons(bool enable);
+  //! a scheduled beacon could not transmit: report it, and retry in 30 s
+  void beaconSkipped(const QString &reason);
+  void beaconRestartInterval();
+  void beaconTransmitLoaded();
+  void startBeacon(int minutes);
+  void stopBeacon();
+  void updateBeaconUi();
 
   Ui::txWidget *ui;
   bool calTxActive=false;
@@ -151,6 +165,14 @@ private:
   txFunctions *txFunctionsPtr;
 
   QTimer *repeaterTimer;
+  QTimer beaconTimer;           // single shot: next capture (first one, interval, or 30 s retry)
+  QTimer beaconTick;            // 1 s, drives the countdown
+  int beaconMinutes=0;
+  QString beaconError;          // why the last beacon attempt failed; shown instead of the countdown until an attempt succeeds
+  bool beaconRunning=false;
+  bool beaconHold=false;        // a picture is loaded and waiting for the 10 s to pass
+  beaconCapture beaconCap;
+  bool beaconPending=false;     // a beacon picture is on its way through prepareTx()/startTxImage()
   QTimer repeaterTxDelayTimer;
   int repeaterIndex;
   QImage resultImage;

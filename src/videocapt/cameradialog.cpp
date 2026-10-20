@@ -28,6 +28,7 @@
 #include <QMediaDevices>
 #include <QVideoFrameFormat>
 #include <QMessageBox>
+#include <QSettings>
 
 cameraDialog::cameraDialog(QWidget *parent) :
   QDialog(parent),
@@ -41,6 +42,16 @@ cameraDialog::cameraDialog(QWidget *parent) :
   // combo boxes here can't trigger a premature restartCapturing() before exec() ever
   // deliberately starts capturing.
   listCameraDevices();
+  restoreSelection();
+  // the beacon is always Off when the dialog opens; the interval is remembered
+  {
+    QSettings qSettings;
+    qSettings.beginGroup("CAMERA");
+    ui->beaconIntervalSpinBox->setValue(qSettings.value("beaconInterval",6).toInt());
+    qSettings.endGroup();
+  }
+  connect(ui->beaconComboBox,SIGNAL(currentIndexChanged(int)),SLOT(slotBeaconModeChanged(int)));
+  slotBeaconModeChanged(0);
   if(cameraList.count()==0) return;
   connect(ui->settingsButton,SIGNAL(clicked()),SLOT(slotSettings()));
   connect(ui->devicesComboBox,SIGNAL(currentIndexChanged(int)),SLOT(slotDeviceChanged(int)));
@@ -65,13 +76,40 @@ int cameraDialog::exec()
   addToLog("cameracontrol exec",LOGCAM);
   int result=QDialog::exec();
   if(cameraPtr) cameraPtr->stop();
-  if(result==QDialog::Accepted) return true;
+  if(result==QDialog::Accepted)
+    {
+      // remembered so the beacon (beaconCapture) uses the camera chosen here
+      QSettings qSettings;
+      qSettings.beginGroup("CAMERA");
+      qSettings.setValue("device",ui->devicesComboBox->currentText());
+      qSettings.setValue("format",ui->formatsComboBox->currentText());
+      qSettings.setValue("size",ui->sizeComboBox->currentText());
+      qSettings.setValue("beaconInterval",ui->beaconIntervalSpinBox->value());
+      qSettings.endGroup();
+      return true;
+    }
   return false;
 }
 
 QImage *cameraDialog::getImage()
 {
   return lastImage.isNull() ? nullptr : &lastImage;
+}
+
+bool cameraDialog::beaconEnabled() const
+{
+  return ui->beaconComboBox->currentIndex()==1;
+}
+
+int cameraDialog::beaconMinutes() const
+{
+  return ui->beaconIntervalSpinBox->value();
+}
+
+void cameraDialog::slotBeaconModeChanged(int idx)
+{
+  ui->beaconEveryLabel->setVisible(idx==1);
+  ui->beaconIntervalSpinBox->setVisible(idx==1);
 }
 
 void cameraDialog::slotVideoFrameChanged(const QVideoFrame &frame)
@@ -102,6 +140,27 @@ void cameraDialog::listCameraDevices()
   cameraList=QMediaDevices::videoInputs();
   for(const QCameraDevice &d : cameraList) ui->devicesComboBox->addItem(d.description());
   if(cameraList.count()>0) setupFormatComboBox(cameraList.at(0));
+}
+
+// re-select the device, pixel format and resolution chosen the last time OK was pressed (when still available)
+void cameraDialog::restoreSelection()
+{
+  QSettings qSettings;
+  qSettings.beginGroup("CAMERA");
+  QString dev=qSettings.value("device").toString();
+  QString fmt=qSettings.value("format").toString();
+  QString size=qSettings.value("size").toString();
+  qSettings.endGroup();
+  int devIdx=ui->devicesComboBox->findText(dev);
+  if(devIdx<0) return;
+  ui->devicesComboBox->setCurrentIndex(devIdx);
+  setupFormatComboBox(cameraList.at(devIdx));
+  int fmtIdx=ui->formatsComboBox->findText(fmt);
+  if(fmtIdx<0) return;
+  ui->formatsComboBox->setCurrentIndex(fmtIdx);
+  setupSizeComboBox(cameraList.at(devIdx),ui->formatsComboBox->itemData(fmtIdx).toInt());
+  int sizeIdx=ui->sizeComboBox->findText(size);
+  if(sizeIdx>=0) ui->sizeComboBox->setCurrentIndex(sizeIdx);
 }
 
 void cameraDialog::setupFormatComboBox(const QCameraDevice &cd)

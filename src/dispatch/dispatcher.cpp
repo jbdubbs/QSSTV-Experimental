@@ -194,6 +194,8 @@ void dispatcher::customEvent( QEvent * e )
         }
       addToLog("dispatcher: endTXImage",LOGDISPATCH);
       txWidgetPtr->slotStop();
+      // drmTx::start() leaves "Sending <file>" up with no timeout; clear it now that the transmission is over
+      if(statusBarPtr->currentMessage().startsWith("Sending ")) statusBarPtr->clearMessage();
 //      startRX();
       break;
 

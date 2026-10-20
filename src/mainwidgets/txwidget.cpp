@@ -5,6 +5,7 @@
 #include "rxfunctions.h"
 #include "ui_txwidget.h"
 #include <QTimer>
+#include <QPainter>
 #include "configparams.h"
 #include "dispatcher.h"
 #include "supportfunctions.h"
@@ -88,6 +89,12 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   connect(ui->openToolButton, SIGNAL(clicked()), this, SLOT(slotFileOpen()));
   connect(ui->editToolButton, SIGNAL(clicked()), this, SLOT(slotEdit()));
   connect(ui->snapshotToolButton, SIGNAL(clicked()), this, SLOT(slotSnapshot()));
+  connect(&beaconTimer,SIGNAL(timeout()),SLOT(slotBeaconTimer()));
+  connect(&beaconTick,SIGNAL(timeout()),SLOT(slotBeaconTick()));
+  beaconTimer.setSingleShot(true);
+  beaconTick.setInterval(1000);
+  connect(&beaconCap,&beaconCapture::frameReady,this,&txWidget::slotBeaconFrame);
+  connect(&beaconCap,&beaconCapture::failed,this,&txWidget::slotBeaconFailed);
   connect(ui->binaryToolButton,SIGNAL(clicked()),this,SLOT(slotBinary()));
   connect(ui->sizeSlider,SIGNAL(valueChanged(int)),SLOT(slotSize(int)));
   connect(ui->sizeSlider,SIGNAL(sliderReleased()),SLOT(slotSizeReleased()));
@@ -445,6 +452,11 @@ void txWidget::prepareTxComplete(bool ok)
   if (!ok)
     {
       addToLog("Upload/prepare failed",LOGTXMAIN);
+      if(beaconPending)
+        {
+          beaconPending=false;
+          beaconSkipped("the picture could not be prepared for transmission");
+        }
       if(calTxActive) restoreAfterCalibrationTx();
       ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex!=TRXSSTV));
     }
@@ -488,6 +500,11 @@ void txWidget::startTxImage()
   if(!imageViewerPtr->hasValidImage())
     {
       addToLog("invalidImage",LOGTXMAIN);
+      if(beaconPending)
+        {
+          beaconPending=false;
+          beaconSkipped("no valid picture to transmit");
+        }
       return;
     }
   QString fn;
@@ -520,6 +537,12 @@ void txWidget::startTxImage()
       //    break;
     case TRXNOMODE:
       break;
+    }
+  if(beaconPending)
+    {
+      beaconPending=false;
+      if(started) beaconError.clear();
+      else beaconSkipped("the transmitter could not be started (check the sound output)");
     }
   if(started)
     {
@@ -887,6 +910,11 @@ void txWidget::slotSnapshot()
   // Qt Multimedia camera capture (Phase 5 of the cross-platform plan) works on every OS,
   // so this is no longer __APPLE__-gated -- it also finally brings webcam capture to
   // macOS, which the old V4L2-only backend never supported.
+  if(beaconRunning)
+    {
+      stopBeacon();   // the (green) beacon icon stops the beacon; the dialog is opened with the next click
+      return;
+    }
   QImage *im;
   cameraDialog camera;
   if(camera.exec()==QDialog::Accepted)
@@ -895,6 +923,19 @@ void txWidget::slotSnapshot()
       if(!im)
         {
           QMessageBox::warning(this,"Snapshot","No usable frame was received from the camera.");
+          return;
+        }
+      if(camera.beaconEnabled())
+        {
+          // the dialog's live frame is the first beacon picture: no need to reopen the camera yet
+          QString bfn=QDir::tempPath()+"/qsstv_beacon.jpg";
+          if(!im->save(bfn,"JPG",95))
+            {
+              QMessageBox::warning(this,"Beacon","Unable to save the camera image.");
+              return;
+            }
+          setImage(bfn);
+          startBeacon(camera.beaconMinutes());
           return;
         }
       QTemporaryFile itmp(txStockImagesPath+"/snapshotXXXXXX.jpg");
@@ -1245,3 +1286,173 @@ void txWidget::slotRepeaterTimer()
 
 
 
+
+
+void txWidget::beaconSkipped(const QString &reason)
+{
+  QString msg=QString("Beacon not sent %1: %2").arg(QTime::currentTime().toString("HH:mm")).arg(reason);
+  addToLog(msg,LOGTXMAIN);
+  beaconError=msg;
+  if(beaconRunning)
+    {
+      beaconTimer.start(30000);
+      slotBeaconTick();
+    }
+}
+
+void txWidget::beaconRestartInterval()
+{
+  beaconTimer.start(60000*beaconMinutes);
+}
+
+void txWidget::updateBeaconUi()
+{
+  QIcon icon;
+  if(beaconRunning)
+    {
+      // the beacon icon with a green tint overlay
+      QPixmap pm(":/icons/tb_beacon.png");
+      QPainter painter(&pm);
+      painter.setCompositionMode(QPainter::CompositionMode_SourceAtop);
+      painter.fillRect(pm.rect(),QColor(0,200,0,130));
+      painter.end();
+      icon=QIcon(pm);
+      ui->snapshotToolButton->setStyleSheet("QToolButton { background-color: rgba(0,200,0,70); border: 1px solid rgb(0,140,0); border-radius: 4px; }");
+      ui->snapshotToolButton->setToolTip(QString("Webcam beacon running (every %1 min) - click to stop").arg(beaconMinutes));
+    }
+  else
+    {
+      icon=QIcon(":/icons/tb_camera.png");
+      ui->snapshotToolButton->setStyleSheet(QString());
+      ui->snapshotToolButton->setToolTip("Camera snapshot / webcam beacon");
+    }
+  ui->snapshotToolButton->setIcon(icon);
+}
+
+void txWidget::startBeacon(int minutes)
+{
+  beaconMinutes=minutes;
+  beaconRunning=true;
+  beaconPending=false;
+  beaconError.clear();
+  updateBeaconUi();
+  // the first picture is already loaded (slotSnapshot); it is sent after 10 s, so the transmit settings can still be adjusted
+  beaconHold=true;
+  beaconTimer.start(10000);
+  beaconTick.start();
+  slotBeaconTick();
+}
+
+void txWidget::stopBeacon()
+{
+  beaconRunning=false;
+  beaconPending=false;
+  beaconHold=false;
+  beaconTimer.stop();
+  beaconTick.stop();
+  beaconCap.abort();
+  beaconError.clear();
+  updateBeaconUi();
+  emit beaconCountdownChanged(QString(),false);
+}
+
+void txWidget::slotBeaconTick()
+{
+  if(!beaconRunning) return;
+  if(!beaconError.isEmpty())
+    {
+      emit beaconCountdownChanged(beaconError,true);
+      return;
+    }
+  QString txt;
+  if(beaconTimer.isActive())
+    {
+      int sec=(beaconTimer.remainingTime()+999)/1000;
+      txt=QString("Webcam beacon: next in %1:%2").arg(sec/60).arg(sec%60,2,10,QChar('0'));
+    }
+  else if(beaconCap.isBusy()) txt="Webcam beacon: grabbing camera image";
+  else txt="Webcam beacon: preparing transmission";
+  emit beaconCountdownChanged(txt,false);
+}
+
+void txWidget::slotBeaconTimer()
+{
+  if(!beaconRunning) return;
+  if(beaconCap.isBusy() || beaconPending) return;
+  if(beaconHold)
+    {
+      beaconHold=false;
+      beaconTransmitLoaded();
+      return;
+    }
+  if(rxWidgetPtr->rxBusy())
+    {
+      beaconSkipped("a picture is being received");
+      return;
+    }
+  if(txFunctionsPtr->txBusy() || mainWindowPtr->busyMode()>=0)
+    {
+      beaconSkipped("the transmitter is busy");
+      return;
+    }
+  if(calTxActive)
+    {
+      beaconSkipped("a calibration transmission is running");
+      return;
+    }
+  if(transmissionModeIndex!=TRXSSTV && transmissionModeIndex!=TRXDRM)
+    {
+      beaconSkipped("no SSTV or DRM transmit mode is selected");
+      return;
+    }
+  beaconCap.start();
+}
+
+void txWidget::slotBeaconFailed(const QString &reason)
+{
+  beaconSkipped(reason);
+}
+
+void txWidget::slotBeaconFrame(const QImage &image)
+{
+  if(!beaconRunning) return;
+  QString fn=QDir::tempPath()+"/qsstv_beacon.jpg";
+  if(!image.save(fn,"JPG",95))
+    {
+      beaconSkipped("the camera picture could not be saved");
+      return;
+    }
+  setImage(fn);
+  if(!imageViewerPtr->hasValidImage())
+    {
+      beaconSkipped("the camera picture could not be loaded");
+      return;
+    }
+  beaconTransmitLoaded();
+}
+
+// sends the picture in the TX image viewer with the current Transmit settings
+void txWidget::beaconTransmitLoaded()
+{
+  if(!beaconRunning) return;
+  // the capture takes a few seconds: check that nothing started meanwhile
+  if(rxWidgetPtr->rxBusy())
+    {
+      beaconSkipped("a picture is being received");
+      return;
+    }
+  if(txFunctionsPtr->txBusy() || mainWindowPtr->busyMode()>=0)
+    {
+      beaconSkipped("the transmitter is busy");
+      return;
+    }
+  if(!imageViewerPtr->hasValidImage())
+    {
+      beaconSkipped("no valid picture to transmit");
+      return;
+    }
+  beaconRestartInterval();
+  beaconPending=true;
+  doTx=TXNORMAL;
+  prepareTx();
+}

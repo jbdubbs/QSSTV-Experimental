@@ -39,7 +39,7 @@ test pattern into a dummy load to adjust it.</p></div>
 <tr><td>Red square</td><td>Stop transmit.</td></tr>
 <tr><td>Folder</td><td>Load image.</td></tr>
 <tr><td>Pencil</td><td>Edit image. Opens the current picture in the editor (not available while transmitting).</td></tr>
-<tr><td>Camera</td><td>Camera snapshot, from a connected webcam.</td></tr>
+<tr><td>Camera</td><td>Camera snapshot, from a connected webcam, or the webcam beacon (see <a href="#beacon">below</a>). While the beacon runs the icon turns into a green-tinted beacon icon: click it to stop the beacon.</td></tr>
 <tr><td>Binary icon (1 0 101)</td><td>Send binary file. A DRM function: see <a href="drm.html">Digital SSTV (DRM)</a>.</td></tr>
 <tr><td>Hybrid checkbox</td><td>Hybrid mode for DRM transmissions (see <a href="configuration.html#hybrid">Hybrid</a>). It is only available on the DRM tab.</td></tr>
 <tr><td>Cloud arrow</td><td>Upload Now: upload a hybrid picture to the server without transmitting.</td></tr>
@@ -47,6 +47,23 @@ test pattern into a dummy load to adjust it.</p></div>
 <tr><td>Speaker</td><td>Send tone: opens a dialog for a test tone.</td></tr>
 <tr><td>Sine wave</td><td>Send sweep tones: opens a dialog for a frequency sweep.</td></tr>
 </table>
+
+<h2 id="beacon">Webcam beacon</h2>
+<p>The beacon periodically grabs a picture from a webcam and transmits it, for example from a mobile station on the higher HF bands to
+attract a reply. Click the <strong>Camera</strong> button, choose the camera, then set <strong>WA8LMF Beacon Mode</strong> to <strong>On</strong> and
+pick <strong>Beacon every</strong> 1 to 60 minutes. Press <strong>OK</strong>: the first picture is captured immediately and shown as the transmit picture, and sent 10 seconds later (time to adjust the SSTV or DRM settings), then one every N minutes,
+until you stop it. While it runs, the camera button shows a green-tinted beacon icon, and a countdown to the next picture appears at the left of
+the status bar (when no other status message is showing).</p>
+<p>Click the green beacon icon to stop the beacon. To start it again, open the camera dialog and press OK again (the WA8LMF Beacon Mode setting is Off
+every time the dialog opens).</p>
+<p>The beacon has no transmit settings of its own. Each picture is sent exactly as if you had pressed Start: with the
+<strong>SSTV</strong> or <strong>DRM</strong> tab that is currently selected, its mode and options, the selected template (for example a call
+sign overlay) and the picture size. The camera is only switched on while a picture is captured. The beacon is always off when the program starts.</p>
+<p>When a scheduled beacon cannot transmit, the countdown in the status bar is replaced by a red message, for example <em>Beacon not sent 14:32: a picture is
+being received</em>, <em>no camera found</em>, or <em>the transmitter is busy</em>. The beacon tries again after 30 seconds and the countdown returns as soon as a
+picture is sent.</p>
+<div class="warn"><p>An unattended beacon is still your transmission: follow your licence conditions on automatic and unattended operation, and
+identify as required (use a template with your call sign).</p></div>
 
 <h2 id="sstv">SSTV settings</h2>
 <dl>

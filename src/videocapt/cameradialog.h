@@ -27,12 +27,15 @@ public:
   ~cameraDialog();
   int exec();
   QImage *getImage();
+  bool beaconEnabled() const;
+  int beaconMinutes() const;
 
 private slots:
   void slotSettings();
   void slotDeviceChanged(int idx);
   void slotFormatChanged(int idx);
   void slotSizeChanged(int idx);
+  void slotBeaconModeChanged(int idx);
   void slotVideoFrameChanged(const QVideoFrame &frame);
 
 private:
@@ -44,6 +47,7 @@ private:
   QImage lastImage;
 
   void listCameraDevices();
+  void restoreSelection();
   void setupFormatComboBox(const QCameraDevice &cd);
   void setupSizeComboBox(const QCameraDevice &cd, int pixelFormat);
   QCameraFormat selectedFormat() const;
