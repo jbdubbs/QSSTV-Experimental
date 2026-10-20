@@ -136,6 +136,7 @@ public slots:
 
 private slots:
   void slotDelete();
+  void slotClear();
   void slotLoad();
   void slotNew();
   void slotPrint();
@@ -194,6 +195,7 @@ private:
   QAction *printAct;
   QAction *uploadAct;
   QAction *deleteAct;
+  QAction *clearAct;
   QAction *viewAct;
   QAction *propertiesAct;
   QAction *zoomInAct;

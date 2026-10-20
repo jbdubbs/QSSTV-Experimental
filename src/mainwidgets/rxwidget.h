@@ -56,6 +56,8 @@ public:
   //! put the tab bar back on mode m without triggering a mode change
   void syncModeTab(int m);
   void setFixFileEnabled(bool enable);
+  //! same as the Clear toolbar button
+  void clearImage() {slotErase();}
 private slots:
   void slotStart();
   void slotStop();

@@ -30,6 +30,7 @@
 #include <configdialog.h>
 #include "drm.h"
 #include "txwidget.h"
+#include "rxwidget.h"
 #include "gallerywidget.h"
 
 
@@ -96,6 +97,8 @@ imageViewer::imageViewer(QWidget *parent): QLabel(parent)
   connect(uploadAct, SIGNAL(triggered()), this, SLOT(slotUploadFTP()));
   deleteAct = new QAction(tr("&Delete"), this);
   connect(deleteAct, SIGNAL(triggered()), this, SLOT(slotDelete()));
+  clearAct = new QAction(tr("&Clear"), this);
+  connect(clearAct, SIGNAL(triggered()), this, SLOT(slotClear()));
   viewAct = new QAction(tr("&View"), this);
   connect(viewAct, SIGNAL(triggered()), this, SLOT(slotView()));
   propertiesAct = new QAction(tr("Propert&ies"), this);
@@ -570,6 +573,7 @@ void imageViewer::setType(thumbType tp)
   popup->removeAction(printAct);
   popup->removeAction(uploadAct);
   popup->removeAction(deleteAct);
+  popup->removeAction(clearAct);
   popup->removeAction(viewAct);
   popup->removeAction(propertiesAct);
   popup->removeAction(copyAct);
@@ -585,6 +589,7 @@ void imageViewer::setType(thumbType tp)
 
     case RXIMG:
       popup->addAction(viewAct);
+      popup->addAction(clearAct);
       popup->addAction(propertiesAct);
       break;
 
@@ -722,6 +727,7 @@ void imageViewer::mousePressEvent( QMouseEvent *e )
           resetFramingAct->setEnabled(ttype==TXIMG && fitOf(curSlot())==FITFREE);
           copyAct->setEnabled(gridActive() ? !segImages.value(activeSeg).isNull() : (hasValidImage() || !displayedImage.isNull()));
           pasteAct->setEnabled(!clipboardImage().isNull());
+          if(ttype==RXIMG) clearAct->setEnabled(true);   // live RX never sets validImage; the toolbar Clear is always available too
           if(ttype==TXIMG) deleteAct->setEnabled(gridActive() ? !segImages.value(activeSeg).isNull() : hasValidImage());
           //              if (pixmap())
           // with a TX grid the To TX entry becomes a submenu: Auto / Grid 1..N
@@ -863,6 +869,11 @@ void imageViewer::slotLeftClick()
     default:
       break;
     }
+}
+
+void imageViewer::slotClear()
+{
+  rxWidgetPtr->clearImage();
 }
 
 void imageViewer::slotDelete()
