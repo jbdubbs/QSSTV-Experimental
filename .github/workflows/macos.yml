@@ -97,7 +97,9 @@ jobs:
           cp "$(find ../kif/build -name 'kimg_avif.dylib' | head -1)" QSSTV-Experimental.app/Contents/PlugIns/imageformats/
           # the headless modes (--encode, --batch, --help) force Qt's offscreen platform, which macdeployqt leaves out
           mkdir -p QSSTV-Experimental.app/Contents/PlugIns/platforms
-          cp "$(find "$QT_PREFIX" -name libqoffscreen.dylib | head -1)" QSSTV-Experimental.app/Contents/PlugIns/platforms/
+          OFFSCREEN=$(find -L "$QT_PREFIX" -name libqoffscreen.dylib | head -1)   # QT_PREFIX is a symlink: -L
+          [ -n "$OFFSCREEN" ] || { echo "libqoffscreen.dylib not found under $QT_PREFIX"; exit 1; }
+          cp "$OFFSCREEN" QSSTV-Experimental.app/Contents/PlugIns/platforms/
           # -executable: also pull in and re-point these plugins' own libraries (libavif, aom, Qt frameworks, ...)
           "$QT_PREFIX/bin/macdeployqt" QSSTV-Experimental.app \
             -executable=QSSTV-Experimental.app/Contents/PlugIns/platforms/libqoffscreen.dylib \
