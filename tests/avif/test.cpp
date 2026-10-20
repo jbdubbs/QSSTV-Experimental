@@ -1,12 +1,11 @@
 // JPEG 2000 vs AVIF at equal byte budgets (issue #108): size, quality (PSNR) and encode time per pass.
-// AVIF goes through the Qt kimg_avif plugin; quality 100 is lossless there, so the search stays in 1..99.
+// AVIF goes through utils/avifenc.cpp (libavif directly); quality 100 is lossless, so the search stays in 1..99.
 //   tests/avif/run.sh [image ...]
 #include "jp2io.h"
+#include "avifenc.h"
 #include <QBuffer>
 #include <QCoreApplication>
 #include <QElapsedTimer>
-#include <QImageReader>
-#include <QImageWriter>
 #include <cmath>
 #include <cstdio>
 
@@ -27,16 +26,13 @@ static double psnr(const QImage &a, const QImage &b)
 
 static QByteArray avifAt(const QImage &im, int q)
 {
-  QByteArray ba; QBuffer buf(&ba); buf.open(QIODevice::WriteOnly);
-  QImageWriter w(&buf, "avif"); w.setQuality(q);
-  if (!w.write(im)) return QByteArray();
-  return ba;
+  return avifEncodeQuality(im, q, im.width() * im.height() > 200000 ? 6 : 5, 444);   // the settings avifEncode() uses
 }
 
 int main(int argc, char **argv)
 {
   QCoreApplication app(argc, argv);
-  if (!QImageWriter::supportedImageFormats().contains("avif")) { printf("no avif writer plugin\n"); return 1; }
+  if (!avifWriteSupported()) { printf("libavif cannot encode AVIF\n"); return 1; }
   const int targets[] = {5000, 10000, 20000, 40000, 80000};
   for (int a = 1; a < argc; a++) {
     QImage src = QImage(argv[a]).convertToFormat(QImage::Format_RGB32);
@@ -62,7 +58,7 @@ int main(int argc, char **argv)
       }
       qint64 ams = t.elapsed() / (passes ? passes : 1);
       if (bestData.isEmpty()) { printf("%8d | %8d %6.2f %7lld | does not fit even at q=1\n", target, (int)jd.size(), psnr(src, jdec), (long long)jms); continue; }
-      QImage adec; adec.loadFromData(bestData, "avif");
+      QImage adec = avifDecode(bestData);
       if (const char *d = getenv("AVIF_DUMP")) {   // decoded results for visual comparison
         jdec.save(QString("%1/%2_%3_jp2.png").arg(d).arg(a).arg(target));
         adec.save(QString("%1/%2_%3_avif.png").arg(d).arg(a).arg(target));

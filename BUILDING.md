@@ -196,15 +196,16 @@ formats your build can read.
 | Format | Linux AppImage | Windows ZIP | macOS app | Source build |
 |---|---|---|---|---|
 | WebP | yes | yes | yes | needs Qt's `qtimageformats` (Fedora `qt6-qtimageformats`) |
-| AVIF | yes | yes | yes | needs KDE `kimageformats` and libavif |
+| AVIF | yes | yes | yes | opening files needs KDE `kimageformats` and libavif; AVIF over DRM needs only libavif |
 | HEIC/HEIF | yes | yes | no | needs `kimageformats` and libheif **with an HEVC decoder** (Fedora `libheif-freeworld`, Debian/Ubuntu `libheif-plugin-libde265`) |
 
 Fedora's stock libheif has no HEVC decoder, so HEIC loads there once a freeworld or HEVC-capable libheif is
 installed; AVIF works either way. HEIC decoding uses libde265 (LGPL); HEVC patent exposure varies by jurisdiction.
 
-Sending AVIF over DRM (Transmit > DRM > Encoding) needs the plugin to be able to *write* AVIF, i.e. libavif built with an AV1 encoder
-(libaom, SVT-AV1 or rav1e); receiving only needs a decoder. All the release builds include the encoder. The macOS app builds `kimg_avif` against Homebrew's
-libavif in CI (`.github/workflows/macos.yml`) and checks an AVIF DRM round trip on the bundled app.
+Sending and receiving AVIF over DRM (Transmit > DRM > Encoding) does not use the plugin: the program links libavif directly
+(Fedora `libavif-devel`, Debian/Ubuntu `libavif-dev`, Homebrew `libavif`), and libavif must be built with the libaom
+encoder. Without libavif at build time the AVIF choice is greyed out and everything else works. All the release builds
+include it. The macOS CI job checks an AVIF DRM round trip on the bundled app (`.github/workflows/macos.yml`).
 
 ## macOS
 

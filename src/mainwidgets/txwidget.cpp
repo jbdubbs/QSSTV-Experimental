@@ -68,9 +68,9 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   connect(ui->drmEncodingComboBox,SIGNAL(activated(int)),SLOT(slotEncodingChanged(int)));
   if(!avifWriteSupported())
     {
-      // no AVIF writer plugin: keep JPEG2000 selectable only
+      // built without libavif: keep JPEG2000 selectable only
       qobject_cast<QStandardItemModel *>(ui->drmEncodingComboBox->model())->item(imageViewer::ENCAVIF)->setEnabled(false);
-      ui->drmEncodingComboBox->setToolTip(ui->drmEncodingComboBox->toolTip()+"\nAVIF is unavailable: image plugin not found.");
+      ui->drmEncodingComboBox->setToolTip(ui->drmEncodingComboBox->toolTip()+"\nAVIF is unavailable: this build has no libavif.");
     }
 
   connect(ui->templatesComboBox,SIGNAL(currentIndexChanged(int)),SLOT(slotGetParams()));

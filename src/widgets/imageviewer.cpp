@@ -149,6 +149,21 @@ void imageViewer::init(thumbType tp)
   clear();
 }
 
+// AVIF files (those received over DRM in particular) are read with libavif directly, so they open without the Qt image
+// plugin. Files with rotation/mirror transforms are left to the plugin path, which applies them.
+static bool loadAvifDirect(QImage &image,const QString &fileName)
+{
+  QFile f(fileName);
+  if(!f.open(QIODevice::ReadOnly)) return false;
+  QByteArray data=f.readAll();
+  bool transformed=false;
+  if(!avifSniff(data)) return false;
+  QImage im=avifDecode(data,&transformed);
+  if(im.isNull() || transformed) return false;
+  image=im;
+  return true;
+}
+
 bool imageViewer::openImage(QString &filename,QString start,bool ask,bool showMessage,bool temitSignal,bool fromCache,bool background)
 {
   //background=false;
@@ -230,6 +245,10 @@ bool imageViewer::openImage(QString &filename,QString start,bool ask,bool showMe
                   success=true;
                 }
             }
+        }
+      else if(loadAvifDirect(tempImage,tempFilename))
+        {
+          success=true;
         }
       else if(loadImageAutoRotate(tempImage,tempFilename))
         {

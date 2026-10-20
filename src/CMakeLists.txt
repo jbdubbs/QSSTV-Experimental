@@ -27,6 +27,23 @@ endif()
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(FFTW3 REQUIRED IMPORTED_TARGET fftw3 fftw3f)
 pkg_check_modules(OPENJP2 REQUIRED IMPORTED_TARGET libopenjp2)
+# AVIF over DRM talks to libavif directly; without it the AVIF encoding choice is simply unavailable
+if(WIN32)
+  # the cross-build uses the copy tools/build-image-plugins-win64.sh vendors (same find-root reason as HAMLIB_ROOT above)
+  set(QSSTV_IMGFMT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/imageformats-win64")
+  find_path(LIBAVIF_INCLUDE_DIR NAMES avif/avif.h HINTS "${QSSTV_IMGFMT_DIR}/include" NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
+  find_library(LIBAVIF_LIBRARY NAMES avif HINTS "${QSSTV_IMGFMT_DIR}/lib" NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
+  if(LIBAVIF_INCLUDE_DIR AND LIBAVIF_LIBRARY)
+    set(LIBAVIF_FOUND TRUE)
+    add_library(PkgConfig::LIBAVIF UNKNOWN IMPORTED)
+    set_target_properties(PkgConfig::LIBAVIF PROPERTIES
+      IMPORTED_LOCATION "${LIBAVIF_LIBRARY}"
+      INTERFACE_INCLUDE_DIRECTORIES "${LIBAVIF_INCLUDE_DIR}"
+      INTERFACE_COMPILE_DEFINITIONS AVIF_DLL)
+  endif()
+else()
+  pkg_check_modules(LIBAVIF QUIET IMPORTED_TARGET libavif)
+endif()
 
 # --- Hamlib -------------------------------------------------------------------------
 # On this dev box there is no system-wide hamlib package at all -- the project already
@@ -405,6 +422,13 @@ target_link_libraries(qsstv PRIVATE
     PkgConfig::OPENJP2
     hamlib::hamlib
 )
+if(LIBAVIF_FOUND)
+  target_link_libraries(qsstv PRIVATE PkgConfig::LIBAVIF)
+  target_compile_definitions(qsstv PRIVATE HAVE_LIBAVIF)
+  message(STATUS "libavif found: AVIF over DRM enabled")
+else()
+  message(WARNING "libavif not found: AVIF over DRM will be unavailable")
+endif()
 
 if(UNIX AND NOT APPLE)
   # soundbase.cpp's clock_gettime(), needed on older glibc where it lived in librt before

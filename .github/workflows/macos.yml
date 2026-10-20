@@ -29,9 +29,9 @@ jobs:
           brew install qt@6 fftw openjpeg hamlib pkg-config cmake coreutils ffmpeg libvorbis vorbis-tools bash libavif
           echo "QT_PREFIX=$(brew --prefix qt@6)" >> "$GITHUB_ENV"
 
-      # AVIF (send over DRM, view received pictures): Qt has no AVIF plugin, so build KDE's kimg_avif against Homebrew's Qt
-      # and libavif (which has the AOM encoder) -- the same plugin the AppImage and Windows builds ship. It is added to the
-      # bundle below. KIMAGEFORMATS_TAG matches packaging/appimage/Dockerfile.
+      # AVIF over DRM links Homebrew's libavif (which has the AOM encoder) directly. Qt itself has no AVIF plugin though, so
+      # to open AVIF files from disk build KDE's kimg_avif against Homebrew's Qt and libavif -- the same plugin the AppImage
+      # and Windows builds ship. It is added to the bundle below. KIMAGEFORMATS_TAG matches packaging/appimage/Dockerfile.
       - name: Build the AVIF image plugin
         env:
           KIMAGEFORMATS_TAG: v6.10.0
@@ -114,7 +114,7 @@ jobs:
       - name: AVIF over DRM (#108)
         env:
           QT_QPA_PLATFORM: offscreen
-        # the bundled plugin must both write (TX) and read (RX) AVIF; a missing encoder falls back to JPEG2000, so check the extension
+        # the bundled libavif must both write (TX) and read (RX) AVIF; a missing encoder falls back to JPEG2000, so check the extension
         run: |
           set -e
           APP="$PWD/build/QSSTV-Experimental.app/Contents/MacOS/qsstv-experimental"
