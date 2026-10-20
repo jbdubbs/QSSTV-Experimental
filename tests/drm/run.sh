@@ -70,6 +70,20 @@ for p in "B 4" "B 16" "B 64" "A 16" "E 16"; do
   [ "$(stat msc_flaps)" = 0 ] && ok "$name: no MSC dropouts" || bad "$name: MSC dropped out $(stat msc_flaps) times"
 done
 
+# picture codec (#108): JPEG2000 is the default; AVIF is identified by its content, the receiver needs no signalling
+for enc in jpeg2000 avif; do
+  for rs in 0 2; do
+    name="$enc, RS$rs"
+    echo "== codec $name"
+    encode "c$enc$rs" --drm-mode B --drm-qam 16 --drm-size 6000 --drm-encoding $enc --drm-rs $rs || { bad "$name: encode"; continue; }
+    decode "$T/c$enc$rs.wav"
+    [ "$RC" = 0 ] && ok "$name: picture received" || bad "$name: exit code $RC (picture not received)"
+    ext=$enc; [ "$enc" = jpeg2000 ] && ext=jp2
+    ls "$T/o"/*_drm.$ext >/dev/null 2>&1 && ok "$name: file saved as .$ext" || bad "$name: no .$ext file ($(ls "$T/o" 2>/dev/null | tr '\n' ' '))"
+    grep -q "DRM, 160x124" "$T/out.txt" 2>/dev/null && ok "$name: picture size" || bad "$name: picture size ($(grep -o '(DRM[^)]*)' "$T/out.txt"))"
+  done
+done
+
 # level and noise: the receiver must not depend on the input level, and must cope with a noisy channel
 echo "== 16-QAM through a bad channel"
 for extra in "--rx-gain -40" "--rx-gain 6" "--rx-noise -35"; do

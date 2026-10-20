@@ -65,7 +65,7 @@ public:
   //! calibration: send a generated picture in the given mode through the normal SSTV TX path; the user's own TX picture, mode and template setting are put back when it ends (calibrationTxFinished) or on abortCalibrationTx()
   bool sendCalibrationImage(esstvMode mode,const QImage &image);
   //! headless --encode --drm: jp2Bytes (0 = the size slider setting) is the size the picture is compressed to; send the picture as a DRM transmission with these parameters (combo-box indices); ends like a calibration transmit (calibrationTxFinished)
-  bool sendDrmTestImage(const drmTxParams &params,const QImage &image,uint jp2Bytes=0);
+  bool sendDrmTestImage(const drmTxParams &params,const QImage &image,uint jp2Bytes=0,int encoding=-1);   // encoding: -1 keeps the setting, else imageViewer::drmEncodingType
   void abortCalibrationTx();
   bool calibrationTxActive() const {return calTxActive;}
 
@@ -129,6 +129,7 @@ public slots:
 private slots:
   void slotRepaterDelay();
     void slotImageChanged();
+    void slotEncodingChanged(int enc);
 
 signals:
   void modeSwitch(int);

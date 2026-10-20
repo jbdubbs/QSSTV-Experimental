@@ -44,11 +44,26 @@ settings tab on the Receive and Transmit pages; DRM is the <strong>DRM</strong> 
 <tr><td>Prot.</td><td>High, Low</td><td>Error-correction strength. High is more robust but slower.</td></tr>
 <tr><td>Profile</td><td>Profile 1 to 3</td><td>A saved parameter preset; edit them in <a href="configuration.html#drmprofiles">Configuration &gt; DRM</a>.</td></tr>
 <tr><td>Rs</td><td>None, RS1 to RS4</td><td>Extra Reed-Solomon coding on file data. RS1 to RS4 add more redundancy: slower, more robust.</td></tr>
+<tr><td>Encoding</td><td>JPEG2000, AVIF</td><td>Image compression used for the picture (default JPEG2000). See <a href="#encoding">Image encoding</a>.</td></tr>
 </table>
 <p>A good starting point is the default profile. If the other station reports errors, move to a more robust setting (lower QAM, higher protection,
 Long interleave, or a higher Rs).</p>
 <div class="note"><p>Large pictures at 4-QAM can take many minutes. The command line option <code>--drm-size</code> (see
 <a href="command-line.html">command line</a>) and the size slider control the picture size.</p></div>
+
+<h2 id="encoding">Image encoding</h2>
+<p>The <strong>Encoding</strong> setting chooses how the picture is compressed. The size slider works the same way for both: it is the number of bytes the picture is
+compressed to, and the preview shows exactly what will be sent.</p>
+<ul>
+<li><strong>JPEG2000</strong> (default) gives a progressive picture: the receiver shows a preview that sharpens while the data arrives, and a partly received
+picture can still be viewed.</li>
+<li><strong>AVIF</strong> often looks cleaner than JPEG2000 at small sizes (up to roughly 20 kB), with fewer blotchy artefacts, but the gain shrinks at larger sizes
+and fine texture can look slightly smoothed. AVIF is all or nothing: there is no preview while receiving and a damaged picture cannot be shown, so consider
+Reed-Solomon (Rs) with it. Encoding takes a fraction of a second per slider change.</li>
+</ul>
+<p>The receiver needs no setting: it recognises the format from the received data. To <em>view</em> an AVIF picture the receiving station needs the AVIF image plugin
+(included in the Windows and AppImage builds; the same one that is needed to open AVIF files). Without it the file is still saved. If AVIF cannot be written on your
+system the option is greyed out, and if encoding fails the picture is sent as JPEG2000.</p>
 
 <h2 id="rx">Receiving</h2>
 <p>Select the <strong>DRM</strong> settings tab on the Receive tab and leave the receiver running. The status indicators TIME, FRAME, FAC and MSC turn on as the signal is

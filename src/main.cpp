@@ -235,9 +235,10 @@ int main( int argc, char ** argv )
   QCommandLineOption drmIlvOpt("drm-interleave","With --encode --drm: short or long.","type");
   QCommandLineOption drmRsOpt("drm-rs","With --encode --drm: Reed-Solomon 0 (none) to 4.","n");
   QCommandLineOption drmSizeOpt("drm-size","With --encode --drm: compress the picture to about this many bytes (default: the size slider setting, 5000).","bytes");
+  QCommandLineOption drmEncOpt("drm-encoding","With --encode --drm: picture codec jpeg2000 or avif (default: your TX setting).","codec");
   QCommandLineOption rxGainOpt("rx-gain","With --batch: test aid, amplify the recording by <dB> (negative to attenuate) before the receiver.","dB");
   QCommandLineOption rxNoiseOpt("rx-noise","With --batch: test aid, add white noise of this RMS level in dB full scale (e.g. -40) to the recording.","dBFS");
-  parser.addOptions(QList<QCommandLineOption>() << drmOpt << drmModeOpt << drmBwOpt << drmQamOpt << drmProtOpt << drmIlvOpt << drmRsOpt << drmSizeOpt << rxGainOpt << rxNoiseOpt << helpOpt << versionOpt << decodeOpt << batchOpt << outDirOpt << modeOpt << timeoutOpt << encodeOpt << wavOutOpt << listOpt << installOpt << uninstallOpt);
+  parser.addOptions(QList<QCommandLineOption>() << drmOpt << drmModeOpt << drmBwOpt << drmQamOpt << drmProtOpt << drmIlvOpt << drmRsOpt << drmSizeOpt << drmEncOpt << rxGainOpt << rxNoiseOpt << helpOpt << versionOpt << decodeOpt << batchOpt << outDirOpt << modeOpt << timeoutOpt << encodeOpt << wavOutOpt << listOpt << installOpt << uninstallOpt);
   parser.addPositionalArgument("file","SSTV recordings to decode (same as --decode).","[file ...]");
   if(!parser.parse(app.arguments()))
     {
@@ -315,6 +316,19 @@ int main( int argc, char ** argv )
           return fileDecoder::EXIT_BADFILE;
         }
       drmSet.append(qMakePair(ch.field,idx));
+    }
+
+  int drmEncoding=-1;   // -1: keep the user's setting
+  if(parser.isSet(drmEncOpt))
+    {
+      QString e=parser.value(drmEncOpt).toLower();
+      if(e=="jpeg2000" || e=="jp2") drmEncoding=0;
+      else if(e=="avif") drmEncoding=1;
+      else
+        {
+          fprintf(stderr,"--drm-encoding must be one of: jpeg2000, avif\n");
+          return fileDecoder::EXIT_BADFILE;
+        }
     }
 
   QPixmap pixmap(":/icons/qsstvsplash.png");
@@ -402,7 +416,7 @@ int main( int argc, char ** argv )
       },Qt::QueuedConnection);
       QTimer::singleShot(1800000,&app,[&app](){fprintf(stderr,"--encode timed out\n");app.exit(3);});
       mainWindowPtr->startRunning(false);   // no sound card receiver: the transmitter writes a file
-      if(!txWidgetPtr->sendDrmTestImage(prm,img,parser.value(drmSizeOpt).toUInt()))
+      if(!txWidgetPtr->sendDrmTestImage(prm,img,parser.value(drmSizeOpt).toUInt(),drmEncoding))
         {
           fprintf(stderr,"--encode: could not start the transmission\n");
           mainWindowPtr->shutdown(false);

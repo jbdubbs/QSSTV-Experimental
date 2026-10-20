@@ -163,7 +163,8 @@ bool reedSolomonCoder::decode(QByteArray &ba,QString fn,QString &newFileName,QBy
   QFileInfo fileInfo(origFileName);
   QString baseName=rxDRMImagesPath+"/"+fileInfo.completeBaseName();
   baseName.append(".");
-  baseName.append(coded_file_ext);
+  // the RS header only holds a 3 character extension, so "avif" (#108) is sent truncated as "avi"; DRM never carries video
+  baseName.append(strcmp(coded_file_ext,"avi")==0 ? "avif" : coded_file_ext);
 
   tr_buf=tr_buf.right(tr_buf.size()-7);
   tr_buf=tr_buf.left(coded_file_size);

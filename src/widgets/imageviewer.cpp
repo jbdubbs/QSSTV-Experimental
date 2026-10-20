@@ -26,6 +26,7 @@
 #include "dirdialog.h"
 #include "extviewer.h"
 #include "jp2io.h"
+#include "avifenc.h"
 #include "supportfunctions.h"
 #include <configdialog.h>
 #include "drm.h"
@@ -1140,11 +1141,34 @@ void imageViewer::save(QString fileName,QString fmt,bool convertRGB, bool source
   im.save(fileName,fmt.toUpper().toLatin1().data());
 }
 
+// Compress for DRM with the selected codec. JPEG2000 aims for a compression ratio, AVIF for the byte budget compressSize.
+// Falls back to JPEG2000 when AVIF cannot be written, so a transmission is never blocked by a missing plugin.
+QByteArray imageViewer::encodeCompressed(const QImage &rgb,QImage &decoded,int &size,int ratio)
+{
+  QByteArray data;
+  if(drmEncoding==ENCAVIF)
+    {
+      int q=0;
+      if(avifWriteSupported()) data=avifEncode(rgb,compressSize,&decoded,&q);
+      if(!data.isEmpty() && !decoded.isNull())
+        {
+          compressedExt="avif";
+          size=data.size();
+          addToLog(QString("AVIF quality %1, %2 bytes (target %3)").arg(q).arg(size).arg(compressSize),LOGIMAG);
+          return data;
+        }
+      addToLog("AVIF encoding failed, using JPEG2000",LOGIMAG);
+      statusBarPtr->showMessage("AVIF encoding unavailable, using JPEG2000");
+    }
+  jp2IO jp2;
+  compressedExt="jp2";
+  return jp2.encode(rgb,decoded,size,ratio);
+}
+
 bool imageViewer::copyToBuffer(QByteArray *ba)
 {
   QImage im;
   QImage cvimg;
-  jp2IO jp2;
   int fileSize;
   cvimg=displayedImage.convertToFormat(QImage::Format_RGB32);
 #if (QT_VERSION < QT_VERSION_CHECK(5,10,0))
@@ -1165,7 +1189,7 @@ bool imageViewer::copyToBuffer(QByteArray *ba)
 
   if (compressedImageData.isEmpty())
     {
-      compressedImageData=jp2.encode(cvimg,im,fileSize,compressionRatio);
+      compressedImageData=encodeCompressed(cvimg,im,fileSize,compressionRatio);
     }
   *ba = compressedImageData;
   if (compressedImageData.isEmpty())
@@ -1391,7 +1415,6 @@ int imageViewer::applyTemplate()
 {
   //  qDebug() << "applyTemplate";
   QImage *resultImage;
-  jp2IO jp2;
   QImage overlayedImage;
   int tWidth=targetWidth,tHeight=targetHeight;
   int compRatio;
@@ -1537,7 +1560,7 @@ int imageViewer::applyTemplate()
       // so the compression ratio is calculated for 3/4 of the image size
       // so its better to calculate the end result for 3/4 of the source imag
 
-      compressedImageData=jp2.encode(resultImage->convertToFormat(QImage::Format_RGB32),compressedImage,fileSize,compRatio);
+      compressedImageData=encodeCompressed(resultImage->convertToFormat(QImage::Format_RGB32),compressedImage,fileSize,compRatio);
 
       //      qDebug() << "byteCount image" << byteCount
       //               << "compRatio"  << compRatio << "filesize" << fileSize  << "ratio"   << (float)byteCount/(float)fileSize;
@@ -1561,7 +1584,7 @@ int imageViewer::applyTemplate()
           displayedImage=compressedImage;
           int pos;
           pos=imageFileName.lastIndexOf(".",-1);
-          compressedFilename=imageFileName.left(pos)+".jp2";
+          compressedFilename=imageFileName.left(pos)+"."+compressedExt;
           statusBarPtr->showMessage("");
           addToLog(QString("Image Compressed to %1 bytes").arg(compressedImageData.size()),LOGIMAG);
           addToLog(QString("displayedImageW,H=%1,%2  compRatio=%3").

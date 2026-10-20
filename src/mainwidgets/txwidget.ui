@@ -856,6 +856,33 @@
           </widget>
          </item>
          <item row="3" column="0">
+          <widget class="QLabel" name="drmEncodingLabel">
+           <property name="text">
+            <string>Encoding</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1" colspan="3">
+          <widget class="QComboBox" name="drmEncodingComboBox">
+           <property name="toolTip">
+            <string>Image compression used for the picture. JPEG2000 is the default (progressive preview while receiving). AVIF often looks cleaner at small sizes but is all-or-nothing and needs the AVIF image plugin on the receiving side.</string>
+           </property>
+           <item>
+            <property name="text">
+             <string>JPEG2000</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AVIF</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item row="4" column="0">
           <widget class="QLabel" name="drmFramingLabel">
            <property name="text">
             <string>Framing</string>
@@ -865,14 +892,14 @@
            </property>
           </widget>
          </item>
-         <item row="3" column="1" colspan="3">
+         <item row="4" column="1" colspan="3">
           <widget class="QComboBox" name="drmResizeComboBox">
            <property name="toolTip">
             <string>Stretch, crop, fit or freely zoom/pan the selected grid cell (a single image is always zoom/pan)</string>
            </property>
           </widget>
          </item>
-         <item row="3" column="4">
+         <item row="4" column="4">
           <widget class="QLabel" name="drmGridLabel">
            <property name="text">
             <string>Grid</string>
@@ -882,7 +909,7 @@
            </property>
           </widget>
          </item>
-         <item row="3" column="5">
+         <item row="4" column="5">
           <widget class="QComboBox" name="drmGridComboBox">
            <property name="toolTip">
             <string>Stitch several images together (columns x rows); right-click a segment to load, edit, copy or paste it</string>

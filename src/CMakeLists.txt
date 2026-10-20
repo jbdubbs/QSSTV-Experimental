@@ -259,6 +259,7 @@ set(QSSTV_SOURCES
     editor/canvassizeform.cpp
     utils/fftcalc.cpp
     utils/jp2io.cpp
+    utils/avifenc.cpp
     utils/color.cpp
     widgets/testpatternselection.cpp
     utils/filewatcher.cpp

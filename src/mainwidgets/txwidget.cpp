@@ -6,6 +6,8 @@
 #include "rxfunctions.h"
 #include "ui_txwidget.h"
 #include <QTimer>
+#include <QStandardItemModel>
+#include "avifenc.h"
 #include <QPainter>
 #include "configparams.h"
 #include "dispatcher.h"
@@ -63,6 +65,13 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   connect(ui->drmTxQAMComboBox,SIGNAL(activated(int)),SLOT(slotGetTXParams()));
   connect(ui->drmTxModeComboBox,SIGNAL(activated(int)),SLOT(slotGetTXParams()));
   connect(ui->drmTxReedSolomonComboBox,SIGNAL(activated(int)),SLOT(slotGetTXParams()));
+  connect(ui->drmEncodingComboBox,SIGNAL(activated(int)),SLOT(slotEncodingChanged(int)));
+  if(!avifWriteSupported())
+    {
+      // no AVIF writer plugin: keep JPEG2000 selectable only
+      qobject_cast<QStandardItemModel *>(ui->drmEncodingComboBox->model())->item(imageViewer::ENCAVIF)->setEnabled(false);
+      ui->drmEncodingComboBox->setToolTip(ui->drmEncodingComboBox->toolTip()+"\n\nAVIF is unavailable: the AVIF image plugin (kimageformats) was not found.");
+    }
 
   connect(ui->templatesComboBox,SIGNAL(currentIndexChanged(int)),SLOT(slotGetParams()));
   connect(ui->templateCheckBox,SIGNAL(toggled(bool)),SLOT(slotGetParams()));
@@ -194,6 +203,9 @@ void txWidget::readSettings()
   drmParams.qam=qSettings.value("drmQAM",0).toInt();
   drmParams.robMode=qSettings.value("drmRobMode",0).toInt();
   drmParams.reedSolomon=qSettings.value("drmReedSolomon",0).toInt();
+  int enc=qSettings.value("drmImageEncoding",imageViewer::ENCJPEG2000).toInt();
+  if(enc!=imageViewer::ENCAVIF || !avifWriteSupported()) enc=imageViewer::ENCJPEG2000;
+  imageViewerPtr->setEncoding(enc);
   qSettings.endGroup();
   setParams();
 }
@@ -216,6 +228,7 @@ void txWidget::writeSettings()
   qSettings.setValue("drmRobMode",drmParams.robMode);
   qSettings.setValue("drmReedSolomon",drmParams.reedSolomon);
   qSettings.setValue("compressedSize",compressedSize);
+  qSettings.setValue("drmImageEncoding",imageViewerPtr->encoding());
   qSettings.setValue("gridLayout",gridLayout);
   qSettings.endGroup();
 }
@@ -285,6 +298,7 @@ void txWidget::setParams()
   setIndex(drmParams.qam,ui->drmTxQAMComboBox);
   setIndex(drmParams.robMode,ui->drmTxModeComboBox);
   setIndex(drmParams.reedSolomon,ui->drmTxReedSolomonComboBox);
+  ui->drmEncodingComboBox->setCurrentIndex(imageViewerPtr->encoding());
   if(compressedSize<MINDRMSIZE) compressedSize=MINDRMSIZE;
   if(compressedSize>MAXDRMSIZE) compressedSize=MAXDRMSIZE;
   setValue(compressedSize,ui->sizeSlider);
@@ -374,7 +388,7 @@ bool txWidget::sendCalibrationImage(esstvMode mode,const QImage &image)
   return true;
 }
 
-bool txWidget::sendDrmTestImage(const drmTxParams &params,const QImage &image,uint jp2Bytes)
+bool txWidget::sendDrmTestImage(const drmTxParams &params,const QImage &image,uint jp2Bytes,int encoding)
 {
   if(calTxActive || mainWindowPtr->busyMode()>=0 || transmissionModeIndex!=TRXDRM) return false;
   if(imageViewerPtr->gridColumns()*imageViewerPtr->gridRowCount()>1 || image.isNull()) return false;
@@ -386,6 +400,7 @@ bool txWidget::sendDrmTestImage(const drmTxParams &params,const QImage &image,ui
   calTxActive=true;
   useTemplate=false;
   copyProfile(params);
+  if(encoding>=0) imageViewerPtr->setEncoding(encoding);
   if(jp2Bytes>0) compressedSize=qBound((uint)MINDRMSIZE,jp2Bytes,(uint)MAXDRMSIZE);
   // the viewer's compression target is only set by the size slider; without a window it is uninitialised and the
   // jp2 encode of the picture then divides by garbage
@@ -1086,6 +1101,12 @@ void txWidget::changeTransmissionMode(int rxtxMode)
     }
 }
 
+void txWidget::slotEncodingChanged(int enc)
+{
+  imageViewerPtr->setEncoding(enc);
+  slotImageChanged();   // size range, re-encode and TX time follow the codec
+}
+
 void txWidget::slotProfileChanged(int i)
 {
   drmProfileConfigPtr->getDRMParams(i,drmParams);
@@ -1123,7 +1144,15 @@ void txWidget::slotImageChanged()
   uint temp;
   if(transmissionModeIndex==TRXDRM)
     {
-      maxSize=imageViewerPtr->setSize(imageViewerPtr->diplayedImageBytecount(),transmissionModeIndex==TRXDRM);
+      if(imageViewerPtr->encoding()==imageViewer::ENCAVIF)
+        {
+          // a near-lossless AVIF encode just to find the slider range would be slow; use the raw RGB size instead
+          maxSize=imageViewerPtr->diplayedImageBytecount()*3/4;
+        }
+      else
+        {
+          maxSize=imageViewerPtr->setSize(imageViewerPtr->diplayedImageBytecount(),transmissionModeIndex==TRXDRM);
+        }
       if(maxSize>MAXDRMSIZE) maxSize=MAXDRMSIZE;
       ui->sizeSlider->setMaximum(maxSize);
       ui->sizeSlider->setMinimum(MINDRMSIZE);

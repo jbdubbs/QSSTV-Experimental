@@ -6,10 +6,11 @@
 #
 # What gets built (all CMake, so no meson/nasm is needed):
 #   libde265  HEVC decoder (HEIC), static            -- LGPL
-#   libaom    AV1 decoder (AVIF + HEIC-with-AV1), static, generic C (no nasm) -- BSD
+#   libaom    AV1 decoder (AVIF + HEIC-with-AV1) and encoder (AVIF sending over DRM, #108), static -- BSD.
+#             With nasm on the host the SIMD code is used; without it, generic C, which works but encodes several times slower
 #   libheif   shared libheif.dll with libde265+libaom linked in, so, unlike the Linux
 #             AppImage, no runtime codec-plugin directory is needed on Windows
-#   libavif   shared libavif.dll, decodes through libaom
+#   libavif   shared libavif.dll, decodes and encodes through libaom
 #   ECM       KDE extra-cmake-modules (kimageformats' build system)
 #   kimageformats  only kimg_avif.dll and kimg_heif.dll are kept
 #
@@ -18,7 +19,7 @@
 #   JOBS=4 tools/build-image-plugins-win64.sh
 #   rm -rf third_party/imageformats-win64*             # to start over from clean
 #
-# Needs (Fedora): mingw64-gcc mingw64-gcc-c++ mingw64-qt6-qtbase mingw64-qt6-qtbase-devel
+# Needs (Fedora): mingw64-gcc mingw64-gcc-c++ mingw64-qt6-qtbase mingw64-qt6-qtbase-devel nasm (recommended: fast AVIF encoding)
 #   (the mingw Qt's private headers) cmake git, and network access to clone the sources.
 #
 # Output: third_party/imageformats-win64/{bin/*.dll, plugins/imageformats/kimg_*.dll}
@@ -79,9 +80,11 @@ build libde265 -DBUILD_SHARED_LIBS=OFF -DENABLE_DECODER=ON -DENABLE_ENCODER=OFF 
 
 echo "== libaom $LIBAOM_TAG"
 clone https://aomedia.googlesource.com/aom "$LIBAOM_TAG" libaom
-build libaom -DBUILD_SHARED_LIBS=OFF -DENABLE_ENCODER=0 -DAOM_TARGET_CPU=generic \
-  -DENABLE_DOCS=0 -DENABLE_EXAMPLES=0 -DENABLE_TESTS=0 -DENABLE_TESTDATA=0 -DENABLE_TOOLS=0 \
-  -DENABLE_NASM=0
+# the encoder is needed to send AVIF; SIMD needs nasm (a host tool, it also assembles for Windows)
+if command -v nasm >/dev/null; then AOM_CPU="-DAOM_TARGET_CPU=x86_64 -DENABLE_NASM=1"
+else AOM_CPU="-DAOM_TARGET_CPU=generic -DENABLE_NASM=0"; echo "WARNING: nasm not found, libaom builds without SIMD: AVIF encoding will be slow"; fi
+build libaom -DBUILD_SHARED_LIBS=OFF -DENABLE_ENCODER=1 $AOM_CPU \
+  -DENABLE_DOCS=0 -DENABLE_EXAMPLES=0 -DENABLE_TESTS=0 -DENABLE_TESTDATA=0 -DENABLE_TOOLS=0
 
 echo "== libheif $LIBHEIF_TAG"
 clone https://github.com/strukturag/libheif.git "$LIBHEIF_TAG" libheif
@@ -99,7 +102,7 @@ echo "== libavif $LIBAVIF_TAG"
 clone https://github.com/AOMediaCodec/libavif.git "$LIBAVIF_TAG" libavif
 build libavif -DBUILD_SHARED_LIBS=ON -DAVIF_BUILD_APPS=OFF -DAVIF_BUILD_TESTS=OFF \
   -DAVIF_BUILD_EXAMPLES=OFF -DAVIF_BUILD_MAN=OFF \
-  -DAVIF_CODEC_AOM=SYSTEM -DAVIF_CODEC_AOM_ENCODE=OFF \
+  -DAVIF_CODEC_AOM=SYSTEM -DAVIF_CODEC_AOM_ENCODE=ON \
   -DAVIF_CODEC_DAV1D=OFF \
   -DAVIF_CODEC_LIBGAV1=OFF -DAVIF_CODEC_RAV1E=OFF -DAVIF_CODEC_SVT=OFF \
   -DAVIF_LIBYUV=OFF -DAVIF_LIBSHARPYUV=OFF -DAVIF_JPEG=OFF -DAVIF_ZLIBPNG=OFF

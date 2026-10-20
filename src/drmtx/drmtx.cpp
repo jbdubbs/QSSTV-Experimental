@@ -111,7 +111,7 @@ bool drmTx::initDRMImage(bool binary,QString fileName)
               addToLog(QString("Unable to copy image from txWidget->viewer"),LOGDRMTX);
               return false;
             }
-          drmTxFileName.setFile(drmTxFileName.completeBaseName()+".jp2");
+          drmTxFileName.setFile(drmTxFileName.completeBaseName()+"."+QFileInfo(txWidgetPtr->getImageViewerPtr()->getCompressedFilename()).suffix());
         }
 
       rsType=(eRSType)drmTxParameters.reedSolomon;

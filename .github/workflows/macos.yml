@@ -26,8 +26,25 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install qt@6 fftw openjpeg hamlib pkg-config cmake coreutils ffmpeg libvorbis vorbis-tools bash
+          brew install qt@6 fftw openjpeg hamlib pkg-config cmake coreutils ffmpeg libvorbis vorbis-tools bash libavif
           echo "QT_PREFIX=$(brew --prefix qt@6)" >> "$GITHUB_ENV"
+
+      # AVIF (send over DRM, view received pictures): Qt has no AVIF plugin, so build KDE's kimg_avif against Homebrew's Qt
+      # and libavif (which has the AOM encoder) -- the same plugin the AppImage and Windows builds ship. It is added to the
+      # bundle below. KIMAGEFORMATS_TAG matches packaging/appimage/Dockerfile.
+      - name: Build the AVIF image plugin
+        env:
+          KIMAGEFORMATS_TAG: v6.10.0
+        run: |
+          set -e
+          git clone --depth 1 --branch "$KIMAGEFORMATS_TAG" https://invent.kde.org/frameworks/extra-cmake-modules.git ecm
+          cmake -S ecm -B ecm/build -DCMAKE_INSTALL_PREFIX="$PWD/kdeprefix" -DBUILD_TESTING=OFF -DBUILD_HTML_DOCS=OFF -DBUILD_MAN_DOCS=OFF -DBUILD_QTHELP_DOCS=OFF
+          cmake --install ecm/build
+          git clone --depth 1 --branch "$KIMAGEFORMATS_TAG" https://invent.kde.org/frameworks/kimageformats.git kif
+          cmake -S kif -B kif/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$QT_PREFIX;$PWD/kdeprefix;$(brew --prefix)" \
+            -DKIMAGEFORMATS_HEIF=OFF -DBUILD_TESTING=OFF
+          cmake --build kif/build --target kimg_avif -j "$(sysctl -n hw.ncpu)"
+          find kif/build -name 'kimg_avif*' -not -path '*autogen*' -not -path '*CMakeFiles*'
 
       - name: Configure
         run: cmake -S src -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$QT_PREFIX"
@@ -75,11 +92,28 @@ jobs:
           set -e
           cd build
           mv qsstv-experimental.app QSSTV-Experimental.app
-          "$QT_PREFIX/bin/macdeployqt" QSSTV-Experimental.app
+          mkdir -p QSSTV-Experimental.app/Contents/PlugIns/imageformats
+          cp "$(find ../kif/build -name 'kimg_avif.so' | head -1)" QSSTV-Experimental.app/Contents/PlugIns/imageformats/
+          # -executable: also pull in and re-point the plugin's own libraries (libavif, aom, ...)
+          "$QT_PREFIX/bin/macdeployqt" QSSTV-Experimental.app -executable=QSSTV-Experimental.app/Contents/PlugIns/imageformats/kimg_avif.so
           codesign --force --deep --sign - QSSTV-Experimental.app
           codesign --verify --deep --strict QSSTV-Experimental.app
           echo "--- non-system libraries still referenced (should be none):"
           otool -L QSSTV-Experimental.app/Contents/MacOS/qsstv-experimental | grep -E "/opt/homebrew|/usr/local" || true
+
+      - name: AVIF over DRM (#108)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        # the bundled plugin must both write (TX) and read (RX) AVIF; a missing encoder falls back to JPEG2000, so check the extension
+        run: |
+          set -e
+          APP="$PWD/build/QSSTV-Experimental.app/Contents/MacOS/qsstv-experimental"
+          export HOME="$RUNNER_TEMP/avifhome"; mkdir -p "$HOME"
+          "$APP" --encode tests/drm/card160.png --drm --drm-mode B --drm-qam 16 --drm-size 6000 --drm-encoding avif --wav-out "$RUNNER_TEMP/avif.wav"
+          "$APP" --batch --drm -o "$RUNNER_TEMP/avifout" "$RUNNER_TEMP/avif.wav" | tee "$RUNNER_TEMP/avif.txt"
+          ls "$RUNNER_TEMP/avifout"
+          ls "$RUNNER_TEMP/avifout" | grep -q '_drm\.avif$'
+          grep -q "DRM, 160x124" "$RUNNER_TEMP/avif.txt"
 
       - name: Package
         run: |

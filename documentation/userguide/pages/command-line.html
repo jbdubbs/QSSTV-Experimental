@@ -44,7 +44,7 @@ named <code class="wrap"><span class="nb">&lt;file&gt;_&lt;n&gt;_drm.&lt;ext&gt;
 <p><code class="wrap"><span class="nb">qsstv</span> <span class="nb">--encode</span> <span class="nb">picture.png</span> <span class="nb">--mode</span> <span class="nb">PD120</span> <span class="nb">--wav-out</span> <span class="nb">picture.wav</span></code> converts a picture into the SSTV audio for the chosen mode, through the normal transmit path,
 and writes it to a WAV file; no sound card is used. The default output name is <code>&lt;image&gt;.wav</code>. As with <code>--batch</code>, your settings are read
 but never written. Add <code>--drm</code> to make a DRM transmission instead; then <code>--drm-mode</code>, <code>--drm-bw</code>, <code>--drm-qam</code>, <code>--drm-prot</code>,
-<code>--drm-interleave</code>, <code>--drm-rs</code> and <code>--drm-size</code> choose the parameters (otherwise your Transmit-tab settings are used).</p>
+<code>--drm-interleave</code>, <code>--drm-rs</code>, <code>--drm-size</code> and <code>--drm-encoding</code> choose the parameters (otherwise your Transmit-tab settings are used).</p>
 <pre><code>qsstv --encode rose.png --mode PD120 --wav-out pd120.wav
 qsstv --encode rose.png --drm --drm-mode B --drm-qam 16 --drm-bw 2.5 --wav-out rose-drm.wav</code></pre>
 <p>A round trip is a good test of an installation: encode a picture and then decode the WAV with <code>--batch</code>.</p>
@@ -72,6 +72,7 @@ qsstv --encode rose.png --drm --drm-mode B --drm-qam 16 --drm-bw 2.5 --wav-out r
 <tr><td><code class="wrap"><span class="nb">--drm-prot</span> <span class="nb">&lt;high|low&gt;</span></code></td><td>With <code>--encode --drm</code>: protection level.</td></tr>
 <tr><td><code class="wrap"><span class="nb">--drm-interleave</span> <span class="nb">&lt;short|long&gt;</span></code></td><td>With <code>--encode --drm</code>: interleaver.</td></tr>
 <tr><td><code>--drm-rs &lt;n&gt;</code></td><td>With <code>--encode --drm</code>: Reed-Solomon 0 (none) to 4.</td></tr>
+<tr><td><code>--drm-encoding &lt;codec&gt;</code></td><td>With <code>--encode --drm</code>: picture codec <code>jpeg2000</code> or <code>avif</code> (default: your Transmit-tab setting).</td></tr>
 <tr><td><code>--drm-size &lt;bytes&gt;</code></td><td>With <code>--encode --drm</code>: compress the picture to about this many bytes (default: the size slider setting, 5000).</td></tr>
 <tr><td><code>--rx-gain</code>, <code>--rx-noise</code></td><td>Test aids for <code>--batch</code>.</td></tr>
 <tr><td><code>--encode &lt;image&gt;</code></td><td>Headless: write the transmit audio for a picture to a WAV file.</td></tr>

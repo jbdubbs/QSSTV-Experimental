@@ -91,6 +91,9 @@ public:
   void zoom(QPoint centre, int dlevel);
   void save(QString fileName, QString fmt, bool convertRGB, bool source);
   bool copyToBuffer(QByteArray *ba);
+  enum drmEncodingType {ENCJPEG2000,ENCAVIF};
+  void setEncoding(int enc) {drmEncoding=enc;}   // DRM picture codec; the caller re-applies the size afterwards
+  int encoding() const {return drmEncoding;}
   //  int calcSize(int &sizeRatio);
   uint setSize(int tcommpressSize,bool usesCompression);
   enum fitModeType {FITSTRETCH,FITCROP,FITFIT,FITFREE};
@@ -240,6 +243,9 @@ private:
 
   //  double psizeRatio;
   int compressSize;   // target size of compressed image
+  int drmEncoding=ENCJPEG2000;
+  QString compressedExt="jp2";   // extension of compressedImageData's codec
+  QByteArray encodeCompressed(const QImage &rgb,QImage &decoded,int &size,int ratio);
   int fileSize;
   QString format;
   QMovie qm;
