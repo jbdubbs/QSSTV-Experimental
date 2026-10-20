@@ -248,7 +248,7 @@ bool sourceDecoder::setupDataPacket(QByteArray ba)
   if(header&0x40)
     {
       currentDataPacket.crcFlag=true;
-      crc16_bytewise (&checksum,(unsigned char *)currentDataPacket.ba.data(),currentDataPacket.ba.count());
+      crc16_bytewise (&checksum,(unsigned char *)currentDataPacket.ba.data(),currentDataPacket.ba.size());
       if (fabs (checksum) <= DBL_EPSILON)
         {
           currentDataPacket.crcOK=true;
@@ -286,7 +286,7 @@ bool sourceDecoder::setupDataPacket(QByteArray ba)
     }
   currentDataPacket.segmentSize=(((unsigned char)(currentDataPacket.ba.at(0)) & 0x1F))*256+ ((unsigned char)currentDataPacket.ba.at(1));
   currentDataPacket.advance(2);
-  currentDataPacket.lenght=currentDataPacket.ba.count();
+  currentDataPacket.lenght=currentDataPacket.ba.size();
   currentDataPacket.log();
   return true;
 }
@@ -351,7 +351,7 @@ bool sourceDecoder::addHeaderSegment()
   // The header core is followed by a number of parameter blocks
   // the first byte of every parameter block contains a 2-bits PLI (B7 and B6) indicating the type of parameter block.
 
-  while(currentDataPacket.ba.count())
+  while(currentDataPacket.ba.size())
     {
       // advance() removes from the front of the array, which Qt 6 does by moving its start pointer: re-read it
       dataPtr=(unsigned char *)currentDataPacket.ba.data();

@@ -18,7 +18,7 @@ endif()
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network Xml SerialPort Multimedia)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network Xml SerialPort Multimedia)
 if(UNIX AND NOT APPLE)
   # only used to probe for xdg-desktop-portal at startup (native file dialogs, see preferPortalTheme())
   find_package(Qt6 REQUIRED COMPONENTS DBus)

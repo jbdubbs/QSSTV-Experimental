@@ -1,5 +1,6 @@
 #include "txwidget.h"
 #include "appglobal.h"
+#include <QTimeZone>
 #include "drmparams.h"
 #include "rxwidget.h"
 #include "rxfunctions.h"
@@ -497,7 +498,7 @@ void txWidget::startTxImage()
 {
   addToLog("startTxImage",LOGTXMAIN);
   QDateTime dt(QDateTime::currentDateTime().toUTC()); //this is compatible with QT 4.6
-  dt.setTimeSpec(Qt::UTC);
+  dt.setTimeZone(QTimeZone::UTC);
   if(!imageViewerPtr->hasValidImage())
     {
       addToLog("invalidImage",LOGTXMAIN);

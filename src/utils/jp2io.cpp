@@ -371,7 +371,6 @@ opj_image_t *jp2IO::convert_gray_to_rgb(opj_image_t* original)
       return NULL;
     }
 
-  l_new_components[0].bpp  = l_new_components[1].bpp  = l_new_components[2].bpp  = original->comps[0].bpp;
   l_new_components[0].dx   = l_new_components[1].dx   = l_new_components[2].dx   = original->comps[0].dx;
   l_new_components[0].dy   = l_new_components[1].dy   = l_new_components[2].dy   = original->comps[0].dy;
   l_new_components[0].h    = l_new_components[1].h    = l_new_components[2].h    = original->comps[0].h;
@@ -382,7 +381,6 @@ opj_image_t *jp2IO::convert_gray_to_rgb(opj_image_t* original)
   l_new_components[0].y0   = l_new_components[1].y0   = l_new_components[2].y0   = original->comps[0].y0;
 
   for(compno = 1U; compno < original->numcomps; ++compno) {
-      l_new_components[compno+2U].bpp  = original->comps[compno].bpp;
       l_new_components[compno+2U].dx   = original->comps[compno].dx;
       l_new_components[compno+2U].dy   = original->comps[compno].dy;
       l_new_components[compno+2U].h    = original->comps[compno].h;
@@ -514,7 +512,7 @@ QByteArray jp2IO::encode(QImage qimage, QImage &newImage,int &fileSize, int comp
   if(fi.open(QIODevice::ReadOnly))
     {
       byteArray=fi.readAll();
-      fileSize=byteArray.count();
+      fileSize=byteArray.size();
     }
   fi.close();
   check(fn);
@@ -533,7 +531,6 @@ bool jp2IO::createImage(QImage qimage)
   for(i = 0; i < 4; i++)
     {
       cmptparm[i].prec = 8;
-      cmptparm[i].bpp  = 8;
       cmptparm[i].sgnd = 0;
       cmptparm[i].dx   = (OPJ_UINT32)cparameters.subsampling_dx;
       cmptparm[i].dy   = (OPJ_UINT32)cparameters.subsampling_dy;

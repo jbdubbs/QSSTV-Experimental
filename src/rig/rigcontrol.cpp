@@ -453,7 +453,7 @@ int  rigControl::rawCommand(QByteArray ba)
       // we need to send this as a command string
       if(additionalCommandHex)
         {
-          for(i=0;i<ba.count();i++)
+          for(i=0;i<ba.size();i++)
             {
 
               command+="\\0x";
@@ -467,12 +467,12 @@ int  rigControl::rawCommand(QByteArray ba)
 
       command+="\n";
       cmdBa=command.toLatin1();
-      result=write_block(rigport,cmdBa.constData(), cmdBa.count());
+      result=write_block(rigport,cmdBa.constData(), cmdBa.size());
 
     }
   else
     {
-      result=write_block(rigport,ba.constData(), ba.count());
+      result=write_block(rigport,ba.constData(), ba.size());
     }
   read_block(rigport,rxBuffer,99);
   return result;

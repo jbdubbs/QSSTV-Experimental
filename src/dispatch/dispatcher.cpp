@@ -27,6 +27,7 @@ It also starts, stops and synchronizes the threads.
 #include "dispatcher.h"
 #include "appglobal.h"
 #include "configparams.h"
+#include <QTimeZone>
 #include "rxwidget.h"
 #include "txwidget.h"
 #include "gallerywidget.h"
@@ -447,7 +448,7 @@ void dispatcher::saveRxSSTVImage(esstvMode mode)
   QTemporaryFile tfn;
   int m;
   QDateTime dt(QDateTime::currentDateTime().toUTC()); //this is compatible with QT 4.6
-  dt.setTimeSpec(Qt::UTC);
+  dt.setTimeZone(QTimeZone::UTC);
   if (mode==NOTVALID)
     {
       lastFileName.clear();
