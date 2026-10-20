@@ -28,6 +28,7 @@
 int galleryRows;
 int galleryColumns;
 bool imageStretch;
+bool smoothDisplayScaling;
 QColor backGroundColor;
 QColor imageBackGroundColor;
 bool slowCPU;
@@ -51,10 +52,13 @@ guiConfig::~guiConfig()
 void guiConfig::readSettings()
 {
   QSettings qSettings;
+  // the option used to live on the Receive tab (RX/smoothDisplayScaling)
+  bool legacySmooth=qSettings.value("RX/smoothDisplayScaling",true).toBool();
   qSettings.beginGroup("GUI");
   galleryRows=qSettings.value("galleryRows",4).toInt();
   galleryColumns=qSettings.value("galleryColumns",4).toInt();
   imageStretch=qSettings.value("imageStretch",true).toBool();
+  smoothDisplayScaling=qSettings.value("smoothDisplayScaling",legacySmooth).toBool();
   backGroundColor=qSettings.value("backGroundColor",QColor(0,86,230)).value<QColor>();
   imageBackGroundColor=qSettings.value("imageBackGroundColor",QColor(128,128,128)).value<QColor>();
   slowCPU=qSettings.value("slowCPU",false).toBool();
@@ -73,6 +77,7 @@ void guiConfig::writeSettings()
   qSettings.setValue("galleryRows",galleryRows);
   qSettings.setValue("galleryColumns",galleryColumns);
   qSettings.setValue("imageStretch",imageStretch);
+  qSettings.setValue("smoothDisplayScaling",smoothDisplayScaling);
   qSettings.setValue("backGroundColor",backGroundColor);
   qSettings.setValue("imageBackGroundColor",imageBackGroundColor);
   qSettings.setValue("slowCPU",slowCPU);
@@ -94,6 +99,9 @@ void guiConfig::getParams()
   if( galleryRowsCopy!=galleryRows || galleryColumnsCopy!=galleryColumns)
     changed=true;
   getValue(imageStretch,ui->stretchCheckBox);
+  bool smoothCopy=smoothDisplayScaling;
+  getValue(smoothDisplayScaling,ui->smoothScalingCheckBox);
+  smoothChanged=(smoothCopy!=smoothDisplayScaling);
   getValue(slowCPU,ui->slowCPUCheckBox);
   getValue(lowRes,ui->lowResCheckBox);
 
@@ -107,6 +115,7 @@ void guiConfig::setParams()
   setValue(galleryRows,ui->rowsSpinBox);
   setValue(galleryColumns, ui->columnsSpinBox);
   setValue(imageStretch,ui->stretchCheckBox);
+  setValue(smoothDisplayScaling,ui->smoothScalingCheckBox);
   setColorLabel(backGroundColor,false);
   setColorLabel(imageBackGroundColor,true);
   setValue(slowCPU,ui->slowCPUCheckBox);

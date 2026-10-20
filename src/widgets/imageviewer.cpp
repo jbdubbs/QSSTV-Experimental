@@ -423,10 +423,10 @@ QRgb *imageViewer::getScanLineAddress(int line)
 
 
 
-// RX picture only: the "Smooth Display Scaling" option (RX tab) can switch smoothing off 
+// Configuration > GUI "Smooth Display Scaling" can switch smoothing off for every viewer
 Qt::TransformationMode imageViewer::scaleMode() const
 {
-  if((ttype==RXIMG) && !rxSmoothDisplayScaling) return Qt::FastTransformation;
+  if(!smoothDisplayScaling) return Qt::FastTransformation;
   return Qt::SmoothTransformation;
 }
 

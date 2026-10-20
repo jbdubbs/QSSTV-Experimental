@@ -23,6 +23,7 @@
 #include "gallerywidget.h"
 #include "mainwindow.h"
 #include "txwidget.h"
+#include "rxwidget.h"
 #include "filewatcher.h"
 
 
@@ -101,6 +102,13 @@ int configDialog::exec()
   if(QDialog::exec())
   {
     writeSettings();
+    if(ui->guiWidget->smoothChanged)
+      {
+        ui->guiWidget->smoothChanged=false;
+        rxWidgetPtr->getImageViewerPtr()->displayImage();
+        txWidgetPtr->getImageViewerPtr()->displayImage();
+        galleryWidgetPtr->changedMatrix();
+      }
     if(ui->directoryWidget->hasChanged() || ui->guiWidget->hasChanged())
       {
         galleryWidgetPtr->changedMatrix();

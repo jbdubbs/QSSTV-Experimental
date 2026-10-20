@@ -63,7 +63,6 @@ private slots:
   void slotSyncSettingChanged();
   void slotDecodeFile();
   void slotGetParams();
-  void slotSmoothDisplayChanged();
   void slotTransmissionMode(int rxtxMode);
   void slotNewCall(QString);
   void slotResetCall();

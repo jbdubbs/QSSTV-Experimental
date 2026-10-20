@@ -77,7 +77,6 @@ void rxWidget::init()
   connect(ui->decodeFileToolButton,SIGNAL(clicked()),SLOT(slotDecodeFile()));
   connect(ui->autoSaveCheckBox,SIGNAL(clicked()),SLOT(slotGetParams()));
   connect(ui->autoSlantAdjustCheckBox,SIGNAL(clicked()),SLOT(slotGetParams()));
-  connect(ui->smoothDisplayCheckBox,SIGNAL(clicked()),SLOT(slotSmoothDisplayChanged()));
 
 
 
@@ -115,7 +114,6 @@ void rxWidget::readSettings()
   defaultImageFormat=qSettings.value("defaultImageFormat","png").toString();
   if(ui->defaultImageFormatComboBox->findText(defaultImageFormat)<0) defaultImageFormat="png"; // saved format no longer offered
   minCompletion=qSettings.value("minCompletion",25).toInt();
-  rxSmoothDisplayScaling=qSettings.value("smoothDisplayScaling",true).toBool();
   setParams();
   qSettings.endGroup();
 
@@ -132,7 +130,6 @@ void rxWidget::writeSettings()
   qSettings.setValue("sstvModeIndexRx",sstvModeIndexRx);
   qSettings.setValue("defaultImageFormat",defaultImageFormat);
   qSettings.setValue("minCompletion",minCompletion);
-  qSettings.setValue("smoothDisplayScaling",rxSmoothDisplayScaling);
   qSettings.endGroup();
 }
 
@@ -147,7 +144,6 @@ void rxWidget::getParams()
   sstvModeIndexRx=(selected==NOTVALID) ? (esstvMode)0 : (esstvMode)((int)selected+1);
   getValue(defaultImageFormat,ui->defaultImageFormatComboBox);
   getValue(minCompletion,ui->completeSpinBox);
-  getValue(rxSmoothDisplayScaling,ui->smoothDisplayCheckBox);
 }
 
 void rxWidget::setParams()
@@ -158,7 +154,6 @@ void rxWidget::setParams()
   rebuildModeComboBox();
   setValue(defaultImageFormat,ui->defaultImageFormatComboBox);
   setValue(minCompletion,ui->completeSpinBox);
-  setValue(rxSmoothDisplayScaling,ui->smoothDisplayCheckBox);
 }
 
 // Populates sstvModeComboBox ("Auto" always first) with every SSTV mode,
@@ -214,12 +209,6 @@ bool rxWidget::setRxModeByName(const QString &name)
   ui->sstvModeComboBox->blockSignals(false);
   sstvModeIndexRx=(mode==NOTVALID) ? (esstvMode)0 : (esstvMode)((int)mode+1);
   return true;
-}
-
-void rxWidget::slotSmoothDisplayChanged()
-{
-  getParams();
-  imageViewerPtr->displayImage();   // redraw the current picture with the new scaling
 }
 
 void rxWidget::slotGetParams()

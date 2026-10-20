@@ -7,6 +7,7 @@
 extern int galleryRows;
 extern int galleryColumns;
 extern bool imageStretch;
+extern bool smoothDisplayScaling;
 extern QString defaultImageFormat;
 extern QColor backGroundColor;
 extern QColor imageBackGroundColor;
@@ -32,6 +33,7 @@ public:
   void getParams();
   void setParams();
   bool backGroundColorChanged;
+  bool smoothChanged=false;
 private slots:
   void slotBGColorSelect();
   void slotIBGColorSelect();
