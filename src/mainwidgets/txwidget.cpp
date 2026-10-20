@@ -731,16 +731,29 @@ void txWidget::slotGenerateSignal()
 void txWidget::slotSweepSignal()
 {
   QDialog qd;
-  Ui::sweepForm *ff=new Ui::sweepForm;
-  ff->setupUi(&qd);
+  Ui::sweepForm ff;
+  ff.setupUi(&qd);
+
+  QSettings qSettings;
+  qSettings.beginGroup("TX");
+  setValue(qSettings.value("sweepLowerFreq",ff.lowerFrequencySpinBox->value()).toInt(),ff.lowerFrequencySpinBox);
+  setValue(qSettings.value("sweepUpperFreq",ff.upperFrequencySpinBox->value()).toInt(),ff.upperFrequencySpinBox);
+  setValue(qSettings.value("sweepDuration",ff.durationSpinBox->value()).toInt(),ff.durationSpinBox);
+  qSettings.endGroup();
+
   int upperFreq;
   int lowerFreq;
   int  duration;
   if(qd.exec())
     {
-      getValue(lowerFreq,ff->lowerFrequencySpinBox);
-      getValue(upperFreq,ff->upperFrequencySpinBox);
-      getValue(duration,ff->durationSpinBox);
+      getValue(lowerFreq,ff.lowerFrequencySpinBox);
+      getValue(upperFreq,ff.upperFrequencySpinBox);
+      getValue(duration,ff.durationSpinBox);
+      qSettings.beginGroup("TX");
+      qSettings.setValue("sweepLowerFreq",lowerFreq);
+      qSettings.setValue("sweepUpperFreq",upperFreq);
+      qSettings.setValue("sweepDuration",duration);
+      qSettings.endGroup();
       txFunctionsPtr->setToneParam((double)duration,(double)lowerFreq,(double)upperFreq);
       dispatcherPtr->startTX(txFunctions::TXSENDTONE);
     }
