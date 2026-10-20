@@ -50,15 +50,15 @@ test pattern into a dummy load to adjust it.</p></div>
 
 <h2 id="beacon">Webcam beacon</h2>
 <p>The beacon periodically grabs a picture from a webcam and transmits it, for example from a mobile station on the higher HF bands to
-attract a reply. Click the <strong>Camera</strong> button, choose the camera, then set <strong>WA8LMF Beacon Mode</strong> to <strong>On</strong> and
-pick <strong>Beacon every</strong> 1 to 60 minutes. Press <strong>OK</strong>: the first picture is captured immediately and shown as the transmit picture, and sent 10 seconds later (time to adjust the SSTV or DRM settings), then one every N minutes,
+attract a reply. Click the <strong>Camera</strong> button, choose the camera, pixel format and resolution (the dialog remembers these for next time), then set <strong>WA8LMF Beacon Mode</strong> to <strong>On</strong> and
+pick <strong>Beacon every</strong> 1 to 60 minutes. Press <strong>OK</strong>: the picture currently showing in the dialog becomes the transmit picture straight away and is sent 10 seconds later (time to adjust the SSTV or DRM settings), then one every N minutes,
 until you stop it. While it runs, the camera button shows a green-tinted beacon icon, and a countdown to the next picture appears at the left of
 the status bar (when no other status message is showing).</p>
 <p>Click the green beacon icon to stop the beacon. To start it again, open the camera dialog and press OK again (the WA8LMF Beacon Mode setting is Off
 every time the dialog opens).</p>
 <p>The beacon has no transmit settings of its own. Each picture is sent exactly as if you had pressed Start: with the
 <strong>SSTV</strong> or <strong>DRM</strong> tab that is currently selected, its mode and options, the selected template (for example a call
-sign overlay) and the picture size. The camera is only switched on while a picture is captured. The beacon is always off when the program starts.</p>
+sign overlay) and the picture size. The camera is only switched on while each later picture is captured, using the format and resolution chosen in the dialog. The beacon is always off when the program starts.</p>
 <p>When a scheduled beacon cannot transmit, the countdown in the status bar is replaced by a red message, for example <em>Beacon not sent 14:32: a picture is
 being received</em>, <em>no camera found</em>, or <em>the transmitter is busy</em>. The beacon tries again after 30 seconds and the countdown returns as soon as a
 picture is sent.</p>
