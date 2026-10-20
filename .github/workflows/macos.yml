@@ -102,8 +102,7 @@ jobs:
           otool -L QSSTV-Experimental.app/Contents/MacOS/qsstv-experimental | grep -E "/opt/homebrew|/usr/local" || true
 
       - name: AVIF over DRM (#108)
-        env:
-          QT_QPA_PLATFORM: offscreen
+        # no offscreen platform here: the bundle only carries Qt's cocoa plugin, and the runner has a desktop session
         # the bundled plugin must both write (TX) and read (RX) AVIF; a missing encoder falls back to JPEG2000, so check the extension
         run: |
           set -e
