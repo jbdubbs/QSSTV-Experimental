@@ -60,7 +60,7 @@ extern int W_1024_list[4][5][10];
 extern int Z_256_list[4][5][10];
 extern int Q_1024_list[4];
 extern int power_boost_list[4][6][4];
-extern int mode_and_occupancy_code_table[14];
+extern int mode_and_occupancy_code_table[24];
 extern int robustness_mode, spectrum_occupancy_estimation;
 extern int spectrum_occupancy;
 extern int symbols_per_frame;extern QString drmCallsign;

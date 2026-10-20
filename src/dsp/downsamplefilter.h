@@ -28,6 +28,7 @@
 #define CONVDELAY  55
 
 extern const FILTERPARAMTYPE downSampleFilterParam[DSAMPLEFILTERLEN];
+extern const FILTERPARAMTYPE drmDownSampleFilterParam[DSAMPLEFILTERLEN];
 
 class downsampleFilter
 {
@@ -37,6 +38,7 @@ public:
   ~downsampleFilter();
 	void allocate(unsigned int dataLength);
   void setFilterParams(bool scaled);
+  void useDrmFilter(bool drm);   //!< DRM reception passes up to ~5 kHz (wide occupancy), the SSTV filter only 2.8 kHz
   void downSample4(short int *data);
   FILTERPARAMTYPE *filteredDataPtr() {return filteredDataBuffer;}
   void init();
@@ -57,6 +59,8 @@ private:
   int ssize;
 //  unsigned int rxBytes;
   bool first;
+  bool scaledParams=true;
+  bool drmParams=false;
 
 };
 

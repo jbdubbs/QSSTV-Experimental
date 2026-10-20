@@ -41,6 +41,10 @@
    65 [number of cells] * 2 [4-QAM] * 0.6 [code-rate] - 6 [tailbits] = 72 */
 #define NUM_FAC_BITS_PER_BLOCK			48
 
+/* Wide (4.8 kHz) ham occupancy signalling: FAC bit 31 (a spare bit) is set and the CRC is XORed with this value.
+   Receivers that do not know the wide mode fail the CRC and do not lock. Keep in sync with FAC_WIDE_CRC_XOR in drmrx/drmdefs.h */
+#define FAC_WIDE_CRC_XOR				0x5A
+
 /* iTableNumOfServices[a][b]
    a: Number of audio services
    b: Number of data services 

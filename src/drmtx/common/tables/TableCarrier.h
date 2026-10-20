@@ -84,14 +84,19 @@ const int iTableFreqPilRobModE[NUM_FREQ_PILOTS][2] = {
 };
 
 /* Spectrum occupancy, carrier numbers for each mode **************************/
-const int iTableCarrierKmin[2][3] = {
+/* Rows: SO_0 (2.3 kHz), SO_1 (2.8 kHz), SO_2 (4.8 kHz "wide", ham extension).
+   Wide: audio edge = 350 Hz + Kmax * carrier spacing = 4.93 / 4.90 / 4.93 kHz for modes A / B / E.
+   Kmax must be a scattered pilot carrier (mode B: odd) so the band-edge pilot boost applies. */
+const int iTableCarrierKmin[3][3] = {
+  {2, 1, 1},
   {2, 1, 1},
   {2, 1, 1}
 };
 
-const int iTableCarrierKmax[2][3] = {
+const int iTableCarrierKmax[3][3] = {
   {54, 45, 29},
-  {58, 51, 31}
+  {58, 51, 31},
+  {110, 97, 61}
 };
 
 

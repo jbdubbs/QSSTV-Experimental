@@ -172,6 +172,12 @@ void CFACTransmit::FACParam(CVector<_BINARY>* pbiFACData, CParameter& Parameter)
 	}
 
 
+	/* Wide ham occupancy (4.8 kHz): spare bit 31 = 1, and the CRC below is XORed with FAC_WIDE_CRC_XOR so that
+	   receivers without wide support fail the CRC instead of decoding it as a narrow mode. The other spare
+	   bits (32..39) are never written; bit 31 is always written so a reused buffer cannot carry a stale 1. */
+	const _BOOLEAN bWide = (Parameter.GetSpectrumOccup() == SO_2);
+	(*pbiFACData).Enqueue(bWide ? 1 : 0, 1);
+
 	/* CRC ------------------------------------------------------------------ */
 	/* Calculate the CRC and put at the end of the stream */
 	CRCObject.Reset(8);
@@ -183,7 +189,7 @@ void CFACTransmit::FACParam(CVector<_BINARY>* pbiFACData, CParameter& Parameter)
 
 	/* Now, pointer in "enqueue"-function is back at the same place,
 	   add CRC */
-	(*pbiFACData).Enqueue(CRCObject.GetCRC(), 8);
+	(*pbiFACData).Enqueue(bWide ? (CRCObject.GetCRC() ^ FAC_WIDE_CRC_XOR) : CRCObject.GetCRC(), 8);
 }
 
 void CFACTransmit::Init(CParameter& Parameter)

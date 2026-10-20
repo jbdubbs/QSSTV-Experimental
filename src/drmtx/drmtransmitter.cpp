@@ -67,6 +67,9 @@ void drmTransmitter::init(QByteArray *ba, QString name, QString format, drmTxPar
     case 0 :
       BW = SO_0;
     break;
+    case 2 :
+      BW = SO_2;   /* wide, ham extension */
+    break;
     default :
       BW = SO_1 ;
     break ;

@@ -3,7 +3,7 @@
 //#include <QFTP>
 #include <QObject>
 #include <QList>
-#define PACKETBUFFERLEN 512
+#define PACKETBUFFERLEN 1024   // wide occupancy / 64-QAM packets are longer than 512 bytes
 #define NUMSERVICES 4
 #define MAXTRANSPORTLISTS 5
 
@@ -213,6 +213,7 @@ private:
   transportBlock *getTransporPtr(unsigned short tId,bool create);
   void removeTransporPtr(transportBlock * ptr);
   unsigned char packetBuffer[PACKETBUFFERLEN];
+  bool dataBlockPending=false;   //!< setupDataBlock() returned false only because the data group is not complete yet
   dataBlock currentDataBlock;
   dataPacket currentDataPacket;
   QList<transportBlock *> transportBlockPtrList;

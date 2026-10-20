@@ -128,7 +128,7 @@ bool drmTx::initDRMImage(bool binary,QString fileName)
   else
     {
       hybridCrypt hc;
-      drmTxHybridParameters.bandwith=1; // bw 2.2
+      drmTxHybridParameters.bandwith=1; // bw 2.8 kHz (index 1)
       drmTxHybridParameters.robMode=2;  // mode E
       drmTxHybridParameters.interleaver=0; // long
       drmTxHybridParameters.protection=0; // high

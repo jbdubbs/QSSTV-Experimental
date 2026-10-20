@@ -75,6 +75,10 @@ void CCellMappingTable::MakeTable(ERobMode eNewRobustnessMode,
       iSpecOccArrayIndex = 1;
     break;
 
+    case SO_2:   /* wide ham occupancy (4.8 kHz) */
+      iSpecOccArrayIndex = 2;
+    break;
+
     default:
       iSpecOccArrayIndex = 1;
     break;

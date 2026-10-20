@@ -13,12 +13,12 @@
 
 <h1>Digital SSTV (DRM)</h1>
 <div class="page-toc"><strong>On this page</strong><ul>
-<li><a href="#what">What it is</a></li><li><a href="#tx">Transmitting</a></li><li><a href="#params">Parameters</a></li>
+<li><a href="#what">What it is</a></li><li><a href="#tx">Transmitting</a></li><li><a href="#params">Parameters</a></li><li><a href="#wide">Wide bandwidth</a></li><li><a href="#encoding">Image encoding</a></li>
 <li><a href="#rx">Receiving</a></li><li><a href="#fix">Fixing an incomplete picture</a></li><li><a href="#binary">Binary files</a></li>
 <li><a href="#hybrid">Hybrid mode</a></li></ul></div>
 
 <h2 id="what">What it is</h2>
-<p>HAMDRM, also called DSSTV or just DRM, sends a picture as compressed data using many carriers in a narrow 2.2 or 2.5 kHz channel, with error correction.
+<p>HAMDRM, also called DSSTV or just DRM, sends a picture as compressed data using many carriers in a narrow 2.3 or 2.8 kHz channel (or a wide 4.8 kHz one for VHF/UHF FM), with error correction.
 Where analog SSTV degrades gradually with noise (noisy lines, color errors), DRM delivers a clean copy if the signal is good enough and loses
 data in whole segments if it is not. The HAMDRM software in this program is based on RX/TXAMADRM by PA0MBO. DRM and analog SSTV use the same SSTV/DRM
 settings tab on the Receive and Transmit pages; DRM is the <strong>DRM</strong> tab.</p>
@@ -39,7 +39,7 @@ settings tab on the Receive and Transmit pages; DRM is the <strong>DRM</strong> 
 <table class="compact"><tr><th>Setting</th><th>Choices</th><th>Meaning</th></tr>
 <tr><td>Mode</td><td>A, B, E</td><td>Robustness mode. Higher mode letters are more robust but slower.</td></tr>
 <tr><td>QAM</td><td>4, 16, 64</td><td>Bits per carrier. 4 is the most robust; 64 is the fastest but needs a clean signal.</td></tr>
-<tr><td>BW</td><td>2.2 kHz, 2.5 kHz</td><td>Occupied bandwidth. Wider is faster.</td></tr>
+<tr><td>BW</td><td>2.3 kHz, 2.8 kHz, 4.8 kHz</td><td>Occupied bandwidth. Wider is faster. See <a href="#wide">Wide bandwidth</a> for 4.8 kHz.</td></tr>
 <tr><td>Interl.</td><td>Short, Long</td><td>Time interleaving. Long survives longer fades but adds delay.</td></tr>
 <tr><td>Prot.</td><td>High, Low</td><td>Error-correction strength. High is more robust but slower.</td></tr>
 <tr><td>Profile</td><td>Profile 1 to 3</td><td>A saved parameter preset; edit them in <a href="configuration.html#drmprofiles">Configuration &gt; DRM</a>.</td></tr>
@@ -50,6 +50,21 @@ settings tab on the Receive and Transmit pages; DRM is the <strong>DRM</strong> 
 Long interleave, or a higher Rs).</p>
 <div class="note"><p>Large pictures at 4-QAM can take many minutes. The command line option <code>--drm-size</code> (see
 <a href="command-line.html">command line</a>) and the size slider control the picture size.</p></div>
+
+<h2 id="wide">Wide bandwidth (4.8 kHz)</h2>
+<p>The <strong>4.8 kHz</strong> setting uses about twice as many carriers as 2.8 kHz and sends a picture roughly 1.5 to 2 times faster
+(about 1.55x to 2.1x in the loopback tests, depending on the mode and QAM). It needs no stronger signal per carrier, but the receiver gets
+about 3 dB more noise power for the same signal power, so weak-signal range is somewhat shorter.</p>
+<ul>
+<li><strong>Use it only where the channel is that wide and flat</strong>: a VHF/UHF FM channel, or the audio path of a 9600 baud data (discriminator) port that bypasses
+the microphone filtering. A normal SSB or FM voice path passes only about 0.3 to 2.7 kHz. On HF the legal and practical limit is around 2.8 kHz, so keep 2.3 or 2.8 kHz there.
+Check your radio's audio response before relying on it.</li>
+<li><strong>It is an extension.</strong> Stock Dream and older versions of QSSTV cannot receive it. Older QSSTV-Experimental versions do not lock on a 4.8 kHz
+signal (it fails their frame check) rather than showing a garbled picture.</li>
+<li>The receiver needs no setting: it recognises the bandwidth from the signal, and the Receive status shows the bandwidth it found.</li>
+<li>The 2.3 kHz and 2.8 kHz modes are the same as the earlier 2.2 and 2.5 kHz settings (only the labels changed to the width actually occupied), so
+existing profiles and transmissions are unchanged.</li>
+</ul>
 
 <h2 id="encoding">Image encoding</h2>
 <p>The <strong>Encoding</strong> setting chooses how the picture is compressed. The size slider works the same way for both: it is the number of bytes the picture is

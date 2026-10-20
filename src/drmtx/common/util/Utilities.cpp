@@ -171,10 +171,10 @@ CDRMBandpassFilt::Init(const int iNewBlockSize, const _REAL rOffsetHz,
 		break;
 
 	case SO_2:
-		rBPFiltBW = ((CReal) 9000.0 + rMargin) / SOUNDCRD_SAMPLE_RATE;
-
-		/* Centered */
-		rNormCurFreqOffset = rOffsetHz / SOUNDCRD_SAMPLE_RATE;
+		/* Ham wide occupancy (4.8 kHz), completely on the right side of DC: audio 350 .. ~5050 Hz */
+		rBPFiltBW = ((CReal) 4700.0 + rMargin) / SOUNDCRD_SAMPLE_RATE;
+		rNormCurFreqOffset =
+			(rOffsetHz + (CReal) 2350.0) / SOUNDCRD_SAMPLE_RATE;
 		break;
 
 	case SO_3:

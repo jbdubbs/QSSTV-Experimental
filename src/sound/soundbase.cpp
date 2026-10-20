@@ -222,6 +222,7 @@ int soundBase::capture()
           storedFrames+=count;
         }
     }
+  downsampleFilterPtr->useDrmFilter(transmissionModeIndex==TRXDRM);
   downsampleFilterPtr->downSample4(tempRXBuffer);
   volume=downsampleFilterPtr->avgVolumeDb;
   rxBuffer.putNoCheck(downsampleFilterPtr->filteredDataPtr(),RXSTRIPE);

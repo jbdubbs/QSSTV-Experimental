@@ -377,6 +377,19 @@ void channel_decoding(void)
 
   crc8_c(&checksum, facblock, 48);
 
+  /* The wide (4.8 kHz) mode is announced by FAC bit 31 = 1 and a CRC XORed with FAC_WIDE_CRC_XOR: a receiver that
+     does not know it fails the normal CRC and never locks, instead of decoding the signal as a narrow mode */
+  int fac_wide = 0;
+  if (fabs(checksum) > DBL_EPSILON && fac_data[31] > 0.5)
+    {
+      for (i = 0; i < 8; i++)
+        {
+          if ((FAC_WIDE_CRC_XOR >> (7 - i)) & 1) facblock[40 + i] = 1.0 - facblock[40 + i];
+        }
+      crc8_c(&checksum, facblock, 48);
+      if (fabs(checksum) <= DBL_EPSILON) fac_wide = 1;
+    }
+
   if (fabs(checksum) > DBL_EPSILON)
      {
       spectrum_occupancy = -1;
@@ -409,8 +422,8 @@ void channel_decoding(void)
     {
       msc_mode_new = msc_mode_new + 2 * (int) channel_parameters[9];
     }
-  spectrum_occupancy_new = (int) channel_parameters[2];
-  if (spectrum_occupancy_new > 1)
+  spectrum_occupancy_new = fac_wide ? 2 : (int) channel_parameters[2];
+  if (spectrum_occupancy_new > 2)
    {
       spectrum_occupancy = -1;
       fac_valid = 0;
@@ -703,6 +716,12 @@ void channel_decoding(void)
                   L[0] = 0;
                   L[1] = 435;
                 }
+            }
+          if (spectrum_occupancy == 2)
+            {
+              /* as the transmitter (MLC.cpp CalculateParam): rate 3/5, all of the cells in part B */
+              L[0] = 0;
+              L[1] = (int) (RX[6] * floor((2 * N_MUX - 12) / RY[6]));
             }
           Lvspp = 0;
           xin1 = 2 * N1;

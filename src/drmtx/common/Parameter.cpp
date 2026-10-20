@@ -976,7 +976,7 @@ _REAL CParameter::GetNominalBandwidth()
 		break;
 
 	case SO_2:
-		rNomBW = (_REAL) 9000.0; /* Hz */
+		rNomBW = (_REAL) 4700.0; /* Hz, ham wide occupancy (4.8 kHz) */
 		break;
 
 	case SO_3:

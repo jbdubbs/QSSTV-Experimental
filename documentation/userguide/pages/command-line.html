@@ -46,7 +46,7 @@ and writes it to a WAV file; no sound card is used. The default output name is <
 but never written. Add <code>--drm</code> to make a DRM transmission instead; then <code>--drm-mode</code>, <code>--drm-bw</code>, <code>--drm-qam</code>, <code>--drm-prot</code>,
 <code>--drm-interleave</code>, <code>--drm-rs</code>, <code>--drm-size</code> and <code>--drm-encoding</code> choose the parameters (otherwise your Transmit-tab settings are used).</p>
 <pre><code>qsstv --encode rose.png --mode PD120 --wav-out pd120.wav
-qsstv --encode rose.png --drm --drm-mode B --drm-qam 16 --drm-bw 2.5 --wav-out rose-drm.wav</code></pre>
+qsstv --encode rose.png --drm --drm-mode B --drm-qam 16 --drm-bw 2.8 --wav-out rose-drm.wav</code></pre>
 <p>A round trip is a good test of an installation: encode a picture and then decode the WAV with <code>--batch</code>.</p>
 
 <h2 id="other">Other options</h2>
@@ -67,7 +67,7 @@ qsstv --encode rose.png --drm --drm-mode B --drm-qam 16 --drm-bw 2.5 --wav-out r
 <tr><td><code class="wrap"><span class="nb">--timeout</span> <span class="nb">&lt;seconds&gt;</span></code></td><td>With <code>--batch</code>: give up on a file after this many seconds.</td></tr>
 <tr><td><code>--drm</code></td><td>With <code>--batch</code>: receive DRM. With <code>--encode</code>: transmit as DRM.</td></tr>
 <tr><td><code>--drm-mode &lt;A|B|E&gt;</code></td><td>With <code>--encode --drm</code>: robustness mode.</td></tr>
-<tr><td><code>--drm-bw &lt;kHz&gt;</code></td><td>With <code>--encode --drm</code>: bandwidth 2.2 or 2.5.</td></tr>
+<tr><td><code>--drm-bw &lt;kHz&gt;</code></td><td>With <code>--encode --drm</code>: bandwidth 2.3, 2.8 or 4.8 kHz (2.2 and 2.5 are accepted for 2.3 and 2.8). 4.8 is the wide VHF/UHF extension.</td></tr>
 <tr><td><code class="wrap"><span class="nb">--drm-qam</span> <span class="nb">&lt;4|16|64&gt;</span></code></td><td>With <code>--encode --drm</code>: QAM.</td></tr>
 <tr><td><code class="wrap"><span class="nb">--drm-prot</span> <span class="nb">&lt;high|low&gt;</span></code></td><td>With <code>--encode --drm</code>: protection level.</td></tr>
 <tr><td><code class="wrap"><span class="nb">--drm-interleave</span> <span class="nb">&lt;short|long&gt;</span></code></td><td>With <code>--encode --drm</code>: interleaver.</td></tr>

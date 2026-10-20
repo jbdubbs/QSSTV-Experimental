@@ -50,8 +50,14 @@ void  CDataEncoder::GeneratePacket(CVector < _BINARY > &vecbiPacket)
   if (iCurDataPointer == 0) vecbiPacket.Enqueue((uint32_t) 1, 1);
   else vecbiPacket.Enqueue((uint32_t) 0, 1);
 
+	/* A padded packet gives its number of useful bytes in one byte, so it cannot carry more than 255. Wide
+	   occupancies and 64-QAM have packets longer than that: send the remainder as two packets (the second one
+	   last) instead of a length that wraps around. */
+	const int iMaxPaddedSize = 255 * SIZEOF__BYTE;
+	const _BOOLEAN bSplitPadded = (iRemainSize < iPacketLen) && (iRemainSize > iMaxPaddedSize);
+
 	/* Last flag */
-	if (iRemainSize > iPacketLen)
+	if ((iRemainSize > iPacketLen) || bSplitPadded)
 	{
 		vecbiPacket.Enqueue((uint32_t) 0, 1);
 		bLastFlag = false;
@@ -98,16 +104,20 @@ void  CDataEncoder::GeneratePacket(CVector < _BINARY > &vecbiPacket)
 		/* Padded packet. If the PPI is 1 then the first byte shall indicate
 		   the number of useful bytes that follow, and the data field is
 		   completed with padding bytes of value 0x00 */
-		vecbiPacket.Enqueue((uint32_t) (iRemainSize / SIZEOF__BYTE),
+		const int iUseful = bSplitPadded ? iMaxPaddedSize : iRemainSize;
+		vecbiPacket.Enqueue((uint32_t) (iUseful / SIZEOF__BYTE),
 							SIZEOF__BYTE);
 
 		/* Data */
-		for (i = 0; i < iRemainSize; i++)
+		for (i = 0; i < iUseful; i++)
+		{
 			vecbiPacket.Enqueue(vecbiCurDataUnit.Separate(1), 1);
+			if (bSplitPadded) iCurDataPointer++;
+		}
 
 		/* Padding */
-		for (i = 0; i < iPacketLen - iRemainSize; i++)
-			vecbiPacket.Enqueue(vecbiCurDataUnit.Separate(1), 1);
+		for (i = 0; i < iPacketLen - iUseful; i++)
+			vecbiPacket.Enqueue(bSplitPadded ? (uint32_t) 0 : vecbiCurDataUnit.Separate(1), 1);
 	}
 
 	/* If this was the last packet, get data for next data unit */

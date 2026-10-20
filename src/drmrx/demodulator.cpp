@@ -525,7 +525,7 @@ bool demodulator::frameSync()
           rs_buffer[i * 2] = rs_buffer[(i + t_smp) * 2];
           rs_buffer[i * 2 + 1] = rs_buffer[(i + t_smp) * 2 + 1];
         }
-      for (i = 0; i < (2*70); i++)
+      for (i = 0; i < (int) (sizeof(next_pilots) / sizeof(next_pilots[0])); i++)
         {
           next_pilots[i] = 1.1;	/* real part */  // modified joma was j now i
         }
@@ -632,22 +632,24 @@ bool demodulator::channelEstimation()
           time_ref_cells_k[i] = time_ref_cells_k_list[robustness_mode][i];
           time_ref_cells_theta_1024[i] =time_ref_cells_theta_1024_list[robustness_mode][i];
         }
+      /* The estimate (0/1) decides the narrow modes as before; the wide mode (2, 4.8 kHz) is only ever known from the FAC */
+      int occupancy_for_tables = (spectrum_occupancy == 2) ? 2 : spectrum_occupancy_estimation;
       K_min =
-          K_min_K_max_list[0][spectrum_occupancy_estimation +
+          K_min_K_max_list[0][occupancy_for_tables +
           robustness_mode * 6];
       K_max =
-          K_min_K_max_list[1][spectrum_occupancy_estimation +
+          K_min_K_max_list[1][occupancy_for_tables +
           robustness_mode * 6];
       carrier_per_symbol = K_max - K_min + 1;
       for (i = 0; i < 4; i++)
         {
-          power_boost[i] = power_boost_list[robustness_mode][spectrum_occupancy_estimation][i];
+          power_boost[i] = power_boost_list[robustness_mode][occupancy_for_tables][i];
         }
       x = x_list[robustness_mode];
       y = y_list[robustness_mode];
       k0 = k0_list[robustness_mode];
       Q_1024 = Q_1024_list[robustness_mode];
-      mean_energy_of_used_cells =(float) (no_of_used_cells_per_frame_list[spectrum_occupancy_estimation + robustness_mode * 6] + 3 + cnt_time_ref_cells);
+      mean_energy_of_used_cells =(float) (no_of_used_cells_per_frame_list[occupancy_for_tables + robustness_mode * 6] + 3 + cnt_time_ref_cells);
       rndcnt = 0;
       for (s = 0; s < symbols_per_frame; s++)
         {
@@ -704,7 +706,7 @@ bool demodulator::channelEstimation()
               mean_energy_of_used_cells =(float) (mean_energy_of_used_cells - 1.0 + a * a);
             }
         }
-      mean_energy_of_used_cells /=no_of_used_cells_per_frame_list[spectrum_occupancy_estimation + robustness_mode * 6];
+      mean_energy_of_used_cells /=no_of_used_cells_per_frame_list[occupancy_for_tables + robustness_mode * 6];
 
       addToLog(QString("mean_energy_of_used_cells %1").arg(mean_energy_of_used_cells),LOGDRMDEMOD);
 

@@ -38,3 +38,6 @@
 #define RUN_STATE_FIRST 0
 #define RUN_STATE_NORMAL  1
 
+
+/* Wide (4.8 kHz) ham occupancy: FAC bit 31 set and the CRC XORed with this value. Keep in sync with FAC_WIDE_CRC_XOR in drmtx/common/tables/TableFAC.h */
+#define FAC_WIDE_CRC_XOR 0x5A

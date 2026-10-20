@@ -211,21 +211,24 @@ const int iScatPilQRobModE = 10;
 
 /* Gain definitions of scattered pilots ------------------------------------- */
 #define NUM_BOOSTED_SCAT_PILOTS		4
-const int iScatPilGainRobModA[2][NUM_BOOSTED_SCAT_PILOTS] = {
+const int iScatPilGainRobModA[3][NUM_BOOSTED_SCAT_PILOTS] = {
 	{2, 4, 50, 54},
-	{2, 6, 54, 58}
+	{2, 6, 54, 58},
+	{2, 6, 106, 110}
 };
 
-const int iScatPilGainRobModB[2][NUM_BOOSTED_SCAT_PILOTS] = {
+const int iScatPilGainRobModB[3][NUM_BOOSTED_SCAT_PILOTS] = {
 	{1, 3, 43, 45},
-	{1, 3, 49, 51}
+	{1, 3, 49, 51},
+	{1, 3, 95, 97}
 };
 
 
 
-const int iScatPilGainRobModE[2][NUM_BOOSTED_SCAT_PILOTS] = {
+const int iScatPilGainRobModE[3][NUM_BOOSTED_SCAT_PILOTS] = {
 	{1,29, 0, 0},
-	{1,31, 0, 0}
+	{1,31, 0, 0},
+	{1,61, 0, 0}
 };
 
 #endif // !defined(TABLE_CAR_MAP_H__3B0_CA63_4344_BB2B_23E7912__INCLUDED_)

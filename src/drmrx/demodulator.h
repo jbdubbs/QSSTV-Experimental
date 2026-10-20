@@ -82,7 +82,7 @@ private:
   int cnt_tr_cells[5];
   int gain_ref_cells_per_frame;
   int gain_ref_cells_per_y_symbols;
-  float next_pilots[2*70];	/* complex */   //joma
+  float next_pilots[2*209];	/* complex; cleared up to the pilots of a 2D window (up to ~125 for the wide mode), the old 70 overflowed into K_min/K_max */
   int K_min,K_max;
   float W_symbol_blk[5][208][229];
   float W_symbol[208];

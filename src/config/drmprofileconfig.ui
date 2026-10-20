@@ -122,12 +122,17 @@
           <widget class="QComboBox" name="drmPF1BandwidthComboBox">
             <item>
             <property name="text">
-             <string>2.2 kHz</string>
+             <string>2.3 kHz</string>
             </property>
            </item>
            <item>
             <property name="text">
-             <string>2.5 kHz</string>
+             <string>2.8 kHz</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>4.8 kHz</string>
             </property>
            </item>
           </widget>
@@ -388,12 +393,17 @@
           <widget class="QComboBox" name="drmPF2BandwidthComboBox">
             <item>
             <property name="text">
-             <string>2.2 kHz</string>
+             <string>2.3 kHz</string>
             </property>
            </item>
            <item>
             <property name="text">
-             <string>2.5 kHz</string>
+             <string>2.8 kHz</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>4.8 kHz</string>
             </property>
            </item>
           </widget>
@@ -654,12 +664,17 @@
           <widget class="QComboBox" name="drmPF3BandwidthComboBox">
             <item>
             <property name="text">
-             <string>2.2 kHz</string>
+             <string>2.3 kHz</string>
             </property>
            </item>
            <item>
             <property name="text">
-             <string>2.5 kHz</string>
+             <string>2.8 kHz</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>4.8 kHz</string>
             </property>
            </item>
           </widget>

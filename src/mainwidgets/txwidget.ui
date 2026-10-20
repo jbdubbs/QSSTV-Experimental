@@ -652,7 +652,7 @@
          <item row="0" column="4">
           <widget class="QLabel" name="drmBandwidthLabel">
            <property name="toolTip">
-            <string>Occupied bandwidth. Wider is faster.</string>
+            <string>Occupied bandwidth. Wider is faster. 4.8 kHz is for VHF/UHF FM only.</string>
            </property>
            <property name="minimumSize">
             <size>
@@ -674,19 +674,24 @@
          <item row="0" column="5">
           <widget class="QComboBox" name="drmTxBandwidthComboBox">
            <property name="toolTip">
-            <string>Occupied bandwidth. Wider is faster.</string>
+            <string>Occupied bandwidth. Wider is faster. 4.8 kHz is for VHF/UHF FM only.</string>
            </property>
             <property name="sizeAdjustPolicy">
              <enum>QComboBox::AdjustToContents</enum>
             </property>
             <item>
             <property name="text">
-             <string>2.2 kHz</string>
+             <string>2.3 kHz</string>
             </property>
            </item>
            <item>
             <property name="text">
-             <string>2.5 kHz</string>
+             <string>2.8 kHz</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>4.8 kHz</string>
             </property>
            </item>
           </widget>

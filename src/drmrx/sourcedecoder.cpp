@@ -93,14 +93,19 @@ bool sourceDecoder::decode()
   if(N_partB>PACKETBUFFERLEN)
     {
       addToLog(QString("packet buffer length exceeded: lenght=%1").arg(N_partB),LOGDRMMOT);
+      msc_valid=INVALID;
+      return false;   // never write past packetBuffer
     }
   bits2bytes (channel_decoded_data_buffer, N_partB * 8, packetBuffer);
   crc16_bytewise(&checksum, packetBuffer,N_partB);
   if(fabs (checksum) <= DBL_EPSILON)
     {
       drmStats.pktCrcOk++;
+      dataBlockPending=false;
       if(!setupDataBlock(packetBuffer,true,N_partB))
         {
+          // a good packet from the middle of a data group: not complete yet, but nothing is wrong
+          if(dataBlockPending) return false;
           drmStats.pktBad++;
           msc_valid=INVALID;
           return false;
@@ -174,6 +179,7 @@ bool sourceDecoder::setupDataBlock(unsigned char *buffer,bool crcIsOK,int len)
     {
       return setupDataPacket(holdingBuffer);
     }
+  dataBlockPending=true;
   return false;
 }
 

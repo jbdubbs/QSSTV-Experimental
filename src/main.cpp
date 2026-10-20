@@ -229,7 +229,7 @@ int main( int argc, char ** argv )
   QCommandLineOption drmOpt("drm","With --batch: receive DRM (digital SSTV) instead of analog SSTV; the received file is saved as <file>_<n>_drm.<ext> and a "
                             "'drm-stats:' line (sync / FAC / MSC percentages, MSC flaps, FAC and MSC MER) is printed per file. With --encode: transmit the picture as DRM.");
   QCommandLineOption drmModeOpt("drm-mode","With --encode --drm: robustness mode A, B or E (default: your TX setting).","mode");
-  QCommandLineOption drmBwOpt("drm-bw","With --encode --drm: bandwidth 2.2 or 2.5 (kHz).","kHz");
+  QCommandLineOption drmBwOpt("drm-bw","With --encode --drm: bandwidth 2.3, 2.8 or 4.8 (kHz; 2.2 and 2.5 are accepted for 2.3 and 2.8). 4.8 is a wide VHF/UHF extension that older versions cannot receive.","kHz");
   QCommandLineOption drmQamOpt("drm-qam","With --encode --drm: 4, 16 or 64.","qam");
   QCommandLineOption drmProtOpt("drm-prot","With --encode --drm: protection high or low.","level");
   QCommandLineOption drmIlvOpt("drm-interleave","With --encode --drm: short or long.","type");
@@ -299,7 +299,7 @@ int main( int argc, char ** argv )
   struct {const QCommandLineOption *opt; const char *name; QStringList values; int drmTxParams::*field;} drmChoices[]=
     {
       {&drmModeOpt,"--drm-mode",{"A","B","E"},&drmTxParams::robMode},
-      {&drmBwOpt,"--drm-bw",{"2.2","2.5"},&drmTxParams::bandwith},
+      {&drmBwOpt,"--drm-bw",{"2.3","2.8","4.8"},&drmTxParams::bandwith},
       {&drmQamOpt,"--drm-qam",{"4","16","64"},&drmTxParams::qam},
       {&drmProtOpt,"--drm-prot",{"high","low"},&drmTxParams::protection},
       {&drmIlvOpt,"--drm-interleave",{"short","long"},&drmTxParams::interleaver},
@@ -309,7 +309,13 @@ int main( int argc, char ** argv )
   for(const auto &ch : drmChoices)
     {
       if(!parser.isSet(*ch.opt)) continue;
-      int idx=ch.values.indexOf(QRegularExpression(QString("^%1$").arg(QRegularExpression::escape(parser.value(*ch.opt))),QRegularExpression::CaseInsensitiveOption));
+      QString val=parser.value(*ch.opt);
+      if(ch.opt==&drmBwOpt)   // the old nominal labels of the two narrow bandwidths
+        {
+          if(val=="2.2") val="2.3";
+          else if(val=="2.5") val="2.8";
+        }
+      int idx=ch.values.indexOf(QRegularExpression(QString("^%1$").arg(QRegularExpression::escape(val)),QRegularExpression::CaseInsensitiveOption));
       if(idx<0)
         {
           fprintf(stderr,"%s must be one of: %s\n",ch.name,ch.values.join(", ").toLocal8Bit().constData());

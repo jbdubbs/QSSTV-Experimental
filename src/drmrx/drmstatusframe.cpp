@@ -176,7 +176,8 @@ void drmStatusFrame::setStatus()
       switch(spectrum_occupancy_new)
         {
         case 0: bandwidth=2.3; break;
-        case 1: bandwidth=2.5;; break;
+        case 1: bandwidth=2.8; break;
+        case 2: bandwidth=4.8; break;
         default:bandwidth=0; break;
         }
       ui->bandwidthEdit->setText(QString::number(bandwidth));
@@ -280,7 +281,8 @@ QString modeToString(uint mode)
   switch(mode/1000)
     {
     case 0: tmp+="2.3"; break;
-    case 1: tmp+="2.5";; break;
+    case 1: tmp+="2.8"; break;
+    case 2: tmp+="4.8"; break;
     default:tmp+="---"; break;
     }
   tmp+="\nProt: ";
@@ -319,7 +321,8 @@ QString compactModeToString(uint mode)
   switch(mode/1000)
     {
     case 0: tmp+="2.3"; break;
-    case 1: tmp+="2.5";; break;
+    case 1: tmp+="2.8"; break;
+    case 2: tmp+="4.8"; break;
     default:tmp+="---"; break;
     }
   tmp+="/";

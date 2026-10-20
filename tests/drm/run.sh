@@ -52,13 +52,16 @@ bad() { echo "  FAIL $1"; fail=$((fail+1)); }
 pct() { echo "${1%\%}"; }
 ge()  { awk -v a="$1" -v b="$2" 'BEGIN{exit !(a>=b)}'; }
 
-for p in "B 4" "B 16" "B 64" "A 16" "E 16"; do
+# "mode qam [bandwidth]": no bandwidth = the default (2.3 kHz); 2.8 and 4.8 (wide, #66) are the other two
+for p in "B 4" "B 16" "B 64" "A 16" "E 16" "B 16 2.8" "A 16 4.8" "B 16 4.8" "E 16 4.8" "B 4 4.8" "B 64 4.8" "A 64 4.8"; do
   set -- $p
-  name="mode $1, ${2}-QAM"
+  bw=$3; want_occ=0; [ "$bw" = 2.8 ] && want_occ=1; [ "$bw" = 4.8 ] && want_occ=2
+  name="mode $1, ${2}-QAM${bw:+, $bw kHz}"
   echo "== $name"
-  encode "m$1$2" --drm-mode $1 --drm-qam $2 || { bad "$name: encode"; continue; }
-  decode "$T/m$1$2.wav"
+  encode "m$1$2$bw" --drm-mode $1 --drm-qam $2 ${bw:+--drm-bw $bw} || { bad "$name: encode"; continue; }
+  decode "$T/m$1$2$bw.wav"
   [ "$RC" = 0 ] && ok "$name: exit code 0 (picture received)" || bad "$name: exit code $RC (picture not received)"
+  [ "$(stat occupancy)" = "$want_occ" ] && ok "$name: bandwidth recognised" || bad "$name: bandwidth $(stat occupancy), want $want_occ"
   ls "$T/o"/*_drm.* >/dev/null 2>&1 && ok "$name: file written" || bad "$name: no file written"
   grep -q "DRM, 160x124" "$T/out.txt" 2>/dev/null && ok "$name: picture size" || bad "$name: picture size ($(grep -o '(DRM[^)]*)' "$T/out.txt"))"
   # a clean loopback; the average includes the receiver's lock-in, so this is a floor with margin (measured 35 dB)
@@ -89,6 +92,11 @@ echo "== 16-QAM through a bad channel"
 for extra in "--rx-gain -40" "--rx-gain 6" "--rx-noise -35"; do
   decode "$T/mB16.wav" $extra
   [ "$RC" = 0 ] && ok "$extra: picture received (FAC MER $(stat mer) dB, MSC $(stat mer_msc) dB)" || bad "$extra: exit code $RC"
+done
+echo "== 4.8 kHz (wide) 16-QAM through a bad channel"
+for extra in "--rx-gain -40" "--rx-noise -35"; do
+  decode "$T/mB164.8.wav" $extra
+  [ "$RC" = 0 ] && ok "wide $extra: picture received (FAC MER $(stat mer) dB, MSC $(stat mer_msc) dB)" || bad "wide $extra: exit code $RC"
 done
 echo; echo "$pass passed, $fail failed"
 [ "$fail" = 0 ]

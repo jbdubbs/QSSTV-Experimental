@@ -41,7 +41,7 @@ void CTransmitData::ProcessDataInternal(CParameter&)
 {
   int i;
   const int iNs2 = iInputBlockSize * 2;
-  rNormFactor =1000.0 ; // pa0mbo (was 16000)
+  rNormFactor =1000.0 * rOccGain; // pa0mbo (was 16000)
   for (i = 0; i < iNs2; i += 2)
     {
       const int iCurIndex = iBlockCnt * iNs2 + i;
@@ -133,6 +133,8 @@ void CTransmitData::InitInternal(CParameter& TransmParam)
 	   power. Calculate the normaization factor based on the average power of
 	   symbol (the number 3000 was obtained through output tests) */
 	rNormFactor = (CReal) 6000.0 / Sqrt(TransmParam.CellMappingTable.rAvPowPerSymbol);  // pa0mbo was 3000.0 nu as in ham
+	/* The wide ham occupancy has ~1.9x the carriers: at the same per-carrier level the peaks reach full scale (clipping), so lower it */
+	rOccGain = (eSpecOcc == SO_2) ? (CReal) 0.8 : (CReal) 1.0;
 	/* Define block-size for input */
 	iInputBlockSize = iSymbolBlockSize;
 }
