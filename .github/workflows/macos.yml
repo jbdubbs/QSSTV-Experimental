@@ -44,7 +44,7 @@ jobs:
           cmake -S kif -B kif/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$QT_PREFIX;$PWD/kdeprefix;$(brew --prefix)" \
             -DKIMAGEFORMATS_HEIF=OFF -DBUILD_TESTING=OFF
           cmake --build kif/build --target kimg_avif -j "$(sysctl -n hw.ncpu)"
-          find kif/build -name 'kimg_avif*' -not -path '*autogen*' -not -path '*CMakeFiles*'
+          find kif/build -name 'kimg_avif.dylib'
 
       - name: Configure
         run: cmake -S src -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$QT_PREFIX"
@@ -93,9 +93,9 @@ jobs:
           cd build
           mv qsstv-experimental.app QSSTV-Experimental.app
           mkdir -p QSSTV-Experimental.app/Contents/PlugIns/imageformats
-          cp "$(find ../kif/build -name 'kimg_avif.so' | head -1)" QSSTV-Experimental.app/Contents/PlugIns/imageformats/
+          cp "$(find ../kif/build -name 'kimg_avif.dylib' | head -1)" QSSTV-Experimental.app/Contents/PlugIns/imageformats/
           # -executable: also pull in and re-point the plugin's own libraries (libavif, aom, ...)
-          "$QT_PREFIX/bin/macdeployqt" QSSTV-Experimental.app -executable=QSSTV-Experimental.app/Contents/PlugIns/imageformats/kimg_avif.so
+          "$QT_PREFIX/bin/macdeployqt" QSSTV-Experimental.app -executable=QSSTV-Experimental.app/Contents/PlugIns/imageformats/kimg_avif.dylib
           codesign --force --deep --sign - QSSTV-Experimental.app
           codesign --verify --deep --strict QSSTV-Experimental.app
           echo "--- non-system libraries still referenced (should be none):"
