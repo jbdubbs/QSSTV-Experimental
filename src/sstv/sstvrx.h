@@ -75,6 +75,7 @@ private:
   eSSTVState SSTVState;
   unsigned int bufferCounter;
   QString lastUsedModeStr;
+  QString lastModeLongStr;
   unsigned int bufferIdx;
   unsigned int currentIdx;
   bool usingWide;

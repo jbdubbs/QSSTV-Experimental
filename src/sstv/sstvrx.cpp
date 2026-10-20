@@ -244,13 +244,14 @@ void sstvRx::process()
     case HUNTING:
       if(syncProcPtr==NULL)
         {
-          stce= new rxSSTVStatusEvent(QString("No sync"));
+          stce= new rxSSTVStatusEvent(lastModeLongStr.isEmpty() ? QString("No sync") : QString("No sync (last: ")+lastModeLongStr+")");
           QApplication::postEvent( dispatcherPtr, stce );  // Qt will delete it when done
           advanceBuffers();
           break; // no sync
         }
       stce= new rxSSTVStatusEvent(QString("Receiving ")+getSSTVModeNameLong(syncProcPtr->getMode()));
       lastUsedModeStr=getSSTVModeNameShort(syncProcPtr->getMode());
+      lastModeLongStr=getSSTVModeNameLong(syncProcPtr->getMode());
       QApplication::postEvent( dispatcherPtr, stce );  // Qt will delete it when done
       // fallthrough for first processing
       switchState(SLANTADJUST); // for logging
