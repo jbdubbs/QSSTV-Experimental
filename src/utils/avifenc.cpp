@@ -92,28 +92,51 @@ QByteArray avifEncodeQuality(const QImage &,int,int,int) { return QByteArray(); 
 QImage avifDecode(const QByteArray &,bool *transformed) { if(transformed) *transformed=false; return QImage(); }
 #endif
 
-QByteArray avifEncode(const QImage &image,int targetBytes,QImage *decoded,int *qualityUsed)
+QByteArray avifEncode(const QImage &image,int targetBytes,QImage *decoded,int *qualityUsed,int hintQuality,const std::atomic_bool *cancel)
 {
   QByteArray best;
   const int speed=(image.width()*image.height()>AVIFBIGPIXELS) ? AVIFSPEEDBIG : AVIFSPEED;
   int bestQuality=0;
   int lo=AVIFMINQUALITY,hi=AVIFMAXQUALITY;
+  // With a hint (the previous result) probe there first, then step away from it in doubling strides until the target
+  // is crossed, and bisect the remaining gap: a small slider move then needs 3-4 encodes instead of 7.
+  bool gallop=(hintQuality>=lo && hintQuality<=hi);
+  int q=gallop ? hintQuality : (lo+hi)/2;
+  int step=2,dir=0;
   // size is not strictly monotonic in quality, so keep the best fit
   while(lo<=hi)
     {
-      int mid=(lo+hi)/2;
-      QByteArray d=avifEncodeQuality(image,mid,speed,AVIFCHROMA);
+      if(cancel && cancel->load()) return QByteArray();
+      QByteArray d=avifEncodeQuality(image,q,speed,AVIFCHROMA);
       if(d.isEmpty()) return QByteArray();
-      if(d.size()<=targetBytes)
+      bool fits=(d.size()<=targetBytes);
+      if(fits)
         {
-          best=d;
-          bestQuality=mid;
-          lo=mid+1;
+          if(q>=bestQuality)
+            {
+              best=d;
+              bestQuality=q;
+            }
+          lo=q+1;
         }
-      else hi=mid-1;
+      else hi=q-1;
+      if(lo>hi) break;
+      if(gallop)
+        {
+          if(dir==0) dir=fits ? 1 : -1;
+          if((dir>0)==fits)
+            {
+              q=qBound(lo,fits ? q+step : q-step,hi);
+              step*=2;
+              continue;
+            }
+          gallop=false;
+        }
+      q=(lo+hi)/2;
     }
   if(best.isEmpty())
     {
+      if(cancel && cancel->load()) return QByteArray();
       best=avifEncodeQuality(image,AVIFMINQUALITY,speed,AVIFCHROMA);
       bestQuality=AVIFMINQUALITY;
       if(best.isEmpty()) return QByteArray();

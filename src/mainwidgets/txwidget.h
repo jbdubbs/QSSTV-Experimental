@@ -114,6 +114,7 @@ public slots:
   void slotSize(int fsize);
   void slotSizeApply();
   void slotSizeReleased();
+  void slotCompressionReady();
   void slotTransmissionMode(int rxtxMode);
   void slotProfileChanged(int );
 

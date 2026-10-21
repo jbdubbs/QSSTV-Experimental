@@ -24,6 +24,9 @@
 #define DRMGRIDWIDTH  640   // canvas of a DRM grid (PD120 size)
 #define DRMGRIDHEIGHT 496
 #include <QLabel>
+#include <QThread>
+#include <atomic>
+#include <memory>
 #include <QSettings>
 #include <QEvent>
 #include <QMovie>
@@ -96,6 +99,8 @@ public:
   int encoding() const {return drmEncoding;}
   //  int calcSize(int &sizeRatio);
   uint setSize(int tcommpressSize,bool usesCompression);
+  void setAsyncEncode(bool on) {asyncEncode=on;}   // setSize() runs the AVIF search in a worker thread; compressionReady() follows
+  bool encodePending() const {return encodeJob!=nullptr;}
   enum fitModeType {FITSTRETCH,FITCROP,FITFIT,FITFREE};
   void setFitMode(int mode);   // framing of the active image / grid cell: Stretch, Crop, Fit or Free (zoom/pan)
   int fitMode() const {return segFit.value(curSlot());}
@@ -164,6 +169,7 @@ signals:
   void toTxSelected(int seg);     // To TX on a selected thumbnail: matrix sends the whole selection
   void layoutChanged();
   void imageChanged();
+  void compressionReady();   // a background encode finished and displayedImage / the compressed data are current
   void fitModeChanged(int mode);   // the selected grid cell changed to one with another framing mode
 
 private:
@@ -246,6 +252,25 @@ private:
   int drmEncoding=ENCJPEG2000;
   QString compressedExt="jp2";   // extension of compressedImageData's codec
   QByteArray encodeCompressed(const QImage &rgb,QImage &decoded,int &size,int ratio);
+  int finishCompression(bool framedSingle,int compRatio,int fileSize);
+  struct EncodeJob
+  {
+    QImage rgb;
+    int target=0,hint=0,compRatio=0;
+    bool framedSingle=false;
+    std::atomic_bool cancel{false};
+    QThread *thread=nullptr;
+    QByteArray data;   // result, written by the worker before QThread::finished
+    QImage decoded;
+    int quality=0;
+  };
+  std::shared_ptr<EncodeJob> encodeJob;   // the newest background encode, null when none is outstanding
+  bool asyncEncode=false;
+  int lastAvifQuality=0;   // warm start for the next quality search
+  void startAsyncEncode(const QImage &rgb,int compRatio,bool framedSingle);
+  void cancelPendingEncode();
+  void finishPendingEncode();
+  void slotEncodeDone();
   int fileSize;
   QString format;
   QMovie qm;

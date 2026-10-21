@@ -113,6 +113,7 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   connect(&sizeApplyTimer,SIGNAL(timeout()),SLOT(slotSizeApply()));
   connect(ui->settingsTableWidget,SIGNAL(currentChanged(int)),this, SLOT(slotTransmissionMode(int)));
   connect(imageViewerPtr,SIGNAL(imageChanged()),SLOT(slotImageChanged()));
+  connect(imageViewerPtr,SIGNAL(compressionReady()),SLOT(slotCompressionReady()));
   connect(ui->templateCheckBox,SIGNAL(toggled(bool)),SLOT(slotImageChanged()));
   connect(&notifyTimer,SIGNAL(timeout()),SLOT(slotNotifyTimeout()));
   connect(&ff,SIGNAL(listingDone(bool)),SLOT(slotListingDone(bool)));
@@ -1036,6 +1037,12 @@ void txWidget::slotSize(int fsize)
     }
 }
 
+void txWidget::slotCompressionReady()
+{
+  imageViewerPtr->displayImage();
+  updateTxTime();
+}
+
 void txWidget::slotSizeReleased()
 {
   sizeApplyTimer.stop();
@@ -1049,9 +1056,14 @@ void txWidget::slotSizeApply()
   bool dragging=ui->sizeSlider->isSliderDown();
   if(!dragging) QApplication::setOverrideCursor(Qt::WaitCursor);
   sizeChanged=false;
+  imageViewerPtr->setAsyncEncode(true);   // AVIF searches run in the background; compressionReady() shows the result
   imageViewerPtr->setSize(compressedSize,transmissionModeIndex==TRXDRM);
-  imageViewerPtr->displayImage();
-  updateTxTime();
+  imageViewerPtr->setAsyncEncode(false);
+  if(!imageViewerPtr->encodePending())
+    {
+      imageViewerPtr->displayImage();
+      updateTxTime();
+    }
   if(!dragging) QApplication::restoreOverrideCursor();
 }
 

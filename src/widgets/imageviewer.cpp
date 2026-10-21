@@ -27,6 +27,7 @@
 #include "extviewer.h"
 #include "jp2io.h"
 #include "avifenc.h"
+#include <QThread>
 #include "supportfunctions.h"
 #include <configdialog.h>
 #include "drm.h"
@@ -371,6 +372,7 @@ bool imageViewer::openImage(QImage im)
       sourceImage=im;
       displayedImage=im;
       resetFraming(curSlot());
+      cancelPendingEncode();
       compressedImageData.clear();
       if(gridActive())
         {
@@ -408,6 +410,7 @@ void imageViewer::clear()
   for(int i=0;i<segImages.size();i++) segImages[i]=QImage();
   for(int i=0;i<segFiles.size();i++) segFiles[i].clear();
   for(int i=0;i<MAXSEGMENTS;i++) resetFraming(i);
+  cancelPendingEncode();
   compressedImageData.clear();
   view=QRect();
   setPixmap(QPixmap());
@@ -1168,11 +1171,12 @@ QByteArray imageViewer::encodeCompressed(const QImage &rgb,QImage &decoded,int &
   if(drmEncoding==ENCAVIF)
     {
       int q=0;
-      if(avifWriteSupported()) data=avifEncode(rgb,compressSize,&decoded,&q);
+      if(avifWriteSupported()) data=avifEncode(rgb,compressSize,&decoded,&q,lastAvifQuality);
       if(!data.isEmpty() && !decoded.isNull())
         {
           compressedExt="avif";
           size=data.size();
+          lastAvifQuality=q;
           addToLog(QString("AVIF quality %1, %2 bytes (target %3)").arg(q).arg(size).arg(compressSize),LOGIMAG);
           return data;
         }
@@ -1189,6 +1193,7 @@ bool imageViewer::copyToBuffer(QByteArray *ba)
   QImage im;
   QImage cvimg;
   int fileSize;
+  finishPendingEncode();   // a slider-driven background encode must land before its data is read
   cvimg=displayedImage.convertToFormat(QImage::Format_RGB32);
 #if (QT_VERSION < QT_VERSION_CHECK(5,10,0))
   int compressionRatio=round(cvimg.byteCount()/compressSize);
@@ -1439,6 +1444,7 @@ int imageViewer::applyTemplate()
   int compRatio;
   int byteCount;
 
+  cancelPendingEncode();   // a newer render supersedes a background encode still running
   renderedZoom=segZoom;   // what this render shows (reference for the live DRM preview)
   renderedPan=segPan;
   previewBase=QImage();
@@ -1564,7 +1570,6 @@ int imageViewer::applyTemplate()
     }
   if(useCompression)
     {
-      bool useOriginal=false;
       int fileSize;
 #if (QT_VERSION < QT_VERSION_CHECK(5,10,0))
       byteCount=(resultImage->convertToFormat(QImage::Format_RGB32).byteCount()*3)/4;
@@ -1579,40 +1584,18 @@ int imageViewer::applyTemplate()
       // so the compression ratio is calculated for 3/4 of the image size
       // so its better to calculate the end result for 3/4 of the source imag
 
-      compressedImageData=encodeCompressed(resultImage->convertToFormat(QImage::Format_RGB32),compressedImage,fileSize,compRatio);
+      QImage rgb=resultImage->convertToFormat(QImage::Format_RGB32);
+      if(asyncEncode && drmEncoding==ENCAVIF && avifWriteSupported())
+        {
+          startAsyncEncode(rgb,compRatio,framedSingle);   // slotEncodeDone() finishes the job
+          return 0;
+        }
+      compressedImageData=encodeCompressed(rgb,compressedImage,fileSize,compRatio);
 
       //      qDebug() << "byteCount image" << byteCount
       //               << "compRatio"  << compRatio << "filesize" << fileSize  << "ratio"   << (float)byteCount/(float)fileSize;
 
-      if (!useTemplate && !imageFileName.isEmpty() && !framedSingle && !gridActive())
-        {
-          QFile original(imageFileName);
-          if (original.open(QIODevice::ReadOnly) && (original.size() < fileSize))
-            {
-              //              qDebug() << "original size" << original.size();
-              useOriginal=true;
-              compressedFilename=imageFileName;
-              addToLog(QString("Using original image data (%1 bytes)").arg(original.size()),LOGIMAG);
-              statusBarPtr->showMessage("Using original Image (smaller)");
-              compressedImageData = original.readAll();
-              displayedImage.load(imageFileName);
-            }
-        }
-      if (!useOriginal)
-        {
-          displayedImage=compressedImage;
-          int pos;
-          pos=imageFileName.lastIndexOf(".",-1);
-          compressedFilename=imageFileName.left(pos)+"."+compressedExt;
-          statusBarPtr->showMessage("");
-          addToLog(QString("Image Compressed to %1 bytes").arg(compressedImageData.size()),LOGIMAG);
-          addToLog(QString("displayedImageW,H=%1,%2  compRatio=%3").
-                   arg(displayedImage.width()).arg(displayedImage.height()).
-                   arg(compRatio),
-                   LOGIMAG);
-        }
-      addToLog(QString("compressed size %1").arg(compressedImageData.size()),LOGIMAG);
-      return compressedImageData.size();
+      return finishCompression(framedSingle,compRatio,fileSize);
     }
   else
     {
@@ -1624,6 +1607,107 @@ int imageViewer::applyTemplate()
       return displayedImage.sizeInBytes();
 #endif
     }
+}
+
+// The part of applyTemplate() that follows the DRM encode: prefer the original file if it is smaller, publish the result
+int imageViewer::finishCompression(bool framedSingle,int compRatio,int fileSize)
+{
+  bool useOriginal=false;
+  if (!useTemplate && !imageFileName.isEmpty() && !framedSingle && !gridActive())
+    {
+      QFile original(imageFileName);
+      if (original.open(QIODevice::ReadOnly) && (original.size() < fileSize))
+        {
+          //              qDebug() << "original size" << original.size();
+          useOriginal=true;
+          compressedFilename=imageFileName;
+          addToLog(QString("Using original image data (%1 bytes)").arg(original.size()),LOGIMAG);
+          statusBarPtr->showMessage("Using original Image (smaller)");
+          compressedImageData = original.readAll();
+          displayedImage.load(imageFileName);
+        }
+    }
+  if (!useOriginal)
+    {
+      displayedImage=compressedImage;
+      int pos;
+      pos=imageFileName.lastIndexOf(".",-1);
+      compressedFilename=imageFileName.left(pos)+"."+compressedExt;
+      statusBarPtr->showMessage("");
+      addToLog(QString("Image Compressed to %1 bytes").arg(compressedImageData.size()),LOGIMAG);
+      addToLog(QString("displayedImageW,H=%1,%2  compRatio=%3").
+               arg(displayedImage.width()).arg(displayedImage.height()).
+               arg(compRatio),
+               LOGIMAG);
+    }
+  addToLog(QString("compressed size %1").arg(compressedImageData.size()),LOGIMAG);
+  return compressedImageData.size();
+}
+
+// ---- background AVIF encode (size slider) ----
+// The quality search takes seconds on a big picture, so the slider hands it to a worker thread and goes on. Only the
+// newest request counts: a new render cancels the running search (polled between trial encodes) and drops its result.
+
+void imageViewer::startAsyncEncode(const QImage &rgb,int compRatio,bool framedSingle)
+{
+  cancelPendingEncode();
+  auto job=std::make_shared<EncodeJob>();
+  job->rgb=rgb;
+  job->target=compressSize;
+  job->hint=lastAvifQuality;
+  job->compRatio=compRatio;
+  job->framedSingle=framedSingle;
+  compressedImageData.clear();
+  encodeJob=job;
+  statusBarPtr->showMessage("Encoding AVIF...");
+  job->thread=QThread::create([job]()
+    {
+      job->data=avifEncode(job->rgb,job->target,&job->decoded,&job->quality,job->hint,&job->cancel);
+    });
+  connect(job->thread,&QThread::finished,this,[this,job]() { if(encodeJob==job) slotEncodeDone(); });
+  connect(job->thread,&QThread::finished,job->thread,&QObject::deleteLater);
+  job->thread->start();
+}
+
+void imageViewer::cancelPendingEncode()
+{
+  if(!encodeJob) return;
+  encodeJob->cancel=true;
+  encodeJob.reset();   // the thread's finished() handler sees a different (or no) job and does nothing
+}
+
+void imageViewer::finishPendingEncode()
+{
+  if(!encodeJob) return;
+  encodeJob->thread->wait();
+  slotEncodeDone();
+}
+
+void imageViewer::slotEncodeDone()
+{
+  if(!encodeJob) return;
+  std::shared_ptr<EncodeJob> job=encodeJob;
+  encodeJob.reset();
+  int size=0;
+  if(!job->data.isEmpty() && !job->decoded.isNull())
+    {
+      compressedExt="avif";
+      compressedImageData=job->data;
+      compressedImage=job->decoded;
+      size=job->data.size();
+      lastAvifQuality=job->quality;
+      addToLog(QString("AVIF quality %1, %2 bytes (target %3)").arg(job->quality).arg(size).arg(job->target),LOGIMAG);
+    }
+  else
+    {
+      addToLog("AVIF encoding failed, using JPEG2000",LOGIMAG);
+      statusBarPtr->showMessage("AVIF encoding unavailable, using JPEG2000");
+      jp2IO jp2;
+      compressedExt="jp2";
+      compressedImageData=jp2.encode(job->rgb,compressedImage,size,job->compRatio);
+    }
+  fileSize=finishCompression(job->framedSingle,job->compRatio,size);   // what setSize() would have returned
+  emit compressionReady();
 }
 
 int imageViewer::diplayedImageBytecount()
