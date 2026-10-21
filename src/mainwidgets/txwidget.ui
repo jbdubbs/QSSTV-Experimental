@@ -361,10 +361,7 @@
           <bool>false</bool>
          </property>
          <property name="tickPosition">
-          <enum>QSlider::TicksBelow</enum>
-         </property>
-         <property name="tickInterval">
-          <number>2</number>
+          <enum>QSlider::NoTicks</enum>
          </property>
         </widget>
        </item>
