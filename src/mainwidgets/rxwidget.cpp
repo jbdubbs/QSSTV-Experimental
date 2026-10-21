@@ -77,6 +77,8 @@ void rxWidget::init()
   connect(ui->decodeFileToolButton,SIGNAL(clicked()),SLOT(slotDecodeFile()));
   connect(ui->autoSaveCheckBox,SIGNAL(clicked()),SLOT(slotGetParams()));
   connect(ui->autoSlantAdjustCheckBox,SIGNAL(clicked()),SLOT(slotGetParams()));
+  connect(ui->completeSpinBox,SIGNAL(valueChanged(int)),SLOT(slotGetParams()));
+  connect(ui->defaultImageFormatComboBox,SIGNAL(currentIndexChanged(int)),SLOT(slotGetParams()));
 
 
 
