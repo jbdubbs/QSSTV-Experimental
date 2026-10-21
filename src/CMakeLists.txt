@@ -602,11 +602,9 @@ if(WIN32)
 endif()
 
 # --- CPack ------------------------------------------------------------------------------
-# One packaging mechanism for all three OSes instead of hand-rolled per-OS rules: ZIP
-# everywhere (always available, no extra tool needed) plus NSIS on Windows -- a proper
-# installer wizard instead of just a folder to unzip -- when makensis is present
-# (Fedora: mingw64-nsis; not installed on this dev box as of this writing, so only
-# verified with the ZIP generator so far).
+# One packaging mechanism for all three OSes. Windows ships only as an NSIS installer
+# (no ZIP release; a ZIP generator stays available for local verification).
+# Fedora: mingw64-nsis provides makensis.
 # QSSTV-Experimental is built upon the original QSSTV 9.5.11 by Johan Maes, ON4QZ
 # (https://www.qsl.net/o/on4qz).
 set(CPACK_PACKAGE_NAME "QSSTV-Experimental")
@@ -614,15 +612,45 @@ set(CPACK_PACKAGE_VENDOR "QSSTV-Experimental")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "SSTV and HamDRM transceiver")
 set(CPACK_PACKAGE_VERSION "10.0")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "QSSTV-Experimental")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/../LICENSE")
 set(CPACK_GENERATOR "ZIP")
 if(WIN32)
+  set(CPACK_PACKAGE_FILE_NAME "QSSTV-Experimental-${CPACK_PACKAGE_VERSION}-win64")
   find_program(MAKENSIS_EXECUTABLE makensis)
   if(MAKENSIS_EXECUTABLE)
-    list(APPEND CPACK_GENERATOR "NSIS")
+    set(CPACK_GENERATOR "NSIS")
+    set(_ico "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/windows/qsstv.ico")
+    get_filename_component(_ico_native "${_ico}" ABSOLUTE)
+    # 64-bit installer into Program Files (CPack's template elevates via UAC and installs for all
+    # users); the wizard lets the user pick another folder.
+    set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES64")
+    set(CPACK_NSIS_DEFINES "Target amd64-unicode")
+    set(CPACK_NSIS_MUI_ICON "${_ico_native}")
+    set(CPACK_NSIS_MUI_UNIICON "${_ico_native}")
+    set(CPACK_NSIS_INSTALLED_ICON_NAME "qsstv-experimental.exe")
+    set(CPACK_NSIS_EXECUTABLES_DIRECTORY ".")   # the exe sits next to its DLLs, not in bin/
+    set(CPACK_NSIS_DISPLAY_NAME "QSSTV-Experimental")
+    set(CPACK_NSIS_PACKAGE_NAME "QSSTV-Experimental")
+    set(CPACK_NSIS_CONTACT "jason@weisb.net")
+    set(CPACK_NSIS_URL_INFO_ABOUT "https://github.com/jbdubbs/QSSTV-Experimental")
+    set(CPACK_NSIS_HELP_LINK "https://github.com/jbdubbs/QSSTV-Experimental")
+    set(CPACK_NSIS_COMPRESSOR "/SOLID lzma")
+    # Upgrade in place; never touch PATH.
     set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
     set(CPACK_NSIS_MODIFY_PATH OFF)
+    # Start-menu entry (the wizard also offers a desktop icon) and a GitHub link.
+    set(CPACK_PACKAGE_EXECUTABLES "qsstv-experimental" "QSSTV-Experimental")
+    set(CPACK_NSIS_MENU_LINKS "https://github.com/jbdubbs/QSSTV-Experimental" "QSSTV-Experimental on GitHub")
+    # Publisher column in Add/Remove Programs (CPack's template would otherwise use the vendor name).
+    set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS
+        "WriteRegStr SHCTX 'Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Uninstall\\\\QSSTV-Experimental' 'Publisher' 'Jason Weisberger (NT0Y)'")
+    # Finish page: offer to launch the app.
+    set(CPACK_NSIS_MUI_FINISHPAGE_RUN "qsstv-experimental.exe")
+    # Uninstall: offer to delete saved settings (QSettings registry key); default No keeps them.
+    set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS
+        "MessageBox MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2 'Also delete QSSTV-Experimental settings?$\\\\n$\\\\nChoose No to keep them for a future reinstall.' /SD IDNO IDNO +2\n  DeleteRegKey HKCU 'Software\\\\qsstv-experimental'")
   else()
-    message(STATUS "makensis not found (Fedora: mingw64-nsis) -- CPack will only produce a ZIP, not an NSIS installer")
+    message(WARNING "makensis not found (Fedora: dnf install mingw64-nsis) -- CPack will only produce a ZIP, which is not a release artifact")
   endif()
 endif()
 include(CPack)

@@ -146,7 +146,7 @@ The Windows build is a MinGW cross-compile.
    ```
 
    `mingw64-libvorbis` lets Decode From File read Ogg Vorbis files; the build warns and carries on without it.
-   `mingw64-nsis` is optional and adds an NSIS installer next to the ZIP.
+   `mingw64-nsis` provides `makensis`, which builds the Windows installer.
 
 2. Cross-build Hamlib. It is vendored and linked statically, never taken from a system package. The script reads a
    Hamlib checkout from `$HAMLIB_SRC` (default `~/projects/hamlib-upstream-sstv`):
@@ -172,10 +172,11 @@ The Windows build is a MinGW cross-compile.
        -DPKG_CONFIG_EXECUTABLE=/usr/bin/x86_64-w64-mingw32-pkg-config \
        -DHAMLIB_ROOT="$PWD/third_party/hamlib-win64"
    cmake --build build-mingw64 -j$(nproc)
-   cd build-mingw64 && cpack -G ZIP
+   tools/package-win64.sh
    ```
 
-   The output is `QSSTV-Experimental-<version>-win64.zip`, containing `qsstv-experimental.exe` and every required Qt, MinGW,
+   The output is `build-mingw64/QSSTV-Experimental-<version>-win64.exe`, an NSIS installer (the script works around
+   Fedora's `makensis` lacking 32-bit stubs, so run it rather than `cpack` directly) that installs `qsstv-experimental.exe` and every required Qt, MinGW,
    FFTW, OpenJPEG and Hamlib DLL plus the Qt plugins.
 
 5. Check that the package bundles every DLL it needs, including indirect ones:
@@ -193,7 +194,7 @@ Pictures are loaded and saved through Qt's image plugins, so the available forma
 provides. PNG, JPEG, GIF and BMP are always available; JPEG 2000 is handled by OpenJPEG. The image dialogs list the
 formats your build can read.
 
-| Format | Linux AppImage | Windows ZIP | macOS app | Source build |
+| Format | Linux AppImage | Windows installer | macOS app | Source build |
 |---|---|---|---|---|
 | WebP | yes | yes | yes | needs Qt's `qtimageformats` (Fedora `qt6-qtimageformats`) |
 | AVIF | yes | yes | yes | opening files needs KDE `kimageformats` and libavif; AVIF over DRM needs only libavif |

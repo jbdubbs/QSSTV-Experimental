@@ -80,7 +80,7 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 Ready-to-run builds are published on the [Releases page](https://github.com/jbdubbs/QSSTV-Experimental/releases):
 
 - **Linux:** download the `.AppImage`, make it executable (`chmod +x QSSTV-Experimental-*.AppImage`) and run it.
-- **Windows:** download the `-win64.zip`, extract it anywhere and run `qsstv-experimental.exe`.
+- **Windows:** download and run the `-win64.exe` installer. The installer is unsigned, so Windows SmartScreen may warn: choose "More info", then "Run anyway".
 - **macOS (experimental):** Released for Intel/Apple Silicon but no testing hardware.  Give it a try, and file an issue if it doesn't work. MacOS 15 or later.
 ## User's Guide
 
