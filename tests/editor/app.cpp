@@ -203,6 +203,51 @@ int main(int argc, char **argv)
     check(QImage(pics + "/stockpic-edit.png").width() == 4, "the edited copy is what the editor saved");
   }
 
+  // a received picture lands in the TX tab's preview, and that picture is what a template's replay slot shows: the TX picture follows
+  printf("\n== replay slot follows the RX preview\n");
+  {
+    QImage base(320, 256, QImage::Format_ARGB32);
+    base.fill(QColor(40, 90, 40));
+    base.save(pics + "/replay-base.png");
+    QImage red(160, 120, QImage::Format_ARGB32), blue(160, 120, QImage::Format_ARGB32);
+    red.fill(QColor(255, 0, 0));
+    blue.fill(QColor(0, 0, 255));
+    red.save(pics + "/rx-red.png");
+    blue.save(pics + "/rx-blue.png");
+    QString fn = pics + "/replay-base.png";
+    tx->openImage(fn, true, false, false, true);
+    tx->setFilename(pics + "/replay-base.png");
+    QCheckBox *useBox = txWidgetPtr->findChild<QCheckBox *>("templateCheckBox");
+    if (useBox) useBox->setChecked(true);
+    combo->setCurrentIndex(combo->findText("synthetic"));   // the template with a replay slot
+    txWidgetPtr->slotGetParams();
+    auto count = [](const QImage &im, QRgb c) {
+      int n = 0;
+      for (int y = 0; y < im.height(); y++)
+        for (int x = 0; x < im.width(); x++)
+          if ((im.pixel(x, y) & 0xffffff) == (c & 0xffffff)) n++;
+      return n;
+    };
+    txWidgetPtr->setPreviewWidget(pics + "/rx-red.png");
+    QTest::qWait(300);
+    const QImage d1 = tx->getDisplayedImage()->copy();
+    txWidgetPtr->setPreviewWidget(pics + "/rx-blue.png");
+    QTest::qWait(300);
+    const QImage d2 = tx->getDisplayedImage()->copy();
+    check(!d1.isNull() && d1.size() == d2.size(), "the TX picture is rendered with the template (" + QString::number(d1.width()) + "x" + QString::number(d1.height()) + ")");
+    check(count(d1, 0xff0000) - count(d2, 0xff0000) > 500, "the first received picture is in the replay slot (red pixels " + QString::number(count(d1, 0xff0000)) + " -> " + QString::number(count(d2, 0xff0000)) + ")");
+    check(count(d2, 0x0000ff) - count(d1, 0x0000ff) > 500, "and the next one replaces it without touching anything on the TX tab (blue pixels " + QString::number(count(d1, 0x0000ff)) + " -> " + QString::number(count(d2, 0x0000ff)) + ")");
+    txWidgetPtr->slotGetParams();   // an explicit render with the same preview
+    check(*tx->getDisplayedImage() == d2, "which is what a fresh render gives");
+    // a template without a replay slot is left alone
+    combo->setCurrentIndex(combo->findText("aaa-first"));
+    txWidgetPtr->slotGetParams();
+    const QImage plain = tx->getDisplayedImage()->copy();
+    txWidgetPtr->setPreviewWidget(pics + "/rx-red.png");
+    QTest::qWait(300);
+    check(*tx->getDisplayedImage() == plain && count(plain, 0xff0000) == 0, "a template without a replay slot is not affected by a new RX picture");
+  }
+
   printf("\n%d passed, %d failed\n", passed, failed);
   fflush(stdout);
   _exit(failed ? 1 : 0);   // the application's threads are not shut down by this probe

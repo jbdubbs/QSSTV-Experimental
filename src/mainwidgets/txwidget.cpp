@@ -24,6 +24,7 @@
 #include "mainwindow.h"
 #include "rigcontrol.h"
 #include "imageviewer.h"
+#include "templatedoc.h"
 #include "testpatternselection.h"
 #include <QMenu>
 #include <QToolButton>
@@ -394,6 +395,28 @@ void  txWidget::setPreviewWidget(QString fn)
 {
   addToLog(QString("previewfile: %1").arg(fn),LOGTXMAIN);
   ui->previewWidget->openImage(fn,false,false,false,true);
+  refreshReplay();
+}
+
+/*!
+  The picture in the preview is what the replay slot of a template shows. A new one does not change anything else on the TX
+  tab, so the TX picture is rendered again here (when the selected template has such a slot). Nothing is re-rendered while the
+  picture is being sent; the transmission itself always renders it again first (prepareTx), so what is sent is current.
+*/
+void txWidget::refreshReplay()
+{
+  if(repeaterEnabled || calTxActive || !useTemplate) return;
+  const QString templateFile=galleryWidgetPtr->getTemplateFileName(ui->templatesComboBox->currentIndex());
+  if(templateFile.isEmpty()) return;
+  const tpl::LoadResult tl=tpl::loadFileCached(templateFile);
+  if(!tl.ok || !tl.doc.hasReplay()) return;
+  if(txFunctionsPtr->txBusy())
+    {
+      replayStale=true;
+      return;
+    }
+  replayStale=false;
+  applyTemplate();
 }
 
 
@@ -665,6 +688,7 @@ void txWidget::sendWfText()
 void txWidget::slotStop()
 {
   if(calTxActive) restoreAfterCalibrationTx();
+  if(replayStale) refreshReplay();
   ui->startToolButton->setEnabled(true);
   enableButtons(true);
   dispatcherPtr->startRX();

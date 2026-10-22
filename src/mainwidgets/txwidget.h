@@ -56,6 +56,7 @@ public:
   void setProgress(uint prg);
   void setupTemplatesComboBox();
   void setPreviewWidget(QString fn);
+  void refreshReplay();
   void setSettingsTab();
   txFunctions *functionsPtr() {return txFunctionsPtr;}
   imageViewer *getImageViewerPtr(){ return imageViewerPtr;}
@@ -161,6 +162,7 @@ private:
 
   Ui::txWidget *ui;
   bool calTxActive=false;
+  bool replayStale=false;   // a new RX picture arrived while the transmitter was busy: the replay slot is redrawn when it is done
   QImage calSavedImage;
   bool calSavedValid=false;
   QString calSavedFile;
