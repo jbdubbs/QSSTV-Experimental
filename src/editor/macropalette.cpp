@@ -31,7 +31,8 @@ MacroPalette::MacroPalette(QWidget *parent) : QWidget(parent)
     QListWidgetItem *it = list->currentItem();
     if (it) emit macroActivated(it->data(Qt::UserRole).toString());
   };
-  connect(list, &QListWidget::itemActivated, this, [this](QListWidgetItem *it) { emit macroActivated(it->data(Qt::UserRole).toString()); });
+  // double-click only: on desktops where a single click activates items, selecting a macro must not insert it
+  connect(list, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem *it) { emit macroActivated(it->data(Qt::UserRole).toString()); });
   connect(insert, &QPushButton::clicked, this, activate);
 }
 

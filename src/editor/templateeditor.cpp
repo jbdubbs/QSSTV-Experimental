@@ -65,7 +65,10 @@ TemplateEditor::TemplateEditor(QWidget *parent) : QMainWindow(parent)
   lay->addWidget(banner);
   lay->addWidget(view, 1);
   setCentralWidget(center);
-  connect(bannerClose, &QPushButton::clicked, banner, &QWidget::hide);
+  connect(bannerClose, &QPushButton::clicked, this, [this]() {
+    bannerDismissed = true;   // stays away until another template is loaded
+    banner->hide();
+  });
 
   properties = new PropertiesPanel(&doc, view, this);
   layers = new LayersPanel(&doc, view, this);
@@ -96,7 +99,10 @@ TemplateEditor::TemplateEditor(QWidget *parent) : QMainWindow(parent)
   connect(&doc, &EditorDocument::canvasChanged, this, &TemplateEditor::updateStatus);
   connect(&doc, &EditorDocument::reset, this, &TemplateEditor::updateStatus);
   connect(&doc, &EditorDocument::fileChanged, this, &TemplateEditor::updateTitle);
-  connect(&doc, &EditorDocument::reset, this, &TemplateEditor::updateTitle);
+  connect(&doc, &EditorDocument::reset, this, [this]() {
+    bannerDismissed = false;
+    updateTitle();
+  });
   connect(doc.undoStack(), &QUndoStack::cleanChanged, this, &TemplateEditor::updateTitle);
   connect(doc.undoStack(), &QUndoStack::indexChanged, this, &TemplateEditor::updateActions);
   connect(QApplication::clipboard(), &QClipboard::dataChanged, this, &TemplateEditor::updateActions);
@@ -457,7 +463,7 @@ void TemplateEditor::updateTitle()
   const bool legacy = doc.isLegacyImport();
   if (legacy)
     bannerLabel->setText(tr("This template was imported from the old .templ format. Saving writes a new .qtempl file and leaves %1 untouched; the template list then shows the new file.").arg(name));
-  banner->setVisible(legacy && !doc.fileName().isEmpty());
+  banner->setVisible(legacy && !doc.fileName().isEmpty() && !bannerDismissed);
   updateActions();
 }
 
@@ -686,19 +692,33 @@ void TemplateEditor::applyCanvasSize(const QSize &size, bool scaleItems)
 {
   const QRectF old = doc.doc().canvas;
   const QRectF now(old.topLeft(), QSizeF(size));
-  if (now == old || size.width() < 1 || size.height() < 1) return;
+  // refuse what the document would refuse, before an undo macro is opened for nothing
+  if (now == old || size == old.size().toSize() || size.width() < 1 || size.height() < 1 || size.width() > tpl::limits::maxCoord || size.height() > tpl::limits::maxCoord) return;
   QUndoStack *stack = doc.undoStack();
   stack->beginMacro(tr("Change canvas size"));
   doc.setCanvas(now, doc.doc().layout, tr("Canvas size"));
   if (scaleItems && old.width() > 0 && old.height() > 0)
     {
       const double sx = now.width() / old.width(), sy = now.height() / old.height();
+      const double s = std::sqrt(sx * sy);
       QVector<tpl::Element> scaled = doc.doc().items;
       for (tpl::Element &e : scaled)
         {
-          e.pos = QPointF(old.x() + (e.pos.x() - old.x()) * sx, old.y() + (e.pos.y() - old.y()) * sy);
-          e.rect = QRectF(e.rect.x() * sx, e.rect.y() * sy, e.rect.width() * sx, e.rect.height() * sy);
-          const double s = std::sqrt(sx * sy);
+          if (e.type != tpl::ItemType::Text && (e.rotation != 0 || e.skewH != 0 || e.skewV != 0))
+            {
+              // stretching the rectangle along its own axes would shear a turned item: move its centre with the
+              // canvas and give it the mean scale instead
+              const QPointF centre = e.pos + e.rect.center();
+              const QPointF moved(old.x() + (centre.x() - old.x()) * sx, old.y() + (centre.y() - old.y()) * sy);
+              const QPointF c = e.rect.center();
+              e.rect = QRectF(c.x() - e.rect.width() * s / 2, c.y() - e.rect.height() * s / 2, e.rect.width() * s, e.rect.height() * s);
+              e.pos = moved - c;
+            }
+          else
+            {
+              e.pos = QPointF(old.x() + (e.pos.x() - old.x()) * sx, old.y() + (e.pos.y() - old.y()) * sy);
+              e.rect = QRectF(e.rect.x() * sx, e.rect.y() * sy, e.rect.width() * sx, e.rect.height() * sy);
+            }
           e.font.pointSize *= s;
           e.outline.width *= s;
         }

@@ -173,14 +173,26 @@ bool ExternalEdit::start(QString *error)
       copyFile.clear();
       return false;
     }
+  age.start();
   timer.start();
   return true;
 }
 
 void ExternalEdit::poll()
 {
+  if (age.hasExpired(lifetimeMs))
+    {
+      deleteLater();                         // the destructor removes a copy nobody saved
+      return;
+    }
   const Signature now = signature();
-  if (now.size < 0) return;                 // mid-save (removed, about to be renamed into place)
+  if (now.size < 0)
+    {
+      // mid-save (removed, about to be renamed into place) for a moment; gone for good after half a minute
+      if (++missingPolls * timer.interval() > 30000) deleteLater();
+      return;
+    }
+  missingPolls = 0;
   if (now != last)
     {
       // changed since the last look: wait until it stays put, the editor may still be writing

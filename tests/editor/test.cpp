@@ -6,6 +6,8 @@
 #include <QtWidgets>
 #include <cmath>
 #include "editoricons.h"
+#include "gradientedit.h"
+#include "macropalette.h"
 #include "externaleditor.h"
 #include "editorcommands.h"
 #include "layerspanel.h"
@@ -1328,6 +1330,192 @@ static void testMonkey()
   check(notRestored == 0, "and undoing everything always returns to the start");
 }
 
+static void testReviewFixes()
+{
+  printf("== fixes from the code review\n");
+  QTemporaryDir tmp;
+
+  {   // the imported-from-.templ banner stays dismissed until another template is loaded
+    Env env;
+    QFile::copy(fixtures + "/synthetic.templ", tmp.filePath("old.templ"));
+    check(env.ed.openFile(tmp.filePath("old.templ")), "(a legacy template is open)");
+    QPushButton *dismiss = nullptr;
+    for (QPushButton *b : env.ed.findChildren<QPushButton *>())
+      if (b->text() == "Dismiss") dismiss = b;
+    check(dismiss && dismiss->isVisibleTo(&env.ed), "the banner shows for an imported template");
+    if (dismiss)
+      {
+        dismiss->click();
+        check(!dismiss->isVisibleTo(&env.ed), "Dismiss hides it");
+        env.d->addItems(QVector<tpl::Element>() << make(tpl::ItemType::Rect, QPointF(1, 1)), "add");
+        QApplication::processEvents();
+        check(!dismiss->isVisibleTo(&env.ed), "and the first edit does not bring it back");
+        env.unsavedAnswer = TemplateEditor::Discard;
+        env.ed.openFile(tmp.filePath("old.templ"));
+        check(dismiss->isVisibleTo(&env.ed), "loading a template shows it again");
+      }
+  }
+
+  {   // a hand-off session ends after its lifetime and takes an untouched copy with it
+    QImage im(8, 8, QImage::Format_ARGB32);
+    im.fill(Qt::blue);
+    im.save(tmp.filePath("pic.png"));
+    const QString noop = QStandardPaths::findExecutable("true");
+    if (!noop.isEmpty())
+      {
+        ExternalEdit *session = new ExternalEdit(tmp.filePath("pic.png"), QString(), noop + " %f");
+        QPointer<ExternalEdit> guard(session);
+        session->setPollInterval(100);
+        session->setLifetime(500);
+        QString err;
+        check(session->start(&err), "(a session starts)");
+        const QString copy = session->copy();
+        QTest::qWait(1200);
+        QApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        check(guard.isNull(), "a session ends when its lifetime is over");
+        check(!QFile::exists(copy), "and an untouched copy is removed with it");
+      }
+  }
+
+  {   // canvas size: out-of-range and fractional canvases are not changed by an OK that changed nothing
+    Env env;
+    env.d->setCanvas(QRectF(0, 0, 5000, 10), tpl::TemplateDocument::Stretch, "wide");
+    CanvasSizeDialog dlg({}, QSize(5000, 10), true, "x");
+    check(dlg.canvasSize() == QSize(5000, 10), "the dialog keeps a canvas outside its usual range as it is");
+    const int index = env.d->undoStack()->index();
+    env.ed.applyCanvasSize(dlg.canvasSize(), true);
+    check(env.d->undoStack()->index() == index && near(env.d->doc().canvas.width(), 5000), "so OK without changes changes nothing");
+    env.d->setCanvas(QRectF(0, 0, 320.4, 256.4), tpl::TemplateDocument::Stretch, "fractional");
+    const int index2 = env.d->undoStack()->index();
+    env.ed.applyCanvasSize(QSize(320, 256), false);
+    check(env.d->undoStack()->index() == index2, "nor does a fractional canvas get rounded by it");
+    env.ed.applyCanvasSize(QSize(25000, 100), false);
+    check(env.d->undoStack()->index() == index2, "a size the document refuses leaves no empty undo step");
+  }
+
+  {   // scaling a turned item keeps its proportions
+    Env env;
+    tpl::Element r = make(tpl::ItemType::Rect, QPointF(100, 100), QSizeF(100, 50));
+    r.rotation = 45;
+    const QString id = add(*env.d, r);
+    const QPointF centre0 = get(*env.d, id).pos + get(*env.d, id).rect.center();
+    env.ed.applyCanvasSize(QSize(1280, 496), true);
+    const tpl::Element &e = get(*env.d, id);
+    check(near(e.rect.width() / e.rect.height(), 2.0, 0.01), QString("a rotated rectangle keeps its aspect when the canvas is stretched (%1 x %2)").arg(e.rect.width()).arg(e.rect.height()));
+    check(near((e.pos + e.rect.center()).x(), centre0.x() * 2) && near((e.pos + e.rect.center()).y(), centre0.y()), "and its centre moves with the canvas");
+  }
+
+  {   // the inline editor survives a context menu and a window switch, but not a click elsewhere
+    Env env;
+    const QString id = add(*env.d, make(tpl::ItemType::Text, QPointF(20, 40)));
+    env.v->editText(id);
+    QApplication::processEvents();
+    QPlainTextEdit *edit = visibleEdit(env);
+    check(edit != nullptr, "(an editor is open)");
+    if (edit)
+      {
+        QTest::keyClicks(edit, "abc");
+        QFocusEvent popup(QEvent::FocusOut, Qt::PopupFocusReason);
+        QApplication::sendEvent(edit, &popup);
+        QFocusEvent away(QEvent::FocusOut, Qt::ActiveWindowFocusReason);
+        QApplication::sendEvent(edit, &away);
+        check(visibleEdit(env) == edit, "a context menu or a window switch does not close the in-place editor");
+        QFocusEvent other(QEvent::FocusOut, Qt::MouseFocusReason);
+        QApplication::sendEvent(edit, &other);
+        check(env.d->find(id)->text.contains("abc") && visibleEdit(env) == nullptr, "a click elsewhere finishes it");
+      }
+  }
+
+  {   // pan mode does not stick when the focus leaves while Space is held
+    Env env;
+    const QString id = add(*env.d, make(tpl::ItemType::Rect, QPointF(100, 100), QSizeF(100, 60)));
+    env.v->clearSelection();
+    QKeyEvent down(QEvent::KeyPress, Qt::Key_Space, Qt::NoModifier, " ");
+    QApplication::sendEvent(env.v, &down);
+    QFocusEvent out(QEvent::FocusOut, Qt::ActiveWindowFocusReason);
+    QApplication::sendEvent(env.v, &out);
+    env.press(150, 130);
+    env.release(150, 130);
+    check(env.v->selection() == QStringList(id), "a click selects after the focus left while Space was held");
+  }
+
+  {   // a gradient cannot get more stops than a file may hold
+    GradientEdit ge;
+    ge.resize(320, 200);
+    ge.show();
+    tpl::Gradient g;
+    g.kind = tpl::Gradient::Linear;
+    for (int i = 0; i < tpl::limits::maxGradientStops; i++) g.stops.append(tpl::GradientStop{i / double(tpl::limits::maxGradientStops - 1), QColor(i * 10, 0, 0)});
+    ge.setGradient(g, Qt::red);
+    QWidget *bar = nullptr;
+    for (QWidget *w : ge.findChildren<QWidget *>())
+      if (QLatin1String(w->metaObject()->className()) == "GradientStopBar") bar = w;
+    check(bar != nullptr, "(the stop bar exists)");
+    if (bar)
+      {
+        QSignalSpy changed(&ge, &GradientEdit::changed);
+        QTest::mouseClick(bar, Qt::LeftButton, Qt::NoModifier, QPoint(bar->width() / 2 + 3, 12));
+        check(ge.gradient().stops.size() == tpl::limits::maxGradientStops && changed.isEmpty(), "a click on the bar adds no stop beyond the limit");
+        g.stops.resize(3);
+        g.stops[2].pos = 1;
+        ge.setGradient(g, Qt::red);
+        QTest::mouseClick(bar, Qt::LeftButton, Qt::NoModifier, QPoint(bar->width() / 2, 12));
+        check(ge.gradient().stops.size() == 4, "below the limit it still adds one");
+      }
+  }
+
+  {   // macros are inserted by double-click, not by a single click
+    MacroPalette pal;
+    pal.resize(300, 400);
+    pal.show();
+    QSignalSpy inserted(&pal, &MacroPalette::macroActivated);
+    QListWidget *list = pal.findChild<QListWidget *>();
+    const QPoint at = list->visualItemRect(list->item(1)).center();
+    QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, at);
+    check(inserted.isEmpty(), "a single click on a macro only selects it");
+    QTest::mouseDClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, at);
+    check(inserted.count() == 1 && inserted.first().first().toString().startsWith("%"), "a double-click inserts it");
+  }
+
+  {   // shared picture loading; remembered text layout follows text, font and macro state
+    QString err;
+    check(EditorCanvas::loadPicture(tmp.filePath("missing.png"), &err).isNull() && !err.isEmpty(), "an unreadable picture is reported");
+    QImage big(3000, 100, QImage::Format_RGB32);
+    big.fill(Qt::red);
+    big.save(tmp.filePath("big.png"));
+    const QImage loaded = EditorCanvas::loadPicture(tmp.filePath("big.png"), &err);
+    check(!loaded.isNull() && loaded.width() <= 1600 && loaded.format() == QImage::Format_ARGB32, "a large picture is shrunk and converted");
+
+    Env env;
+    tpl::Element t = make(tpl::ItemType::Text, QPointF(10, 100));
+    t.text = "abc";
+    const QString id = add(*env.d, t);
+    const double w1 = env.v->sceneBounds(get(*env.d, id)).width();
+    tpl::Element longer = get(*env.d, id);
+    longer.text = "abcabcabc";
+    env.d->modifyItems(QVector<tpl::Element>() << longer, "text");
+    const double w2 = env.v->sceneBounds(get(*env.d, id)).width();
+    tpl::Element bigger = get(*env.d, id);
+    bigger.font.pointSize *= 2;
+    env.d->modifyItems(QVector<tpl::Element>() << bigger, "size");
+    const double w3 = env.v->sceneBounds(get(*env.d, id)).width();
+    check(w2 > w1 * 2 && w3 > w2 * 1.5, QString("text bounds follow the text and the font size (%1, %2, %3)").arg(w1).arg(w2).arg(w3));
+    tpl::Element macro = get(*env.d, id);
+    macro.text = "%c";
+    env.d->modifyItems(QVector<tpl::Element>() << macro, "macro");
+    const double literal = env.v->sceneBounds(get(*env.d, id)).width();
+    QHash<QChar, QString> vars;
+    vars.insert('c', "W1AW/VERYLONGSUFFIX");
+    env.v->setMacroVars(vars);
+    env.v->setExpandMacros(true);
+    const double expanded = env.v->sceneBounds(get(*env.d, id)).width();
+    vars.insert('c', "W");
+    env.v->setMacroVars(vars);
+    const double shorter = env.v->sceneBounds(get(*env.d, id)).width();
+    check(expanded > literal && shorter < expanded, QString("and the macro values (%1 literal, %2 long, %3 short)").arg(literal).arg(expanded).arg(shorter));
+  }
+}
+
 static void testEditorWindow()
 {
   printf("== the window\n");
@@ -1395,6 +1583,7 @@ int main(int argc, char **argv)
   testIconsAndActions();
   testEditorWindow();
   testExternalEditor();
+  testReviewFixes();
 
   printf("\n%d passed, %d failed\n", passed, failed);
   return failed ? 1 : 0;

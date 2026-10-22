@@ -103,8 +103,8 @@ protected:
         selected = hit;
         dragging = true;
       }
-    else if (barRect().adjusted(-4, -4, 4, 12).contains(e->position()))
-      {
+    else if (stops.size() < tpl::limits::maxGradientStops && barRect().adjusted(-4, -4, 4, 12).contains(e->position()))
+      {   // (more stops than the file format allows would be cut off when the item is stored)
         tpl::GradientStop s;
         s.pos = posOf(e->position().x());
         s.color = colorAt(s.pos);

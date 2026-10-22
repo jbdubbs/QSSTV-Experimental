@@ -86,6 +86,8 @@ protected:
   void focusOutEvent(QFocusEvent *e) override
   {
     QPlainTextEdit::focusOutEvent(e);
+    // the context menu (paste) and a switch to another window take the focus but do not end the editing
+    if (e->reason() == Qt::PopupFocusReason || e->reason() == Qt::ActiveWindowFocusReason) return;
     finish(true);
   }
 public:
@@ -120,22 +122,6 @@ void ElementItem::setElement(const tpl::Element &e)
 {
   elem = e;
   setPos(e.pos);
-  if (e.type == tpl::ItemType::Image && !e.image.isNull())
-    {
-      const QSize size(static_cast<int>(e.rect.width()), static_cast<int>(e.rect.height()));
-      if (size.width() > 0 && size.height() > 0 && qint64(size.width()) * size.height() <= 16LL * 1024 * 1024
-          && (e.image.cacheKey() != scaledKey || size != scaledSize || scaled.isNull()))
-        {
-          scaled = e.image.scaled(size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-          scaledKey = e.image.cacheKey();
-          scaledSize = size;
-        }
-    }
-  else
-    {
-      scaled = QImage();
-      scaledKey = 0;
-    }
   refresh();
 }
 
@@ -159,7 +145,25 @@ void ElementItem::paint(QPainter *p, const QStyleOptionGraphicsItem *, QWidget *
 {
   tpl::Element local = elem;
   local.pos = QPointF();
-  if (!scaled.isNull() && scaledKey == elem.image.cacheKey()) local.image = scaled;
+  if (elem.type == tpl::ItemType::Image && !elem.image.isNull())
+    {
+      // scaled when painted, not when the element changes: a drag changes it on every mouse move but paints less often
+      const QSize size(static_cast<int>(elem.rect.width()), static_cast<int>(elem.rect.height()));
+      if (size.width() > 0 && size.height() > 0 && qint64(size.width()) * size.height() <= 16LL * 1024 * 1024)
+        {
+          if (elem.image.cacheKey() != scaledKey || size != scaledSize || scaled.isNull())
+            {
+              scaled = elem.image.scaled(size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+              scaledKey = elem.image.cacheKey();
+              scaledSize = size;
+            }
+          local.image = scaled;
+        }
+    }
+  else if (!scaled.isNull())
+    {
+      scaled = QImage();
+    }
   p->setRenderHint(QPainter::Antialiasing);   // smooth pixmap sampling is the view's choice (on screen); renderItems() draws like the transmit path
   tpl::paintElement(*p, local, *opt);
 }
@@ -324,9 +328,30 @@ QRectF EditorCanvas::selectionBounds() const
   return r;
 }
 
+QRectF EditorCanvas::localBoundsOf(const tpl::Element &e) const
+{
+  if (e.type != tpl::ItemType::Text) return tpl::localBounds(e, renderOpt);
+  // laying out a text is the expensive part and the hit tests, handles and guides ask for it all the time: remember it
+  const QString key = e.text + QLatin1Char('\x1f') + e.font.family + QLatin1Char('\x1f') + QString::number(e.font.pointSize) + QLatin1Char('|')
+                      + QString::number(e.font.weight) + QLatin1Char('|') + QString::number(e.font.stretch) + QLatin1Char('|')
+                      + QString::number(e.font.letterSpacing) + QLatin1Char('|') + QString::number(int(e.font.italic) | int(e.font.underline) << 1 | int(e.font.strikeOut) << 2)
+                      + QLatin1Char('|') + (renderOpt.expandMacros ? QString::number(varsGeneration) : QStringLiteral("-"));
+  auto it = boundsCache.constFind(key);
+  if (it != boundsCache.constEnd()) return it.value();
+  if (boundsCache.size() > 4000) boundsCache.clear();
+  const QRectF r = tpl::localBounds(e, renderOpt);
+  boundsCache.insert(key, r);
+  return r;
+}
+
+QPolygonF EditorCanvas::outlineOf(const tpl::Element &e) const
+{
+  return tpl::sceneTransform(e).map(QPolygonF(localBoundsOf(e)));
+}
+
 QRectF EditorCanvas::sceneBounds(const tpl::Element &e) const
 {
-  return tpl::sceneOutline(e, renderOpt).boundingRect();
+  return outlineOf(e).boundingRect();
 }
 
 QImage EditorCanvas::renderItems(double scale)
@@ -429,6 +454,7 @@ void EditorCanvas::setExpandMacros(bool on)
 void EditorCanvas::setMacroVars(const QHash<QChar, QString> &vars)
 {
   renderOpt.vars = vars;
+  varsGeneration++;
   for (ElementItem *it : items) it->optionsChanged();
   viewport()->update();
 }
@@ -515,7 +541,7 @@ void EditorCanvas::drawForeground(QPainter *p, const QRectF &rect)
   const QVector<tpl::Element> sel = selectedElements();
   for (const tpl::Element &e : sel)
     {
-      const QPolygonF poly = viewportTransform().map(tpl::sceneOutline(e, renderOpt));
+      const QPolygonF poly = viewportTransform().map(outlineOf(e));
       QPen pen(accent, 1);
       if (e.locked) pen.setStyle(Qt::DashLine);
       p->setPen(pen);
@@ -586,7 +612,7 @@ bool EditorCanvas::handleAllowed(const tpl::Element &e, Handle h) const
 
 QPointF EditorCanvas::handlePoint(const tpl::Element &e, Handle h) const
 {
-  return tpl::sceneTransform(e).map(localPoint(tpl::localBounds(e, renderOpt), h));
+  return tpl::sceneTransform(e).map(localPoint(localBoundsOf(e), h));
 }
 
 QPointF EditorCanvas::handleViewPoint(const tpl::Element &e, Handle h) const
@@ -621,7 +647,7 @@ QString EditorCanvas::hitTest(const QPointF &pt) const
     {
       const tpl::Element &e = all[i];
       if (e.locked) continue;
-      const QPolygonF poly = tpl::sceneOutline(e, renderOpt);
+      const QPolygonF poly = outlineOf(e);
       if (poly.containsPoint(pt, Qt::OddEvenFill)) return e.id;
       for (int k = 0; k < poly.size(); k++)
         if (distToSegment(pt, poly[k], poly[(k + 1) % poly.size()]) <= tol) return e.id;
@@ -722,7 +748,7 @@ void EditorCanvas::mousePressEvent(QMouseEvent *e)
         {
           op = OpResize;
           const Handle opp = Handle((h + 4) % 8);
-          const QRectF lb = tpl::localBounds(s, renderOpt);
+          const QRectF lb = localBoundsOf(s);
           opAnchorLocal = localPoint(lb, opp);
           opAnchorScene = tpl::sceneTransform(s).map(opAnchorLocal);
         }
@@ -806,7 +832,7 @@ void EditorCanvas::mouseMoveEvent(QMouseEvent *e)
         for (const tpl::Element &el : doc->doc().items)
           {
             if (el.locked) continue;
-            if (!QPolygonF(createRect).intersected(tpl::sceneOutline(el, renderOpt)).isEmpty()) s.insert(el.id);
+            if (!QPolygonF(createRect).intersected(outlineOf(el)).isEmpty()) s.insert(el.id);
           }
         setSelectionInternal(s);
         viewport()->update();
@@ -919,13 +945,13 @@ void EditorCanvas::updateResize(const QPointF &scenePt, Qt::KeyboardModifiers mo
   if (s.type == tpl::ItemType::Text)
     {
       // dragging a corner scales the text about the opposite corner
-      const QPointF startHandle = tpl::sceneTransform(s).map(localPoint(tpl::localBounds(s, renderOpt), opHandle));
+      const QPointF startHandle = tpl::sceneTransform(s).map(localPoint(localBoundsOf(s), opHandle));
       const double d0 = QLineF(opAnchorScene, startHandle).length();
       const double d1 = QLineF(opAnchorScene, scenePt).length();
       if (d0 < 1) return;
       e.font.pointSize = qBound(4.0, s.font.pointSize * (d1 / d0), 1000.0);
       EditorDocument::fitTextRect(e);
-      const QPointF now = tpl::sceneTransform(e).map(localPoint(tpl::localBounds(e, renderOpt), opp));
+      const QPointF now = tpl::sceneTransform(e).map(localPoint(localBoundsOf(e), opp));
       e.pos += opAnchorScene - now;
       doc->replaceRaw(e);
       viewport()->update();
@@ -933,7 +959,7 @@ void EditorCanvas::updateResize(const QPointF &scenePt, Qt::KeyboardModifiers mo
     }
 
   const QPointF lp = tpl::sceneTransform(s).inverted().map(scenePt);
-  const QRectF lb = tpl::localBounds(s, renderOpt);
+  const QRectF lb = localBoundsOf(s);
   double l = lb.left(), t = lb.top(), r = lb.right(), b = lb.bottom();
   const bool hasLeft = opHandle == HTopLeft || opHandle == HLeft || opHandle == HBottomLeft;
   const bool hasRight = opHandle == HTopRight || opHandle == HRight || opHandle == HBottomRight;
@@ -1028,7 +1054,7 @@ void EditorCanvas::updateCursor(const QPoint &viewPt)
   if (h != HNone)
     {
       const tpl::Element *e = doc->find(*selected.begin());
-      const QPointF c = toView(tpl::sceneTransform(*e).map(tpl::localBounds(*e, renderOpt).center()));
+      const QPointF c = toView(tpl::sceneTransform(*e).map(localBoundsOf(*e).center()));
       const QPointF d = handleViewPoint(*e, h) - c;
       double a = qRadiansToDegrees(qAtan2(d.y(), d.x()));
       if (a < 0) a += 180;
@@ -1042,6 +1068,17 @@ void EditorCanvas::updateCursor(const QPoint &viewPt)
     }
   const QString hit = hitTest(mapToScene(viewPt));
   viewport()->setCursor(!hit.isEmpty() && selected.contains(hit) ? Qt::SizeAllCursor : Qt::ArrowCursor);
+}
+
+void EditorCanvas::focusOutEvent(QFocusEvent *e)
+{
+  QGraphicsView::focusOutEvent(e);
+  if (spaceDown)
+    {
+      // the key release may go elsewhere: do not stay in pan mode
+      spaceDown = false;
+      updateCursor(mapFromGlobal(QCursor::pos()));
+    }
 }
 
 void EditorCanvas::leaveEvent(QEvent *e)
@@ -1237,14 +1274,28 @@ void EditorCanvas::addMacro(const QString &macro)
   doc->addItems(QVector<tpl::Element>() << e, tr("Add text"));
 }
 
-bool EditorCanvas::insertImageFile(const QString &fileName, const QPointF &centre)
+QImage EditorCanvas::loadPicture(const QString &fileName, QString *error)
 {
   QImageReader reader(fileName);
   reader.setAutoTransform(true);   // EXIF orientation
-  const QImage img = reader.read();
+  QImage img = reader.read();
   if (img.isNull())
     {
-      emit statusMessage(tr("Cannot read %1: %2").arg(QFileInfo(fileName).fileName(), reader.errorString()));
+      if (error) *error = tr("Cannot read %1: %2").arg(QFileInfo(fileName).fileName(), reader.errorString());
+      return QImage();
+    }
+  if (img.width() > maxImportSide || img.height() > maxImportSide)
+    img = img.scaled(maxImportSide, maxImportSide, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+  return img.convertToFormat(QImage::Format_ARGB32);
+}
+
+bool EditorCanvas::insertImageFile(const QString &fileName, const QPointF &centre)
+{
+  QString error;
+  const QImage img = loadPicture(fileName, &error);
+  if (img.isNull())
+    {
+      emit statusMessage(error);
       return false;
     }
   return insertImage(img, centre);
@@ -1280,7 +1331,7 @@ void EditorCanvas::editText(const QString &id, bool isNew)
   const tpl::Element *el = doc->find(id);
   if (!el || el->type != tpl::ItemType::Text) return;
   if (textEdit) textEdit->clearFocus();
-  const QRectF vb = viewportTransform().map(tpl::sceneOutline(*el, renderOpt)).boundingRect();
+  const QRectF vb = viewportTransform().map(outlineOf(*el)).boundingRect();
   InlineTextEdit *ed = new InlineTextEdit(viewport());
   QFont f = el->font.toFont();
   f.setPixelSize(qBound(10, int(el->font.pointSize * 96.0 / 72.0 * zoomFactor), 72));

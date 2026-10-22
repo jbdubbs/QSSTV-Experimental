@@ -103,6 +103,7 @@ private:
   LayersPanel *layers;
   MacroPalette *macros;
   QWidget *banner;
+  bool bannerDismissed = false;
   QLabel *bannerLabel;
   QLabel *cursorLabel, *zoomLabel, *sizeLabel, *selectionLabel;
   QMenu *recentMenu, *contextMenu;

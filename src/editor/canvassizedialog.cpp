@@ -18,11 +18,11 @@ CanvasSizeDialog::CanvasSizeDialog(const QVector<SizePreset> &presetList, const 
   combo->setToolTip(tr("The picture size of an SSTV mode. A template is stretched to the transmitted picture, so use the size of the mode you send most."));
   widthSpin = new QSpinBox;
   heightSpin = new QSpinBox;
-  for (QSpinBox *s : {widthSpin, heightSpin})
-    {
-      s->setRange(minSide, maxSide);
-      s->setSuffix(tr(" px"));
-    }
+  // a template read from a file may be outside the usual range: OK without changes must not resize it
+  widthSpin->setRange(qMin(minSide, current.width()), qMax(maxSide, current.width()));
+  heightSpin->setRange(qMin(minSide, current.height()), qMax(maxSide, current.height()));
+  widthSpin->setSuffix(tr(" px"));
+  heightSpin->setSuffix(tr(" px"));
   scaleCheck = new QCheckBox(tr("Scale the existing items to the new size"));
   scaleCheck->setVisible(scaleOption);
   scaleCheck->setToolTip(tr("Otherwise the items keep their size and position and only the canvas changes"));

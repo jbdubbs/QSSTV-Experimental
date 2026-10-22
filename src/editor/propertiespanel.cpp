@@ -13,6 +13,7 @@
 #include <QGroupBox>
 #include <QImageReader>
 #include <QLabel>
+#include <QMessageBox>
 #include <QPainter>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -388,15 +389,16 @@ void PropertiesPanel::replaceImage()
   const QString fn = QFileDialog::getOpenFileName(this, tr("Replace picture"), QString(),
                                                   tr("Pictures (*.png *.jpg *.jpeg *.bmp *.gif *.webp *.avif *.heic *.svg);;All files (*)"));
   if (fn.isEmpty()) return;
-  QImageReader reader(fn);
-  reader.setAutoTransform(true);
-  QImage img = reader.read();
-  if (img.isNull()) return;
-  if (img.width() > 1600 || img.height() > 1600) img = img.scaled(1600, 1600, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-  img = img.convertToFormat(QImage::Format_ARGB32);
+  QString error;
+  const QImage img = EditorCanvas::loadPicture(fn, &error);
+  if (img.isNull())
+    {
+      QMessageBox::warning(this, tr("Replace picture"), error);
+      return;
+    }
   apply([img](tpl::Element &e) {
     e.image = img;
-    // keep the width and centre, follow the new picture's proportions
+    // keep the left edge and the width, follow the new picture's proportions
     QRectF r = e.rect;
     r.setHeight(qMax(1.0, r.width() * img.height() / img.width()));
     EditorDocument::setRectKeeping(e, r, r.topLeft());

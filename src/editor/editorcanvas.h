@@ -113,6 +113,8 @@ public:
   /*! the items exactly as the canvas draws them, on a transparent image of the canvas at the given scale (no guides, grid or handles) */
   QImage renderItems(double scale = 1.0);
   QString describe(const tpl::Element &e) const;     //!< "Text: %c %m", "Rectangle", ... (layers panel, status)
+  /*! reads a picture for an image item (EXIF orientation applied, shrunk to a size that keeps template files small); null with *error set on failure */
+  static QImage loadPicture(const QString &fileName, QString *error);
   static tpl::Element defaultElement(tpl::ItemType type);
 
 signals:
@@ -138,6 +140,7 @@ protected:
   void dragEnterEvent(QDragEnterEvent *e) override;
   void dragMoveEvent(QDragMoveEvent *e) override;
   void dropEvent(QDropEvent *e) override;
+  void focusOutEvent(QFocusEvent *e) override;
   void leaveEvent(QEvent *e) override;
   void showEvent(QShowEvent *e) override;
 
@@ -158,6 +161,8 @@ private:
   QHash<QString, ElementItem *> items;
   QSet<QString> selected;
   tpl::RenderOptions renderOpt;
+  int varsGeneration = 0;                       //!< changes with the macro values: part of the key of expanded text bounds
+  mutable QHash<QString, QRectF> boundsCache;   //!< text layout bounds by text/font/macro state
   Tool currentTool = ToolSelect;
   double zoomFactor = 1.0;
   bool autoFit = true;
@@ -209,6 +214,8 @@ private:
   void createShape(const QRectF &r);
   void updateCursor(const QPoint &viewPt);
   QString mimeType() const;
+  QRectF localBoundsOf(const tpl::Element &e) const;   // tpl::localBounds with the text layout remembered
+  QPolygonF outlineOf(const tpl::Element &e) const;     // tpl::sceneOutline likewise
   void insertElements(QVector<tpl::Element> els, const QPointF &offset, const QString &text);
   void setSelectionInternal(const QSet<QString> &ids);
 };

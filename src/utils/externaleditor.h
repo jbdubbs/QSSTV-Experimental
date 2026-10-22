@@ -15,6 +15,7 @@
 #define EXTERNALEDITOR_H
 
 #include <QDateTime>
+#include <QElapsedTimer>
 #include <QObject>
 #include <QString>
 #include <QTimer>
@@ -50,8 +51,9 @@ QString editCopyName(const QString &original, const QString &dir);
 }  // namespace externalEditor
 
 /*! One hand-off. Makes the copy, starts the editor and polls the copy; saved() is emitted each time the editor
-    has written a new version. An unchanged copy is removed again when the session ends. Sessions are owned by
-    the application, so they outlive the widget they were started from. */
+    has written a new version. A session ends when the application quits, after a lifetime of eight hours, or
+    when the copy has disappeared; an unchanged copy is removed again then. Sessions are owned by the
+    application, so they outlive the widget they were started from. */
 class ExternalEdit : public QObject
 {
   Q_OBJECT
@@ -67,6 +69,8 @@ public:
   bool changed() const { return reported; }
   /*! how often the copy is looked at (default 1000 ms); a save is reported on the second look that finds it unchanged */
   void setPollInterval(int ms) { timer.setInterval(ms); }
+  /*! how long the session lives (default eight hours); tests shorten it */
+  void setLifetime(qint64 ms) { lifetimeMs = ms; }
 
 signals:
   void saved(const QString &copyFile);
@@ -87,6 +91,9 @@ private:
   Signature initial, last;
   bool reported = false;      //!< saved() was emitted at least once
   bool pending = false;       //!< a change was seen, waiting for the file to stop changing
+  int missingPolls = 0;       //!< polls in a row that found no copy
+  qint64 lifetimeMs = 8LL * 3600 * 1000;
+  QElapsedTimer age;
   QTimer timer;
 };
 
