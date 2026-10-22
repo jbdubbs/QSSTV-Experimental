@@ -6,7 +6,8 @@
 #include "textdisplay.h"
 #include "txfunctions.h"
 #include "ftpfunctions.h"
-class editor;
+#include <QPointer>
+class TemplateEditor;
 class imageViewer;
 
 
@@ -40,6 +41,10 @@ public:
   void uploadToRXServer(QString remoteDir, QString fn);
   void logSSTV(QString call, bool fromFSKID);
   void showOffLine();
+  /** opens the template editor (or raises the open one) and loads fileName into it; an empty name starts a new template */
+  void openTemplateEditor(const QString &fileName);
+  /** closes the template editor if it is open, asking about unsaved changes; false if the user cancelled (the program should not quit then) */
+  bool closeTemplateEditor();
   /** calibration: while set, a received SSTV picture is announced with sstvImageReceived() and not saved */
   void setCalibrationRx(bool on) {calibrationRx=on;}
 //  eftpResult notifyRXDone;
@@ -53,6 +58,7 @@ signals:
   void sstvImageReceived(int mode);   //!< a picture was completed (NOTVALID if too few lines); only while setCalibrationRx(true)
 
 private slots:
+  void slotTemplateSaved();
 //  void slotRXNotification(QString info);
   void slotRenameListing(bool err);
 
@@ -60,10 +66,8 @@ private:
   void saveRxSSTVImage(esstvMode mode);
   bool inList(QList <QUrlInfo> lst,QString fn);
   void timerEvent(QTimerEvent *event);
-  bool editorActive;
   bool calibrationRx=false;
-  editor *ed;
-  imageViewer *iv;
+  QPointer<TemplateEditor> templateEditor;   // clears itself when the window is closed
   int txTimeCounter;
   int prTimerIndex;
   textDisplay *infoTextPtr;

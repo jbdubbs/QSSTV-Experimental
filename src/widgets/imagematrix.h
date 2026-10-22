@@ -39,6 +39,7 @@ private:
   QSpacerItem *horizontalSpacer_2;
   QSpacerItem *horizontalSpacer_3;
   QString dirPath;
+  imageViewer::thumbType matrixType=imageViewer::RXIMG;
   QToolButton *prevPushButton;
   QToolButton *nextPushButton;
   QToolButton *beginPushButton;

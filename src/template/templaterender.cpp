@@ -152,6 +152,41 @@ void paintElement(QPainter &p, const Element &e, const RenderOptions &opt)
   p.restore();
 }
 
+QRectF textBounds(const Element &e, const RenderOptions &opt)
+{
+  const QString text = opt.expandMacros ? expandMacros(e.text, opt.vars) : e.text;
+  const QRectF r = textPath(e.font, text).boundingRect();
+  if (r.width() >= 1 && r.height() >= 1) return r;
+  const double h = qMax(4.0, e.font.pointSize * 96.0 / 72.0);   // px at the 96 dpi reference
+  return QRectF(0, -h, qMax(8.0, r.width()), h);
+}
+
+QRectF localBounds(const Element &e, const RenderOptions &opt)
+{
+  switch (e.type)
+    {
+    case ItemType::Text:
+      return textBounds(e, opt);
+    case ItemType::Line:
+      {
+        const qreal h = qMax<qreal>(e.outline.width, 2);
+        return QRectF(e.rect.x(), e.rect.y() + e.rect.height() / 2 - h / 2, e.rect.width(), h);
+      }
+    default:
+      return e.rect;
+    }
+}
+
+QTransform sceneTransform(const Element &e)
+{
+  return e.itemTransform() * QTransform::fromTranslate(e.pos.x(), e.pos.y());
+}
+
+QPolygonF sceneOutline(const Element &e, const RenderOptions &opt)
+{
+  return sceneTransform(e).map(QPolygonF(localBounds(e, opt)));
+}
+
 void paintDocument(QPainter &p, const TemplateDocument &doc, const QRectF &target, const RenderOptions &opt, bool keepAspect)
 {
   const QRectF src = doc.canvas;

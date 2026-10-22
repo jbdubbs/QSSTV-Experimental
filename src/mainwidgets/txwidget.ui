@@ -116,10 +116,10 @@
        <item>
         <widget class="QToolButton" name="editToolButton">
          <property name="toolTip">
-          <string>Edit image</string>
+          <string>Edit this picture in your picture editor (a copy is edited, the original is not changed)</string>
          </property>
          <property name="statusTip">
-          <string>Edit image</string>
+          <string>Edit this picture in your picture editor (a copy is edited, the original is not changed)</string>
          </property>
          <property name="text">
           <string>...</string>

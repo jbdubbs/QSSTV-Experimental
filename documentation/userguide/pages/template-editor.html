@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Template editor - QSSTV-Experimental User&#x27;s Guide</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html">Install and first run</a></li><li><a href="main-window.html">Main window tour</a></li><li><a href="receive.html">Receiving</a></li><li><a href="transmit.html">Transmitting</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="template-editor.html" aria-current="page">Template editor</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="sstv-modes.html">SSTV modes</a></li><li><a href="drm.html">Digital SSTV (DRM)</a></li><li><a href="calibration.html">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
+<main>
+
+<h1>Template editor</h1>
+<p class="lead">A template is laid over every picture you transmit: your call sign, the report, the date and time, a logo, a colour bar. You make
+templates in the template editor, and the Transmit tab and the Gallery use them.</p>
+<figure><img src="../images/template-editor.png" alt="The template editor with a call sign template on the canvas, tools on the left, the Properties and Layers panels on the right" loading="lazy"><figcaption>The template editor with the call sign text selected. Its handles are visible, its properties are on the right.</figcaption></figure>
+
+<h2 id="open">Opening the editor</h2>
+<ul>
+<li><strong>Transmit tab:</strong> press <span class="ui">Edit...</span> next to the template list to edit the selected template. The arrow next to it starts a new template.
+ (Not available while transmitting.)</li>
+<li><strong>Gallery &gt; Templates:</strong> right-click a template and choose <span class="ui">Edit template...</span>, or right-click anywhere in the tab and choose
+ <span class="ui">New template...</span>.</li>
+</ul>
+<p>Only one editor is open at a time; opening another template while it is open puts the template in the same window (you are asked first if there are unsaved changes).
+Press <kbd>F1</kbd> in the editor to open this page.</p>
+
+<h2 id="canvas">The canvas</h2>
+<p>The canvas is the picture area of one SSTV mode. When a picture is transmitted the whole template is <strong>stretched over the whole picture</strong>, so
+make the template at the size of the mode you send most (for example 640 x 496 for PD120, 320 x 256 for Martin 1). A new template starts with the size of the
+mode currently selected on the Transmit tab; <span class="ui">Arrange &gt; Canvas Size...</span> changes it later, and can scale the items along. If you transmit
+modes of another shape the template is stretched with them.</p>
+<p>The grey checkerboard stands for the picture. To see how a template looks on a real picture switch on <span class="ui">View &gt; Show Picture Under Template</span>: the
+picture of the Transmit tab is shown behind the template. It is only a guide and is never saved.</p>
+<figure><img src="../images/template-editor-preview.png" alt="The template editor showing a landscape picture under the template, with macros replaced by sample values" loading="lazy"><figcaption>The picture under the template and the macros replaced by sample values (View &gt; Preview Macros). The hatched square is the replay window.</figcaption></figure>
+
+<h2 id="tools">Tools and items</h2>
+<table class="compact"><tr><th>Tool</th><th>Key</th><th>What it adds</th></tr>
+<tr><td>Select</td><td><kbd>V</kbd></td><td>Nothing: click items to select them, drag to move them, drag empty space to select several.</td></tr>
+<tr><td>Text</td><td><kbd>T</kbd></td><td>A text. Click where it should go, type, then press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or click outside.</td></tr>
+<tr><td>Rectangle</td><td><kbd>R</kbd></td><td>A rectangle: drag on the canvas. A plain click adds one of a default size.</td></tr>
+<tr><td>Ellipse</td><td><kbd>E</kbd></td><td>An ellipse or circle.</td></tr>
+<tr><td>Line</td><td><kbd>L</kbd></td><td>A straight line. Its thickness is the outline width in the Properties panel.</td></tr>
+<tr><td>Picture</td><td><kbd>Ctrl</kbd>+<kbd>I</kbd></td><td>A picture from a file, for example your club logo. Large pictures are shrunk to 1600 pixels. You can also drop picture files on the canvas,
+ or paste a copied picture.</td></tr>
+<tr><td>Replay window</td><td><kbd>P</kbd></td><td>A window that shows the picture of the small preview on the Transmit tab (right-click it there to load a picture), for example the
+ picture you just received. It is a hatched square in the editor.</td></tr>
+</table>
+<p>After drawing, the tool goes back to Select. Items are listed in the <strong>Layers</strong> panel, front item first.</p>
+
+<h2 id="select">Working with items</h2>
+<dl>
+<dt>Select</dt><dd>Click an item, or draw a rectangle around several. <kbd>Shift</kbd>- or <kbd>Ctrl</kbd>-click adds or removes an item; <kbd>Ctrl</kbd>+<kbd>A</kbd> selects everything.
+ Items can also be picked in the Layers panel, which is the only way to select a locked item.</dd>
+<dt>Move</dt><dd>Drag an item, or use the arrow keys (1 pixel; with <kbd>Shift</kbd> 10 pixels). Dragging snaps to the edges and middle of the canvas and of other items
+ (pink guide lines); hold <kbd>Alt</kbd> to switch snapping off for a moment, <kbd>Shift</kbd> to move in a straight line.</dd>
+<dt>Resize</dt><dd>Drag a square handle. For a picture a corner keeps its proportions (hold <kbd>Shift</kbd> to change them), for other items hold <kbd>Shift</kbd> to keep them.
+ A corner of a <em>text</em> makes its letters bigger or smaller.</dd>
+<dt>Rotate</dt><dd>Drag the round handle above the item (hold <kbd>Shift</kbd> for steps of 15 degrees), or type the angle in the Properties panel, where you also find skew and opacity.</dd>
+<dt>Edit a text</dt><dd>Double-click it, or select it and press <kbd>Enter</kbd> or <kbd>F2</kbd>. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or a click outside is done, <kbd>Esc</kbd> cancels.
+ The Properties panel has a text box too.</dd>
+<dt>Duplicate, copy, paste</dt><dd><kbd>Ctrl</kbd>+<kbd>D</kbd>, <kbd>Ctrl</kbd>+<kbd>C</kbd>, <kbd>Ctrl</kbd>+<kbd>X</kbd> and <kbd>Ctrl</kbd>+<kbd>V</kbd>. Items copy between two editor windows or programs;
+ a picture or text copied elsewhere pastes as a new item.</dd>
+<dt>Arrange</dt><dd>The <span class="ui">Arrange</span> menu and toolbar: bring in front or send to back, align items to each other (a single item aligns to the canvas), spread three or more
+ evenly, and lock items so they cannot be moved by accident.</dd>
+<dt>Zoom and pan</dt><dd><kbd>Ctrl</kbd> + mouse wheel zooms, <kbd>Ctrl</kbd>+<kbd>0</kbd> fits the canvas in the window, <kbd>Ctrl</kbd>+<kbd>1</kbd> shows it at 100 %.
+ Drag with the middle mouse button, or hold <kbd>Space</kbd> and drag, to pan.</dd>
+<dt>Undo</dt><dd>Everything can be undone: <kbd>Ctrl</kbd>+<kbd>Z</kbd>, redo with <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> or <kbd>Ctrl</kbd>+<kbd>Y</kbd>. A whole drag is one step, and so is a run of
+ typing in one field. <span class="ui">Edit &gt; Delete All Items</span> asks first and can be undone too.</dd>
+</dl>
+
+<h2 id="look">Colours, gradients, outlines and fonts</h2>
+<p>The Properties panel changes every selected item at once.</p>
+<figure><img src="../images/template-editor-gradient.png" alt="The template editor with a rectangle selected; the Fill section shows a linear gradient with two colour stops" loading="lazy"><figcaption>A rectangle with a linear gradient fill from transparent to dark. Click the bar to add a colour stop, drag a stop to move it, double-click it to change its colour.</figcaption></figure>
+<dl>
+<dt>Fill</dt><dd>A solid colour (with transparency) or a linear, radial or conical gradient for text, rectangles and ellipses.</dd>
+<dt>Outline</dt><dd>Colour, width and style of the edge. For a line this <em>is</em> the line; for pictures and the replay window it is the border. White text with a black outline stays readable on any picture.</dd>
+<dt>Font</dt><dd>Family, size in points, weight, italic, underline and letter spacing. A template remembers the font by name. If a computer does not have the font the text is drawn
+ in another font; the Properties panel then shows a notice, and the template keeps the name.</dd>
+</dl>
+
+<h2 id="macros">Macros</h2>
+<p>A text may contain macros that are replaced when the picture is transmitted. The <strong>Macros</strong> tab next to the Layers panel lists them; double-click one to put it into the
+selected text (or into a new text). <span class="ui">View &gt; Preview Macros</span> shows sample values on the canvas; the template itself keeps the macros.</p>
+<table class="compact"><tr><th>Macro</th><th>Replaced by</th></tr>
+<tr><td><code>%c</code></td><td>Call sign of the station you send to (the <em>To</em> box on the Transmit tab)</td></tr>
+<tr><td><code>%r</code></td><td>The RSV report</td></tr>
+<tr><td><code>%o</code></td><td>The operator name (the <em>Op</em> box)</td></tr>
+<tr><td><code>%m</code></td><td>Your call sign (Configuration &gt; Operator)</td></tr>
+<tr><td><code>%f</code>, <code>%n</code></td><td>Your first and last name</td></tr>
+<tr><td><code>%q</code>, <code>%l</code></td><td>Your location name and grid locator</td></tr>
+<tr><td><code>%t</code>, <code>%d</code></td><td>The UTC time (hh:mm) and date (yyyy/MM/dd)</td></tr>
+<tr><td><code>%v</code></td><td>The QSSTV version</td></tr>
+<tr><td><code>%x</code>, <code>%y</code>, <code>%z</code></td><td>The three large text boxes on the Transmit tab</td></tr>
+<tr><td><code>%s</code></td><td>The signal quality (MER, dB) of the last received DRM picture</td></tr>
+<tr><td><code>%%</code></td><td>A percent sign</td></tr>
+</table>
+<p>A macro that does not exist prints nothing; the Properties panel warns about it.</p>
+
+<h2 id="files">Saving and opening</h2>
+<p>Templates are saved in your templates folder (<a href="configuration.html#directories">Configuration &gt; Directories</a>) as <code>.qtempl</code> files. This is a new, readable text format; it is <strong>not</strong>
+understood by the old QSSTV 9. <span class="ui">File &gt; Save</span> and <span class="ui">Save As</span> write it, <span class="ui">Revert</span> loads the saved file again, and <span class="ui">Open Recent</span>
+lists the last templates. The title bar shows a <em>*</em> while there are unsaved changes, and closing the editor asks what to do with them.</p>
+<p><strong>Templates from earlier versions</strong> (<code>.templ</code>) open as well. The editor tells you the template was imported; saving writes a new <code>.qtempl</code> file and never touches the old one.
+Once a <code>.qtempl</code> exists the template list shows it instead of the old file with the same name; the old file stays on disk. Damaged or truncated files are refused with a message and cannot crash the program.
+A template that cannot be read when a picture is transmitted is skipped and the picture goes out without it (the reason is in the log).</p>
+
+<h2 id="pictures">Editing a picture</h2>
+<p>The template editor is only for templates. To change a picture itself (crop it, adjust it, paint on it), right-click it on the Transmit tab or in the Gallery's TX Stock tab and choose
+<span class="ui">Edit picture...</span>, or press the pencil on the Transmit tab. QSSTV makes a <strong>copy</strong> named like <code>holiday-edit.png</code>, opens it in your picture editor and, as soon as you save it there,
+uses it as the transmit picture. The original is never changed. Copies are kept in the TX Stock gallery (next to the original when it is there already); a copy you never saved in your editor is removed again when QSSTV closes.</p>
+<p>The picture editor is chosen under <a href="configuration.html#gui">Configuration &gt; Gui</a> &gt; <em>Picture editor</em>: type a command, using <code>%f</code> for the file, or press <span class="ui">Detect</span>
+to pick one of the editors found (GIMP, Krita, KolourPaint, Pinta and others). Left empty, the first one found is used, and failing that the system's default program for pictures.</p>
+
+<h2 id="shortcuts">Keyboard shortcuts</h2>
+<table class="compact"><tr><th>Keys</th><th>Action</th></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>N</kbd> / <kbd>O</kbd> / <kbd>S</kbd> / <kbd>Shift</kbd>+<kbd>S</kbd> / <kbd>W</kbd></td><td>New, open, save, save as, close</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></td><td>Undo, redo</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>X</kbd> / <kbd>V</kbd> / <kbd>D</kbd>, <kbd>Delete</kbd></td><td>Copy, cut, paste, duplicate, delete</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>A</kbd>, <kbd>Esc</kbd></td><td>Select all, clear the selection (or cancel the tool)</td></tr>
+<tr><td><kbd>V</kbd> <kbd>T</kbd> <kbd>R</kbd> <kbd>E</kbd> <kbd>L</kbd> <kbd>P</kbd>, <kbd>Ctrl</kbd>+<kbd>I</kbd></td><td>Select, text, rectangle, ellipse, line and replay tools; add a picture</td></tr>
+<tr><td>Arrow keys, with <kbd>Shift</kbd></td><td>Nudge by 1 or 10 pixels</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>]</kbd> / <kbd>[</kbd>, with <kbd>Shift</kbd></td><td>Bring forward / send backward, to front / to back</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>L</kbd></td><td>Lock or unlock the selection</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>=</kbd> / <kbd>-</kbd> / <kbd>0</kbd> / <kbd>1</kbd></td><td>Zoom in, zoom out, fit, 100 %</td></tr>
+<tr><td><kbd>F1</kbd></td><td>This page</td></tr>
+</table>
+
+<div class="note"><p>Templates are drawn the same way for transmission, the gallery thumbnails and the editor. If you want to try one without a radio, use the command line:
+<code>qsstv-experimental --render-template my.qtempl --template-base picture.png</code> (see <a href="command-line.html">Decode from file and command line</a>).</p></div>
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="gallery.html" rel="prev">&larr; Gallery</a><a class="next" href="configuration.html" rel="next">Configuration &rarr;</a></nav>
+
+</main>
+<footer class="site-footer"><p>QSSTV-Experimental is based on QSSTV by Johan Maes, ON4QZ, and is released under the GNU GPL v3.</p></footer>
+</body>
+</html>

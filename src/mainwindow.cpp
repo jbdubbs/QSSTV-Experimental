@@ -676,6 +676,7 @@ void mainWindow::slotExit()
 
   if(exit==QMessageBox::Yes)
     {
+      if(!dispatcherPtr->closeTemplateEditor()) return;   // unsaved template: the user chose to go back
       quitting=true;
       shutdown(true);
       QApplication::quit();
@@ -736,6 +737,11 @@ void mainWindow::slotResetLog()
 
 void mainWindow::slotDocumentation()
 {
+  openUserGuide(QString());
+}
+
+void mainWindow::openUserGuide(const QString &page)
+{
   // A user-set URL wins; otherwise open the User's Guide shipped with the app
   if(!docURL.trimmed().isEmpty())
     {
@@ -756,6 +762,7 @@ void mainWindow::slotDocumentation()
           // which only get the single file and 404 on every link to another page or image
           QUrl url=guideServer::instance().urlFor(dir);
           if(url.isEmpty()) url=QUrl::fromLocalFile(QFileInfo(index).canonicalFilePath());
+          if(!page.isEmpty() && QFileInfo::exists(QDir(dir).filePath(page))) url=url.resolved(QUrl(page));
           openUrlOrWarn(this,url);
           return;
         }

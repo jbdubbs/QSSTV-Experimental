@@ -27,7 +27,6 @@ enum dispatchEventType
   txPrepareComplete, //!< tx preparations (uploading etc) complete
   callEditor,
   templatesChanged,
-  editorFinished,
   loadRXImage,
   saveDRMImage,
   previewDRMImage,
@@ -332,17 +331,15 @@ private:
 class callEditorEvent : public baseEvent
 {
 public:
-  /** create event */
-  callEditorEvent(imageViewer *iv,QString fn):baseEvent( (QEvent::Type) callEditor ), filename(fn),imviewer(iv)
+  /** create event; an empty file name asks for a new template */
+  callEditorEvent(const QString &fn):baseEvent( (QEvent::Type) callEditor ), filename(fn)
   {
     description="callEditorEvent";
   }
-  /** returns info string from the event */
+  /** the template to edit */
   QString getFilename() const { return filename; }
-  imageViewer *getImageViewer() { return imviewer; }
 private:
   QString filename;
-  imageViewer *imviewer;
 };
 
 
@@ -356,22 +353,6 @@ public:
   }
 };
 
-class editorFinishedEvent : public baseEvent
-{
-public:
-  /** create event */
-  editorFinishedEvent(bool b,QString fn):baseEvent( (QEvent::Type)editorFinished),ok(b),filename(fn)
-  {
-    description="editorFinishedEvent";
-  }
-  bool isOK() { return ok;}
-  QString getFilename() const { return filename; }
-
-private:
-  bool ok;
-  QString filename;
-
-};
 
 
 class displayFFTEvent : public baseEvent

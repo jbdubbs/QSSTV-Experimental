@@ -15,6 +15,7 @@ extern bool slowCPU;
 extern bool lowRes;
 extern bool confirmDeletion;
 extern bool confirmClose;
+extern QString externalEditorCommand;   // picture editor for Edit on a TX picture; %f = the file, empty = auto
 
 namespace Ui
 {
@@ -37,6 +38,8 @@ public:
 private slots:
   void slotBGColorSelect();
   void slotIBGColorSelect();
+  void slotExternalEditorBrowse();
+  void slotExternalEditorDetect();
 
 private:
   Ui::guiConfig *ui;

@@ -32,6 +32,23 @@ QString expandMacros(const QString &text, const QHash<QChar, QString> &vars);
 /*! Paints one item with its own transform, in the coordinate system of the template canvas. */
 void paintElement(QPainter &p, const Element &e, const RenderOptions &opt);
 
+/*! Geometry helpers for the editor. All use the same text layout as paintElement(), so what the editor outlines is
+    what the renderer draws. */
+
+/*! bounding rectangle of a text item's outline in item coordinates (the text is drawn from the origin); macros are
+    expanded per opt. Never empty: an empty text gets a small box so it can still be selected. */
+QRectF textBounds(const Element &e, const RenderOptions &opt = RenderOptions());
+
+/*! the item's own extent in item coordinates: `rect` for shapes, images and the replay slot, the text outline for
+    text, a band of the pen's width along the middle of `rect` for a line */
+QRectF localBounds(const Element &e, const RenderOptions &opt = RenderOptions());
+
+/*! item coordinates -> canvas coordinates (what paintElement() sets up before drawing) */
+QTransform sceneTransform(const Element &e);
+
+/*! localBounds() as a polygon in canvas coordinates (a parallelogram once the item is rotated or sheared) */
+QPolygonF sceneOutline(const Element &e, const RenderOptions &opt = RenderOptions());
+
 /*! Paints the whole template into `target` of the painter's device, mapping the canvas onto it
     (stretched, or aspect preserving when keepAspect is set, as QGraphicsScene::render did). */
 void paintDocument(QPainter &p, const TemplateDocument &doc, const QRectF &target, const RenderOptions &opt, bool keepAspect = false);

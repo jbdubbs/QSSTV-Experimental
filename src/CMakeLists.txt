@@ -18,7 +18,7 @@ endif()
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network Xml SerialPort Multimedia)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network Xml SerialPort Multimedia Svg)
 if(UNIX AND NOT APPLE)
   # only used to probe for xdg-desktop-portal at startup (native file dialogs, see preferPortalTheme())
   find_package(Qt6 REQUIRED COMPONENTS DBus)
@@ -155,11 +155,19 @@ set(QSSTV_SOURCES
     template/templatedoc.cpp
     template/templatelegacy.cpp
     template/templaterender.cpp
-    editor/editor.cpp
-    editor/editorscene.cpp
-    editor/editorview.cpp
-    editor/gradientdialog.cpp
-    editor/graphicitems.cpp
+    template/templatevars.cpp
+    editor/editordocument.cpp
+    editor/editorcommands.cpp
+    editor/editorcanvas.cpp
+    editor/editoricons.cpp
+    editor/gradientedit.cpp
+    editor/propertiespanel.cpp
+    editor/layerspanel.cpp
+    editor/macropalette.cpp
+    editor/canvassizedialog.cpp
+    editor/templateeditor.cpp
+    editor/editorsetup.cpp
+    utils/externaleditor.cpp
     widgets/textdisplay.cpp
     dispatch/dispatcher.cpp
     dispatch/filedecoder.cpp
@@ -276,7 +284,6 @@ set(QSSTV_SOURCES
     widgets/xyzplaintextedit.cpp
     utils/hexconvertor.cpp
     config/frequencyselectwidget.cpp
-    editor/canvassizeform.cpp
     utils/fftcalc.cpp
     utils/jp2io.cpp
     utils/avifenc.cpp
@@ -285,7 +292,6 @@ set(QSSTV_SOURCES
     utils/filewatcher.cpp
     utils/ftpthread.cpp
     utils/ftpfunctions.cpp
-    editor/basegraphicitem.cpp
     videocapt/cameradialog.cpp
     videocapt/beaconcapture.cpp
     videocapt/imagesettings.cpp
@@ -314,9 +320,6 @@ set(QSSTV_FORMS
     config/configdialog.ui
     widgets/spectrumwidget.ui
     sound/calibration.ui
-    editor/editorform.ui
-    editor/gradientform.ui
-    editor/textform.ui
     widgets/textdisplay.ui
     config/operatorconfig.ui
     drmrx/drmconstellationframe.ui
@@ -338,7 +341,6 @@ set(QSSTV_FORMS
     widgets/freqform.ui
     drmrx/fixform.ui
     config/frequencyselectwidget.ui
-    editor/canvassizeform.ui
     widgets/testpatternselection.ui
     videocapt/cameradialog.ui
     videocapt/imagesettings.ui
@@ -351,7 +353,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   )
 endif()
 
-add_executable(qsstv ${QSSTV_SOURCES} ${QSSTV_FORMS} qsstv.qrc)
+add_executable(qsstv ${QSSTV_SOURCES} ${QSSTV_FORMS} qsstv.qrc editor/editor.qrc)
 
 if(WIN32)
   # GUI subsystem, not console -- double-clicking qsstv-experimental.exe shouldn't flash a console
@@ -392,7 +394,7 @@ target_include_directories(qsstv PRIVATE
 set_target_properties(qsstv PROPERTIES OUTPUT_NAME qsstv-experimental)
 
 set_target_properties(qsstv PROPERTIES
-    AUTOUIC_SEARCH_PATHS "${CMAKE_CURRENT_SOURCE_DIR};${CMAKE_CURRENT_SOURCE_DIR}/config;${CMAKE_CURRENT_SOURCE_DIR}/dispatch;${CMAKE_CURRENT_SOURCE_DIR}/drmrx;${CMAKE_CURRENT_SOURCE_DIR}/drmtx;${CMAKE_CURRENT_SOURCE_DIR}/dsp;${CMAKE_CURRENT_SOURCE_DIR}/editor;${CMAKE_CURRENT_SOURCE_DIR}/logbook;${CMAKE_CURRENT_SOURCE_DIR}/mainwidgets;${CMAKE_CURRENT_SOURCE_DIR}/rig;${CMAKE_CURRENT_SOURCE_DIR}/scope;${CMAKE_CURRENT_SOURCE_DIR}/sound;${CMAKE_CURRENT_SOURCE_DIR}/sstv;${CMAKE_CURRENT_SOURCE_DIR}/utils;${CMAKE_CURRENT_SOURCE_DIR}/widgets;${CMAKE_CURRENT_SOURCE_DIR}/xmlrpc;${CMAKE_CURRENT_SOURCE_DIR}/videocapt"
+    AUTOUIC_SEARCH_PATHS "${CMAKE_CURRENT_SOURCE_DIR};${CMAKE_CURRENT_SOURCE_DIR}/config;${CMAKE_CURRENT_SOURCE_DIR}/dispatch;${CMAKE_CURRENT_SOURCE_DIR}/drmrx;${CMAKE_CURRENT_SOURCE_DIR}/drmtx;${CMAKE_CURRENT_SOURCE_DIR}/dsp;${CMAKE_CURRENT_SOURCE_DIR}/logbook;${CMAKE_CURRENT_SOURCE_DIR}/mainwidgets;${CMAKE_CURRENT_SOURCE_DIR}/rig;${CMAKE_CURRENT_SOURCE_DIR}/scope;${CMAKE_CURRENT_SOURCE_DIR}/sound;${CMAKE_CURRENT_SOURCE_DIR}/sstv;${CMAKE_CURRENT_SOURCE_DIR}/utils;${CMAKE_CURRENT_SOURCE_DIR}/widgets;${CMAKE_CURRENT_SOURCE_DIR}/xmlrpc;${CMAKE_CURRENT_SOURCE_DIR}/videocapt"
 )
 
 target_compile_definitions(qsstv PRIVATE QT_DEPRECATED_WARNINGS)
@@ -420,7 +422,7 @@ if(UNIX AND NOT APPLE)
 endif()
 
 target_link_libraries(qsstv PRIVATE
-    Qt6::Core Qt6::Widgets Qt6::Network Qt6::Xml Qt6::SerialPort Qt6::Multimedia
+    Qt6::Core Qt6::Widgets Qt6::Network Qt6::Xml Qt6::SerialPort Qt6::Multimedia Qt6::Svg
     PkgConfig::FFTW3
     PkgConfig::OPENJP2
     hamlib::hamlib
@@ -545,6 +547,7 @@ if(WIN32)
     Qt6Multimedia.dll
     Qt6Network.dll
     Qt6SerialPort.dll
+    Qt6Svg.dll
     Qt6Widgets.dll
     Qt6Xml.dll
     # Found only by walking the transitive closure (see tools/check-win-deps.py) --
@@ -587,6 +590,8 @@ if(WIN32)
   install(FILES "${MINGW_SYSROOT}/lib/qt6/plugins/imageformats/qjpeg.dll" DESTINATION imageformats)
   # WebP (mingw64-qt6-qtimageformats + mingw64-libwebp).
   install(FILES "${MINGW_SYSROOT}/lib/qt6/plugins/imageformats/qwebp.dll" DESTINATION imageformats)
+  # SVG pictures (a logo added to a template); the editor's own icons are drawn with QSvgRenderer and need no icon plugin.
+  install(FILES "${MINGW_SYSROOT}/lib/qt6/plugins/imageformats/qsvg.dll" DESTINATION imageformats)
   # AVIF/HEIC: KDE kimageformats plugins plus libheif/libavif (codecs linked in statically),
   # cross-built from source by tools/build-image-plugins-win64.sh into third_party/ (no mingw
   # packages exist). Optional: the package simply lacks those two formats if it was not run.

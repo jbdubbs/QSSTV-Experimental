@@ -31,11 +31,9 @@
 #include <QEvent>
 #include <QMovie>
 #include <QTimer>
-#include "editor/editor.h"
 
 class QMenu;
 class QAction;
-class editor;
 class jp2IO;
 
 class imageViewer : public QLabel
@@ -192,6 +190,8 @@ private:
   QRect dragView;     // view when the drag started
   QPoint dragImagePt; // image point under the cursor when the drag started
   void updateFrame();
+  void editInExternalEditor();                    // TX picture / stock picture: edit a copy in the user's picture editor
+  void loadEditedCopy(const QString &copy);      // the editor saved the copy: use it as the TX picture
   bool isGalleryThumb() const {return ttype==RXSSTVTHUMB||ttype==RXDRMTHUMB||ttype==TXSSTVTHUMB||ttype==TXDRMTHUMB||ttype==TXSTOCKTHUMB||ttype==TEMPLATETHUMB;}
 
   QMenu *popup;

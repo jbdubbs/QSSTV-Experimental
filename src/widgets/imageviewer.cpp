@@ -35,6 +35,7 @@
 #include "rxwidget.h"
 #include "gallerywidget.h"
 #include "templaterender.h"
+#include "externaleditor.h"
 
 
 #include <QStatusBar>
@@ -605,6 +606,16 @@ void imageViewer::setType(thumbType tp)
   popup->removeAction(copyAct);
   popup->removeAction(resetFramingAct);
   popup->removeAction(pasteAct);
+  if(tp==TEMPLATETHUMB)
+    {
+      newAct->setText(tr("&New template..."));
+      editAct->setText(tr("&Edit template..."));
+    }
+  else
+    {
+      editAct->setText(tr("&Edit picture..."));
+      editAct->setToolTip(tr("Edit a copy of this picture in your picture editor (Settings > GUI); the original is not changed"));
+    }
   switch(tp)
     {
     case EXTVIEW:
@@ -620,7 +631,6 @@ void imageViewer::setType(thumbType tp)
       break;
 
     case TXIMG:
-      popup->addAction(newAct);
       popup->addAction(loadAct);
       popup->addAction(editAct);
       popup->addAction(printAct);
@@ -657,7 +667,7 @@ void imageViewer::setType(thumbType tp)
 
     case TXSTOCKTHUMB:
     case TEMPLATETHUMB:
-      popup->addAction(newAct);
+      if(tp==TEMPLATETHUMB) popup->addAction(newAct);   // pictures are edited in an external editor, only templates are created here
       popup->addAction(loadAct);
       popup->addAction(toTXAct);
       popup->addAction(editAct);
@@ -954,13 +964,64 @@ void imageViewer::clearTxImage()
 
 void imageViewer::slotEdit()
 {
+  if(ttype==TEMPLATETHUMB)
+    {
+      // templates are edited in the template editor; no file means a new template
+      callEditorEvent *ce = new callEditorEvent(imageFileName);
+      QApplication::postEvent(dispatcherPtr, ce );  // Qt will delete it when done
+      return;
+    }
+  editInExternalEditor();
+}
+
+/*!
+  Pictures are not edited inside QSSTV: a copy (name-edit.ext) is opened in the user's picture editor and used
+  again as soon as the editor saves it. The original is never changed. The copy lives in the TX images gallery
+  (so it is found again), or next to the original when that is in the gallery already.
+*/
+void imageViewer::editInExternalEditor()
+{
   if(imageFileName.isEmpty())
     {
       slotLoad();
       if (imageFileName.isEmpty()) return;
     }
-  callEditorEvent *ce = new callEditorEvent( this,imageFileName );
-  QApplication::postEvent(dispatcherPtr, ce );  // Qt will delete it when done
+  const QString original=imageFileName;
+  QString copyDir;
+  if(!QFileInfo(original).absolutePath().startsWith(QDir(txStockImagesPath).absolutePath())) copyDir=txStockImagesPath;
+  ExternalEdit *session=new ExternalEdit(original,copyDir,externalEditorCommand,qApp);   // owned by the application: gallery cells come and go
+  QString error;
+  if(!session->start(&error))
+    {
+      delete session;
+      QMessageBox::warning(this,tr("Edit picture"),tr("The picture cannot be edited:\n%1").arg(error));
+      return;
+    }
+  QPointer<imageViewer> self(this);
+  const bool toTx=(ttype==TXIMG);
+  QObject *context=toTx ? static_cast<QObject*>(this) : static_cast<QObject*>(qApp);
+  connect(session,&ExternalEdit::saved,context,[self,toTx,original](const QString &copy){
+    if(toTx)
+      {
+        if(self && (self->imageFileName==original || self->imageFileName==copy)) self->loadEditedCopy(copy);
+      }
+    else if(galleryWidgetPtr)
+      {
+        galleryWidgetPtr->changedMatrix(imageViewer::TXSTOCKTHUMB);   // the edited picture's thumbnail
+      }
+  });
+  addToLog(QString("external edit of %1: copy %2").arg(original,session->copy()),LOGIMAG);
+  if(statusBarPtr) statusBarPtr->showMessage(tr("Editing a copy: %1. Save it in your picture editor and it is used here; the original is not changed.").arg(QFileInfo(session->copy()).fileName()),20000);
+}
+
+void imageViewer::loadEditedCopy(const QString &copy)
+{
+  QString fn=copy;
+  if(openImage(fn,true,false,false,true))
+    {
+      imageFileName=copy;
+      if(ttype==TXIMG || ttype==PREVIEW) emit imageChanged();
+    }
 }
 
 
@@ -1012,7 +1073,8 @@ void imageViewer::slotLoad()
 
 void imageViewer::slotNew()
 {
-  callEditorEvent *ce = new callEditorEvent( this,NULL);
+  // only offered for templates: a new, empty template
+  callEditorEvent *ce = new callEditorEvent(QString());
   QApplication::postEvent(dispatcherPtr, ce );  // Qt will delete it when done
 }
 

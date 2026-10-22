@@ -18,7 +18,7 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 - HAMDRM (DSSTV) receive and transmit
 - Image gallery for received and transmitted pictures
 - Image viewer for gallery pictures
-- TX image editor with templates, macros, text and image items; stock and template libraries
+- TX templates with macros, text and image items; stock and template libraries
 - Image import and export in PNG, JPEG, GIF, BMP and JPEG 2000
 - Rig control through Hamlib, CAT, serial (RTS/DTR) and VOX PTT, and XML-RPC remote control
 - CW identification, FSK ID, and a waterfall / spectrum / scope display
@@ -43,6 +43,7 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 - **WebP, AVIF and HEIC** - image formats, with EXIF/HEIF orientation applied on import
 - **Image viewer zoom and pan:** - smooth mouse-wheel zoom and drag-to-pan
 - **Clipboard support:** - copy images from anywhere, paste into the transmit window or TX stock
+- **New template editor** - rebuilt from scratch for the overlay on transmitted pictures: undo/redo, zoom, snapping, gradients, layers, a macro palette and a picture-under-template guide. Templates are saved in a new, safe `.qtempl` format; old `.templ` files still open. Pictures are edited in your own picture editor (a copy, the original is never touched)
 - **ADIF logbook broadcast over UDP** - on every OS
 - **DRM Live size-slider preview:** - the picture preview updates as the slider is dragged
 - **DRM Progressive Image Reception** - Image previews as you receive, improving in quality over time

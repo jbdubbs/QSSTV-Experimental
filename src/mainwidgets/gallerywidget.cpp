@@ -157,7 +157,7 @@ QString galleryWidget::getTemplateFileName ( int tm )
           slTemp.append(str);
         }
       slTemp.sort();
-      return slTemp.at(tm);
+      return tm<slTemp.count() ? slTemp.at(tm) : QString();   // the list can be shorter than a remembered index
     }
   else return QString();
 }

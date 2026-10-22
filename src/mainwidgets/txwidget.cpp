@@ -25,6 +25,8 @@
 #include "rigcontrol.h"
 #include "imageviewer.h"
 #include "testpatternselection.h"
+#include <QMenu>
+#include <QToolButton>
 
 
 txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
@@ -74,6 +76,19 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
     }
 
   connect(ui->templatesComboBox,SIGNAL(currentIndexChanged(int)),SLOT(slotGetParams()));
+  {
+    // Edit... opens the selected template in the template editor; its menu starts a new one
+    QToolButton *editTemplate=new QToolButton(this);
+    editTemplate->setText(tr("Edit..."));
+    editTemplate->setToolTip(tr("Edit the selected template (the arrow: make a new template)"));
+    editTemplate->setStatusTip(editTemplate->toolTip());
+    QMenu *templateMenu=new QMenu(editTemplate);
+    templateMenu->addAction(tr("New template..."),this,&txWidget::slotNewTemplate);
+    editTemplate->setMenu(templateMenu);
+    editTemplate->setPopupMode(QToolButton::MenuButtonPopup);
+    connect(editTemplate,&QToolButton::clicked,this,&txWidget::slotEditTemplate);
+    ui->gridLayout_3->addWidget(editTemplate,1,2);
+  }
   connect(ui->templateCheckBox,SIGNAL(toggled(bool)),SLOT(slotGetParams()));
   connect(ui->refreshPushButton,SIGNAL(clicked()),SLOT(slotGetParams()));
   connect(ui->cwCheckBox,SIGNAL(toggled(bool)),SLOT(slotGetTXParams()));
@@ -332,15 +347,41 @@ void txWidget::initView()
 
 void txWidget::setupTemplatesComboBox()
 {
-  QStringList sl;
-  int i;
-  ui->templatesComboBox->clear();
-  sl=galleryWidgetPtr->getFilenames();
-  for(i=0;i<sl.count();i++)
+  // keep the selected template when the list changes (a template was saved or added): by name, so a new file
+  // sorting in front of it does not move the selection, and without a signal per inserted item
+  const QString keepName=ui->templatesComboBox->currentText();
+  const QStringList sl=galleryWidgetPtr->getFilenames();
+  int idx=keepName.isEmpty() ? -1 : sl.indexOf(keepName);
+  if(idx<0) idx=qBound(0,templateIndex,qMax(0,(int)sl.count()-1));
+  {
+    QSignalBlocker blocker(ui->templatesComboBox);
+    ui->templatesComboBox->clear();
+    ui->templatesComboBox->addItems(sl);
+    ui->templatesComboBox->setCurrentIndex(sl.isEmpty() ? -1 : idx);
+  }
+  slotGetParams();   // re-applies the template: its file may have changed
+}
+
+
+void txWidget::slotEditTemplate()
+{
+  if(txFunctionsPtr->txBusy())
     {
-      ui->templatesComboBox->insertItem(i,sl.at(i));
+      QMessageBox::warning(this,tr("Template editor"),tr("Transmission busy, the template editor is not available"));
+      return;
     }
-  ui->templatesComboBox->setCurrentIndex(templateIndex);
+  dispatcherPtr->openTemplateEditor(galleryWidgetPtr->getTemplateFileName(ui->templatesComboBox->currentIndex()));
+}
+
+
+void txWidget::slotNewTemplate()
+{
+  if(txFunctionsPtr->txBusy())
+    {
+      QMessageBox::warning(this,tr("Template editor"),tr("Transmission busy, the template editor is not available"));
+      return;
+    }
+  dispatcherPtr->openTemplateEditor(QString());
 }
 
 

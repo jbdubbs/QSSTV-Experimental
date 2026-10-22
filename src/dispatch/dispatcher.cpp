@@ -40,6 +40,8 @@ It also starts, stops and synchronizes the threads.
 #include "dirdialog.h"
 #include "ftpfunctions.h"
 #include "filedecoder.h"
+#include "templateeditor.h"
+#include "editorsetup.h"
 
 #include <QDir>
 
@@ -64,11 +66,41 @@ dispatcher::~dispatcher()
 
 void dispatcher::init()
 {
-  editorActive=false;
   infoTextPtr=new textDisplay(mainWindowPtr);
   mainWindowPtr->spectrumFramePtr->init(RXSTRIPE,fftNumBlocks,BASESAMPLERATE/SUBSAMPLINGFACTOR);
   infoTextPtr->hide();
   connect(&ff,SIGNAL(listingDone(bool)),SLOT(slotRenameListing(bool)));
+}
+
+
+void dispatcher::openTemplateEditor(const QString &fileName)
+{
+  if(!templateEditor)
+    {
+      templateEditor=new TemplateEditor();   // its own top-level window; deletes itself when closed
+      templateEditor->setAttribute(Qt::WA_DeleteOnClose);
+      connect(templateEditor,&TemplateEditor::templateSaved,this,&dispatcher::slotTemplateSaved);
+      connect(templateEditor,&TemplateEditor::helpRequested,mainWindowPtr,[](){mainWindowPtr->openUserGuide(QStringLiteral("pages/template-editor.html"));});
+    }
+  configureTemplateEditor(templateEditor);   // folder, mode sizes, macro values and the TX picture as they are now
+  templateEditor->show();
+  templateEditor->raise();
+  templateEditor->activateWindow();
+  if(fileName.isEmpty()) templateEditor->newTemplateDialog();
+  else templateEditor->openFile(fileName);
+}
+
+bool dispatcher::closeTemplateEditor()
+{
+  if(!templateEditor) return true;
+  return templateEditor->close();   // asks about unsaved changes; false when cancelled
+}
+
+/*! a template was written: the gallery and the TX template list (and so the TX picture) follow */
+void dispatcher::slotTemplateSaved()
+{
+  galleryWidgetPtr->changedMatrix(imageViewer::TEMPLATETHUMB);
+  txWidgetPtr->setupTemplatesComboBox();
 }
 
 
@@ -145,14 +177,8 @@ void dispatcher::customEvent( QEvent * e )
       statusBarPtr->showMessage(((statusBarMsgEvent*)e)->getStr());
       break;
     case callEditor:
-      if(editorActive) break;
-      editorActive=true;
-      ed=new editor();
-      ed->show();
-      iv=((callEditorEvent*)e)->getImageViewer();
-      addToLog (QString(" callEditorEvent imageViewPtr: %1").arg(QString::number((ulong)iv,16)),LOGDISPATCH);
       addToLog(QString("editor: filename %1").arg(((callEditorEvent*)e)->getFilename()),LOGDISPATCH);
-      ed->openFile(((callEditorEvent*)e)->getFilename());
+      openTemplateEditor(((callEditorEvent*)e)->getFilename());
       break;
 
     case txDRMNotify:
@@ -163,17 +189,6 @@ void dispatcher::customEvent( QEvent * e )
       break;
     case txPrepareComplete:
       txWidgetPtr->prepareTxComplete(((txPrepareCompleteEvent *)e)->ok());
-      break;
-
-    case editorFinished:
-      if(!editorActive) break;
-      if(((editorFinishedEvent*)e)->isOK())
-        {
-          addToLog (QString(" editorFinishedEvent imageViewPtr: %1").arg(QString::number((ulong)iv,16)),LOGDISPATCH);
-          iv->reload();
-        }
-      editorActive=false;
-      delete ed;
       break;
 
     case templatesChanged:

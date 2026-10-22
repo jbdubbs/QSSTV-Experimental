@@ -23,6 +23,10 @@
 #include "ui_guiconfig.h"
 #include <QImageWriter>
 #include <QColorDialog>
+#include <QFileDialog>
+#include <QMenu>
+#include <QMessageBox>
+#include "externaleditor.h"
 
 
 int galleryRows;
@@ -35,6 +39,7 @@ bool slowCPU;
 bool lowRes;
 bool confirmDeletion;
 bool confirmClose;
+QString externalEditorCommand;
 
 guiConfig::guiConfig(QWidget *parent) : baseConfig(parent),  ui(new Ui::guiConfig)
 {
@@ -42,6 +47,8 @@ guiConfig::guiConfig(QWidget *parent) : baseConfig(parent),  ui(new Ui::guiConfi
   backGroundColorChanged=false;
   connect(ui->backgroundColorPushButton,SIGNAL(clicked()),SLOT(slotBGColorSelect()));
   connect(ui->imageBackgroundColorPushButton,SIGNAL(clicked()),SLOT(slotIBGColorSelect()));
+  connect(ui->externalEditorBrowseButton,SIGNAL(clicked()),SLOT(slotExternalEditorBrowse()));
+  connect(ui->externalEditorDetectButton,SIGNAL(clicked()),SLOT(slotExternalEditorDetect()));
 }
 
 guiConfig::~guiConfig()
@@ -65,6 +72,7 @@ void guiConfig::readSettings()
   lowRes=qSettings.value("lowRes",false).toBool();
   confirmDeletion=qSettings.value("confirmDeletion",true).toBool();
   confirmClose=qSettings.value("confirmClose",true).toBool();
+  externalEditorCommand=qSettings.value("externalEditorCommand","").toString();
   qSettings.endGroup();
   setParams();
 }
@@ -84,6 +92,7 @@ void guiConfig::writeSettings()
   qSettings.setValue("lowRes",lowRes);
   qSettings.setValue("confirmDeletion",confirmDeletion);
   qSettings.setValue("confirmClose",confirmClose);
+  qSettings.setValue("externalEditorCommand",externalEditorCommand);
 
 
   qSettings.endGroup();
@@ -107,7 +116,7 @@ void guiConfig::getParams()
 
   getValue(confirmDeletion,ui->confirmDeletionCheckBox);
   getValue(confirmClose,ui->confirmCloseCheckBox);
-
+  externalEditorCommand=ui->externalEditorLineEdit->text().trimmed();
 }
 
 void guiConfig::setParams()
@@ -122,6 +131,7 @@ void guiConfig::setParams()
   setValue(lowRes,ui->lowResCheckBox);
   setValue(confirmDeletion,ui->confirmDeletionCheckBox);
   setValue(confirmClose,ui->confirmCloseCheckBox);
+  ui->externalEditorLineEdit->setText(externalEditorCommand);
 }
 
 
@@ -139,6 +149,32 @@ void guiConfig::slotIBGColorSelect()
   setColorLabel(c,true);
 }
 
+
+void guiConfig::slotExternalEditorBrowse()
+{
+  const QString fn=QFileDialog::getOpenFileName(this,tr("Picture editor program"));
+  if(fn.isEmpty()) return;
+  ui->externalEditorLineEdit->setText((fn.contains(' ') ? "\""+fn+"\"" : fn)+" %f");
+}
+
+void guiConfig::slotExternalEditorDetect()
+{
+  const QVector<externalEditor::Candidate> found=externalEditor::detect();
+  if(found.isEmpty())
+    {
+      QMessageBox::information(this,tr("Picture editor"),tr("No picture editor (GIMP, Krita, KolourPaint, ...) was found. Browse for the program, or leave the field empty to use the system's default program for pictures."));
+      return;
+    }
+  QMenu menu(this);
+  for(const externalEditor::Candidate &c:found)
+    {
+      QAction *a=menu.addAction(c.label);
+      a->setData(c.command);
+      a->setToolTip(c.command);
+    }
+  QAction *chosen=menu.exec(ui->externalEditorDetectButton->mapToGlobal(QPoint(0,ui->externalEditorDetectButton->height())));
+  if(chosen) ui->externalEditorLineEdit->setText(chosen->data().toString());
+}
 
 void guiConfig::setColorLabel(QColor c,bool image)
 {

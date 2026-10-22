@@ -36,6 +36,7 @@ PLUGIN_DLLS = [
     f"{SYSROOT}/lib/qt6/plugins/multimedia/windowsmediaplugin.dll",
     f"{SYSROOT}/lib/qt6/plugins/imageformats/qjpeg.dll",
     f"{SYSROOT}/lib/qt6/plugins/imageformats/qwebp.dll",
+    f"{SYSROOT}/lib/qt6/plugins/imageformats/qsvg.dll",
     f"{SYSROOT}/lib/qt6/plugins/styles/qmodernwindowsstyle.dll",
 ]
 PLUGIN_DLLS += [p for p in (f"{VENDORED}/plugins/imageformats/kimg_avif.dll",

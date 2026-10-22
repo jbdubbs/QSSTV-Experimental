@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
-<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html">Install and first run</a></li><li><a href="main-window.html">Main window tour</a></li><li><a href="receive.html">Receiving</a></li><li><a href="transmit.html">Transmitting</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="configuration.html" aria-current="page">Configuration</a></li><li><a href="sstv-modes.html">SSTV modes</a></li><li><a href="drm.html">Digital SSTV (DRM)</a></li><li><a href="calibration.html">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
+<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html">Install and first run</a></li><li><a href="main-window.html">Main window tour</a></li><li><a href="receive.html">Receiving</a></li><li><a href="transmit.html">Transmitting</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="template-editor.html">Template editor</a></li><li><a href="configuration.html" aria-current="page">Configuration</a></li><li><a href="sstv-modes.html">SSTV modes</a></li><li><a href="drm.html">Digital SSTV (DRM)</a></li><li><a href="calibration.html">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
 <main>
 
 <h1>Configuration</h1>
@@ -57,6 +57,8 @@ program's data folder, for example <code class="wrap"><span class="nb">~/.local/
 <dl>
 <dt>Images: Background Color, Image Background color, Stretch</dt><dd>Colors used behind pictures in the viewers, and whether pictures are stretched to
  fill their area.</dd>
+<dt>Picture editor</dt><dd>The program that <span class="ui">Edit picture</span> opens a copy of a picture in; <code>%f</code> stands for the file. Press <span class="ui">Detect</span> to choose from the editors found on this computer.
+ Empty means the first one found, or the system's default. See <a href="template-editor.html#pictures">Editing a picture</a>.</dd>
 <dt>Smooth Display Scaling</dt><dd>Smooths pictures when they are scaled to fit the window, in the Receive, Transmit and Gallery tabs. Turn it off to see the raw pixels and scan lines.</dd>
 <dt>Gallery: Rows and Columns</dt><dd>How many thumbnails the gallery shows per page.</dd>
 <dt>Check if slow CPU</dt><dd>Performance option for slow computers.</dd>
@@ -173,7 +175,7 @@ the arrow buttons reorder the list. The columns are:</p>
 <p><strong>Hamlib Data Command</strong> (with the <strong>Hex</strong> checkbox) is an optional raw command sent to the rig after the frequency and mode have been set.
 Frequency selection needs CAT control to be enabled.</p>
 
-<nav class="pager" aria-label="Previous and next page"><a class="prev" href="gallery.html" rel="prev">&larr; Gallery</a><a class="next" href="sstv-modes.html" rel="next">SSTV modes &rarr;</a></nav>
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="template-editor.html" rel="prev">&larr; Template editor</a><a class="next" href="sstv-modes.html" rel="next">SSTV modes &rarr;</a></nav>
 </main>
 <footer class="site-footer"><p>QSSTV-Experimental is based on QSSTV by Johan Maes, ON4QZ, and is released under the GNU GPL v3.</p></footer>
 </body>

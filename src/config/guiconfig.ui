@@ -261,6 +261,52 @@
     </layout>
    </item>
    <item>
+    <widget class="QGroupBox" name="externalEditorGroupBox">
+     <property name="title">
+      <string>Picture editor</string>
+     </property>
+     <layout class="QGridLayout" name="externalEditorLayout">
+      <item row="0" column="0" colspan="3">
+       <widget class="QLabel" name="externalEditorLabel">
+        <property name="text">
+         <string>Edit on a picture opens a copy (name-edit.png) in this program and uses it again as soon as you save it; the original is never changed. Use %f for the file name. Leave empty to use the first picture editor found, or the system's default program.</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLineEdit" name="externalEditorLineEdit">
+        <property name="toolTip">
+         <string>Command that opens a picture, for example: gimp %f</string>
+        </property>
+        <property name="placeholderText">
+         <string>automatic</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QPushButton" name="externalEditorBrowseButton">
+        <property name="text">
+         <string>Browse...</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="2">
+       <widget class="QPushButton" name="externalEditorDetectButton">
+        <property name="toolTip">
+         <string>Look for picture editors on this computer</string>
+        </property>
+        <property name="text">
+         <string>Detect</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
     <widget class="QCheckBox" name="confirmDeletionCheckBox">
      <property name="text">
       <string>Ask for confirmation when deleting file </string>

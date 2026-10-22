@@ -23,6 +23,7 @@ somebody else. Original copyright notices inside the source files are kept and t
 | `QFtp`, `QUrlInfo` | `src/utils/qftp.*`, `qurlinfo.*` | Digia / The Qt Company, from Qt 4 | LGPL v2.1 / GPL v3 |
 | Papirus icon theme | `src/icons/papirus/` | Papirus Development Team | GPL v3 (`src/icons/papirus/LICENSE`) |
 | Test patterns | `src/icons/testpatterns/` | see `CREDITS.md` there; PM5544 is CC BY 2.5 (ebnz), SMPTE bars public domain (Denelson83) | as listed |
+| Template editor icons | `src/editor/icons/` | written for this project (simple outline shapes) | GPL v3, like the rest of the program |
 | Montserrat Bold (test fixture only, not shipped in binaries) | `tests/template/fixtures/Montserrat-Bold.otf` | Julieta Ulanovsky and the Montserrat Project Authors | SIL Open Font License 1.1 (`tests/template/fixtures/Montserrat-OFL.txt`) |
 
 ### Ideas and compatibility
@@ -42,7 +43,7 @@ license texts ship with the library (Windows: next to the DLLs; AppImage: inside
 
 | Library | License | Source |
 |---|---|---|
-| Qt 6 (Core, Widgets, Network, Xml, SerialPort, Multimedia, Qt Image Formats) | LGPL v3 | <https://www.qt.io/> |
+| Qt 6 (Core, Widgets, Network, Xml, SerialPort, Multimedia, Svg, Qt Image Formats) | LGPL v3 | <https://www.qt.io/> |
 | Hamlib | LGPL v2.1 | <https://hamlib.github.io/> (Windows build vendored from commit in `third_party/hamlib-win64/VENDORED_COMMIT.txt`) |
 | FFTW 3 | GPL v2 or later | <https://www.fftw.org/> |
 | OpenJPEG | BSD 2-clause | <https://www.openjpeg.org/> |

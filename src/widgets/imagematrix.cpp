@@ -1,4 +1,6 @@
 #include "imagematrix.h"
+#include "templatedoc.h"
+#include <QSet>
 #include "configparams.h"
 #include <QDir>
 #include <QDirIterator>
@@ -101,6 +103,7 @@ void imageMatrix::init(int numRows, int numColumns, QString dir,imageViewer::thu
   rows=numRows;
   columns=numColumns;
   dirPath=dir;
+  matrixType=tt;
   imageViewer *imv;
   setupLayout();
   for(i=0;i<rows;i++)
@@ -159,6 +162,20 @@ void imageMatrix::getList()
         fileList.append(f);
       }
     }
+    if(matrixType==imageViewer::TEMPLATETHUMB)
+      {
+        // a template saved in the new format hides its old .templ: both would be listed under one name
+        QSet<QString> native;
+        for(const QFileInfo &f:fileList)
+          {
+            if(f.suffix().compare(QLatin1String(tpl::nativeExtension),Qt::CaseInsensitive)==0) native.insert(f.absolutePath()+"/"+f.completeBaseName());
+          }
+        for(int i=fileList.size()-1;i>=0;i--)
+          {
+            const QFileInfo &f=fileList.at(i);
+            if(f.suffix().compare(QLatin1String("templ"),Qt::CaseInsensitive)==0 && native.contains(f.absolutePath()+"/"+f.completeBaseName())) fileList.removeAt(i);
+          }
+      }
     std::sort(fileList.begin(), fileList.end(), compareFile);
     numPages=ceil((double)fileList.count()/(double)(rows*columns));
     if(numPages==0) numPages=1;

@@ -103,6 +103,8 @@ public slots:
   void slotSweepSignal();
   void slotGenerateRepeaterTone();
   void slotEdit();
+  void slotEditTemplate();
+  void slotNewTemplate();
   //  void slotReplay();
   void slotRepeaterTimer();
   void slotFileOpen();

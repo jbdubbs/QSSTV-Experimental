@@ -33,6 +33,8 @@ public:
   //! switch between SSTV and DRM exactly as clicking the tab does (headless decode / encode)
   void switchMode(int rxtxMode) {slotModeChange(rxtxMode);}
   spectrumWidget *spectrumFramePtr;
+  //! opens the built-in Users Guide, at `page` (e.g. "pages/template-editor.html") when it exists
+  void openUserGuide(const QString &page);
 
 private slots:
   void slotConfigure();
