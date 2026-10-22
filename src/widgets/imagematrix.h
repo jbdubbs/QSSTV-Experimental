@@ -3,6 +3,8 @@
 
 #include <QWidget>
 #include <QList>
+#include <QDir>
+#include <QFileInfoList>
 #include <QVBoxLayout>
 #include <QGridLayout>
 #include <QToolButton>

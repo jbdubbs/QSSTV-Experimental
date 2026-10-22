@@ -1,6 +1,7 @@
 #include "imagematrix.h"
 #include "configparams.h"
 #include <QDir>
+#include <QDirIterator>
 #include <QDebug>
 #include <iostream>
 #include <QMessageBox>

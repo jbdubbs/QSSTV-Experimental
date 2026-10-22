@@ -20,6 +20,7 @@
  ***************************************************************************/
 
 #include "wavio.h"
+#include <QApplication>
 #include "appglobal.h"
 #include "configparams.h"
 #include "dirdialog.h"

@@ -152,6 +152,9 @@ set(QSSTV_SOURCES
     sound/waterfalltext.cpp
     utils/macroexpansion.cpp
     widgets/imageviewer.cpp
+    template/templatedoc.cpp
+    template/templatelegacy.cpp
+    template/templaterender.cpp
     editor/editor.cpp
     editor/editorscene.cpp
     editor/editorview.cpp
@@ -377,7 +380,7 @@ endif()
 
 target_include_directories(qsstv PRIVATE
     config dispatch drmrx drmtx dsp editor logbook mainwidgets
-    rig scope sound sstv utils widgets xmlrpc videocapt
+    rig scope sound sstv template utils widgets xmlrpc videocapt
 )
 
 # Unlike qmake's uic (which resolves all FORMS into one shared include path), CMake's

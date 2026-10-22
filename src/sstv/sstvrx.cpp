@@ -1,4 +1,5 @@
 #include "sstvrx.h"
+#include <QApplication>
 #include "appglobal.h"
 #include "configparams.h"
 #include "dispatcher.h"

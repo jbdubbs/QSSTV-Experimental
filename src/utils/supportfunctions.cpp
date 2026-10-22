@@ -306,7 +306,7 @@ unsigned long timingAnalyser::result()
 */
 QString pictureNameFilter()
 {
-  return imageNameFilter("*.templ *.jp2 *.j2k");
+  return imageNameFilter("*.templ *.qtempl *.jp2 *.j2k");
 }
 
 /*!

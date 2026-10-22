@@ -23,6 +23,7 @@ somebody else. Original copyright notices inside the source files are kept and t
 | `QFtp`, `QUrlInfo` | `src/utils/qftp.*`, `qurlinfo.*` | Digia / The Qt Company, from Qt 4 | LGPL v2.1 / GPL v3 |
 | Papirus icon theme | `src/icons/papirus/` | Papirus Development Team | GPL v3 (`src/icons/papirus/LICENSE`) |
 | Test patterns | `src/icons/testpatterns/` | see `CREDITS.md` there; PM5544 is CC BY 2.5 (ebnz), SMPTE bars public domain (Denelson83) | as listed |
+| Montserrat Bold (test fixture only, not shipped in binaries) | `tests/template/fixtures/Montserrat-Bold.otf` | Julieta Ulanovsky and the Montserrat Project Authors | SIL Open Font License 1.1 (`tests/template/fixtures/Montserrat-OFL.txt`) |
 
 ### Ideas and compatibility
 

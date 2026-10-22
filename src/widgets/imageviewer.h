@@ -30,8 +30,8 @@
 #include <QSettings>
 #include <QEvent>
 #include <QMovie>
+#include <QTimer>
 #include "editor/editor.h"
-#include "editor/editorscene.h"
 
 class QMenu;
 class QAction;

@@ -57,6 +57,7 @@
 #include "drmtx/drmparams.h"
 #include "supportfunctions.h"
 #include "appimageintegration.h"
+#include "templaterender.h"
 
 
 QSplashScreen *splash;
@@ -92,7 +93,8 @@ static void chooseHeadlessPlatform(int argc,char **argv)
   for(int i=1;i<argc;i++)
     {
       QString a=QString::fromLocal8Bit(argv[i]);
-      if(a=="-b" || a=="--batch" || a=="-h" || a=="--help" || a=="-v" || a=="--version" || a=="--list-modes" || a=="--install" || a=="--uninstall" || a=="--encode" || a.startsWith("--encode="))
+      if(a=="-b" || a=="--batch" || a=="-h" || a=="--help" || a=="-v" || a=="--version" || a=="--list-modes" || a=="--install" || a=="--uninstall" || a=="--encode" || a.startsWith("--encode=")
+         || a=="--render-template" || a.startsWith("--render-template=") || a=="--convert-template" || a.startsWith("--convert-template="))
         {
           qputenv("QT_QPA_PLATFORM","offscreen");
           return;
@@ -178,6 +180,88 @@ static void applySchemeAwareFusionPalette()
 #endif
 }
 
+/*!
+  --render-template / --convert-template: work with a template file without starting the receiver or showing a window.
+  Convert writes the native .qtempl (also the way to migrate a legacy .templ); render lays the template over a picture
+  exactly as the transmit path does and saves the result as a PNG.
+*/
+static int templateCommand(const QString &file,bool convert,const QString &outFile,const QString &baseFile,
+                           const QString &replayFile,const QString &sizeText,const QStringList &vars)
+{
+  tpl::LoadResult lr=tpl::loadFile(file);
+  if(!lr.ok)
+    {
+      fprintf(stderr,"%s: %s\n",qPrintable(file),qPrintable(lr.error));
+      return fileDecoder::EXIT_BADFILE;
+    }
+  for(const QString &w:lr.warnings) fprintf(stderr,"warning: %s\n",qPrintable(w));
+  const QFileInfo fi(file);
+  if(convert)
+    {
+      const QString out=outFile.isEmpty() ? fi.absolutePath()+"/"+fi.completeBaseName()+"."+tpl::nativeExtension : outFile;
+      QString err;
+      if(!tpl::saveFile(out,lr.doc,&err))
+        {
+          fprintf(stderr,"cannot write %s: %s\n",qPrintable(out),qPrintable(err));
+          return 1;
+        }
+      printf("wrote %s\n",qPrintable(out));
+      return 0;
+    }
+  QImage base;
+  if(!baseFile.isEmpty() && !loadImageAutoRotate(base,baseFile))
+    {
+      fprintf(stderr,"cannot read the picture %s\n",qPrintable(baseFile));
+      return fileDecoder::EXIT_BADFILE;
+    }
+  QSize size=base.isNull() ? QSize(qRound(lr.doc.canvas.width()),qRound(lr.doc.canvas.height())) : base.size();
+  if(!sizeText.isEmpty())
+    {
+      const QStringList wh=sizeText.toLower().split('x');
+      bool okw=false,okh=false;
+      const int w=wh.value(0).toInt(&okw),h=wh.value(1).toInt(&okh);
+      if(wh.size()!=2 || !okw || !okh || w<1 || h<1 || w>8192 || h>8192)
+        {
+          fprintf(stderr,"--template-size needs WIDTHxHEIGHT (1 to 8192), for example 320x256\n");
+          return fileDecoder::EXIT_BADFILE;
+        }
+      size=QSize(w,h);
+    }
+  if(base.isNull())
+    {
+      base=QImage(size,QImage::Format_ARGB32);
+      base.fill(QColor(128,128,128));
+    }
+  else if(base.size()!=size)
+    {
+      base=base.scaled(size,Qt::IgnoreAspectRatio,Qt::SmoothTransformation);
+    }
+  tpl::RenderOptions opt;
+  for(const QString &v:vars)
+    {
+      const int eq=v.indexOf('=');
+      if(eq!=1)
+        {
+          fprintf(stderr,"--template-var needs a single letter, '=' and a value, for example c=W1AW\n");
+          return fileDecoder::EXIT_BADFILE;
+        }
+      opt.vars.insert(v.at(0),v.mid(2));
+    }
+  if(!replayFile.isEmpty() && !loadImageAutoRotate(opt.replay,replayFile))
+    {
+      fprintf(stderr,"cannot read the replay picture %s\n",qPrintable(replayFile));
+      return fileDecoder::EXIT_BADFILE;
+    }
+  const QString out=outFile.isEmpty() ? fi.absoluteFilePath()+".png" : outFile;
+  if(!tpl::overlay(lr.doc,base,opt).save(out))
+    {
+      fprintf(stderr,"cannot write %s\n",qPrintable(out));
+      return 1;
+    }
+  printf("wrote %s\n",qPrintable(out));
+  return 0;
+}
+
 int main( int argc, char ** argv )
 {
 
@@ -224,6 +308,14 @@ int main( int argc, char ** argv )
                                "Your settings are read but never written.","image");
   QCommandLineOption wavOutOpt("wav-out","With --encode: the wav file to write (default: <image>.wav).","file");
   QCommandLineOption listOpt("list-modes","Print the mode names that --mode accepts and exit.");
+  QCommandLineOption renderTplOpt("render-template","Headless: lay the template <file> (.qtempl, or a legacy .templ) over a picture exactly as the transmit path does, "
+                                  "save the result as a PNG and exit (see --template-base, --template-size, --template-var, --template-replay, --template-out).","file");
+  QCommandLineOption convertTplOpt("convert-template","Headless: convert the template <file> (a legacy .templ or a .qtempl) to the native .qtempl format and exit (see --template-out). The original is not touched.","file");
+  QCommandLineOption tplOutOpt("template-out","With --render-template: the PNG to write (default: <file>.png). With --convert-template: the .qtempl to write (default: next to the original).","file");
+  QCommandLineOption tplBaseOpt("template-base","With --render-template: the picture to lay the template over (default: a grey frame the size of the template).","image");
+  QCommandLineOption tplSizeOpt("template-size","With --render-template: scale the picture to WIDTHxHEIGHT first (default: the size of the picture), as the transmit mode would.","WxH");
+  QCommandLineOption tplVarOpt("template-var","With --render-template: the value of a text macro, for example c=W1AW for %c (repeatable). Unknown macros expand to nothing.","x=value");
+  QCommandLineOption tplReplayOpt("template-replay","With --render-template: the picture shown in the template's replay slot.","image");
   QCommandLineOption installOpt("install","AppImage only: add QSSTV-Experimental (menu entry, icons) to your desktop and exit.");
   QCommandLineOption uninstallOpt("uninstall","AppImage only: remove the menu entry and icons added by --install and exit.");
   QCommandLineOption drmOpt("drm","With --batch: receive DRM (digital SSTV) instead of analog SSTV; the received file is saved as <file>_<n>_drm.<ext> and a "
@@ -238,7 +330,7 @@ int main( int argc, char ** argv )
   QCommandLineOption drmEncOpt("drm-encoding","With --encode --drm: picture codec jpeg2000 or avif (default: your TX setting).","codec");
   QCommandLineOption rxGainOpt("rx-gain","With --batch: test aid, amplify the recording by <dB> (negative to attenuate) before the receiver.","dB");
   QCommandLineOption rxNoiseOpt("rx-noise","With --batch: test aid, add white noise of this RMS level in dB full scale (e.g. -40) to the recording.","dBFS");
-  parser.addOptions(QList<QCommandLineOption>() << drmOpt << drmModeOpt << drmBwOpt << drmQamOpt << drmProtOpt << drmIlvOpt << drmRsOpt << drmSizeOpt << drmEncOpt << rxGainOpt << rxNoiseOpt << helpOpt << versionOpt << decodeOpt << batchOpt << outDirOpt << modeOpt << timeoutOpt << encodeOpt << wavOutOpt << listOpt << installOpt << uninstallOpt);
+  parser.addOptions(QList<QCommandLineOption>() << drmOpt << drmModeOpt << drmBwOpt << drmQamOpt << drmProtOpt << drmIlvOpt << drmRsOpt << drmSizeOpt << drmEncOpt << rxGainOpt << rxNoiseOpt << helpOpt << versionOpt << decodeOpt << batchOpt << outDirOpt << modeOpt << timeoutOpt << encodeOpt << wavOutOpt << listOpt << renderTplOpt << convertTplOpt << tplOutOpt << tplBaseOpt << tplSizeOpt << tplVarOpt << tplReplayOpt << installOpt << uninstallOpt);
   parser.addPositionalArgument("file","SSTV recordings to decode (same as --decode).","[file ...]");
   if(!parser.parse(app.arguments()))
     {
@@ -271,6 +363,12 @@ int main( int argc, char ** argv )
     {
       for(int i=0;i<NUMSSTVMODES;i++) printf("%s\t%s\n",getSSTVModeNameShort((esstvMode)i).toLatin1().constData(),getSSTVModeNameLong((esstvMode)i).toLatin1().constData());
       return 0;
+    }
+  if(parser.isSet(renderTplOpt) || parser.isSet(convertTplOpt))
+    {
+      const bool convert=parser.isSet(convertTplOpt);
+      return templateCommand(parser.value(convert ? convertTplOpt : renderTplOpt),convert,parser.value(tplOutOpt),parser.value(tplBaseOpt),
+                             parser.value(tplReplayOpt),parser.value(tplSizeOpt),parser.values(tplVarOpt));
     }
   QStringList files=parser.values(decodeOpt)+parser.positionalArguments();
   const bool batch=parser.isSet(batchOpt);

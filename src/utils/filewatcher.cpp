@@ -1,4 +1,5 @@
 #include "filewatcher.h"
+#include <QDirIterator>
 #include "configparams.h"
 #include "gallerywidget.h"
 

@@ -34,6 +34,7 @@
 #include "txwidget.h"
 #include "rxwidget.h"
 #include "gallerywidget.h"
+#include "templaterender.h"
 
 
 #include <QStatusBar>
@@ -170,11 +171,9 @@ bool imageViewer::openImage(QString &filename,QString start,bool ask,bool showMe
   //background=false;
   tempFilename=filename;
   emitSignal=temitSignal;
-  QFile fi(tempFilename);
   QFileInfo finf(tempFilename);
 
   jp2IO jp2;
-  editorScene ed;
   bool success=false;
   cacheHit=false;
 
@@ -203,11 +202,9 @@ bool imageViewer::openImage(QString &filename,QString start,bool ask,bool showMe
         {
           dd.mkpath(cachePath);
         }
-#if (QT_VERSION < QT_VERSION_CHECK(5,10,0))
-      cacheFileName=cachePath+finf.baseName()+finf.created().toString()+".png";
-#else
-      cacheFileName=cachePath+finf.baseName()+finf.birthTime().toString()+".png";
-#endif
+      // The full file name (cq.templ and cq.qtempl must not share a thumbnail), the modification time and the size
+      // (a file rewritten in place keeps its birth time, so the old key kept showing the previous version).
+      cacheFileName=cachePath+finf.fileName()+"."+QString::number(finf.lastModified().toMSecsSinceEpoch())+"."+QString::number(finf.size())+".png";
       if(tempImage.load(cacheFileName))
         {
           cacheHit=true;
@@ -255,10 +252,16 @@ bool imageViewer::openImage(QString &filename,QString start,bool ask,bool showMe
         {
           success=true;
         }
-      else if(ed.load(fi))
+      else
         {
-          success=true;
-          tempImage=QImage(ed.renderImage(0,0)->copy());
+          // a template (.qtempl, or the legacy .templ): shown as its own picture. loadFile() only reads the whole
+          // file when its first bytes identify it as a template, so any other file is refused cheaply.
+          tpl::LoadResult tl=tpl::loadFile(tempFilename);
+          if(tl.ok)
+            {
+              success=true;
+              tempImage=tpl::renderThumbnail(tl.doc);
+            }
         }
     }
 
@@ -1435,11 +1438,23 @@ QImage imageViewer::frameSingle(int tw,int th)
   return scaledImage.copy((scaledImage.width()-tw)/2,(scaledImage.height()-th)/2,tw,th);
 }
 
+/*! the picture shown in a template's replay slot: the image in the TX tab's preview widget (null when there is none) */
+static QImage replayPicture()
+{
+  if(txWidgetPtr==nullptr) return QImage();
+  QString fn=txWidgetPtr->getPreviewFilename();
+  if(fn.isEmpty()) return QImage();
+  imageViewer imv;
+  if(imv.openImage(fn,false,false,false,false)) return *imv.getImagePtr();
+  return QImage();
+}
+
 int imageViewer::applyTemplate()
 {
   //  qDebug() << "applyTemplate";
   QImage *resultImage;
   QImage overlayedImage;
+  QImage templatedImage;
   int tWidth=targetWidth,tHeight=targetHeight;
   int compRatio;
   int byteCount;
@@ -1461,7 +1476,6 @@ int imageViewer::applyTemplate()
   if(sourceImage.isNull()) return 0;
   QFile fi(templateFileName);
   if(ttype!=TXIMG) return 0;
-  editorScene tscene(0);
   resultImage=&sourceImage;
   if(transmissionModeIndex==TRXDRM)
     {
@@ -1529,42 +1543,48 @@ int imageViewer::applyTemplate()
   else
     {
       addToLog("apply template",LOGIMAG);
-      //  sconvert cnv;
 
-      if((!fi.fileName().isEmpty())  && (useTemplate))
+      // a damaged or unreadable template leaves the picture as it is (the legacy code overlaid an empty scene)
+      tpl::LoadResult tl=tpl::loadFileCached(fi.fileName());
+      if(!tl.ok)
         {
-          tscene.load(fi);
-          tscene.addConversion('c',toCall,true);
-          tscene.addConversion('r',rsv);
-          tscene.addConversion('o',toOperator);
-          tscene.addConversion('t',QDateTime::currentDateTime().toUTC().toString("hh:mm"));
-          tscene.addConversion('d',QDateTime::currentDateTime().toUTC().toString("yyyy/MM/dd"));
-          tscene.addConversion('m',myCallsign);
-          tscene.addConversion('q',myQth);
-          tscene.addConversion('l',myLocator);
-          tscene.addConversion('n',myLastname);
-          tscene.addConversion('f',myFirstname);
-          tscene.addConversion('v',qsstvVersion);
-          tscene.addConversion('x',comment1);
-          tscene.addConversion('y',comment2);
-          tscene.addConversion('z',comment3);
-          tscene.addConversion('s',QString::number(lastAvgMER,'g',2));
+          addToLog(QString("template %1 not applied: %2").arg(fi.fileName(),tl.error),LOGIMAG);
+        }
+      else
+        {
+          tpl::RenderOptions opt;
+          opt.vars.insert('c',toCall);
+          opt.vars.insert('r',rsv);
+          opt.vars.insert('o',toOperator);
+          opt.vars.insert('t',QDateTime::currentDateTime().toUTC().toString("hh:mm"));
+          opt.vars.insert('d',QDateTime::currentDateTime().toUTC().toString("yyyy/MM/dd"));
+          opt.vars.insert('m',myCallsign);
+          opt.vars.insert('q',myQth);
+          opt.vars.insert('l',myLocator);
+          opt.vars.insert('n',myLastname);
+          opt.vars.insert('f',myFirstname);
+          opt.vars.insert('v',qsstvVersion);
+          opt.vars.insert('x',comment1);
+          opt.vars.insert('y',comment2);
+          opt.vars.insert('z',comment3);
+          opt.vars.insert('s',QString::number(lastAvgMER,'g',2));
+          if(tl.doc.hasReplay()) opt.replay=replayPicture();
 
           addToLog(QString("Template size=%1,%2, SourceW,H=%3,%4 TargetW,H=%5,%6").
-                   arg(tscene.width()).arg(tscene.height()).
+                   arg(tl.doc.canvas.width()).arg(tl.doc.canvas.height()).
                    arg(sourceImage.width()).arg(sourceImage.height()).
                    arg(tWidth).arg(tHeight),
                    LOGIMAG);
           if(tWidth!=0 && tHeight!=0)
             {
               overlayedImage=frameSingle(tWidth,tHeight).convertToFormat(QImage::Format_ARGB32);
-              tscene.overlay(&overlayedImage);
+              templatedImage=tpl::overlay(tl.doc,overlayedImage,opt);
             }
           else
             {
-              tscene.overlay(&sourceImage);
+              templatedImage=tpl::overlay(tl.doc,sourceImage,opt);
             }
-          resultImage=tscene.getImagePtr();
+          resultImage=&templatedImage;
           addToLog(QString("resultImageW,H=%1,%2").arg(resultImage->width()).arg(resultImage->height()), LOGIMAG);
         }
     }

@@ -1,4 +1,5 @@
 #include "drmrx.h"
+#include <QApplication>
 #include "appglobal.h"
 #include "drm.h"
 #include "demodulator.h"

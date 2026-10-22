@@ -67,3 +67,4 @@ tests/jb60_loopback/loopback
 
 # AppImage build output (packaging/appimage/build.sh)
 *.AppImage*
+tests/template/legacy-golden/gen

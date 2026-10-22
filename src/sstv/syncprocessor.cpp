@@ -1,4 +1,5 @@
 #include "syncprocessor.h"
+#include <QApplication>
 #include "appglobal.h"
 #include "sstvparam.h"
 #include "configparams.h"
