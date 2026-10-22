@@ -123,81 +123,15 @@ void PropertiesPanel::build()
   emptyLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
   top->addWidget(emptyLabel);
 
-  // --- position and size -----------------------------------------------------------------------------------
-  geometryBox = new QGroupBox(tr("Position and size"));
-  QGridLayout *g = new QGridLayout(geometryBox);
-  xSpin = spin(-20000, 20000, 1, 1);
-  ySpin = spin(-20000, 20000, 1, 1);
-  wSpin = spin(1, 20000, 1, 1);
-  hSpin = spin(1, 20000, 1, 1);
-  rotSpin = spin(-180, 180, 1, 1, QStringLiteral("°"));
-  rotSpin->setWrapping(true);
-  shearHSpin = spin(-5, 5, 0.05, 2);
-  shearVSpin = spin(-5, 5, 0.05, 2);
-  opacitySpin = spin(0, 100, 5, 0, QStringLiteral(" %"));
-  lockedCheck = new QCheckBox(tr("Locked"));
-  xSpin->setToolTip(tr("Distance of the left edge from the left side of the picture, in picture pixels"));
-  ySpin->setToolTip(tr("Distance of the top edge from the top of the picture, in picture pixels"));
-  wSpin->setToolTip(tr("Width (text items are sized by their font size)"));
-  hSpin->setToolTip(tr("Height (text items are sized by their font size; a line's thickness is its outline width)"));
-  rotSpin->setToolTip(tr("Rotation about the centre of the item. Shift while dragging the rotate handle snaps to 15°"));
-  shearHSpin->setToolTip(tr("Horizontal skew"));
-  shearVSpin->setToolTip(tr("Vertical skew"));
-  opacitySpin->setToolTip(tr("0 % is invisible, 100 % is solid"));
-  lockedCheck->setToolTip(tr("A locked item cannot be moved or clicked on the canvas (select it in the Layers list to unlock it)"));
-  g->addWidget(new QLabel(tr("X")), 0, 0);
-  g->addWidget(xSpin, 0, 1);
-  g->addWidget(new QLabel(tr("Y")), 0, 2);
-  g->addWidget(ySpin, 0, 3);
-  g->addWidget(new QLabel(tr("W")), 1, 0);
-  g->addWidget(wSpin, 1, 1);
-  g->addWidget(new QLabel(tr("H")), 1, 2);
-  g->addWidget(hSpin, 1, 3);
-  g->addWidget(new QLabel(tr("Rotate")), 2, 0);
-  g->addWidget(rotSpin, 2, 1);
-  g->addWidget(new QLabel(tr("Opacity")), 2, 2);
-  g->addWidget(opacitySpin, 2, 3);
-  g->addWidget(new QLabel(tr("Skew H")), 3, 0);
-  g->addWidget(shearHSpin, 3, 1);
-  g->addWidget(new QLabel(tr("Skew V")), 3, 2);
-  g->addWidget(shearVSpin, 3, 3);
-  g->addWidget(lockedCheck, 4, 0, 1, 4);
-  top->addWidget(geometryBox);
-
-  // --- fill ------------------------------------------------------------------------------------------------
-  fillBox = new QGroupBox(tr("Fill"));
-  QVBoxLayout *fl = new QVBoxLayout(fillBox);
-  QHBoxLayout *fr = new QHBoxLayout;
-  fr->addWidget(new QLabel(tr("Colour")));
-  fillButton = swatch(tr("Fill colour (click to change)"));
-  fr->addWidget(fillButton);
-  fr->addStretch();
-  fl->addLayout(fr);
-  gradientEdit = new GradientEdit;
-  fl->addWidget(gradientEdit);
-  top->addWidget(fillBox);
-
-  // --- outline ---------------------------------------------------------------------------------------------
-  outlineBox = new QGroupBox(tr("Outline"));
-  QFormLayout *ol = new QFormLayout(outlineBox);
-  outlineColorButton = swatch(tr("Outline colour (click to change)"));
-  outlineWidthSpin = spin(0, 200, 0.5, 1, QStringLiteral(" px"));
-  outlineStyleCombo = new QComboBox;
-  outlineStyleCombo->addItem(tr("None"), int(Qt::NoPen));
-  outlineStyleCombo->addItem(tr("Solid"), int(Qt::SolidLine));
-  outlineStyleCombo->addItem(tr("Dashed"), int(Qt::DashLine));
-  outlineStyleCombo->addItem(tr("Dotted"), int(Qt::DotLine));
-  outlineStyleCombo->addItem(tr("Dash-dot"), int(Qt::DashDotLine));
-  outlineJoinCombo = new QComboBox;
-  outlineJoinCombo->addItem(tr("Round"), int(Qt::RoundJoin));
-  outlineJoinCombo->addItem(tr("Mitre"), int(Qt::MiterJoin));
-  outlineJoinCombo->addItem(tr("Bevel"), int(Qt::BevelJoin));
-  outlineJoinLabel = new QLabel(tr("Corners"));
-  ol->addRow(tr("Colour"), outlineColorButton);
-  ol->addRow(tr("Width"), outlineWidthSpin);
-  ol->addRow(tr("Style"), outlineStyleCombo);
-  ol->addRow(outlineJoinLabel, outlineJoinCombo);
-  top->addWidget(outlineBox);
+  // --- picture -----------------------------------------------------------------------------------------------
+  pictureBox = new QGroupBox(tr("Picture"));
+  QVBoxLayout *pl = new QVBoxLayout(pictureBox);
+  pictureInfo = new QLabel;
+  pictureInfo->setWordWrap(true);
+  replaceImageButton = new QPushButton(tr("Replace picture…"));
+  pl->addWidget(pictureInfo);
+  pl->addWidget(replaceImageButton);
+  top->addWidget(pictureBox);
 
   // --- text ------------------------------------------------------------------------------------------------
   textBox = new QGroupBox(tr("Text"));
@@ -245,15 +179,87 @@ void PropertiesPanel::build()
   tl->addLayout(styleRow);
   top->addWidget(textBox);
 
-  // --- picture -----------------------------------------------------------------------------------------------
-  pictureBox = new QGroupBox(tr("Picture"));
-  QVBoxLayout *pl = new QVBoxLayout(pictureBox);
-  pictureInfo = new QLabel;
-  pictureInfo->setWordWrap(true);
-  replaceImageButton = new QPushButton(tr("Replace picture…"));
-  pl->addWidget(pictureInfo);
-  pl->addWidget(replaceImageButton);
-  top->addWidget(pictureBox);
+  // --- fill ------------------------------------------------------------------------------------------------
+  fillBox = new QGroupBox(tr("Fill"));
+  QVBoxLayout *fl = new QVBoxLayout(fillBox);
+  QHBoxLayout *fr = new QHBoxLayout;
+  fr->addWidget(new QLabel(tr("Colour")));
+  fillButton = swatch(tr("Fill colour (click to change)"));
+  fr->addWidget(fillButton);
+  fr->addStretch();
+  fl->addLayout(fr);
+  gradientEdit = new GradientEdit;
+  fl->addWidget(gradientEdit);
+  top->addWidget(fillBox);
+
+  // --- outline ---------------------------------------------------------------------------------------------
+  outlineBox = new QGroupBox(tr("Outline"));
+  QFormLayout *ol = new QFormLayout(outlineBox);
+  outlineColorButton = swatch(tr("Outline colour (click to change)"));
+  outlineWidthSpin = spin(0, 200, 0.5, 1, QStringLiteral(" px"));
+  outlineStyleCombo = new QComboBox;
+  outlineStyleCombo->addItem(tr("None"), int(Qt::NoPen));
+  outlineStyleCombo->addItem(tr("Solid"), int(Qt::SolidLine));
+  outlineStyleCombo->addItem(tr("Dashed"), int(Qt::DashLine));
+  outlineStyleCombo->addItem(tr("Dotted"), int(Qt::DotLine));
+  outlineStyleCombo->addItem(tr("Dash-dot"), int(Qt::DashDotLine));
+  outlineJoinCombo = new QComboBox;
+  outlineJoinCombo->addItem(tr("Round"), int(Qt::RoundJoin));
+  outlineJoinCombo->addItem(tr("Mitre"), int(Qt::MiterJoin));
+  outlineJoinCombo->addItem(tr("Bevel"), int(Qt::BevelJoin));
+  outlineJoinLabel = new QLabel(tr("Corners"));
+  ol->addRow(tr("Colour"), outlineColorButton);
+  ol->addRow(tr("Width"), outlineWidthSpin);
+  ol->addRow(tr("Style"), outlineStyleCombo);
+  ol->addRow(outlineJoinLabel, outlineJoinCombo);
+  top->addWidget(outlineBox);
+
+  // --- opacity and lock --------------------------------------------------------------------------------------
+  opacityBox = new QGroupBox(tr("Opacity and lock"));
+  QGridLayout *og = new QGridLayout(opacityBox);
+  opacitySpin = spin(0, 100, 5, 0, QStringLiteral(" %"));
+  lockedCheck = new QCheckBox(tr("Locked"));
+  opacitySpin->setToolTip(tr("0 % is invisible, 100 % is solid"));
+  lockedCheck->setToolTip(tr("A locked item cannot be moved or clicked on the canvas (select it in the Layers list to unlock it)"));
+  og->addWidget(new QLabel(tr("Opacity")), 0, 0);
+  og->addWidget(opacitySpin, 0, 1);
+  og->addWidget(lockedCheck, 1, 0, 1, 2);
+  top->addWidget(opacityBox);
+
+  // --- position and size -----------------------------------------------------------------------------------
+  geometryBox = new QGroupBox(tr("Position and size"));
+  QGridLayout *g = new QGridLayout(geometryBox);
+  xSpin = spin(-20000, 20000, 1, 1);
+  ySpin = spin(-20000, 20000, 1, 1);
+  wSpin = spin(1, 20000, 1, 1);
+  hSpin = spin(1, 20000, 1, 1);
+  rotSpin = spin(-180, 180, 1, 1, QStringLiteral("°"));
+  rotSpin->setWrapping(true);
+  shearHSpin = spin(-5, 5, 0.05, 2);
+  shearVSpin = spin(-5, 5, 0.05, 2);
+  xSpin->setToolTip(tr("Distance of the left edge from the left side of the picture, in picture pixels"));
+  ySpin->setToolTip(tr("Distance of the top edge from the top of the picture, in picture pixels"));
+  wSpin->setToolTip(tr("Width (text items are sized by their font size)"));
+  hSpin->setToolTip(tr("Height (text items are sized by their font size; a line's thickness is its outline width)"));
+  rotSpin->setToolTip(tr("Rotation about the centre of the item. Shift while dragging the rotate handle snaps to 15°"));
+  shearHSpin->setToolTip(tr("Horizontal skew"));
+  shearVSpin->setToolTip(tr("Vertical skew"));
+  g->addWidget(new QLabel(tr("X")), 0, 0);
+  g->addWidget(xSpin, 0, 1);
+  g->addWidget(new QLabel(tr("Y")), 0, 2);
+  g->addWidget(ySpin, 0, 3);
+  g->addWidget(new QLabel(tr("W")), 1, 0);
+  g->addWidget(wSpin, 1, 1);
+  g->addWidget(new QLabel(tr("H")), 1, 2);
+  g->addWidget(hSpin, 1, 3);
+  g->addWidget(new QLabel(tr("Rotate")), 2, 0);
+  g->addWidget(rotSpin, 2, 1);
+  g->addWidget(new QLabel(tr("Skew H")), 3, 0);
+  g->addWidget(shearHSpin, 3, 1);
+  g->addWidget(new QLabel(tr("Skew V")), 3, 2);
+  g->addWidget(shearVSpin, 3, 3);
+  top->addWidget(geometryBox);
+
   top->addStretch();
   setWidget(content);
 
@@ -369,7 +375,7 @@ void PropertiesPanel::build()
     {outlineStyleCombo, "outlineStyleCombo"}, {outlineJoinCombo, "outlineJoinCombo"}, {textEdit, "textEdit"},
     {macroWarning, "macroWarning"}, {fontWarning, "fontWarning"}, {fontCombo, "fontCombo"}, {sizeSpin, "sizeSpin"},
     {weightCombo, "weightCombo"}, {italicCheck, "italicCheck"}, {spacingSpin, "spacingSpin"}, {pictureInfo, "pictureInfo"},
-    {geometryBox, "geometryBox"}, {fillBox, "fillBox"}, {outlineBox, "outlineBox"}, {textBox, "textBox"}, {pictureBox, "pictureBox"}};
+    {pictureBox, "pictureBox"}, {textBox, "textBox"}, {fillBox, "fillBox"}, {outlineBox, "outlineBox"}, {opacityBox, "opacityBox"}, {geometryBox, "geometryBox"}};
   for (const auto &n : names) n.obj->setObjectName(QLatin1String(n.name));
 }
 
@@ -410,7 +416,7 @@ void PropertiesPanel::refresh()
   const QVector<tpl::Element> sel = canvas->selectedElements();
   const bool any = !sel.isEmpty();
   emptyLabel->setVisible(!any);
-  for (QGroupBox *b : {geometryBox, fillBox, outlineBox, textBox, pictureBox}) b->setVisible(any);
+  for (QGroupBox *b : {pictureBox, textBox, fillBox, outlineBox, opacityBox, geometryBox}) b->setVisible(any);
   if (!any) return;
 
   updating = true;

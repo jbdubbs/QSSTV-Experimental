@@ -890,6 +890,52 @@ static void testPropertiesPanel()
   check(d->doc().items.size() == items + 1 && d->doc().items.last().text == "%t", "addMacro adds a text item with the macro");
 }
 
+// The sections of the properties panel, top to bottom: what the item is made of first, how it is drawn next, where it sits last
+// (position and size are mostly set with the mouse).
+static void testPanelOrder()
+{
+  printf("== properties panel order\n");
+  Env env;
+  EditorDocument *d = env.d;
+  PropertiesPanel *p = panelOf(env.ed);
+  if (!p) return;
+  env.ed.resize(1500, 1400);   // tall enough that nothing needs the scroll bar
+  QApplication::processEvents();
+  const QStringList boxes = {"pictureBox", "textBox", "fillBox", "outlineBox", "opacityBox", "geometryBox"};
+  auto order = [&](const QStringList &ids) {
+    env.v->setSelection(ids);
+    QApplication::processEvents();
+    QApplication::processEvents();
+    QVector<QPair<int, QString>> shown;
+    for (const QString &n : boxes)
+      {
+        QWidget *w = panelChild<QWidget>(p, n.toLatin1().constData());
+        if (w && w->isVisibleTo(p)) shown << qMakePair(w->mapTo(p, QPoint(0, 0)).y(), n);
+      }
+    std::sort(shown.begin(), shown.end());
+    QStringList names;
+    for (const auto &s : shown) names << s.second;
+    return names.join(QLatin1Char(' '));
+  };
+  const QString text = add(*d, make(tpl::ItemType::Text, QPointF(20, 40)));
+  const QString rect = add(*d, make(tpl::ItemType::Rect, QPointF(20, 100)));
+  const QString ellipse = add(*d, make(tpl::ItemType::Ellipse, QPointF(20, 160)));
+  const QString line = add(*d, make(tpl::ItemType::Line, QPointF(20, 220)));
+  const QString image = add(*d, make(tpl::ItemType::Image, QPointF(20, 280)));
+  const QString replay = add(*d, make(tpl::ItemType::Replay, QPointF(20, 340)));
+  check(order({text}) == "textBox fillBox outlineBox opacityBox geometryBox", "text: text, fill, outline, opacity and lock, then position and size (" + order({text}) + ")");
+  check(order({rect}) == "fillBox outlineBox opacityBox geometryBox", "rectangle: fill, outline, opacity and lock, position and size (" + order({rect}) + ")");
+  check(order({ellipse}) == "fillBox outlineBox opacityBox geometryBox", "ellipse: the same (" + order({ellipse}) + ")");
+  check(order({line}) == "outlineBox opacityBox geometryBox", "line: its line style, opacity and lock, position and size (" + order({line}) + ")");
+  check(order({image}) == "pictureBox outlineBox opacityBox geometryBox", "picture: picture, border, opacity and lock, position and size (" + order({image}) + ")");
+  check(order({replay}) == "pictureBox outlineBox opacityBox geometryBox", "replay window: the same (" + order({replay}) + ")");
+  check(order({text, rect}) == "fillBox outlineBox opacityBox geometryBox", "text and rectangle together: what they share, position and size last (" + order({text, rect}) + ")");
+  check(order({text, line}) == "outlineBox opacityBox geometryBox", "text and line together: the outline, position and size last (" + order({text, line}) + ")");
+  env.v->clearSelection();
+  QApplication::processEvents();
+  check(order({}) .isEmpty(), "nothing selected: no sections, only the hint");
+}
+
 static void testLayersPanel()
 {
   printf("== layers panel\n");
@@ -1577,6 +1623,7 @@ int main(int argc, char **argv)
   testClipboard();
   testImages();
   testPropertiesPanel();
+  testPanelOrder();
   testLayersPanel();
   testFiles();
   testCanvasSize();

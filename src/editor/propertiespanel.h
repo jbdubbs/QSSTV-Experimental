@@ -1,6 +1,7 @@
 /***************************************************************************
- *   The properties dock of the template editor: position, size, rotation,  *
- *   fill, gradient, outline, text and font of the selected item(s).        *
+ *   The properties dock of the template editor: picture, text and font,    *
+ *   fill, gradient, outline, opacity and lock, and last the position, size *
+ *   and rotation (those are mostly set with the mouse) of the selection.   *
  *   Editing a field changes every selected item (where it applies) in one  *
  *   undo step; showing a selection never writes anything back.             *
  *                                                                          *
@@ -55,7 +56,7 @@ private:
   QTimer refreshTimer;
 
   QLabel *emptyLabel;
-  QGroupBox *geometryBox, *fillBox, *outlineBox, *textBox, *pictureBox;
+  QGroupBox *pictureBox, *textBox, *fillBox, *outlineBox, *opacityBox, *geometryBox;   // in the order they are shown
   QDoubleSpinBox *xSpin, *ySpin, *wSpin, *hSpin, *rotSpin, *shearHSpin, *shearVSpin, *opacitySpin;
   QCheckBox *lockedCheck;
   QPushButton *fillButton;
