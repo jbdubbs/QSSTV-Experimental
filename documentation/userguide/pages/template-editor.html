@@ -27,18 +27,34 @@ templates in the template editor, and the Transmit tab and the Gallery use them.
 Press <kbd>F1</kbd> in the editor to open this page.</p>
 
 <h2 id="canvas">The canvas</h2>
-<p>The canvas is the picture area of one SSTV mode. When a picture is transmitted the whole template is <strong>stretched over the whole picture</strong>, so
-make the template at the size of the mode you send most (for example 640 x 496 for PD120, 320 x 256 for Martin 1). A new template starts with the size of the
-mode currently selected on the Transmit tab; <span class="ui">Arrange &gt; Canvas Size...</span> changes it later, and can scale the items along. If you transmit
-modes of another shape the template is stretched with them.</p>
+<p>The canvas is the picture area of one SSTV mode. Make the template at the size of the mode you send most (for example 640 x 496 for PD120, 320 x 256 for Martin 1).
+A new template starts with the size of the mode currently selected on the Transmit tab; <span class="ui">Arrange &gt; Canvas Size...</span> changes it later, and can scale the items along.</p>
+<p>When you send on a mode with another shape (Robot 36 is 4:3, Martin 1 is 5:4) the template has to be fitted to the picture. You choose how under
+<span class="ui">Arrange &gt; Canvas Size...</span>, <em>When the picture has another shape</em>:</p>
+<ul>
+<li><strong>Keep the proportions</strong> (the choice for new templates): the template is scaled by one factor to fit, so text and circles keep their shape. The room that is left over is
+ shared out by the <a href="#anchors">anchors</a> of the items: a call sign stays in its corner, a colour bar stretches across the full width.</li>
+<li><strong>Stretch the template to the picture</strong>: the whole template is stretched, as in older versions. Text looks squashed or stretched when the shape differs.</li>
+</ul>
+<p>Templates from earlier versions open as <em>stretched</em>, and the editor shows a blue bar offering <span class="ui">Keep proportions</span>: every item is then anchored to the nearest edge
+or corner, and you can adjust that afterwards.</p>
 <p>The grey checkerboard stands for the picture. To see how a template looks on a real picture switch on <span class="ui">View &gt; Show Picture Under Template</span>: the
 picture of the Transmit tab is shown behind the template. It is only a guide and is never saved.</p>
 <figure><img src="../images/template-editor-preview.png" alt="The template editor showing a landscape picture under the template, with macros replaced by sample values" loading="lazy"><figcaption>The picture under the template and the macros replaced by sample values (View &gt; Preview Macros). The hatched square is the replay window.</figcaption></figure>
 
+<h2 id="anchors">Anchors and the size preview</h2>
+<p>In a template that keeps its proportions every item has an <strong>anchor</strong>, set in the <span class="ui">Anchor</span> section of the Properties panel (it appears only for such templates). Horizontally an item can be
+anchored to the <em>left</em>, the <em>centre</em> or the <em>right</em>, vertically to the <em>top</em>, the <em>middle</em> or the <em>bottom</em>. When the picture is wider or taller than the canvas the item keeps its (scaled) distance to that
+edge. <em>Left and right</em> (or <em>Top and bottom</em>) keeps both distances, so the item grows with the picture: use it for a bar across the full width. <em>Scale with picture</em> grows the position and size in proportion, like the old
+stretch. New items get the anchors their place suggests (a bar dragged along the bottom spans the width and sticks to the bottom). Text without a box, and turned items, are moved but never stretched.</p>
+<p>The <strong>Size preview</strong> panel (a tab next to Layers and Macros, also under <span class="ui">View</span>) shows the template laid over a picture of any mode size, drawn by the same code that
+puts it on the transmitted picture. Choose a mode in its list to see how the template lands there. For a stretched template it tells you when the picture's shape makes the text look squashed, and offers <span class="ui">Keep proportions</span>.</p>
+<figure><img src="../images/template-editor-sizes.png" alt="The template editor with the Size preview panel showing the 640 x 496 template on a 320 x 240 Robot 36 picture" loading="lazy"><figcaption>A 640 x 496 template and, in the Size preview panel, how it lands on a Robot 36 picture (320 x 240): the bar still spans the width and the replay window keeps its corner.</figcaption></figure>
+
 <h2 id="tools">Tools and items</h2>
 <table class="compact"><tr><th>Tool</th><th>Key</th><th>What it adds</th></tr>
 <tr><td>Select</td><td><kbd>V</kbd></td><td>Nothing: click items to select them, drag to move them, drag empty space to select several.</td></tr>
-<tr><td>Text</td><td><kbd>T</kbd></td><td>A text. Click where it should go, type, then press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or click outside.</td></tr>
+<tr><td>Text</td><td><kbd>T</kbd></td><td>A text. Click where it should go, type, then press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or click outside. Dragging out a rectangle instead makes a <a href="#textbox">text box</a>.</td></tr>
 <tr><td>Rectangle</td><td><kbd>R</kbd></td><td>A rectangle: drag on the canvas. A plain click adds one of a default size.</td></tr>
 <tr><td>Ellipse</td><td><kbd>E</kbd></td><td>An ellipse or circle.</td></tr>
 <tr><td>Line</td><td><kbd>L</kbd></td><td>A straight line. Its thickness is the outline width in the Properties panel.</td></tr>
@@ -56,8 +72,9 @@ picture of the Transmit tab is shown behind the template. It is only a guide and
 <dt>Move</dt><dd>Drag an item, or use the arrow keys (1 pixel; with <kbd>Shift</kbd> 10 pixels). Dragging snaps to the edges and middle of the canvas and of other items
  (pink guide lines); hold <kbd>Alt</kbd> to switch snapping off for a moment, <kbd>Shift</kbd> to move in a straight line.</dd>
 <dt>Resize</dt><dd>Drag a square handle. For a picture a corner keeps its proportions (hold <kbd>Shift</kbd> to change them), for other items hold <kbd>Shift</kbd> to keep them.
- A corner of a <em>text</em> makes its letters bigger or smaller.</dd>
+ A corner of a <em>text</em> makes its letters bigger or smaller; the handles of a <a href="#textbox">text box</a> change the box. The edge you drag snaps to the edges and middle of the canvas, of other items and to the grid, like moving does (hold <kbd>Alt</kbd> for no snapping).</dd>
 <dt>Rotate</dt><dd>Drag the round handle above the item (hold <kbd>Shift</kbd> for steps of 15 degrees), or type the angle in the Properties panel, where you also find skew and opacity.</dd>
+<dt>Several items</dt><dd>With two or more items selected, a frame with handles appears around them. Drag a handle to resize them together (the arrangement keeps its shape, text gets bigger or smaller with it; <kbd>Shift</kbd> keeps the proportions of the frame) or the round handle to turn them together about the middle of the group. Locked items stay as they are.</dd>
 <dt>Edit a text</dt><dd>Double-click it, or select it and press <kbd>Enter</kbd> or <kbd>F2</kbd>. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or a click outside is done, <kbd>Esc</kbd> cancels.
  The Properties panel has a text box too.</dd>
 <dt>Duplicate, copy, paste</dt><dd><kbd>Ctrl</kbd>+<kbd>D</kbd>, <kbd>Ctrl</kbd>+<kbd>C</kbd>, <kbd>Ctrl</kbd>+<kbd>X</kbd> and <kbd>Ctrl</kbd>+<kbd>V</kbd>. Items copy between two editor windows or programs;
@@ -71,15 +88,34 @@ picture of the Transmit tab is shown behind the template. It is only a guide and
 </dl>
 
 <h2 id="look">Colours, gradients, outlines and fonts</h2>
-<p>The Properties panel changes every selected item at once. Its sections run from what the item is to where it sits: the text or picture first, then fill, outline, opacity and lock,
- and last position, size and rotation, which you mostly set by dragging on the canvas.</p>
+<p>The Properties panel changes every selected item at once. Its sections run from what the item is to where it sits: the text or picture first, then fill, outline, shadow, opacity and lock, the anchor
+ (for templates that keep their proportions), and last position, size and rotation, which you mostly set by dragging on the canvas.</p>
 <figure><img src="../images/template-editor-gradient.png" alt="The template editor with a rectangle selected; the Fill section shows a linear gradient with two colour stops" loading="lazy"><figcaption>A rectangle with a linear gradient fill from transparent to dark. Click the bar to add a colour stop, drag a stop to move it, double-click it to change its colour.</figcaption></figure>
 <dl>
-<dt>Fill</dt><dd>A solid colour (with transparency) or a linear, radial or conical gradient for text, rectangles and ellipses.</dd>
+<dt>Fill</dt><dd>A solid colour (with transparency) or a linear, radial or conical gradient for text, rectangles and ellipses. For a linear gradient the direction is the angle: 0° runs from left to right, 90° from bottom to top, 270° from top to bottom.</dd>
 <dt>Outline</dt><dd>Colour, width and style of the edge. For a line this <em>is</em> the line; for pictures and the replay window it is the border. White text with a black outline stays readable on any picture.</dd>
 <dt>Font</dt><dd>Family, size in points, weight, italic, underline and letter spacing. A template remembers the font by name. If a computer does not have the font the text is drawn
  in another font; the Properties panel then shows a notice, and the template keeps the name.</dd>
+<dt>Corner radius</dt><dd>Rounds the corners of a rectangle (in the Fill section).</dd>
+<dt>Shadow</dt><dd>Any item can have a drop shadow: it is drawn once more behind the item, shifted right and down by the X and Y values, in the shadow colour (a transparent colour gives a lighter shadow). <em>Blur</em> softens its edge.
+ The shadow keeps its direction when the item is turned.</dd>
 </dl>
+
+<h2 id="textbox">Text in a box</h2>
+<p>Ordinary text is as wide as its letters make it, so a long call sign or place name can run off the picture. Tick <span class="ui">Fit in a box</span> in the Text section (or drag out a rectangle with the Text tool) and the text is laid out
+inside a box you resize with the handles:</p>
+<ul>
+<li><strong>Align</strong> and <strong>Vertical</strong> place the text in the box: left, centre or right; top, middle or bottom.</li>
+<li><strong>Wrap lines</strong> starts a new line where a word no longer fits the width of the box (a word that is wider than the box is broken between letters).</li>
+<li><strong>Shrink to fit</strong> makes the letters smaller, never larger, until everything fits the box. Macros are replaced before this, so <code>%c</code> fits whether the call is <code>W1AW</code> or <code>9A1ABC/P</code>.</li>
+</ul>
+<p>Untick the box for plain text again.</p>
+
+<h2 id="starters">Starting points: starter templates and colour bars</h2>
+<p><span class="ui">File &gt; New</span> asks for the size, the layout and, under <em>Start from</em>, a ready-made arrangement: <em>Blank</em>, a <em>Call sign bar</em> along the bottom, a <em>Call sign in the corner</em>, or a
+<em>Replay window and call sign bar</em>. Everything in them is an ordinary item you can change. <span class="ui">Insert &gt; Colour Bar</span> adds a full-width bar with a gradient, at the bottom or the top of the picture, in one of six
+colour styles (dark fade, blue, red, green, gold, rainbow); it goes behind the other items.</p>
+<p>For placing things, <span class="ui">View &gt; Guides</span> shows dashed lines through the middle of the canvas and frames 5 % and 10 % in from the edges. They are only a help on the canvas and are never part of the picture.</p>
 
 <h2 id="macros">Macros</h2>
 <p>A text may contain macros that are replaced when the picture is transmitted. The <strong>Macros</strong> tab next to the Layers panel lists them; double-click one to put it into the
