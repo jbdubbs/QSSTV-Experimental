@@ -66,7 +66,7 @@ void guiConfig::readSettings()
   galleryColumns=qSettings.value("galleryColumns",4).toInt();
   imageStretch=qSettings.value("imageStretch",true).toBool();
   smoothDisplayScaling=qSettings.value("smoothDisplayScaling",legacySmooth).toBool();
-  backGroundColor=qSettings.value("backGroundColor",QColor(0,86,230)).value<QColor>();
+  backGroundColor=qSettings.value("backGroundColor",QColor(0,0,0)).value<QColor>();
   imageBackGroundColor=qSettings.value("imageBackGroundColor",QColor(128,128,128)).value<QColor>();
   slowCPU=qSettings.value("slowCPU",false).toBool();
   lowRes=qSettings.value("lowRes",false).toBool();
