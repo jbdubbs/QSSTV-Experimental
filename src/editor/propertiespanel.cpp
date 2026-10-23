@@ -278,7 +278,7 @@ void PropertiesPanel::build()
   opacitySpin = spin(0, 100, 5, 0, QStringLiteral(" %"));
   lockedCheck = new QCheckBox(tr("Locked"));
   opacitySpin->setToolTip(tr("0 % is invisible, 100 % is solid"));
-  lockedCheck->setToolTip(tr("A locked item cannot be moved or clicked on the canvas (select it in the Layers list to unlock it)"));
+  lockedCheck->setToolTip(tr("A locked item cannot be moved or clicked on the canvas (right-click it on the canvas, or select it in the Layers list, to unlock it)"));
   og->addWidget(new QLabel(tr("Opacity")), 0, 0);
   og->addWidget(opacitySpin, 0, 1);
   og->addWidget(lockedCheck, 1, 0, 1, 2);

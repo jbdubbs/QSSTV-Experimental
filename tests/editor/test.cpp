@@ -652,6 +652,68 @@ static void testKeyboard()
   check(env.v->selection().isEmpty(), "Esc clears the selection");
 }
 
+// A right-click at a canvas point. The context menu runs its own event loop, so a timer reads its lock entry (text, with
+// "(disabled)" when it cannot be used) and closes it.
+static QString rightClick(Env &env, double x, double y)
+{
+  QString lockEntry;
+  QTimer::singleShot(100, [&lockEntry]() {
+    if (QMenu *m = qobject_cast<QMenu *>(QApplication::activePopupWidget()))
+      {
+        for (QAction *a : m->actions())
+          if (a->shortcut() == QKeySequence(Qt::CTRL | Qt::Key_L)) lockEntry = a->text().remove(QLatin1Char('&')) + (a->isEnabled() ? QString() : QStringLiteral(" (disabled)"));
+        m->close();
+      }
+  });
+  const QPoint p = env.vp(x, y);
+  QContextMenuEvent ev(QContextMenuEvent::Mouse, p, env.v->viewport()->mapToGlobal(p));
+  QApplication::sendEvent(env.v->viewport(), &ev);
+  QApplication::processEvents();
+  return lockEntry;
+}
+
+static void testLockedRightClick()
+{
+  printf("== canvas: a locked item is reached with a right-click\n");
+  Env env;
+  EditorDocument *d = env.d;
+  const QString a = add(*d, make(tpl::ItemType::Image, QPointF(100, 100)));
+  const QString b = add(*d, make(tpl::ItemType::Rect, QPointF(400, 100)));
+  env.v->setSelection(QStringList(a));
+  env.v->toggleLock();
+  env.v->clearSelection();
+
+  env.press(150, 125);
+  env.release(150, 125);
+  check(env.v->selection().isEmpty(), "a left-click still passes through a locked item");
+  QString entry = rightClick(env, 150, 125);
+  check(env.v->selection() == QStringList(a), "a right-click selects the locked item");
+  check(entry == "Unlock", QString("and the menu offers Unlock (%1)").arg(entry));
+  check(get(*d, a).locked, "which has not unlocked it by itself");
+  env.v->toggleLock();
+  check(!get(*d, a).locked, "Unlock from there works");
+  entry = rightClick(env, 150, 125);
+  check(env.v->selection() == QStringList(a) && entry == "Lock", QString("an unlocked item keeps the selection and the menu offers Lock (%1)").arg(entry));
+
+  env.v->toggleLock();   // locked again
+  const QString over = add(*d, make(tpl::ItemType::Rect, QPointF(120, 110), QSizeF(40, 20)));
+  env.v->clearSelection();
+  rightClick(env, 130, 120);
+  check(env.v->selection() == QStringList(over), "an unlocked item over a locked one is picked first, as with a click");
+  rightClick(env, 190, 140);
+  check(env.v->selection() == QStringList(a), "and the locked one where nothing unlocked covers it");
+
+  env.v->setSelection(QStringList(b));
+  rightClick(env, 300, 400);
+  check(env.v->selection() == QStringList(b), "a right-click on empty canvas leaves the selection alone");
+  env.v->setSelection(QStringList() << a << b);
+  entry = rightClick(env, 450, 125);
+  check(entry == "Lock", QString("a mixed selection offers Lock (%1)").arg(entry));
+  env.v->setSelection(QStringList() << a);
+  entry = rightClick(env, 190, 140);
+  check(entry == "Unlock", QString("a locked selection offers Unlock (%1)").arg(entry));
+}
+
 static void testLockZoomOrder()
 {
   printf("== canvas: lock, zoom, stacking, align, distribute\n");
@@ -2405,6 +2467,7 @@ int main(int argc, char **argv)
   testTextEditRaces();
   testMonkey();
   testLockZoomOrder();
+  testLockedRightClick();
   testClipboard();
   testImages();
   testPropertiesPanel();

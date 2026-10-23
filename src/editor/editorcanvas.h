@@ -200,7 +200,7 @@ private:
   ElementItem *itemFor(const QString &id) const { return items.value(id); }
   void syncZ();
   void updateSceneRect();
-  QString hitTest(const QPointF &scenePt) const;
+  QString hitTest(const QPointF &scenePt, bool includeLocked = false) const;   //!< topmost item under the point; locked items are click-through unless asked for
   QPointF toView(const QPointF &scenePt) const { return viewportTransform().map(scenePt); }
   Handle handleAt(const QPoint &viewPt) const;
   QRectF groupFrame() const;                                         //!< frame of the unlocked selected items when two or more are selected, else null

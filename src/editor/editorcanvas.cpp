@@ -714,14 +714,14 @@ EditorCanvas::Handle EditorCanvas::handleAt(const QPoint &viewPt) const
   return HNone;
 }
 
-QString EditorCanvas::hitTest(const QPointF &pt) const
+QString EditorCanvas::hitTest(const QPointF &pt, bool includeLocked) const
 {
   const double tol = 3.0 / zoomFactor;
   const QVector<tpl::Element> &all = doc->doc().items;
   for (int i = all.size() - 1; i >= 0; i--)
     {
       const tpl::Element &e = all[i];
-      if (e.locked) continue;
+      if (e.locked && !includeLocked) continue;
       const QPolygonF poly = outlineOf(e);
       if (poly.containsPoint(pt, Qt::OddEvenFill)) return e.id;
       for (int k = 0; k < poly.size(); k++)
@@ -1357,7 +1357,10 @@ void EditorCanvas::keyReleaseEvent(QKeyEvent *e)
 
 void EditorCanvas::contextMenuEvent(QContextMenuEvent *e)
 {
-  const QString hit = hitTest(mapToScene(e->pos()));
+  // an unlocked item wins, as with a click; a locked one can only be reached this way, to unlock it
+  const QPointF scenePt = mapToScene(e->pos());
+  QString hit = hitTest(scenePt);
+  if (hit.isEmpty()) hit = hitTest(scenePt, true);
   if (!hit.isEmpty() && !selected.contains(hit)) setSelection(QStringList(hit));
   emit contextMenuRequested(e->globalPos());
 }

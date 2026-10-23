@@ -265,7 +265,7 @@ void TemplateEditor::createActions()
   forwardAct = makeAction(tr("Bring F&orward"), QStringLiteral("forward"), QKeySequence(Qt::CTRL | Qt::Key_BracketRight), tr("Move the selected items one step forward"));
   backwardAct = makeAction(tr("Send &Backward"), QStringLiteral("backward"), QKeySequence(Qt::CTRL | Qt::Key_BracketLeft), tr("Move the selected items one step back"));
   backAct = makeAction(tr("Send to Ba&ck"), QStringLiteral("back"), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_BracketLeft), tr("Move the selected items behind all others"));
-  lockAct = makeAction(tr("Loc&k / Unlock"), QStringLiteral("lock"), QKeySequence(Qt::CTRL | Qt::Key_L), tr("A locked item cannot be moved or clicked on the canvas"));
+  lockAct = makeAction(tr("Loc&k"), QStringLiteral("lock"), QKeySequence(Qt::CTRL | Qt::Key_L), tr("Lock or unlock the selected items. A locked item cannot be moved or clicked on the canvas; right-click it to select it again"));
   connect(frontAct, &QAction::triggered, view, &EditorCanvas::bringToFront);
   connect(forwardAct, &QAction::triggered, view, &EditorCanvas::bringForward);
   connect(backwardAct, &QAction::triggered, view, &EditorCanvas::sendBackward);
@@ -534,6 +534,10 @@ void TemplateEditor::updateActions()
   const int n = view->selection().size();
   const bool has = n > 0;
   for (QAction *a : {cutAct, copyAct, deleteAct, duplicateAct, frontAct, forwardAct, backwardAct, backAct, lockAct}) a->setEnabled(has);
+  // Lock unlocks only when nothing selected is unlocked (see EditorCanvas::toggleLock)
+  bool allLocked = has;
+  for (const tpl::Element &e : view->selectedElements()) allLocked &= e.locked;
+  lockAct->setText(allLocked ? tr("Un&lock") : tr("Loc&k"));
   for (QAction *a : alignActs) a->setEnabled(has);
   distributeH->setEnabled(n >= 3);
   distributeV->setEnabled(n >= 3);
