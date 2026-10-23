@@ -27,7 +27,7 @@ const QVector<MacroInfo> &macroTable()
     {'l', tr("Locator"), tr("Your grid locator (Settings)"), QStringLiteral("FN31pr")},
     {'t', tr("Time"), tr("Current UTC time, hh:mm"), QStringLiteral("12:34")},
     {'d', tr("Date"), tr("Current UTC date, yyyy/MM/dd"), QStringLiteral("2026/10/22")},
-    {'v', tr("Version"), tr("QSSTV version"), QStringLiteral("10.0")},
+    {'v', tr("Version"), tr("QSSTV version"), QStringLiteral("10.1")},
     {'x', tr("Comment 1"), tr("First comment line (TX tab)"), QStringLiteral("Comment 1")},
     {'y', tr("Comment 2"), tr("Second comment line (TX tab)"), QStringLiteral("Comment 2")},
     {'z', tr("Comment 3"), tr("Third comment line (TX tab)"), QStringLiteral("Comment 3")},

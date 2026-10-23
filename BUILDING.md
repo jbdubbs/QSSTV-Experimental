@@ -66,8 +66,8 @@ floor) with the official Qt 6.11 binaries. It needs Docker and a Hamlib checkout
 (a sibling of this repository), which it builds inside the container.
 
 ```
-packaging/appimage/build.sh                  # x86_64, version 10.0 by default
-VERSION=10.0 packaging/appimage/build.sh
+packaging/appimage/build.sh                  # x86_64, version 10.1 by default
+VERSION=10.1 packaging/appimage/build.sh
 ARCH=aarch64 packaging/appimage/build.sh     # arm64, built under QEMU emulation (slow)
 ```
 
@@ -103,7 +103,7 @@ the Qt-dependent compile runs emulated; Docker caches the image layers, so later
 On a native arm64 host it is an ordinary, fast build with the same command.
 
 ```
-ARCH=aarch64 VERSION=10.0 OUT_DIR=/some/dir packaging/appimage/build.sh
+ARCH=aarch64 VERSION=10.1 OUT_DIR=/some/dir packaging/appimage/build.sh
 ```
 
 Notes on how the arm64 build differs (all handled in the scripts, listed here for when something breaks):

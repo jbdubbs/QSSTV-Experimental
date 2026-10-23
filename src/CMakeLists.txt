@@ -410,8 +410,8 @@ if(APPLE)
   set_target_properties(qsstv PROPERTIES
       MACOSX_BUNDLE TRUE
       MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/macos/Info.plist.in"
-      MACOSX_BUNDLE_SHORT_VERSION_STRING "10.0"
-      MACOSX_BUNDLE_BUNDLE_VERSION "10.0")
+      MACOSX_BUNDLE_SHORT_VERSION_STRING "10.1"
+      MACOSX_BUNDLE_BUNDLE_VERSION "10.1")
   # The user guide is looked up in Contents/Resources/userguide.
   add_custom_command(TARGET qsstv POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy_directory
@@ -620,7 +620,7 @@ endif()
 set(CPACK_PACKAGE_NAME "QSSTV-Experimental")
 set(CPACK_PACKAGE_VENDOR "QSSTV-Experimental")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "SSTV and HamDRM transceiver")
-set(CPACK_PACKAGE_VERSION "10.0")
+set(CPACK_PACKAGE_VERSION "10.1")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "QSSTV-Experimental")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/../LICENSE")
 set(CPACK_GENERATOR "ZIP")
