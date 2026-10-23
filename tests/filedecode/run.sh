@@ -116,6 +116,10 @@ d=open(sys.argv[1],'rb').read()
 open(sys.argv[2],'wb').write(d[:44+int((len(d)-44)*0.45)])
 EOF
 run -o "$T/o_trunc" "$T/trunc.wav"; expect_exit "truncated file still saves the partial picture" 0 $?
+# --min-complete overrides the saved "Save if Complete (%)" (default 25) for this run
+run --min-complete 40 -o "$T/o_mc40" "$T/trunc.wav"; expect_exit "--min-complete 40 keeps a 45% picture" 0 $?
+run --min-complete 60 -o "$T/o_mc60" "$T/trunc.wav"; expect_exit "--min-complete 60 drops a 45% picture" 1 $?
+[ -z "$(ls "$T/o_mc60" 2>/dev/null)" ] && ok "--min-complete 60: nothing written" || bad "--min-complete 60 wrote $(ls "$T/o_mc60")"
 
 if command -v ffmpeg >/dev/null; then
   echo "== other formats (ffmpeg): must decode like the 48 kHz file"
@@ -170,6 +174,9 @@ grep -q "undecodable audio" "$T/stderr" && ok "not a WAV: message names the prob
 run "$T/missing.wav"; expect_exit "missing file" 2 $?
 run; expect_exit "--batch without files" 2 $?
 run --mode NOSUCH "$T/jb.wav"; expect_exit "unknown --mode" 2 $?
+run --min-complete abc "$T/jb.wav"; expect_exit "--min-complete not a number" 2 $?
+run --min-complete 101 "$T/jb.wav"; expect_exit "--min-complete above 100" 2 $?
+"$QSSTV" --min-complete 50 2>/dev/null; expect_exit "--min-complete without --batch/--listen" 2 $?
 
 echo "== help works without a display"
 out=$(env -u DISPLAY -u WAYLAND_DISPLAY -u QT_QPA_PLATFORM "$QSSTV" --help 2>&1); rc=$?

@@ -14,7 +14,7 @@
 <h1>Decode from file and command line</h1>
 <div class="page-toc"><strong>On this page</strong><ul>
 <li><a href="#gui">Decode from file in the window</a></li><li><a href="#decode">--decode</a></li><li><a href="#batch">--batch</a></li>
-<li><a href="#encode">--encode</a></li><li><a href="#template">--render-template</a></li><li><a href="#other">Other options</a></li><li><a href="#ref">Option reference</a></li></ul></div>
+<li><a href="#listen">--listen</a></li><li><a href="#encode">--encode</a></li><li><a href="#template">--render-template</a></li><li><a href="#other">Other options</a></li><li><a href="#ref">Option reference</a></li></ul></div>
 
 <h2 id="gui">Decode from file in the window</h2>
 <p>Choose <span class="ui">File &gt; Decode SSTV From File...</span> (<kbd>Ctrl</kbd>+<kbd>O</kbd>) or the folder-with-a-note button on the Receive tab, then pick a
@@ -40,6 +40,30 @@ named <code class="wrap"><span class="nb">&lt;file&gt;_&lt;n&gt;_drm.&lt;ext&gt;
 <tr><td>3</td><td>Timeout.</td></tr></table>
 <p>The default timeout is the file's length plus 30 seconds; change it with <code>--timeout</code>. From the AppImage, run the AppImage file itself with the same options.</p>
 
+<h2 id="listen">--listen (headless, sound card)</h2>
+<p><code class="wrap"><span class="nb">qsstv</span> <span class="nb">--listen</span> <span class="nb">-o</span> <span class="nb">pictures</span></code> receives from the sound card without a window and saves every picture as it arrives, until you stop it. It is the live counterpart of
+<code>--batch</code>, for a receiver that runs unattended on a PC without a screen. Your settings are read but never written.</p>
+<pre><code>qsstv --list-devices
+qsstv --listen --device "USB Audio" --out-dir pictures/
+qsstv --listen --mode PD120 --timeout 3600 -o pictures/
+qsstv --listen --drm -o dsstv/</code></pre>
+<p>The input is the one chosen in <span class="ui">Options &gt; Configuration &gt; Sound</span>, unless <code>--device</code> names another one for this run: <code>--list-devices</code> prints the inputs and
+the name can be shortened as long as it stays unique. A name that matches nothing (or several inputs) is refused with exit code 2 and the list, rather than quietly using the default. A saved
+&ldquo;input from file&rdquo; or &ldquo;record to file&rdquo; setting is ignored. <code>--mode</code> and <code>--drm</code> work as with <code>--batch</code>.</p>
+<p>Pictures are named like the ones the window saves, <code class="wrap"><span class="nb">&lt;MODE&gt;_&lt;date&gt;_&lt;time&gt;.png</span></code> (UTC, for example <code>PD120_20261023_194707.png</code>), in the output directory (the current directory by default). With
+<code>--drm</code> they are named <code class="wrap"><span class="nb">drm_&lt;date&gt;_&lt;time&gt;.&lt;ext&gt;</span></code>. For each picture one line is printed on the standard output, <code>&lt;input&gt; -&gt; &lt;file&gt; (&lt;MODE&gt;, &lt;width&gt;x&lt;height&gt;)</code>;
+messages go to the standard error.</p>
+<p>The run goes on until you press <kbd>Ctrl</kbd>+<kbd>C</kbd> or send SIGTERM (or SIGHUP), or until <code>--timeout</code> seconds have passed. A picture that is still being received when it stops is saved too, if it passes the limit described below (analog SSTV; a second
+<kbd>Ctrl</kbd>+<kbd>C</kbd> ends the program at once). If the sound input cannot be opened, or disappears while running (a USB sound card is unplugged, for example), the program says so and exits with code 2,
+so a service manager can start it again.</p>
+<p>As in the window, an interrupted or poorly received analog picture is only kept if at least <span class="ui">Save if Complete (%)</span> of its lines arrived (25 by default; see <a href="receive.html">Receiving</a>), so a noisy
+channel does not fill the disk with fragments. <code>--listen</code> and <code>--batch</code> read this setting, like the others, from the settings you saved in the window, and <code>--min-complete &lt;percent&gt;</code> overrides it for one run (0 to 100; 100 keeps only
+pictures that arrived in full). It applies to the picture that is cut off when you stop as well, and never changes the saved setting. DRM files are not affected: they are saved only when complete.</p>
+<table class="compact"><tr><th>Exit code</th><th>Meaning</th></tr>
+<tr><td>0</td><td>Stopped with Ctrl+C or a signal, or the <code>--timeout</code> ended the run after at least one picture.</td></tr>
+<tr><td>1</td><td>The <code>--timeout</code> ended the run and no picture was received.</td></tr>
+<tr><td>2</td><td>A bad option, an unknown <code>--device</code>, or a sound input that could not be opened or was lost.</td></tr></table>
+
 <h2 id="encode">--encode</h2>
 <p><code class="wrap"><span class="nb">qsstv</span> <span class="nb">--encode</span> <span class="nb">picture.png</span> <span class="nb">--mode</span> <span class="nb">PD120</span> <span class="nb">--wav-out</span> <span class="nb">picture.wav</span></code> converts a picture into the SSTV audio for the chosen mode, through the normal transmit path,
 and writes it to a WAV file; no sound card is used. The default output name is <code>&lt;image&gt;.wav</code>. As with <code>--batch</code>, your settings are read
@@ -64,8 +88,10 @@ never crashes the program.</p>
 <h2 id="other">Other options</h2>
 <dl>
 <dt><code>--list-modes</code></dt><dd>Prints the short names accepted by <code>--mode</code>, with the full names (see <a href="sstv-modes.html">SSTV modes</a>).</dd>
-<dt><code>--mode &lt;mode&gt;</code></dt><dd>With <code>--batch</code> or <code>--decode</code>: receive only this mode instead of auto detection. With <code>--encode</code>: the mode to transmit.</dd>
+<dt><code>--mode &lt;mode&gt;</code></dt><dd>With <code>--batch</code>, <code>--listen</code> or <code>--decode</code>: receive only this mode instead of auto detection. With <code>--encode</code>: the mode to transmit.</dd>
 <dt><code>--install</code> / <code>--uninstall</code></dt><dd>AppImage only: add or remove the desktop menu entry and icons, then exit. See <a href="help-updates.html">Help menu, updates and desktop integration</a>.</dd>
+<dt><code>--min-complete &lt;percent&gt;</code></dt><dd>With <code>--batch</code> or <code>--listen</code>: keep an analog picture only if at least this percentage of its lines was received, instead of the <span class="ui">Save if Complete (%)</span> setting (25 by default). Use it to keep fragments of weak signals out of the output directory.</dd>
+<dt><code>--list-devices</code></dt><dd>Prints the sound card inputs that <code>--device</code> accepts, one per line (the default input is marked), and exits.</dd>
 <dt><code>-h, --help</code> and <code>-v, --version</code></dt><dd>Print the help or the version and exit.</dd>
 <dt><code>--rx-gain &lt;dB&gt;</code>, <code>--rx-noise &lt;dBFS&gt;</code></dt><dd>Test aids for <code>--batch</code>: amplify or attenuate the recording, or add white noise of a given level (for example <code>-40</code>), before the receiver.</dd>
 </dl>
@@ -74,10 +100,14 @@ never crashes the program.</p>
 <div class="table-wrap"><table class="compact"><tr><th>Option</th><th>Description</th></tr>
 <tr><td><code class="wrap"><span class="nb">-d,</span> <span class="nb">--decode</span> <span class="nb">&lt;file&gt;</span></code></td><td>Decode the recording (repeatable; bare arguments are files too). Opens the window.</td></tr>
 <tr><td><code>-b, --batch</code></td><td>Headless: decode, save the pictures, print results and exit.</td></tr>
-<tr><td><code class="wrap"><span class="nb">-o,</span> <span class="nb">--out-dir</span> <span class="nb">&lt;dir&gt;</span></code></td><td>With <code>--batch</code>: directory for the pictures.</td></tr>
+<tr><td><code>--listen</code></td><td>Headless: receive from the sound card, save the pictures, until Ctrl+C or <code>--timeout</code>.</td></tr>
+<tr><td><code class="wrap"><span class="nb">--device</span> <span class="nb">&lt;name&gt;</span></code></td><td>With <code>--listen</code>: the sound input to use (part of its name is enough if unique).</td></tr>
+<tr><td><code>--list-devices</code></td><td>Print the sound inputs and exit.</td></tr>
+<tr><td><code class="wrap"><span class="nb">--min-complete</span> <span class="nb">&lt;percent&gt;</span></code></td><td>With <code>--batch</code> or <code>--listen</code>: keep a picture only if at least this percentage of its lines was received (default: the <span class="ui">Save if Complete (%)</span> setting).</td></tr>
+<tr><td><code class="wrap"><span class="nb">-o,</span> <span class="nb">--out-dir</span> <span class="nb">&lt;dir&gt;</span></code></td><td>With <code>--batch</code> or <code>--listen</code>: directory for the pictures.</td></tr>
 <tr><td><code>-m, --mode &lt;mode&gt;</code></td><td>Receive only this mode (short name, e.g. PD120, JB60).</td></tr>
-<tr><td><code class="wrap"><span class="nb">--timeout</span> <span class="nb">&lt;seconds&gt;</span></code></td><td>With <code>--batch</code>: give up on a file after this many seconds.</td></tr>
-<tr><td><code>--drm</code></td><td>With <code>--batch</code>: receive DRM. With <code>--encode</code>: transmit as DRM.</td></tr>
+<tr><td><code class="wrap"><span class="nb">--timeout</span> <span class="nb">&lt;seconds&gt;</span></code></td><td>With <code>--batch</code>: give up on a file after this many seconds. With <code>--listen</code>: stop after this many seconds.</td></tr>
+<tr><td><code>--drm</code></td><td>With <code>--batch</code> or <code>--listen</code>: receive DRM. With <code>--encode</code>: transmit as DRM.</td></tr>
 <tr><td><code>--drm-mode &lt;A|B|E&gt;</code></td><td>With <code>--encode --drm</code>: robustness mode.</td></tr>
 <tr><td><code>--drm-bw &lt;kHz&gt;</code></td><td>With <code>--encode --drm</code>: bandwidth 2.3, 2.8 or 4.8 kHz (2.2 and 2.5 are accepted for 2.3 and 2.8). 4.8 is the wide VHF/UHF extension.</td></tr>
 <tr><td><code class="wrap"><span class="nb">--drm-qam</span> <span class="nb">&lt;4|16|64&gt;</span></code></td><td>With <code>--encode --drm</code>: QAM.</td></tr>

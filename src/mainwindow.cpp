@@ -473,6 +473,15 @@ void mainWindow::restartSound(bool inStartUp)
   // rxWantedActive carries the intent across a failed (re)start: with no working device
   // RX is idle, but it should come back once the user picks one that works (issue #73).
   bool rxWasActive=!rxWidgetPtr->functionsPtr()->isIdle() || rxWantedActive;
+  // a headless run (--batch, --listen) has nobody to click a message box away; a --listen run also must not take
+  // the receiver being idle meanwhile for a lost device
+  const bool headless=fileDecoderPtr->isBatch();
+  struct restartGuard
+  {
+    bool on;
+    explicit restartGuard(bool h) : on(h) {if(on) fileDecoderPtr->soundRestarting(true);}
+    ~restartGuard() {if(on) fileDecoderPtr->soundRestarting(false);}
+  } guard(headless);
   //first check if sound
   if(soundIOPtr!=nullptr)
     {
@@ -491,6 +500,10 @@ void mainWindow::restartSound(bool inStartUp)
       if(inStartUp)
         {
           splashMessage(QString("Soundcard error: %1").arg(soundIOPtr->getLastError()));
+        }
+      else if(headless)
+        {
+          fileDecoderPtr->soundFailed(soundIOPtr->getLastError());
         }
       else
         {

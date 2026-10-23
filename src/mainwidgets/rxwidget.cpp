@@ -213,6 +213,14 @@ bool rxWidget::setRxModeByName(const QString &name)
   return true;
 }
 
+void rxWidget::setMinCompletion(int percent)
+{
+  // through the box, so a later getParams() (any change of the other RX settings) keeps the value; the box's
+  // valueChanged() copies it into minCompletion
+  ui->completeSpinBox->setMaximum(100);
+  ui->completeSpinBox->setValue(percent);
+}
+
 void rxWidget::slotGetParams()
 {
   getParams();

@@ -13,20 +13,39 @@
 #include "rxfunctions.h"
 #include "rxwidget.h"
 #include "soundbase.h"
+#include "soundqtmultimedia.h"
 #include "wavreader.h"
 
 #include <QApplication>
+#include <QDateTime>
 #include <QDir>
 #include <QFileDialog>
 #include <QFile>
 #include <QFileInfo>
 #include <QImageReader>
+#include <QMediaDevices>
 #include <QMessageBox>
 #include <QSettings>
 #include <QStatusBar>
+#include <csignal>
 #include <cstdio>
 
 fileDecoder *fileDecoderPtr=nullptr;
+
+// --listen: the signal handler only sets this, poll() does the rest. A second signal while the run is stopping
+// takes the default action, so a stop that hangs can still be killed with another Ctrl+C.
+static volatile std::sig_atomic_t stopSignal=0;
+
+static void onStopSignal(int sig)
+{
+  if(stopSignal)
+    {
+      signal(sig,SIG_DFL);
+      raise(sig);
+      return;
+    }
+  stopSignal=1;
+}
 
 fileDecoder::fileDecoder(QObject *parent) : QObject(parent)
 {
@@ -47,6 +66,113 @@ void fileDecoder::setBatch(const QString &dir,int timeoutSec)
   batch=true;
   outDir=dir.isEmpty() ? QString(".") : dir;
   timeoutSeconds=timeoutSec;
+}
+
+void fileDecoder::setListen(const QString &dir,int timeoutSec,const QString &deviceName)
+{
+  setBatch(dir,timeoutSec);
+  listening=true;
+  device=deviceName;
+}
+
+/*!
+  --listen: put the receiver on the sound card and leave it there until a stop signal or the timeout (poll()).
+  The mode of the run (SSTV or DRM) is switched through the window's own mode switch so the tabs follow.
+*/
+void fileDecoder::startListening()
+{
+  signal(SIGINT,onStopSignal);
+  signal(SIGTERM,onStopSignal);
+#ifdef SIGHUP
+  signal(SIGHUP,onStopSignal);
+#endif
+  running=true;
+  stopping=false;
+  timedOut=false;
+  exitCode=EXIT_OK;
+  imagesTotal=0;
+  const etransmissionMode wanted=drm ? TRXDRM : TRXSSTV;
+  if(transmissionModeIndex!=wanted) mainWindowPtr->switchMode(wanted);
+  dispatcherPtr->startRX();
+  fileTimer.start();
+  inputCheck.start();
+  // a QMediaDevices object keeps the platform's device list up to date, which the check in pollListen() relies on
+  if(!mediaDevices) mediaDevices=new QMediaDevices(this);
+  timer.start(100);
+  fprintf(stderr,"listening on %s (Ctrl+C to stop)\n",device.toLocal8Bit().constData());
+}
+
+void fileDecoder::soundFailed(const QString &error)
+{
+  fprintf(stderr,"sound device error: %s\n",error.toLocal8Bit().constData());
+  if(!listening || !running) return;
+  note(EXIT_BADFILE);
+  finishAll(false);
+}
+
+/*!
+  Stop capturing. The receiver saves a picture it is in the middle of once it notices that the capture has ended
+  (rxFunctions::run(), soundBase::finishPictureOnStop); pollListen() waits for that. Not dispatcher::idleAll(): that
+  would throw the picture away.
+*/
+void fileDecoder::beginStop()
+{
+  stopping=true;
+  stopTimer.start();
+  soundBase::finishPictureOnStop=true;
+  soundIOPtr->idleRX();
+}
+
+void fileDecoder::pollListen()
+{
+  if(stopping)
+    {
+      if(rxWidgetPtr->functionsPtr()->isIdle() || stopTimer.elapsed()>3000)
+        {
+          // the RX thread posts its "picture done" event before it goes idle: handle it now
+          QCoreApplication::sendPostedEvents(dispatcherPtr,0);
+          if(timedOut && imagesTotal==0) note(EXIT_NOIMAGE);
+          finishAll(false);
+        }
+      return;
+    }
+  if(restarting) return;   // the sound device is being rebuilt: the receiver is idle on purpose
+  if(stopSignal)
+    {
+      fprintf(stderr,"stopping\n");
+      beginStop();
+      return;
+    }
+  if(timeoutSeconds>0 && fileTimer.elapsed()>timeoutSeconds*1000LL)
+    {
+      fprintf(stderr,"stopping after %d s\n",timeoutSeconds);
+      timedOut=true;
+      beginStop();
+      return;
+    }
+  if(rxWidgetPtr->functionsPtr()->isIdle())
+    {
+      // nobody stopped the receiver, so the capture ended by itself: the device is gone
+      fprintf(stderr,"the audio input stopped\n");
+      note(EXIT_BADFILE);
+      QCoreApplication::sendPostedEvents(dispatcherPtr,0);
+      finishAll(false);
+      return;
+    }
+  if(!device.isEmpty() && inputCheck.elapsed()>2000)
+    {
+      // An unplugged input is not always reported by the audio stream, and when it is, the recovery (mainWindow::
+      // recoverSound) reopens the default input -- which an unattended receiver must not silently listen to instead.
+      inputCheck.restart();
+      QStringList inputs,outputs;
+      getCardList(inputs,outputs);
+      if(!inputs.contains(device))
+        {
+          fprintf(stderr,"the sound input \"%s\" is gone\n",device.toLocal8Bit().constData());
+          note(EXIT_BADFILE);
+          beginStop();   // saves the picture it was receiving
+        }
+    }
 }
 
 void fileDecoder::chooseAndDecode(QWidget *parent)
@@ -151,6 +277,11 @@ bool fileDecoder::startNext()
 void fileDecoder::poll()
 {
   if(!running) return;
+  if(listening)
+    {
+      pollListen();
+      return;
+    }
   if(soundIOPtr->fileSourceCancelled())
     {
       finishAll(true);   // the user pressed Stop
@@ -218,6 +349,22 @@ void fileDecoder::finishAll(bool cancelled)
 }
 
 /*!
+  Name of the file for the next picture (imagesInFile has been counted already). A file decode names it after the
+  recording, a --listen run after the time like the pictures of the window do (dispatcher::saveRxSSTVImage), numbered when
+  two arrive within the same second. `tag` is the SSTV mode or "drm".
+*/
+QString fileDecoder::outputName(const QString &tag,const QString &ext) const
+{
+  if(!listening)
+    return QString("%1/%2_%3_%4.%5").arg(outDir).arg(QFileInfo(currentFile).completeBaseName()).arg(imagesInFile).arg(tag).arg(ext);
+  const QString stamp=QDateTime::currentDateTimeUtc().toString("yyyyMMdd_HHmmss");
+  QString name=QString("%1/%2_%3.%4").arg(outDir).arg(tag).arg(stamp).arg(ext);
+  for(int n=2;QFileInfo::exists(name);n++)
+    name=QString("%1/%2_%3_%4.%5").arg(outDir).arg(tag).arg(stamp).arg(n).arg(ext);
+  return name;
+}
+
+/*!
   Batch mode: called by the dispatcher when the receiver has finished a picture. The picture is in the RX image viewer.
 */
 void fileDecoder::imageDecoded(esstvMode mode)
@@ -225,14 +372,15 @@ void fileDecoder::imageDecoded(esstvMode mode)
   if(mode==NOTVALID) return;   // too few lines received: nothing to keep
   QDir().mkpath(outDir);
   imagesInFile++;
-  QString name=QString("%1/%2_%3_%4.png").arg(outDir).arg(QFileInfo(currentFile).completeBaseName()).arg(imagesInFile).arg(getSSTVModeNameShort(mode));
+  QString name=outputName(getSSTVModeNameShort(mode),"png");
   // the receiver paints into the viewer's displayed image (not its "source" image)
   QFile::remove(name);
   rxWidgetPtr->getImageViewerPtr()->save(name,"PNG",true,false);
   QSize size=QImageReader(name).size();
   if(size.isValid())
     {
-      printf("%s -> %s (%s, %dx%d)\n",currentFile.toLocal8Bit().constData(),name.toLocal8Bit().constData(),
+      if(listening) imagesTotal++;   // a file decode adds up imagesInFile when the file is done
+      printf("%s -> %s (%s, %dx%d)\n",sourceName().toLocal8Bit().constData(),name.toLocal8Bit().constData(),
              getSSTVModeNameShort(mode).toLatin1().constData(),size.width(),size.height());
       fflush(stdout);
     }
@@ -262,7 +410,7 @@ void fileDecoder::drmImageDecoded(const QString &file,const QString &info)
 {
   QDir().mkpath(outDir);
   imagesInFile++;
-  QString name=QString("%1/%2_%3_drm.%4").arg(outDir).arg(QFileInfo(currentFile).completeBaseName()).arg(imagesInFile).arg(QFileInfo(file).suffix());
+  QString name=outputName("drm",QFileInfo(file).suffix());
   QFile::remove(name);
   if(!QFile::copy(file,name))
     {
@@ -271,8 +419,9 @@ void fileDecoder::drmImageDecoded(const QString &file,const QString &info)
       fprintf(stderr,"cannot write %s\n",name.toLocal8Bit().constData());
       return;
     }
+  if(listening) imagesTotal++;
   QSize size=QImageReader(name).size();
-  printf("%s -> %s (DRM, %dx%d) %s\n",currentFile.toLocal8Bit().constData(),name.toLocal8Bit().constData(),
+  printf("%s -> %s (DRM, %dx%d) %s\n",sourceName().toLocal8Bit().constData(),name.toLocal8Bit().constData(),
          size.width(),size.height(),info.toLocal8Bit().constData());
   fflush(stdout);
 }

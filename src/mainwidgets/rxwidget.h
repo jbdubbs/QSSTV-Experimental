@@ -30,6 +30,8 @@ public:
   void writeSettings();
   //! select the RX mode by short name ("PD120", "JB60" ...) or "auto"; false if there is no such mode
   bool setRxModeByName(const QString &name);
+  //! command line --min-complete: "Save if Complete (%)" for this run (0 to 100; the window's own box stops at 99)
+  void setMinCompletion(int percent);
   void startRX(bool st);
   rxFunctions *functionsPtr() {return rxFunctionsPtr;}
   imageViewer *getImageViewerPtr(){ return imageViewerPtr;}

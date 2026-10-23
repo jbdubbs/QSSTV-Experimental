@@ -43,6 +43,9 @@ public:
   static double fileGainDb;          //!< file source only (test harness): gain applied to the recording
   static double fileNoiseDbfs;       //!< file source only: white noise added, RMS in dB full scale; >=0 = none
   static volatile bool txFileDone;   // set by txFunctions::waitEnd() once the TX thread has queued its last sample
+  //! Command line --listen: when the live capture is stopped, the RX thread still saves a picture in progress (as it
+  //! does at the end of a decoded file).
+  static volatile bool finishPictureOnStop;
 
   explicit soundBase(QObject *parent = 0);
   ~soundBase();
@@ -75,6 +78,7 @@ public:
   const QString getLastError() { return lastErrorStr;}
   bool isPlaying() {return playbackState!=PBINIT;}
   bool isCapturing() {return captureState!=CPINIT;}
+  bool driverOK() const {return soundDriverOK;}   //!< the input/output device was opened (see getLastError() otherwise)
 
   // "Listen" mode (Options > Calibrate): capture from the soundcard and put every raw sample in rawRxBuffer,
   // without any decoding. The caller drains rawRxBuffer; if it can't keep up samples are dropped and

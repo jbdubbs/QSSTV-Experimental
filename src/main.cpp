@@ -51,7 +51,11 @@
 #include "mainwidgets/rxwidget.h"
 #include "mainwidgets/txwidget.h"
 #include "sound/soundbase.h"
+#include "sound/soundqtmultimedia.h"
+#include "configparams.h"
 #include "sstv/sstvparam.h"
+#include <QAudioDevice>
+#include <QMediaDevices>
 #include <QImageReader>
 #include <QRegularExpression>
 #include "drmtx/drmparams.h"
@@ -93,13 +97,55 @@ static void chooseHeadlessPlatform(int argc,char **argv)
   for(int i=1;i<argc;i++)
     {
       QString a=QString::fromLocal8Bit(argv[i]);
-      if(a=="-b" || a=="--batch" || a=="-h" || a=="--help" || a=="-v" || a=="--version" || a=="--list-modes" || a=="--install" || a=="--uninstall" || a=="--encode" || a.startsWith("--encode=")
+      if(a=="-b" || a=="--batch" || a=="-h" || a=="--help" || a=="-v" || a=="--version" || a=="--list-modes" || a=="--listen" || a=="--list-devices" || a=="--install" || a=="--uninstall" || a=="--encode" || a.startsWith("--encode=")
          || a=="--render-template" || a.startsWith("--render-template=") || a=="--convert-template" || a.startsWith("--convert-template="))
         {
           qputenv("QT_QPA_PLATFORM","offscreen");
           return;
         }
     }
+}
+
+/*!
+  The sound card inputs, one per line, the one used when none is chosen marked with a tab and "(default)". These are the
+  names --device accepts (and Configure > Sound stores).
+*/
+static void printInputDevices(FILE *out)
+{
+  QStringList inputs,outputs;
+  getCardList(inputs,outputs);
+  const QString def=QMediaDevices::defaultAudioInput().description();
+  for(const QString &d:inputs)
+    fprintf(out,"%s%s\n",d.toLocal8Bit().constData(),d==def ? "\t(default)" : "");
+}
+
+/*!
+  --device: the input whose description is `wanted` (ignoring case), or else the only one that contains it. On failure
+  the reason and the available inputs go to stderr.
+*/
+static bool findInputDevice(const QString &wanted,QString &description)
+{
+  QStringList inputs,outputs;
+  getCardList(inputs,outputs);
+  QStringList partial;
+  for(const QString &d:inputs)
+    {
+      if(d.compare(wanted,Qt::CaseInsensitive)==0)
+        {
+          description=d;
+          return true;
+        }
+      if(d.contains(wanted,Qt::CaseInsensitive)) partial<<d;
+    }
+  if(partial.size()==1)
+    {
+      description=partial.first();
+      return true;
+    }
+  fprintf(stderr,partial.isEmpty() ? "--device: no sound input \"%s\". The inputs are:\n" : "--device: \"%s\" matches more than one sound input. The inputs are:\n",
+          wanted.toLocal8Bit().constData());
+  printInputDevices(stderr);
+  return false;
 }
 
 static bool platformThemeAvailable(const QString &name)
@@ -301,9 +347,16 @@ int main( int argc, char ** argv )
   QCommandLineOption batchOpt(QStringList() << "b" << "batch","Headless: decode the files without a window, save every picture, print the results and exit. "
                               "Exit code 0: every file gave a picture; 1: a file gave none; 2: unusable file or bad option; 3: timeout. "
                               "Your settings are read but never written.");
-  QCommandLineOption outDirOpt(QStringList() << "o" << "out-dir","With --batch: directory for the pictures, named <file>_<n>_<MODE>.png (default: current directory).","dir");
+  QCommandLineOption outDirOpt(QStringList() << "o" << "out-dir","With --batch or --listen: directory for the pictures, named <file>_<n>_<MODE>.png (--listen: <MODE>_<date>_<time>.png; default: current directory).","dir");
   QCommandLineOption modeOpt(QStringList() << "m" << "mode","Receive only this mode (short name as in --list-modes, e.g. PD120, JB60) instead of auto detection.","mode");
-  QCommandLineOption timeoutOpt("timeout","With --batch: give up on a file after this many seconds (default: its length + 30 s).","seconds");
+  QCommandLineOption timeoutOpt("timeout","With --batch: give up on a file after this many seconds (default: its length + 30 s). With --listen: stop after this many seconds (default: never).","seconds");
+  QCommandLineOption listenOpt("listen","Headless: receive from the sound card without a window and save every picture (named <MODE>_<date>_<time>.png, UTC, in --out-dir) until Ctrl+C, SIGTERM or --timeout. "
+                               "Exit code 0: stopped; 1: --timeout and no picture; 2: unusable sound input or bad option. A picture still being received is saved when you stop, if it reaches the 'Save if Complete (%)' setting of the Receive tab (see --min-complete). "
+                               "Your settings are read but never written. See --device, --mode, --drm, --out-dir.");
+  QCommandLineOption minCompleteOpt("min-complete","With --batch or --listen: keep an analog picture only if at least this percentage (0 to 100) of its lines was received, instead of the 'Save if Complete (%)' "
+                                    "setting of the Receive tab (default 25). Applies to interrupted and poorly received pictures alike; DRM files are not affected.","percent");
+  QCommandLineOption deviceOpt("device","With --listen: the sound input to receive from (default: the one in Configure > Sound). Part of the name is enough if it is unique; see --list-devices.","name");
+  QCommandLineOption listDevicesOpt("list-devices","Print the sound inputs that --device accepts and exit.");
   QCommandLineOption encodeOpt("encode","Headless: transmit the picture <image> through the normal SSTV TX path into a wav file (see --wav-out, --mode) and exit. "
                                "Your settings are read but never written.","image");
   QCommandLineOption wavOutOpt("wav-out","With --encode: the wav file to write (default: <image>.wav).","file");
@@ -318,7 +371,7 @@ int main( int argc, char ** argv )
   QCommandLineOption tplReplayOpt("template-replay","With --render-template: the picture shown in the template's replay slot.","image");
   QCommandLineOption installOpt("install","AppImage only: add QSSTV-Experimental (menu entry, icons) to your desktop and exit.");
   QCommandLineOption uninstallOpt("uninstall","AppImage only: remove the menu entry and icons added by --install and exit.");
-  QCommandLineOption drmOpt("drm","With --batch: receive DRM (digital SSTV) instead of analog SSTV; the received file is saved as <file>_<n>_drm.<ext> and a "
+  QCommandLineOption drmOpt("drm","With --batch or --listen: receive DRM (digital SSTV) instead of analog SSTV; the received file is saved as <file>_<n>_drm.<ext> (--listen: drm_<date>_<time>.<ext>) and with --batch a "
                             "'drm-stats:' line (sync / FAC / MSC percentages, MSC flaps, FAC and MSC MER) is printed per file. With --encode: transmit the picture as DRM.");
   QCommandLineOption drmModeOpt("drm-mode","With --encode --drm: robustness mode A, B or E (default: your TX setting).","mode");
   QCommandLineOption drmBwOpt("drm-bw","With --encode --drm: bandwidth 2.3, 2.8 or 4.8 (kHz; 2.2 and 2.5 are accepted for 2.3 and 2.8). 4.8 is a wide VHF/UHF extension that older versions cannot receive.","kHz");
@@ -330,7 +383,7 @@ int main( int argc, char ** argv )
   QCommandLineOption drmEncOpt("drm-encoding","With --encode --drm: picture codec jpeg2000 or avif (default: your TX setting).","codec");
   QCommandLineOption rxGainOpt("rx-gain","With --batch: test aid, amplify the recording by <dB> (negative to attenuate) before the receiver.","dB");
   QCommandLineOption rxNoiseOpt("rx-noise","With --batch: test aid, add white noise of this RMS level in dB full scale (e.g. -40) to the recording.","dBFS");
-  parser.addOptions(QList<QCommandLineOption>() << drmOpt << drmModeOpt << drmBwOpt << drmQamOpt << drmProtOpt << drmIlvOpt << drmRsOpt << drmSizeOpt << drmEncOpt << rxGainOpt << rxNoiseOpt << helpOpt << versionOpt << decodeOpt << batchOpt << outDirOpt << modeOpt << timeoutOpt << encodeOpt << wavOutOpt << listOpt << renderTplOpt << convertTplOpt << tplOutOpt << tplBaseOpt << tplSizeOpt << tplVarOpt << tplReplayOpt << installOpt << uninstallOpt);
+  parser.addOptions(QList<QCommandLineOption>() << drmOpt << drmModeOpt << drmBwOpt << drmQamOpt << drmProtOpt << drmIlvOpt << drmRsOpt << drmSizeOpt << drmEncOpt << rxGainOpt << rxNoiseOpt << helpOpt << versionOpt << decodeOpt << batchOpt << outDirOpt << modeOpt << timeoutOpt << listenOpt << deviceOpt << listDevicesOpt << minCompleteOpt << encodeOpt << wavOutOpt << listOpt << renderTplOpt << convertTplOpt << tplOutOpt << tplBaseOpt << tplSizeOpt << tplVarOpt << tplReplayOpt << installOpt << uninstallOpt);
   parser.addPositionalArgument("file","SSTV recordings to decode (same as --decode).","[file ...]");
   if(!parser.parse(app.arguments()))
     {
@@ -364,6 +417,11 @@ int main( int argc, char ** argv )
       for(int i=0;i<NUMSSTVMODES;i++) printf("%s\t%s\n",getSSTVModeNameShort((esstvMode)i).toLatin1().constData(),getSSTVModeNameLong((esstvMode)i).toLatin1().constData());
       return 0;
     }
+  if(parser.isSet(listDevicesOpt))
+    {
+      printInputDevices(stdout);
+      return 0;
+    }
   if(parser.isSet(renderTplOpt) || parser.isSet(convertTplOpt))
     {
       const bool convert=parser.isSet(convertTplOpt);
@@ -371,11 +429,43 @@ int main( int argc, char ** argv )
                              parser.value(tplReplayOpt),parser.value(tplSizeOpt),parser.values(tplVarOpt));
     }
   QStringList files=parser.values(decodeOpt)+parser.positionalArguments();
-  const bool batch=parser.isSet(batchOpt);
-  if(batch && files.isEmpty())
+  const bool listen=parser.isSet(listenOpt);
+  const bool batch=parser.isSet(batchOpt) || listen;   // --listen is headless as well
+  if(listen && (!files.isEmpty() || parser.isSet(encodeOpt)))
     {
-      fprintf(stderr,"--batch needs at least one file to decode. Try --help.\n");
+      fprintf(stderr,"--listen receives from the sound card: it cannot be combined with files or --encode. Try --help.\n");
       return fileDecoder::EXIT_BADFILE;
+    }
+  if(batch && !listen && files.isEmpty())
+    {
+      fprintf(stderr,"--batch needs at least one file to decode (or use --listen). Try --help.\n");
+      return fileDecoder::EXIT_BADFILE;
+    }
+  QString wantedDevice;
+  if(parser.isSet(deviceOpt))
+    {
+      if(!listen)
+        {
+          fprintf(stderr,"--device only goes with --listen. Try --help.\n");
+          return fileDecoder::EXIT_BADFILE;
+        }
+      if(!findInputDevice(parser.value(deviceOpt),wantedDevice)) return fileDecoder::EXIT_BADFILE;
+    }
+  int minComplete=-1;   // -1: the saved setting
+  if(parser.isSet(minCompleteOpt))
+    {
+      bool ok=false;
+      minComplete=parser.value(minCompleteOpt).toInt(&ok);
+      if(!ok || minComplete<0 || minComplete>100)
+        {
+          fprintf(stderr,"--min-complete needs a percentage from 0 to 100\n");
+          return fileDecoder::EXIT_BADFILE;
+        }
+      if(!batch)
+        {
+          fprintf(stderr,"--min-complete only goes with --batch or --listen. Try --help.\n");
+          return fileDecoder::EXIT_BADFILE;
+        }
     }
   bool timeoutOk=true;
   int timeoutSeconds=parser.isSet(timeoutOpt) ? parser.value(timeoutOpt).toInt(&timeoutOk) : 0;
@@ -454,7 +544,18 @@ int main( int argc, char ** argv )
   globalInit();
   mainWindowPtr=new mainWindow;
   mainWindowPtr->setWindowIcon(QPixmap(":/icons/qsstv.png"));
-  if(batch) fileDecoderPtr->setBatch(parser.value(outDirOpt),timeoutSeconds);
+  if(listen)
+    {
+      // the window's constructor has read the settings: from here on only this run's choices (never written back)
+      soundRoutingInput=soundBase::SNDINCARD;   // not a saved "input from file" / "record to file"
+      if(!wantedDevice.isEmpty()) inputAudioDevice=wantedDevice;
+      QStringList inputs,outputs;
+      getCardList(inputs,outputs);
+      // a saved device that is gone falls back to the default input (soundQtMultimedia::init)
+      const QString opened=inputs.contains(inputAudioDevice) ? inputAudioDevice : QMediaDevices::defaultAudioInput().description();
+      fileDecoderPtr->setListen(parser.value(outDirOpt),timeoutSeconds,opened);
+    }
+  else if(batch) fileDecoderPtr->setBatch(parser.value(outDirOpt),timeoutSeconds);
   if(!encode)
     {
       fileDecoderPtr->setDrm(parser.isSet(drmOpt));
@@ -467,6 +568,14 @@ int main( int argc, char ** argv )
    }
   mainWindowPtr->init(); // this must follow show() because window has to be drawn first to determine fftframe window size
   mainWindowPtr->hide();
+  if(minComplete>=0) rxWidgetPtr->setMinCompletion(minComplete);   // after init(): that is where the saved value is read
+  if(listen && !soundIOPtr->driverOK())
+    {
+      fprintf(stderr,"cannot receive from the sound card: %s\n",soundIOPtr->getLastError().toLocal8Bit().constData());
+      mainWindowPtr->shutdown(false);
+      globalEnd();
+      return fileDecoder::EXIT_BADFILE;
+    }
   tm.start(100);
   while(1)
   {
@@ -586,8 +695,9 @@ int main( int argc, char ** argv )
       mainWindowPtr->show();
       splash.finish(mainWindowPtr);
     }
-  mainWindowPtr->startRunning(files.isEmpty());   // decoding files replaces the sound card receiver until it is done
-  if(!files.isEmpty()) fileDecoderPtr->decodeFiles(files);
+  mainWindowPtr->startRunning(files.isEmpty() && !listen);   // decoding files replaces the sound card receiver until it is done
+  if(listen) fileDecoderPtr->startListening();   // starts the receiver itself, once the mode is set
+  else if(!files.isEmpty()) fileDecoderPtr->decodeFiles(files);
   result=app.exec();
   globalEnd();
   return result;

@@ -55,9 +55,11 @@ void rxFunctions::run()
               msleep((250*RXSTRIPE)/rxClock);
               if(!soundIOPtr->isCapturing())
                 {
-                  if(soundIOPtr->fileSourceActive() && !soundIOPtr->fileSourceCancelled() && (transmissionModeIndex==TRXSSTV))
+                  if(((soundIOPtr->fileSourceActive() && !soundIOPtr->fileSourceCancelled()) || soundBase::finishPictureOnStop)
+                     && (transmissionModeIndex==TRXSSTV))
                     {
-                      // end of a decoded file: a picture still in progress would be dropped by the init below
+                      // end of a decoded file, or the end of a command line --listen: a picture still in progress
+                      // would be dropped by the init below
                       sstvRxPtr->finishInput();
                     }
                   switchRxState(RXINIT);

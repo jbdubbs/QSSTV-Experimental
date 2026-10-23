@@ -17,6 +17,7 @@
 #include <QTimer>
 #include "sstvparam.h"
 
+class QMediaDevices;
 class QWidget;
 
 class fileDecoder : public QObject
@@ -31,6 +32,16 @@ public:
   //! batch mode: no dialogs, images go to outDir as <input>_<n>_<MODE>.png, results are printed, finished() is emitted
   void setBatch(const QString &outDir,int timeoutSeconds);
   bool isBatch() const {return batch;}
+  /*! `--listen`: headless like batch, but the input is the sound card (named `device`, only used in messages) and the
+      run goes on until a stop signal (SIGINT/SIGTERM/SIGHUP) arrives or `timeoutSeconds` (0 = never) have passed.
+      Pictures are named <MODE>_<UTC date>_<UTC time>.png in outDir. */
+  void setListen(const QString &outDir,int timeoutSeconds,const QString &device);
+  bool isListening() const {return listening;}
+  void startListening();
+  //! the sound device could not be reopened after it was lost; ends a --listen run
+  void soundFailed(const QString &error);
+  //! mainWindow::restartSound() is rebuilding the sound device: the receiver is idle on purpose
+  void soundRestarting(bool on) {restarting=on;}
   //! batch: receive DRM (digital) instead of SSTV; the picture file goes to outDir as <input>_<n>_drm.<ext>
   void setDrm(bool on) {drm=on;}
   //! GUI: also print the drm-stats line on stdout (command line --decode --drm)
@@ -61,8 +72,20 @@ private:
   void printDrmStats();
   void finishAll(bool cancelled);
   void note(int code) {if(code>exitCode) exitCode=code;}
+  void pollListen();
+  void beginStop();
+  QString outputName(const QString &tag,const QString &ext) const;
+  QString sourceName() const {return listening ? device : currentFile;}
 
   bool batch;
+  bool listening=false;
+  bool stopping=false;       //!< listen: the capture has been stopped, waiting for the receiver to save its last picture
+  bool timedOut=false;       //!< listen: the stop was the --timeout, not a signal
+  bool restarting=false;
+  QString device;
+  QElapsedTimer stopTimer;
+  QElapsedTimer inputCheck;   //!< listen: when the list of sound inputs was last looked at
+  QMediaDevices *mediaDevices=nullptr;
   bool drm=false;
   bool verbose=false;
   QString outDir;

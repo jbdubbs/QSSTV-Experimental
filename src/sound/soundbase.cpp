@@ -406,6 +406,7 @@ void soundBase::clearFileSource()
 
 QString soundBase::txFileName;
 volatile bool soundBase::txFileDone=false;
+volatile bool soundBase::finishPictureOnStop=false;
 double soundBase::fileGainDb=0;
 double soundBase::fileNoiseDbfs=0;
 
