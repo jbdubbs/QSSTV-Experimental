@@ -12,7 +12,9 @@
 #include "editorcommands.h"
 #include "layerspanel.h"
 #include "propertiespanel.h"
+#include "sizepreviewpanel.h"
 #include "templateeditor.h"
+#include "templatepresets.h"
 #include "templatevars.h"
 
 static int passed = 0, failed = 0;
@@ -405,7 +407,7 @@ static void testSelectMoveResizeRotate()
 
   // resize with the bottom-right handle: the top-left corner stays
   const QRectF before(get(*d, r).pos, get(*d, r).rect.size());
-  env.drag(before.right(), before.bottom(), before.right() + 40, before.bottom() + 30);
+  env.drag(before.right(), before.bottom(), before.right() + 40, before.bottom() + 30, Qt::AltModifier);   // (without snapping: the edge would meet the middle of the canvas)
   const tpl::Element &e = get(*d, r);
   check(near(e.rect.width(), 240) && near(e.rect.height(), 130), QString("bottom-right handle resizes (%1 x %2)").arg(e.rect.width()).arg(e.rect.height()));
   check(near(e.pos.x() + e.rect.x(), before.left()) && near(e.pos.y() + e.rect.y(), before.top()), "the opposite corner stays where it was");
@@ -1221,6 +1223,713 @@ static void testExternalEditor()
   check(QDir(dir).entryList(QStringList("does-not-exist*")).isEmpty(), "and nothing is created");
 }
 
+// --- layout, anchors, text boxes, shadows and corners in the editor ----------------------------------------------------------
+static void testLayoutAndAnchors()
+{
+  printf("== layout and anchors\n");
+  Env env;
+  EditorDocument *d = env.d;
+  PropertiesPanel *p = panelOf(env.ed);
+  check(d->doc().layout == tpl::TemplateDocument::Anchored, "a new template keeps its proportions");
+  check(!panelChild<QWidget>(p, "anchorBox")->isVisibleTo(p), "(no item selected: no sections)");
+
+  // new items are anchored by where they are put
+  env.v->setTool(EditorCanvas::ToolRect);
+  env.drag(5, 430, 635, 490);
+  const tpl::Element bar = d->doc().items.last();
+  check(bar.anchorH == tpl::AnchorH::Span && bar.anchorV == tpl::AnchorV::Bottom, "a bar dragged across the bottom spans the width and sticks to the bottom");
+  env.v->setTool(EditorCanvas::ToolEllipse);
+  env.drag(540, 20, 620, 80);
+  check(d->doc().items.last().anchorH == tpl::AnchorH::Right && d->doc().items.last().anchorV == tpl::AnchorV::Top, "a circle in the top right corner sticks to it");
+  env.v->setTool(EditorCanvas::ToolText);
+  env.press(30, 30);
+  env.release(30, 30);
+  QApplication::processEvents();
+  if (QPlainTextEdit *edit = visibleEdit(env)) QTest::keyClick(edit, Qt::Key_Escape);
+  check(d->doc().items.last().type == tpl::ItemType::Text && d->doc().items.last().anchorH == tpl::AnchorH::Left && d->doc().items.last().anchorV == tpl::AnchorV::Top, "text placed top left is anchored top left");
+  check(tpl::loadJson(tpl::toJson(d->doc())).doc.items.last().anchorV == tpl::AnchorV::Top, "(and the anchors are saved)");
+
+  // the Anchor section follows the layout and the selection
+  env.v->setSelection(QStringList(bar.id));
+  QApplication::processEvents();
+  QApplication::processEvents();
+  check(panelChild<QWidget>(p, "anchorBox")->isVisibleTo(p), "an anchored template shows the Anchor section");
+  QComboBox *ah = panelChild<QComboBox>(p, "anchorHCombo"), *av = panelChild<QComboBox>(p, "anchorVCombo");
+  check(ah->currentData().toInt() == int(tpl::AnchorH::Span) && av->currentData().toInt() == int(tpl::AnchorV::Bottom), "which shows the item's anchors");
+  const int before = d->undoStack()->index();
+  ah->setCurrentIndex(ah->findData(int(tpl::AnchorH::Right)));
+  emit ah->activated(ah->currentIndex());
+  check(d->find(bar.id)->anchorH == tpl::AnchorH::Right && d->undoStack()->index() == before + 1, "changing it edits the item, undoably (an anchor change is not 'no change')");
+  d->undoStack()->undo();
+  check(d->find(bar.id)->anchorH == tpl::AnchorH::Span, "and undoes");
+  // free text and turned items cannot be stretched: the panel says so
+  env.v->setSelection(QStringList(d->doc().items.last().id));
+  QApplication::processEvents();
+  QApplication::processEvents();
+  check(panelChild<QWidget>(p, "anchorHCombo")->parentWidget()->findChild<QLabel *>() != nullptr, "(free text: the hint about stretching is there)");
+
+  // the layout is a property of the document, switched in one undo step with the anchors it implies
+  {
+    Env e2;
+    e2.ed.newTemplate(QSize(640, 496), tpl::TemplateDocument::Stretch);
+    EditorDocument *d2 = e2.d;
+    check(d2->doc().layout == tpl::TemplateDocument::Stretch, "a template can be created stretched");
+    const QString b2 = add(*d2, make(tpl::ItemType::Rect, QPointF(0, 430), QSizeF(640, 66)));
+    const QString c2 = add(*d2, make(tpl::ItemType::Rect, QPointF(520, 10), QSizeF(100, 80)));
+    d2->undoStack()->clear();
+    d2->markSaved();
+    PropertiesPanel *p2 = panelOf(e2.ed);
+    e2.v->setSelection(QStringList(b2));
+    QApplication::processEvents();
+    QApplication::processEvents();
+    check(!panelChild<QWidget>(p2, "anchorBox")->isVisibleTo(p2), "a stretched template has no Anchor section");
+    const QByteArray stretched = snap(*d2);
+    e2.ed.applyCanvasSettings(QSize(640, 496), false, tpl::TemplateDocument::Anchored);
+    check(d2->doc().layout == tpl::TemplateDocument::Anchored && d2->undoStack()->count() == 1, "switching to Keep proportions is one undo step");
+    check(get(*d2, b2).anchorH == tpl::AnchorH::Span && get(*d2, b2).anchorV == tpl::AnchorV::Bottom, "the bar got the anchors its position suggests");
+    check(get(*d2, c2).anchorH == tpl::AnchorH::Right && get(*d2, c2).anchorV == tpl::AnchorV::Top, "so did the corner item");
+    QApplication::processEvents();
+    QApplication::processEvents();
+    check(panelChild<QWidget>(p2, "anchorBox")->isVisibleTo(p2), "and the Anchor section appears");
+    d2->undoStack()->undo();
+    check(snap(*d2) == stretched && d2->doc().layout == tpl::TemplateDocument::Stretch, "undo gives the stretched template back exactly");
+    const int index = d2->undoStack()->index();
+    e2.ed.applyCanvasSettings(QSize(640, 496), true, tpl::TemplateDocument::Stretch);
+    e2.ed.applyCanvasSettings(QSize(9999999, 0), true, tpl::TemplateDocument::Stretch);
+    check(d2->undoStack()->index() == index && d2->undoStack()->canRedo(), "nothing to change, or an impossible size: no undo step (and the redo history is kept)");
+    e2.ed.applyCanvasSettings(QSize(320, 248), true, tpl::TemplateDocument::Anchored);
+    check(d2->undoStack()->index() == index + 1 && d2->doc().canvas.size() == QSizeF(320, 248) && near(get(*d2, b2).rect.width(), 320), "a new size with scaling and a new layout together are one step");
+    d2->undoStack()->undo();
+    check(snap(*d2) == stretched, "which undoes completely");
+
+    // a stretched template loaded from a file shows the banner with the way out
+    QTemporaryDir dir;
+    const QString file = dir.filePath("old.qtempl");
+    check(e2.ed.saveTo(file), "(saved)");
+    QWidget *banner = e2.ed.findChild<QWidget *>("layoutBanner");
+    QApplication::processEvents();
+    check(banner && banner->isVisibleTo(&e2.ed), "a saved, stretched template offers Keep proportions in a banner");
+    QPushButton *keep = nullptr;
+    for (QPushButton *b : banner->findChildren<QPushButton *>())
+      if (b->text() == "Keep proportions") keep = b;
+    if (keep) keep->click();
+    QApplication::processEvents();
+    check(d2->doc().layout == tpl::TemplateDocument::Anchored && !banner->isVisibleTo(&e2.ed), "the button switches the layout and the banner goes");
+  }
+}
+
+static void testTextBoxEditor()
+{
+  printf("== text boxes in the editor\n");
+  Env env;
+  EditorDocument *d = env.d;
+  PropertiesPanel *p = panelOf(env.ed);
+  tpl::Element t = make(tpl::ItemType::Text, QPointF(100, 150));
+  t.text = "Call sign";
+  t.font.pointSize = 20;
+  const QString id = add(*d, t);
+  env.v->setSelection(QStringList(id));
+  QApplication::processEvents();
+  QApplication::processEvents();
+  QCheckBox *box = panelChild<QCheckBox>(p, "boxCheck");
+  check(box && !box->isChecked() && !panelChild<QWidget>(p, "boxRow")->isVisibleTo(p), "free text: no box options yet");
+  check(!panelChild<QDoubleSpinBox>(p, "wSpin")->isEnabled(), "and its width follows the font");
+  const double size0 = get(*d, id).font.pointSize;
+  box->setChecked(true);
+  QApplication::processEvents();
+  QApplication::processEvents();
+  const tpl::Element boxed = get(*d, id);
+  check(boxed.textBox && boxed.shrinkToFit && boxed.rect.width() >= 40, "Fit in a box makes a box around the text that shrinks the text to fit");
+  check(panelChild<QWidget>(p, "boxRow")->isVisibleTo(p) && panelChild<QDoubleSpinBox>(p, "wSpin")->isEnabled() && panelChild<QDoubleSpinBox>(p, "hSpin")->isEnabled(), "the alignment options and the width and height appear");
+  QComboBox *align = panelChild<QComboBox>(p, "alignCombo"), *valign = panelChild<QComboBox>(p, "valignCombo");
+  align->setCurrentIndex(align->findData(int(tpl::TextAlign::Center)));
+  emit align->activated(align->currentIndex());
+  valign->setCurrentIndex(valign->findData(int(tpl::TextVAlign::Bottom)));
+  emit valign->activated(valign->currentIndex());
+  panelChild<QCheckBox>(p, "wrapCheck")->setChecked(true);
+  panelChild<QCheckBox>(p, "shrinkCheck")->setChecked(false);
+  const tpl::Element set = get(*d, id);
+  check(set.align == tpl::TextAlign::Center && set.valign == tpl::TextVAlign::Bottom && set.wrap && !set.shrinkToFit, "alignment, wrap and shrink are set from the panel");
+  d->undoStack()->undo();
+  d->undoStack()->undo();
+  d->undoStack()->undo();
+  d->undoStack()->undo();
+  check(get(*d, id).textBox && get(*d, id).align == tpl::TextAlign::Left, "each of them is an undo step");
+  for (int i = 0; i < 4; i++) d->undoStack()->redo();
+
+  // the handles resize the box, not the font
+  env.v->setSelection(QStringList(id));
+  QApplication::processEvents();
+  tpl::Element b0 = get(*d, id);
+  b0.rect = QRectF(0, 0, 120, 40);
+  d->modifyItems(QVector<tpl::Element>() << b0, "size");
+  QApplication::processEvents();
+  b0 = get(*d, id);
+  const QPointF rightMiddle = b0.pos + QPointF(b0.rect.right(), b0.rect.center().y());
+  env.drag(rightMiddle.x(), rightMiddle.y(), rightMiddle.x() + 40, rightMiddle.y());
+  const tpl::Element grown = get(*d, id);
+  check(near(grown.rect.width(), b0.rect.width() + 40, 1.5) && near(grown.rect.height(), b0.rect.height(), 0.01) && near(grown.font.pointSize, b0.font.pointSize, 0.001),
+        QString("dragging the right-hand handle widens the box (%1 -> %2) and leaves the font alone").arg(b0.rect.width()).arg(grown.rect.width()));
+  const QPointF bottomRight = grown.pos + QPointF(grown.rect.right(), grown.rect.bottom());
+  env.drag(bottomRight.x(), bottomRight.y(), bottomRight.x() - 20, bottomRight.y() - 10);
+  check(near(get(*d, id).font.pointSize, grown.font.pointSize, 0.001) && get(*d, id).rect.width() < grown.rect.width(), "a corner handle resizes the box as well");
+
+  // the Text tool: a click is free text, a drag a box
+  env.v->setTool(EditorCanvas::ToolText);
+  env.drag(100, 300, 300, 360);
+  QApplication::processEvents();
+  const tpl::Element drawn = d->doc().items.last();
+  check(drawn.type == tpl::ItemType::Text && drawn.textBox && drawn.wrap && drawn.shrinkToFit && near(drawn.rect.width(), 200, 1) && near(drawn.rect.height(), 60, 1),
+        QString("dragging with the Text tool draws a text box (%1 x %2)").arg(drawn.rect.width()).arg(drawn.rect.height()));
+  if (QPlainTextEdit *edit = visibleEdit(env))
+    {
+      QTest::keyClicks(edit, "A text that is long enough to need several lines or a smaller size");
+      QTest::keyClick(edit, Qt::Key_Return, Qt::ControlModifier);
+      QApplication::processEvents();
+    }
+  check(d->doc().items.last().text.startsWith("A text") && d->doc().items.last().textBox, "which can be typed into");
+
+  // back to free text: the rectangle follows the text again
+  env.v->setSelection(QStringList(id));
+  QApplication::processEvents();
+  QApplication::processEvents();
+  panelChild<QCheckBox>(p, "boxCheck")->setChecked(false);
+  const tpl::Element freed = get(*d, id);
+  check(!freed.textBox && near(freed.rect.width(), tpl::textBounds(freed).width(), 0.5), "unchecking the box gives free text, sized by its font again");
+  (void)size0;
+}
+
+static void testShadowCornersPanel()
+{
+  printf("== shadow and corner radius in the panel\n");
+  Env env;
+  EditorDocument *d = env.d;
+  PropertiesPanel *p = panelOf(env.ed);
+  const QString r = add(*d, make(tpl::ItemType::Rect, QPointF(50, 50), QSizeF(100, 60)));
+  const QString e = add(*d, make(tpl::ItemType::Ellipse, QPointF(200, 50), QSizeF(80, 80)));
+  d->undoStack()->clear();
+  env.v->setSelection(QStringList(r));
+  QApplication::processEvents();
+  QApplication::processEvents();
+  check(panelChild<QWidget>(p, "radiusRow")->isVisibleTo(p), "a rectangle has a corner radius");
+  panelChild<QDoubleSpinBox>(p, "radiusSpin")->setValue(12);
+  check(near(get(*d, r).radius, 12), "which is set from the panel");
+  check(!panelChild<QDoubleSpinBox>(p, "shadowXSpin")->isEnabled(), "the shadow fields are off until the shadow is");
+  QCheckBox *sh = panelChild<QCheckBox>(p, "shadowCheck");
+  sh->setChecked(true);
+  QApplication::processEvents();
+  check(get(*d, r).shadow.on && panelChild<QDoubleSpinBox>(p, "shadowXSpin")->isEnabled(), "Drop shadow switches it on");
+  const int base = d->undoStack()->index();
+  QDoubleSpinBox *x = panelChild<QDoubleSpinBox>(p, "shadowXSpin");
+  x->setValue(5);
+  x->setValue(6);
+  x->setValue(7);
+  panelChild<QDoubleSpinBox>(p, "shadowBlurSpin")->setValue(4);
+  check(near(get(*d, r).shadow.dx, 7) && near(get(*d, r).shadow.blur, 4) && d->undoStack()->index() == base + 2, "offset and blur are set, typing in one field being one undo step");
+  // two items at once
+  env.v->setSelection(QStringList(r) << e);
+  QApplication::processEvents();
+  QApplication::processEvents();
+  check(!panelChild<QWidget>(p, "radiusRow")->isVisibleTo(p), "no corner radius when an ellipse is selected too");
+  panelChild<QCheckBox>(p, "shadowCheck")->setChecked(false);
+  panelChild<QCheckBox>(p, "shadowCheck")->setChecked(true);
+  check(get(*d, e).shadow.on && get(*d, r).shadow.on, "a shadow can be set on several items at once");
+  // the canvas gives room for a shadow so it is not clipped
+  env.v->clearSelection();
+  QApplication::processEvents();
+  tpl::Element big = get(*d, r);
+  big.shadow.dx = 60;
+  big.shadow.blur = 20;
+  d->modifyItems(QVector<tpl::Element>() << big, "shadow");
+  QApplication::processEvents();
+  const QImage img = env.v->renderItems(1.0);
+  bool beyond = false;
+  for (int y = 50; y < 110 && !beyond; y++)
+    for (int xx = 150; xx < 250; xx++)
+      if (qAlpha(img.pixel(xx, y)) > 0)
+        {
+          beyond = true;
+          break;
+        }
+  check(beyond, "the shadow is drawn outside the item's own rectangle on the canvas");
+
+  // what the canvas draws is what the renderer draws, with all of it in use
+  tpl::TemplateDocument all;
+  all.canvas = QRectF(0, 0, 320, 256);
+  all.layout = tpl::TemplateDocument::Anchored;
+  tpl::Element bx = make(tpl::ItemType::Text, QPointF(20, 20), QSizeF(200, 60));
+  bx.rect = QRectF(0, 0, 200, 60);
+  bx.text = "Boxed text that is much too long for its box";
+  bx.textBox = true;
+  bx.wrap = true;
+  bx.shrinkToFit = true;
+  bx.align = tpl::TextAlign::Center;
+  bx.valign = tpl::TextVAlign::Middle;
+  bx.font.family = "Montserrat";
+  bx.font.pointSize = 18;
+  bx.shadow.on = true;
+  bx.shadow.blur = 3;
+  bx.shadow.dx = 2;
+  bx.shadow.dy = 2;
+  tpl::Element rr = make(tpl::ItemType::Rect, QPointF(20, 120), QSizeF(120, 60));
+  rr.radius = 16;
+  rr.fill = QColor(200, 50, 50);
+  rr.shadow.on = true;
+  rr.shadow.blur = 6;
+  rr.shadow.dx = 4;
+  rr.shadow.dy = 5;
+  rr.rotation = 12;
+  all.items << bx << rr;
+  Env e3;
+  e3.d->load(all, QString());
+  QApplication::processEvents();
+  const QImage canvasImg = e3.v->renderItems(1.0);
+  QImage rendererImg(canvasImg.size(), QImage::Format_ARGB32_Premultiplied);
+  rendererImg.fill(Qt::transparent);
+  {
+    QPainter pp(&rendererImg);
+    pp.setRenderHint(QPainter::Antialiasing);
+    tpl::RenderOptions lit;
+    lit.expandMacros = false;
+    tpl::paintDocument(pp, e3.d->doc(), QRectF(QPointF(0, 0), QSizeF(rendererImg.size())), lit);
+  }
+  const double pr = psnr(canvasImg, rendererImg);
+  check(pr > 45, QString("boxed text, blurred shadows and rounded corners look the same on the canvas and in the renderer (PSNR %1 dB)").arg(pr, 0, 'f', 1));
+}
+
+static void testSizePreviewAndGuides()
+{
+  printf("== size preview and guides\n");
+  Env env;
+  EditorDocument *d = env.d;
+  env.ed.setSizePresets({{"A (320 x 256)", QSize(320, 256)}, {"B (320 x 240)", QSize(320, 240)}, {"C (480 x 256)", QSize(480, 256)}});
+  env.ed.setDefaultCanvasSize(QSize(320, 256));
+  SizePreviewPanel *sp = env.ed.findChild<SizePreviewPanel *>();
+  check(sp != nullptr, "the editor has a size preview");
+  if (!sp) return;
+  QComboBox *combo = sp->findChild<QComboBox *>();
+  auto choose = [&](const QSize &s) {
+    for (int i = 0; i < combo->count(); i++)
+      if (combo->itemData(i).toSize() == s)
+        {
+          combo->setCurrentIndex(i);
+          emit combo->activated(i);
+        }
+  };
+  QImage solid(100, 80, QImage::Format_ARGB32);
+  solid.fill(QColor(20, 60, 100));
+  sp->setPicture(solid);
+  QHash<QChar, QString> vars;
+  vars.insert('c', "W1AW");
+  sp->setSampleValues(vars);
+
+  tpl::TemplateDocument td;
+  td.canvas = QRectF(0, 0, 320, 256);
+  td.layout = tpl::TemplateDocument::Anchored;
+  tpl::Element bar = make(tpl::ItemType::Rect, QPointF(0, 206), QSizeF(320, 50));
+  bar.fill = Qt::red;
+  bar.outline.style = Qt::NoPen;
+  bar.anchorH = tpl::AnchorH::Span;
+  bar.anchorV = tpl::AnchorV::Bottom;
+  tpl::Element sq = make(tpl::ItemType::Rect, QPointF(280, 10), QSizeF(30, 30));
+  sq.fill = Qt::green;
+  sq.outline.style = Qt::NoPen;
+  sq.anchorH = tpl::AnchorH::Right;
+  td.items << bar << sq;
+  d->load(td, QString());
+  QApplication::processEvents();
+
+  choose(QSize(320, 256));
+  QImage a = sp->renderNow();
+  check(a.size() == QSize(320, 256) && qRed(a.pixel(160, 250)) > 200, "the preview is drawn at the chosen mode's size");
+  choose(QSize(320, 240));
+  QImage b = sp->renderNow();
+  check(b.size() == QSize(320, 240) && qRed(b.pixel(160, 236)) > 200 && qRed(b.pixel(2, 236)) > 200 && qRed(b.pixel(317, 236)) > 200, "on a shorter mode the bar is at the bottom and still across the width");
+  choose(QSize(480, 256));
+  QImage c = sp->renderNow();
+  check(c.size() == QSize(480, 256) && qRed(c.pixel(475, 250)) > 200 && qGreen(c.pixel(465, 20)) > 200 && qGreen(c.pixel(300, 20)) < 100, "on a wider mode the bar spans, the square follows the right edge");
+  // it is exactly what the transmit path would produce
+  QImage base(480, 256, QImage::Format_ARGB32);
+  base.fill(QColor(20, 60, 100));
+  tpl::RenderOptions opt;
+  opt.vars = vars;
+  check(c == tpl::overlay(d->doc(), base, opt), "and the same pixels as tpl::overlay() gives for that size");
+  // the hint
+  QLabel *hint = nullptr;
+  for (QLabel *l : sp->findChildren<QLabel *>())
+    if (!l->text().isEmpty() && l->wordWrap()) hint = l;
+  check(hint && hint->isVisibleTo(sp) && !hint->text().contains("squashed"), "a template that keeps its proportions says nothing is stretched");
+  tpl::TemplateDocument stretched = td;
+  stretched.layout = tpl::TemplateDocument::Stretch;
+  d->load(stretched, QString());
+  QApplication::processEvents();
+  QImage st = sp->renderNow();
+  QPushButton *keep = nullptr;
+  for (QPushButton *k : sp->findChildren<QPushButton *>()) keep = k;
+  check(keep && keep->isVisibleTo(sp) && sp->findChildren<QLabel *>().size() >= 1, "a stretched template at another shape offers Keep proportions");
+  check(!(st == c), "and looks different (stretched)");
+  if (keep) keep->click();
+  QApplication::processEvents();
+  check(d->doc().layout == tpl::TemplateDocument::Anchored, "the button switches the layout");
+  choose(QSize(480, 256));
+  check(sp->renderNow() == c, "and the preview then matches the anchored rendering again");
+  choose(QSize(320, 256));
+  sp->renderNow();
+  check(!keep->isVisibleTo(sp), "at the canvas' own shape there is nothing to offer");
+  choose(QSize());   // "Canvas size"
+  check(sp->currentSize() == QSize(320, 256), "the list also has the canvas' own size");
+  env.ed.setSizePresets({{"A (320 x 256)", QSize(320, 256)}, {"B (320 x 240)", QSize(320, 240)}});
+  tpl::TemplateDocument other = d->doc();
+  other.canvas = QRectF(0, 0, 400, 300);
+  d->load(other, QString());
+  check(sp->currentSize() == QSize(400, 300), "'Canvas size' stays chosen when the list of sizes is set again (it is remembered, not replaced by a mode)");
+
+  // guides
+  const QImage clean = env.v->renderItems(1.0);
+  const QImage viewBefore = env.v->viewport()->grab().toImage();
+  env.v->setGuides(true, true, true);
+  QApplication::processEvents();
+  check(env.v->renderItems(1.0) == clean, "guides are not part of the picture the template makes");
+  check(!(env.v->viewport()->grab().toImage() == viewBefore), "but they are drawn on the canvas");
+  QAction *centre = nullptr;
+  for (QAction *act : env.ed.findChildren<QAction *>())
+    if (act->text().contains("Centre Lines")) centre = act;
+  check(centre && centre->isCheckable(), "View > Guides has the centre lines");
+  if (centre)
+    {
+      centre->setChecked(true);
+      env.ed.close();
+      TemplateEditor again;
+      QAction *c2 = nullptr;
+      for (QAction *act : again.findChildren<QAction *>())
+        if (act->text().contains("Centre Lines")) c2 = act;
+      check(c2 && c2->isChecked(), "the choice of guides is remembered");
+    }
+}
+
+static void testPresets()
+{
+  printf("== starter templates and colour bars\n");
+  const QStringList names = templatePresets::starterNames();
+  check(names.size() == 4, "four starting points: blank and three arrangements");
+  bool valid = true, inside = true, anchoredOk = true, stable = true, drawn = true, unique = true;
+  QString what;
+  for (const QSize &size : {QSize(320, 240), QSize(320, 256), QSize(640, 496), QSize(800, 616), QSize(160, 120), QSize(1024, 768)})
+    for (int i = 0; i < names.size(); i++)
+      {
+        const tpl::TemplateDocument d = templatePresets::makeStarter(i, size);
+        valid &= d.canvas.size() == QSizeF(size) && (i == 0) == d.items.isEmpty();
+        anchoredOk &= d.layout == tpl::TemplateDocument::Anchored;
+        QSet<QString> ids;
+        for (const tpl::Element &e : d.items)
+          {
+            unique &= !e.id.isEmpty() && !ids.contains(e.id);
+            ids.insert(e.id);
+            const QRectF frame = e.rect.translated(e.pos);
+            if (frame.left() < -0.5 || frame.top() < -0.5 || frame.right() > size.width() + 0.5 || frame.bottom() > size.height() + 0.5)
+              {
+                inside = false;
+                what = QString("starter %1 at %2x%3, item %4").arg(i).arg(size.width()).arg(size.height()).arg(e.id);
+              }
+          }
+        const QByteArray json = tpl::toJson(d);
+        stable &= tpl::toJson(tpl::loadJson(json).doc) == json;
+        tpl::RenderOptions opt;
+        opt.vars = tpl::sampleVars();
+        QImage blank(size, QImage::Format_ARGB32_Premultiplied);
+        blank.fill(0);
+        const QImage out = tpl::overlay(d, blank, opt);
+        bool any = false;
+        for (int y = 0; y < out.height() && !any; y++)
+          for (int x = 0; x < out.width(); x++)
+            if (qAlpha(out.pixel(x, y)) > 0)
+              {
+                any = true;
+                break;
+              }
+        drawn &= any == (i != 0);
+      }
+  check(valid, "every starter has the canvas size asked for; only the blank one is empty");
+  check(anchoredOk, "and keeps its proportions");
+  check(unique, "item ids are unique");
+  check(inside, "all items lie inside the canvas at every mode size " + what);
+  check(stable, "each is written and read back unchanged");
+  check(drawn, "each draws something with the sample values (the blank one nothing)");
+  check(templatePresets::makeStarter(99, QSize(320, 256)).items.isEmpty() && templatePresets::makeStarter(-1, QSize(320, 256)).items.isEmpty(), "an unknown starter gives the blank template");
+  check(templatePresets::makeStarter(3, QSize(320, 256)).hasReplay() && !templatePresets::makeStarter(1, QSize(320, 256)).hasReplay(), "only the last one has a replay window");
+  // text sizes follow the height of the canvas
+  const double big = templatePresets::makeStarter(1, QSize(640, 496)).items.at(1).font.pointSize;
+  const double small = templatePresets::makeStarter(1, QSize(320, 256)).items.at(1).font.pointSize;
+  check(std::abs(big / small - 496.0 / 256.0) < 0.01, "text sizes follow the height of the canvas");
+
+  // colour bars
+  const QStringList bars = templatePresets::barNames();
+  check(bars.size() == 6, "six colour bar styles");
+  bool barsOk = true;
+  const QRectF canvas(0, 0, 320, 256);
+  for (int i = 0; i < bars.size(); i++)
+    for (bool bottom : {true, false})
+      {
+        const tpl::Element b = templatePresets::makeBar(i, bottom, canvas);
+        barsOk &= b.type == tpl::ItemType::Rect && b.rect.width() == 320 && b.gradient.isActive() && b.gradient.stops.size() >= 2 && b.anchorH == tpl::AnchorH::Span
+                  && b.anchorV == (bottom ? tpl::AnchorV::Bottom : tpl::AnchorV::Top) && b.outline.style == Qt::NoPen
+                  && (bottom ? std::abs(b.pos.y() + b.rect.height() - 256) < 0.01 : b.pos.y() == 0);
+      }
+  check(barsOk, "every bar spans the width, sits at its edge, has a gradient and is anchored there");
+  check(templatePresets::makeBar(99, true, canvas).gradient.isActive(), "an unknown style gives a bar anyway");
+  {
+    // the dark fade is darkest at the edge of the picture
+    tpl::TemplateDocument d;
+    d.canvas = QRectF(0, 0, 100, 100);
+    d.items << templatePresets::makeBar(0, true, d.canvas) << templatePresets::makeBar(0, false, d.canvas);
+    QImage blank(100, 100, QImage::Format_ARGB32_Premultiplied);
+    blank.fill(0);
+    const QImage o = tpl::overlay(d, blank, tpl::RenderOptions());
+    check(qAlpha(o.pixel(50, 99)) > qAlpha(o.pixel(50, 87)) && qAlpha(o.pixel(50, 0)) > qAlpha(o.pixel(50, 12)), "the dark fade is strongest at the edge of the picture, top and bottom alike");
+  }
+
+  // in the editor
+  Env env;
+  QMenu *insert = nullptr;
+  for (QMenu *m : env.ed.menuBar()->findChildren<QMenu *>())
+    if (m->title().contains("Insert")) insert = m;
+  QMenu *barMenu = nullptr;
+  if (insert)
+    for (QAction *a : insert->actions())
+      if (a->menu() && a->text().contains("Colour")) barMenu = a->menu();
+  check(barMenu && barMenu->actions().size() == 2 && barMenu->actions().at(0)->menu()->actions().size() == 6, "Insert > Colour Bar offers bottom and top, six styles each");
+  if (barMenu)
+    {
+      add(*env.d, make(tpl::ItemType::Rect, QPointF(10, 10), QSizeF(50, 50)));
+      env.d->undoStack()->clear();
+      const QString inFront = env.d->doc().items.last().id;
+      env.v->setSelection(QStringList(inFront));
+      barMenu->actions().at(0)->menu()->actions().at(1)->trigger();   // bottom, blue
+      QApplication::processEvents();
+      check(env.d->doc().items.last().id == inFront, "the item that was selected is not moved by inserting a bar");
+      check(env.d->doc().items.size() == 2 && env.d->doc().items.first().gradient.isActive() && env.d->doc().items.first().anchorV == tpl::AnchorV::Bottom, "inserting a bar puts it behind the other items");
+      check(env.d->undoStack()->index() == 1, "in one undo step");
+      env.d->undoStack()->undo();
+      check(env.d->doc().items.size() == 1, "which removes it");
+    }
+  check(env.ed.newTemplate(QSize(640, 496), tpl::TemplateDocument::Anchored, 3) && env.d->doc().items.size() == 4 && env.d->doc().hasReplay() && !env.d->isModified(), "a new template can start from a starter, unmodified until changed");
+  check(env.ed.newTemplate(QSize(320, 256), tpl::TemplateDocument::Stretch, 1) && env.d->doc().layout == tpl::TemplateDocument::Stretch && env.d->doc().canvas.size() == QSizeF(320, 256), "in either layout and any size");
+  CanvasSizeDialog dlg({}, QSize(640, 496), false, "x");
+  dlg.setLayoutOption(false);
+  dlg.setStarters(names);
+  check(!dlg.keepProportions() && dlg.starter() == 0, "the dialog reports the layout and starter chosen");
+}
+
+static void testGroupTransformAndSnapping()
+{
+  printf("== several items: resize and rotate together; snapping while resizing\n");
+  Env env;
+  EditorDocument *d = env.d;
+  const QString a = add(*d, make(tpl::ItemType::Rect, QPointF(100, 100), QSizeF(100, 50)));
+  const QString b = add(*d, make(tpl::ItemType::Rect, QPointF(250, 200), QSizeF(100, 100)));
+  d->undoStack()->clear();
+  d->markSaved();
+  env.v->setSelection(QStringList(a) << b);
+  QApplication::processEvents();
+  const QByteArray before = snap(*d);
+  const Qt::KeyboardModifiers alt = Qt::AltModifier;   // no snapping: exact numbers
+
+  // bottom right handle of the frame (100,100)-(350,300)
+  env.drag(350, 300, 550, 500, alt);
+  check(near(get(*d, a).rect.width(), 180, 0.1) && near(get(*d, a).rect.height(), 100, 0.1) && near(get(*d, a).pos.x(), 100, 0.1), "dragging the frame's corner scales every item about the opposite corner");
+  check(near(get(*d, b).pos.x(), 370, 0.1) && near(get(*d, b).pos.y(), 300, 0.1) && near(get(*d, b).rect.width(), 180, 0.1) && near(get(*d, b).rect.height(), 200, 0.1), "positions and sizes follow, so the arrangement keeps its shape");
+  check(d->undoStack()->index() == 1, "the whole drag is one undo step");
+  d->undoStack()->undo();
+  check(snap(*d) == before, "which undoes completely");
+
+  // Shift keeps the proportions of the group
+  env.v->setSelection(QStringList(a) << b);
+  QApplication::processEvents();
+  env.drag(350, 300, 550, 400, alt | Qt::ShiftModifier);
+  const double k = (get(*d, b).rect.width()) / 100.0;
+  check(near(get(*d, b).rect.height() / 100.0, k, 0.01) && k > 1.7, QString("with Shift the corner keeps the group's proportions (x%1)").arg(k));
+  d->undoStack()->undo();
+
+  // a side handle changes one direction only
+  env.v->setSelection(QStringList(a) << b);
+  QApplication::processEvents();
+  env.drag(350, 200, 450, 200, alt);
+  check(near(get(*d, b).rect.width(), 140, 0.2) && near(get(*d, b).rect.height(), 100, 0.01) && near(get(*d, a).rect.height(), 50, 0.01), "a side handle stretches the group in one direction");
+  d->undoStack()->undo();
+
+  // text in the group: the letters scale with it
+  tpl::Element t = make(tpl::ItemType::Text, QPointF(120, 120));
+  t.text = "CQ";
+  t.font.pointSize = 20;
+  const QString tid = add(*d, t);
+  d->undoStack()->clear();
+  env.v->setSelection(QStringList(a) << tid);
+  QApplication::processEvents();
+  const QRectF frame = env.v->sceneBounds(get(*d, a)).united(env.v->sceneBounds(get(*d, tid)));
+  const double f0 = get(*d, tid).font.pointSize;
+  env.drag(frame.right(), frame.bottom(), frame.left() + frame.width() * 2, frame.top() + frame.height() * 2, alt);
+  check(near(get(*d, tid).font.pointSize, f0 * 2, f0 * 0.05), QString("text in the group is scaled with it (%1 pt -> %2 pt)").arg(f0).arg(get(*d, tid).font.pointSize));
+  d->undoStack()->undo();
+  d->removeItems(QStringList(tid), "remove");
+  d->undoStack()->clear();
+
+  // rotating: the rotate handle is 26 pixels above the middle of the top edge
+  env.v->setSelection(QStringList(a) << b);
+  QApplication::processEvents();
+  env.drag(225, 74, 351, 200, alt);   // from straight above the centre (225,200) to straight right of it: a quarter turn
+  check(near(get(*d, a).rotation, 90, 0.5) && near(get(*d, b).rotation, 90, 0.5), "the rotate handle turns every item by the same angle");
+  const QPointF ca = get(*d, a).pos + get(*d, a).rect.center();
+  const QPointF cb = get(*d, b).pos + get(*d, b).rect.center();
+  check(near(ca.x(), 300, 0.5) && near(ca.y(), 125, 0.5) && near(cb.x(), 175, 0.5) && near(cb.y(), 275, 0.5), QString("and swings the items about the middle of the group (%1,%2 / %3,%4)").arg(ca.x()).arg(ca.y()).arg(cb.x()).arg(cb.y()));
+  check(d->undoStack()->index() == 1, "in one undo step");
+  d->undoStack()->undo();
+  check(snap(*d) == before, "which undoes completely");
+
+  // locked items do not take part
+  tpl::Element locked = get(*d, b);
+  locked.locked = true;
+  d->modifyItems(QVector<tpl::Element>() << locked, "lock");
+  d->undoStack()->clear();
+  env.v->setSelection(QStringList(a) << b);
+  QApplication::processEvents();
+  const tpl::Element lockedBefore = get(*d, b);
+  env.drag(200, 150, 300, 250, alt);   // the frame is the unlocked item's: bottom right corner (200,150)
+  check(near(get(*d, a).rect.width(), 200, 0.5) && get(*d, b).pos == lockedBefore.pos && get(*d, b).rect == lockedBefore.rect, "a locked item stays where it is when the others are resized");
+  d->undoStack()->undo();
+  locked.locked = false;
+  d->modifyItems(QVector<tpl::Element>() << locked, "unlock");
+
+  // Esc cancels a drag
+  env.v->setSelection(QStringList(a) << b);
+  QApplication::processEvents();
+  const QByteArray beforeEsc = snap(*d);
+  env.press(350, 300, alt);
+  env.move(500, 450, alt);
+  env.key(Qt::Key_Escape);
+  env.release(500, 450, alt);
+  check(snap(*d) == beforeEsc, "Esc during a drag puts everything back");
+
+  // --- snapping while resizing one item ---
+  d->undoStack()->clear();
+  const QString r = add(*d, make(tpl::ItemType::Rect, QPointF(100, 400), QSizeF(100, 50)));
+  const QString o = add(*d, make(tpl::ItemType::Rect, QPointF(300, 400), QSizeF(50, 50)));
+  env.v->setSelection(QStringList(r));
+  QApplication::processEvents();
+  env.drag(200, 425, 297, 425);
+  check(near(get(*d, r).rect.width(), 200, 0.01), QString("the edge being dragged snaps to another item's edge (width %1)").arg(get(*d, r).rect.width()));
+  d->undoStack()->undo();
+  env.v->setSelection(QStringList(r));
+  QApplication::processEvents();
+  env.drag(200, 425, 297, 425, alt);
+  check(near(get(*d, r).rect.width(), 197, 0.01), "Alt switches the snapping off");
+  d->undoStack()->undo();
+  env.v->setSelection(QStringList(r));
+  QApplication::processEvents();
+  env.drag(200, 425, 200, 453);   // the bottom edge to the canvas bottom (496)? no: 453 is far from everything
+  check(near(get(*d, r).rect.height(), 50, 0.01) || near(get(*d, r).rect.height(), 78, 0.01), "(a vertical drag that is nowhere near anything)");
+  d->undoStack()->undo();
+  // the canvas edge and centre
+  env.v->setSelection(QStringList(r));
+  QApplication::processEvents();
+  env.drag(200, 425, 317, 425);
+  check(near(get(*d, r).rect.width(), 220, 0.01), "the edge snaps to the middle of the canvas as well");
+  d->undoStack()->undo();
+  // a turned item does not snap (its edges are not the ones the guides are for)
+  tpl::Element turned = get(*d, r);
+  turned.rotation = 30;
+  d->modifyItems(QVector<tpl::Element>() << turned, "turn");
+  const double w0 = get(*d, r).rect.width();
+  env.v->setSelection(QStringList(r));
+  QApplication::processEvents();
+  const QPointF handle = tpl::sceneTransform(get(*d, r)).map(QPointF(get(*d, r).rect.right(), get(*d, r).rect.center().y()));
+  env.drag(handle.x(), handle.y(), handle.x() + 3, handle.y());
+  check(get(*d, r).rect.width() > w0 && get(*d, r).rect.width() < w0 + 6, "a turned item resizes freely");
+  d->undoStack()->undo();
+  d->undoStack()->undo();
+  // grid
+  env.v->setSnapToGrid(true);
+  env.v->setGridSize(16);
+  env.v->setSnapToObjects(false);
+  env.v->setSelection(QStringList(r));
+  QApplication::processEvents();
+  env.drag(200, 425, 203, 425);
+  check(near(get(*d, r).rect.width(), 108, 0.01), QString("with the grid on, the edge snaps to a grid line (width %1)").arg(get(*d, r).rect.width()));
+  (void)o;
+}
+
+static void testReviewFixesPhase3()
+{
+  printf("== review fixes (layout, text boxes, groups)\n");
+  QFontDatabase::addApplicationFont(fixtures + "/Montserrat-Bold.otf");
+  {
+    // a free text put in a box does not move or change size, also when it is turned
+    Env env;
+    EditorDocument *d = env.d;
+    PropertiesPanel *p = panelOf(env.ed);
+    tpl::Element t = make(tpl::ItemType::Text, QPointF(150, 200));
+    t.text = "Hello";
+    t.font.family = "Montserrat";
+    t.font.pointSize = 26;
+    t.font.weight = 700;
+    t.rotation = 30;
+    const QString id = add(*d, t);
+    env.v->setSelection(QStringList(id));
+    QApplication::processEvents();
+    QApplication::processEvents();
+    const QImage before = env.v->renderItems(1.0);
+    panelChild<QCheckBox>(p, "boxCheck")->setChecked(true);
+    QApplication::processEvents();
+    const QImage after = env.v->renderItems(1.0);
+    check(get(*d, id).textBox && psnr(before, after) > 35, QString("ticking 'Fit in a box' leaves a (turned) text exactly where it was and as big (PSNR %1 dB)").arg(psnr(before, after), 0, 'f', 1));
+    check(near(get(*d, id).font.pointSize, 26, 0.001), "and does not shrink it");
+    panelChild<QCheckBox>(p, "boxCheck")->setChecked(false);
+    d->undoStack()->undo();
+    d->undoStack()->undo();
+  }
+  {
+    // scaling a turned text box does not shear it
+    tpl::Element tb = make(tpl::ItemType::Text, QPointF(100, 100));
+    tb.textBox = true;
+    tb.rect = QRectF(0, 0, 200, 50);
+    tb.rotation = 40;
+    tb.font.pointSize = 20;
+    EditorDocument::scaleElement(tb, QPointF(0, 0), 2.0, 1.0);
+    check(near(tb.rect.width() / tb.rect.height(), 4.0, 0.001) && near(tb.font.pointSize, 20 * std::sqrt(2.0), 0.01), "a turned text box keeps its shape when scaled unevenly (mean scale)");
+    tpl::Element flat = tb;
+    flat.rotation = 0;
+    flat.rect = QRectF(0, 0, 200, 50);
+    EditorDocument::scaleElement(flat, QPointF(0, 0), 2.0, 1.0);
+    check(near(flat.rect.width(), 400, 0.001) && near(flat.rect.height(), 50, 0.001), "an upright one is stretched as asked");
+  }
+  {
+    // turning a group that holds free text: the text swings about the middle of the group like the rest
+    Env env;
+    EditorDocument *d = env.d;
+    tpl::Element t = make(tpl::ItemType::Text, QPointF(120, 150));
+    t.text = "CQ CQ";
+    t.font.family = "Montserrat";
+    t.font.pointSize = 24;
+    const QString tid = add(*d, t);
+    const QString rid = add(*d, make(tpl::ItemType::Rect, QPointF(300, 250), QSizeF(80, 40)));
+    d->undoStack()->clear();
+    env.v->setSelection(QStringList(tid) << rid);
+    QApplication::processEvents();
+    QRectF frame = env.v->sceneBounds(get(*d, tid)).united(env.v->sceneBounds(get(*d, rid)));
+    const QPointF c = frame.center();
+    const QPointF centreBefore = tpl::sceneTransform(get(*d, tid)).map(tpl::localBounds(get(*d, tid)).center());
+    env.drag(frame.center().x(), frame.top() - 26, c.x() + 200, c.y(), Qt::AltModifier);   // a quarter turn
+    const tpl::Element turned = get(*d, tid);
+    const QPointF centreAfter = tpl::sceneTransform(turned).map(tpl::localBounds(turned).center());
+    QTransform quarter;
+    quarter.translate(c.x(), c.y());
+    quarter.rotate(turned.rotation);
+    quarter.translate(-c.x(), -c.y());
+    const QPointF expected = quarter.map(centreBefore);
+    check(near(turned.rotation, 90, 1.5) && near(centreAfter.x(), expected.x(), 1.0) && near(centreAfter.y(), expected.y(), 1.0),
+          QString("the text's middle swings with the group (%1,%2 expected %3,%4, turned %5 degrees)").arg(centreAfter.x()).arg(centreAfter.y()).arg(expected.x()).arg(expected.y()).arg(turned.rotation));
+  }
+}
+
 static bool documentSane(const EditorDocument &d, QString *why)
 {
   QSet<QString> ids;
@@ -1250,6 +1959,17 @@ static bool documentSane(const EditorDocument &d, QString *why)
           *why = "range in " + e.id;
           return false;
         }
+      if (!(fin(e.radius) && fin(e.shadow.dx) && fin(e.shadow.dy) && fin(e.shadow.blur)) || e.radius < 0 || e.shadow.blur < 0 || e.shadow.blur > tpl::limits::maxShadowBlur
+          || qAbs(e.shadow.dx) > tpl::limits::maxShadowOffset || qAbs(e.shadow.dy) > tpl::limits::maxShadowOffset || !e.shadow.color.isValid())
+        {
+          *why = "shadow or radius in " + e.id;
+          return false;
+        }
+      if (e.textBox && e.type != tpl::ItemType::Text)
+        {
+          *why = "text box flag on a non-text item " + e.id;
+          return false;
+        }
     }
   return true;
 }
@@ -1267,13 +1987,16 @@ static void testMonkey()
       const QByteArray initial = snap(*env.d);
       const Qt::KeyboardModifiers mods[] = {Qt::NoModifier, Qt::ShiftModifier, Qt::ControlModifier, Qt::AltModifier, Qt::ShiftModifier | Qt::AltModifier};
       const int keys[] = {Qt::Key_Left, Qt::Key_Right, Qt::Key_Up, Qt::Key_Down, Qt::Key_Delete, Qt::Key_Escape, Qt::Key_Return, Qt::Key_F2, Qt::Key_Backspace, Qt::Key_Space};
-      const char *spins[] = {"xSpin", "ySpin", "wSpin", "hSpin", "rotSpin", "shearHSpin", "shearVSpin", "opacitySpin", "outlineWidthSpin", "sizeSpin", "spacingSpin"};
+      const char *spins[] = {"xSpin", "ySpin", "wSpin", "hSpin", "rotSpin", "shearHSpin", "shearVSpin", "opacitySpin", "outlineWidthSpin", "sizeSpin", "spacingSpin",
+                             "radiusSpin", "shadowXSpin", "shadowYSpin", "shadowBlurSpin"};
+      const char *checks[] = {"boxCheck", "wrapCheck", "shrinkCheck", "shadowCheck", "lockedCheck", "italicCheck"};
+      const char *combos[] = {"alignCombo", "valignCombo", "anchorHCombo", "anchorVCombo", "weightCombo"};
       for (int i = 0; i < 350; i++)
         {
           steps++;
           const double x = -60 + rng.bounded(760), y = -60 + rng.bounded(620);
           const Qt::KeyboardModifiers m = mods[rng.bounded(5)];
-          switch (rng.bounded(16))
+          switch (rng.bounded(20))
             {
             case 0: env.v->setTool(EditorCanvas::Tool(rng.bounded(6))); break;
             case 1:
@@ -1310,7 +2033,7 @@ static void testMonkey()
             case 10:
               if (panel)
                 {
-                  QDoubleSpinBox *sb = panelChild<QDoubleSpinBox>(panel, spins[rng.bounded(11)]);
+                  QDoubleSpinBox *sb = panelChild<QDoubleSpinBox>(panel, spins[rng.bounded(15)]);
                   if (sb && sb->isEnabled()) sb->setValue(sb->minimum() + (sb->maximum() - sb->minimum()) * rng.bounded(1000) / 999.0 * (rng.bounded(4) ? 0.01 : 1.0));
                 }
               break;
@@ -1344,6 +2067,43 @@ static void testMonkey()
                     }
                 }
               break;
+            case 15:
+              if (panel)
+                {
+                  QCheckBox *cb = panelChild<QCheckBox>(panel, checks[rng.bounded(6)]);
+                  if (cb && cb->isEnabled() && cb->isVisibleTo(panel)) cb->setChecked(!cb->isChecked());
+                  QComboBox *co = panelChild<QComboBox>(panel, combos[rng.bounded(5)]);
+                  if (co && co->isEnabled() && co->isVisibleTo(panel) && co->count() > 0)
+                    {
+                      const int idx = rng.bounded(co->count());
+                      co->setCurrentIndex(idx);
+                      emit co->activated(idx);
+                    }
+                }
+              break;
+            case 16:
+              switch (rng.bounded(3))
+                {
+                case 0: env.ed.applyCanvasSettings(QSize(100 + rng.bounded(1200), 80 + rng.bounded(900)), rng.bounded(2), rng.bounded(2) ? tpl::TemplateDocument::Anchored : tpl::TemplateDocument::Stretch); break;
+                case 1: QMetaObject::invokeMethod(&env.ed, "insertBar", Q_ARG(int, rng.bounded(6)), Q_ARG(bool, rng.bounded(2) != 0)); break;
+                default: env.v->setGuides(rng.bounded(2), rng.bounded(2), rng.bounded(2)); break;
+                }
+              break;
+            case 17:
+            case 18:
+              {
+                // grab a handle of the selection's frame (a single item's or a group's) and drag it somewhere
+                QRectF frame;
+                for (const tpl::Element &el : env.v->selectedElements()) frame = frame.isNull() ? env.v->sceneBounds(el) : frame.united(env.v->sceneBounds(el));
+                if (!frame.isNull())
+                  {
+                    const QPointF pts[] = {frame.topLeft(), QPointF(frame.center().x(), frame.top()), frame.topRight(), QPointF(frame.right(), frame.center().y()), frame.bottomRight(),
+                                           QPointF(frame.center().x(), frame.bottom()), frame.bottomLeft(), QPointF(frame.left(), frame.center().y()), QPointF(frame.center().x(), frame.top() - 26)};
+                    const QPointF from = pts[rng.bounded(9)];
+                    env.drag(from.x(), from.y(), from.x() + rng.bounded(300) - 150, from.y() + rng.bounded(300) - 150, m);
+                  }
+                break;
+              }
             default: env.v->clearSelection(); break;
             }
           QApplication::processEvents();
@@ -1365,6 +2125,18 @@ static void testMonkey()
           insane++;
           printf("    seed %d end: document not sane: %s\n", seed, qPrintable(why));
         }
+      // whatever came out of it must render at any shape and size, anchored or stretched
+      for (const QSize &sz : {QSize(320, 240), QSize(1, 1), QSize(37, 500), QSize(640, 496)})
+        for (const auto layout : {tpl::TemplateDocument::Anchored, tpl::TemplateDocument::Stretch})
+          {
+            tpl::TemplateDocument dd = env.d->doc();
+            dd.layout = layout;
+            QImage base(sz, QImage::Format_ARGB32_Premultiplied);
+            base.fill(Qt::gray);
+            tpl::RenderOptions ro;
+            ro.vars = tpl::sampleVars();
+            if (tpl::overlay(dd, base, ro).size() != sz) insane++;
+          }
       while (env.d->undoStack()->canUndo()) env.d->undoStack()->undo();
       if (snap(*env.d) != initial)
         {
@@ -1631,6 +2403,13 @@ int main(int argc, char **argv)
   testEditorWindow();
   testExternalEditor();
   testReviewFixes();
+  testLayoutAndAnchors();
+  testTextBoxEditor();
+  testShadowCornersPanel();
+  testSizePreviewAndGuides();
+  testPresets();
+  testGroupTransformAndSnapping();
+  testReviewFixesPhase3();
 
   printf("\n%d passed, %d failed\n", passed, failed);
   return failed ? 1 : 0;

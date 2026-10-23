@@ -71,8 +71,12 @@ public:
       coordinates) stays where it is on the canvas. Used when the rect of a text item follows its text, and by
       the resize handles. */
   static void setRectKeeping(tpl::Element &e, const QRectF &newRect, const QPointF &keep);
-  /*! text items: rect = bounds of the text, the origin of the text staying put */
+  /*! text items: rect = bounds of the text, the origin of the text staying put (not for text in a box: its rect is the box) */
   static void fitTextRect(tpl::Element &e);
+  /*! Scales the item about `origin` (canvas coordinates) by sx, sy: position and size follow, while fonts, strokes, corners and
+      shadows scale by the mean of the two. An item that is turned or skewed keeps its shape: it takes the mean scale about its own
+      centre and the centre moves like any other point. Used for a new canvas size and for resizing a group of items. */
+  static void scaleElement(tpl::Element &e, const QPointF &origin, double sx, double sy);
 
   // --- used by the commands and by the canvas (no undo step) --------------------------------------------------
   void insertRaw(int index, const tpl::Element &e);

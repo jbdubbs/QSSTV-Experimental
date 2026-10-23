@@ -84,6 +84,8 @@ public:
   int gridSize() const { return gridPx; }
   void setExpandMacros(bool on);
   void setMacroVars(const QHash<QChar, QString> &vars);
+  /*! lines to place things by, drawn over the canvas and never exported: the centre lines, and a frame inset by 5 % / 10 % */
+  void setGuides(bool centre, bool margin5, bool margin10);
   void setPreviewImage(const QImage &img);     //!< shown under the template, stretched over the canvas
   void setShowPreview(bool on);
   bool hasPreview() const { return !preview.isNull(); }
@@ -167,6 +169,7 @@ private:
   double zoomFactor = 1.0;
   bool autoFit = true;
 
+  bool guideCentre = false, guideMargin5 = false, guideMargin10 = false;
   bool gridVisible = false, snapGrid = false, snapObjects = true;
   int gridPx = 16;
   QImage preview;
@@ -182,6 +185,8 @@ private:
   double opStartAngle = 0;
   bool opMoved = false;
   bool opShiftToggled = false;                 //!< press toggled the item out/in of the selection: a click, not a drag
+  bool opGroup = false;                        //!< the resize or rotate in progress works on the whole selection
+  QRectF opGroupRect;                          //!< the selection's frame when the drag began (canvas coordinates)
   QString opPressedId;
   QRectF createRect;                           //!< rubber band / shape being drawn, canvas coordinates
   QVector<double> snapXs, snapYs;              //!< candidate snap lines while moving
@@ -198,6 +203,11 @@ private:
   QString hitTest(const QPointF &scenePt) const;
   QPointF toView(const QPointF &scenePt) const { return viewportTransform().map(scenePt); }
   Handle handleAt(const QPoint &viewPt) const;
+  QRectF groupFrame() const;                                         //!< frame of the unlocked selected items when two or more are selected, else null
+  QPointF groupHandleViewPoint(Handle h) const;
+  void updateGroupResize(const QPointF &scenePt, Qt::KeyboardModifiers mods);
+  void updateGroupRotate(const QPointF &scenePt, Qt::KeyboardModifiers mods);
+  double snapEdge(const QVector<double> &candidates, double value, QVector<double> &guides) const;   //!< how far `value` must move to meet a candidate (0 = too far)
   QPointF handlePoint(const tpl::Element &e, Handle h) const;      //!< canvas coordinates
   QPointF handleViewPoint(const tpl::Element &e, Handle h) const;
   bool handleAllowed(const tpl::Element &e, Handle h) const;
@@ -216,6 +226,7 @@ private:
   QString mimeType() const;
   QRectF localBoundsOf(const tpl::Element &e) const;   // tpl::localBounds with the text layout remembered
   QPolygonF outlineOf(const tpl::Element &e) const;     // tpl::sceneOutline likewise
+  void anchorNew(tpl::Element &e) const;               // a new item in an anchored template gets the anchors its place suggests
   void insertElements(QVector<tpl::Element> els, const QPointF &offset, const QString &text);
   void setSelectionInternal(const QSet<QString> &ids);
 };

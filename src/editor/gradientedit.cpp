@@ -168,7 +168,7 @@ GradientEdit::GradientEdit(QWidget *parent) : QWidget(parent)
   angle->setRange(0, 359);
   angle->setWrapping(true);
   angle->setSuffix(QStringLiteral("°"));
-  angle->setToolTip(tr("Direction of the gradient (0° = left to right, 90° = top to bottom)"));
+  angle->setToolTip(tr("Direction of the gradient: 0° runs from left to right, 90° from bottom to top, 180° from right to left, 270° from top to bottom"));
   bar = new GradientStopBar(this);
   colorButton = new QPushButton(tr("Stop colour…"), this);
   removeButton = new QPushButton(tr("Remove stop"), this);

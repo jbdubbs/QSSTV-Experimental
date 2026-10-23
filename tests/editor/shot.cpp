@@ -3,6 +3,7 @@
 // Not part of the test run (tests/editor/run.sh); build with: tests/editor/build.sh <out> tests/editor/shot.cpp
 #include <QtWidgets>
 #include "editoricons.h"
+#include "sizepreviewpanel.h"
 #include "templateeditor.h"
 #include "templatevars.h"
 
@@ -45,8 +46,11 @@ int main(int argc, char **argv)
   TemplateEditor ed;
   ed.resize(1280, 800);
   QVector<SizePreset> presets;
+  presets.append({"Robot 36 (320 × 240)", QSize(320, 240)});
+  presets.append({"Martin 1, Scottie 1 (320 × 256)", QSize(320, 256)});
   presets.append({"PD120, PD180 (640 × 496)", QSize(640, 496)});
   ed.setSizePresets(presets);
+  ed.setDefaultCanvasSize(QSize(320, 240));
   ed.newTemplate(QSize(640, 496));
   EditorDocument *d = ed.document();
   EditorCanvas *c = ed.canvas();
@@ -84,9 +88,21 @@ int main(int argc, char **argv)
   bar.gradient.angle = 90;
   bar.gradient.stops << tpl::GradientStop{0, QColor(10, 20, 40, 120)} << tpl::GradientStop{1, QColor(10, 20, 40, 230)};
   bar.id = "bar";
+  bar.anchorH = tpl::AnchorH::Span;
+  bar.anchorV = tpl::AnchorV::Bottom;
   tpl::Element call = EditorCanvas::defaultElement(tpl::ItemType::Text);
   call.text = "%c de %m";
-  call.pos = QPointF(14, 484);
+  call.pos = QPointF(14, 452);
+  call.rect = QRectF(0, 0, 400, 40);
+  call.textBox = true;
+  call.shrinkToFit = true;
+  call.valign = tpl::TextVAlign::Middle;
+  call.shadow.on = true;
+  call.shadow.dx = 2;
+  call.shadow.dy = 2;
+  call.shadow.blur = 3;
+  call.shadow.color = QColor(0, 0, 0, 200);
+  call.anchorV = tpl::AnchorV::Bottom;
   fnt(call, 26);
   call.id = "call";
   tpl::Element rst = EditorCanvas::defaultElement(tpl::ItemType::Text);
@@ -95,15 +111,24 @@ int main(int argc, char **argv)
   fnt(rst, 13);
   rst.outline.width = 1;
   rst.id = "rsv";
+  rst.anchorV = tpl::AnchorV::Bottom;
   tpl::Element replay = EditorCanvas::defaultElement(tpl::ItemType::Replay);
   replay.pos = QPointF(436, 16);
   replay.rect = QRectF(0, 0, 188, 141);
   replay.id = "replay";
+  replay.anchorH = tpl::AnchorH::Right;
+  replay.shadow.on = true;
+  replay.shadow.dx = 3;
+  replay.shadow.dy = 4;
+  replay.shadow.blur = 6;
+  replay.shadow.color = QColor(0, 0, 0, 150);
   tpl::Element qth = EditorCanvas::defaultElement(tpl::ItemType::Text);
   qth.text = "%q  %l";
   qth.pos = QPointF(380, 484);
   fnt(qth, 14);
   qth.id = "qth";
+  qth.anchorH = tpl::AnchorH::Right;
+  qth.anchorV = tpl::AnchorV::Bottom;
   d->addItems(QVector<tpl::Element>() << bar << call << rst << replay << qth, "build");
   d->undoStack()->clear();
   d->markSaved();
@@ -132,6 +157,22 @@ int main(int argc, char **argv)
   c->setSelection(QStringList("bar"));
   for (int i = 0; i < 6; i++) qApp->processEvents();
   ed.grab().save(out + "/editor-gradient.png");
+
+  // the size preview of a template that keeps its proportions, on a mode of another shape
+  c->clearSelection();
+  if (QDockWidget *dock = ed.findChild<QDockWidget *>("sizePreviewDock")) dock->raise();
+  if (QDockWidget *pd = ed.findChild<QDockWidget *>("propertiesDock"))
+    if (QDockWidget *ld = ed.findChild<QDockWidget *>("layersDock")) ed.resizeDocks({pd, ld}, {280, 470}, Qt::Vertical);
+  if (SizePreviewPanel *sp = ed.findChild<SizePreviewPanel *>())
+    {
+      QHash<QChar, QString> vars = tpl::sampleVars();
+      sp->setSampleValues(vars);
+      sp->renderNow();
+    }
+  for (int i = 0; i < 6; i++) qApp->processEvents();
+  if (SizePreviewPanel *sp = ed.findChild<SizePreviewPanel *>()) sp->renderNow();
+  for (int i = 0; i < 3; i++) qApp->processEvents();
+  ed.grab().save(out + "/editor-sizes.png");
 
   // the icon sheet
   QWidget sheet;

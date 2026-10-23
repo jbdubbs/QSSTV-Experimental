@@ -1,5 +1,7 @@
 #include "editordocument.h"
 
+#include <cmath>
+
 #include <QSet>
 #include "editorcommands.h"
 
@@ -37,7 +39,10 @@ bool sameElement(const tpl::Element &a, const tpl::Element &b)
          && a.outline.miterLimit == b.outline.miterLimit && a.text == b.text && a.font.family == b.font.family
          && a.font.pointSize == b.font.pointSize && a.font.weight == b.font.weight && a.font.italic == b.font.italic
          && a.font.underline == b.font.underline && a.font.strikeOut == b.font.strikeOut && a.font.stretch == b.font.stretch
-         && a.font.letterSpacing == b.font.letterSpacing && (a.image.cacheKey() == b.image.cacheKey() || a.image == b.image);
+         && a.font.letterSpacing == b.font.letterSpacing && (a.image.cacheKey() == b.image.cacheKey() || a.image == b.image)
+         && a.anchorH == b.anchorH && a.anchorV == b.anchorV && a.radius == b.radius && a.shadow.on == b.shadow.on
+         && a.shadow.color == b.shadow.color && a.shadow.dx == b.shadow.dx && a.shadow.dy == b.shadow.dy && a.shadow.blur == b.shadow.blur
+         && a.textBox == b.textBox && a.align == b.align && a.valign == b.valign && a.wrap == b.wrap && a.shrinkToFit == b.shrinkToFit;
 }
 
 bool sameElements(const QVector<tpl::Element> &a, const QVector<tpl::Element> &b)
@@ -103,9 +108,38 @@ void EditorDocument::setRectKeeping(tpl::Element &e, const QRectF &newRect, cons
   e.pos += before - after;
 }
 
+void EditorDocument::scaleElement(tpl::Element &e, const QPointF &origin, double sx, double sy)
+{
+  const double s = std::sqrt(sx * sy);
+  // free text is re-fitted to its letters afterwards; every other rectangle (a text box too) would be sheared if it were stretched along its own axes
+  const bool rigidRect = e.type != tpl::ItemType::Text || e.textBox;
+  if (rigidRect && (e.rotation != 0 || e.skewH != 0 || e.skewV != 0))
+    {
+      // stretching the rectangle along its own axes would shear a turned item: move its centre with everything else and
+      // give it the mean scale instead
+      const QPointF centre = e.pos + e.rect.center();
+      const QPointF moved(origin.x() + (centre.x() - origin.x()) * sx, origin.y() + (centre.y() - origin.y()) * sy);
+      const QPointF c = e.rect.center();
+      e.rect = QRectF(c.x() - e.rect.width() * s / 2, c.y() - e.rect.height() * s / 2, e.rect.width() * s, e.rect.height() * s);
+      e.pos = moved - c;
+    }
+  else
+    {
+      e.pos = QPointF(origin.x() + (e.pos.x() - origin.x()) * sx, origin.y() + (e.pos.y() - origin.y()) * sy);
+      e.rect = QRectF(e.rect.x() * sx, e.rect.y() * sy, e.rect.width() * sx, e.rect.height() * sy);
+    }
+  e.font.pointSize *= s;
+  e.font.letterSpacing *= s;
+  e.outline.width *= s;
+  e.radius *= s;
+  e.shadow.dx *= s;
+  e.shadow.dy *= s;
+  e.shadow.blur *= s;
+}
+
 void EditorDocument::fitTextRect(tpl::Element &e)
 {
-  if (e.type != tpl::ItemType::Text) return;
+  if (e.type != tpl::ItemType::Text || e.textBox) return;
   tpl::RenderOptions literal;
   literal.expandMacros = false;
   const QRectF bounds = tpl::textBounds(e, literal);

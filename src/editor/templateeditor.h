@@ -28,6 +28,7 @@ class QMenu;
 class LayersPanel;
 class MacroPalette;
 class PropertiesPanel;
+class SizePreviewPanel;
 
 class TemplateEditor : public QMainWindow
 {
@@ -41,21 +42,25 @@ public:
 
   // --- what the application passes in ---------------------------------------------------------------------
   void setTemplatesDir(const QString &dir) { templatesDir = dir; }
-  void setSizePresets(const QVector<SizePreset> &presets) { sizePresets = presets; }
-  void setDefaultCanvasSize(const QSize &size) { defaultSize = size; }
+  void setSizePresets(const QVector<SizePreset> &presets);
+  void setDefaultCanvasSize(const QSize &size);
   void setSampleValues(const QHash<QChar, QString> &values);
   void setPreviewPicture(const QImage &img);
 
   // --- files; all of them ask about unsaved changes first --------------------------------------------------
   bool openFile(const QString &fileName);      //!< false if cancelled or unreadable (the user is told why)
-  bool newTemplate(const QSize &size);
-  bool newTemplateDialog();                    //!< asks for the size
+  /*! a new template of the given size; `starter` is an index into templatePresets::starterNames() (0 = blank) */
+  bool newTemplate(const QSize &size, tpl::TemplateDocument::Layout layout = tpl::TemplateDocument::Anchored, int starter = 0);
+  bool newTemplateDialog();                    //!< asks for the size and layout
   bool save();
   bool saveAs();
   bool maybeSave();                            //!< true when it is safe to discard the document
   bool saveTo(const QString &fileName);        //!< no dialogs
   /*! the canvas gets a new size, the items optionally scaled along: one undo step */
   void applyCanvasSize(const QSize &size, bool scaleItems);
+  /*! Size and layout together, in one undo step. Switching to the Anchored layout gives every item the anchors its position
+      suggests (tpl::autoAnchor), so the template keeps its shape on other modes without further work. */
+  void applyCanvasSettings(const QSize &size, bool scaleItems, tpl::TemplateDocument::Layout layout);
   /*! unsaved-changes prompt; tests replace it */
   enum Choice { Save, Discard, Cancel };
   void setUnsavedHandler(std::function<Choice()> h) { unsavedHandler = h; }
@@ -72,6 +77,7 @@ protected:
 
 private slots:
   void updateTitle();
+  void updateLayoutBanner();
   void updateActions();
   void updateStatus();
   void showContextMenu(const QPoint &globalPos);
@@ -92,6 +98,8 @@ private:
   void writeSettings();
   void addRecent(const QString &fileName);
   void updateRecentMenu();
+  void applyGuides();
+  Q_INVOKABLE void insertBar(int style, bool atBottom);   // (invokable: the random-input test calls it)
   QAction *makeAction(const QString &text, const QString &icon, const QKeySequence &shortcut, const QString &tip);
   QAction *makeAction(const QString &text, const QString &icon, QKeySequence::StandardKey key, const QString &tip);
   QString defaultFileName() const;
@@ -102,9 +110,13 @@ private:
   PropertiesPanel *properties;
   LayersPanel *layers;
   MacroPalette *macros;
+  SizePreviewPanel *sizePreview;
   QWidget *banner;
   bool bannerDismissed = false;
   QLabel *bannerLabel;
+  QWidget *layoutBanner;
+  QLabel *layoutBannerLabel;
+  bool layoutBannerDismissed = false;
   QLabel *cursorLabel, *zoomLabel, *sizeLabel, *selectionLabel;
   QMenu *recentMenu, *contextMenu;
   QActionGroup *toolGroup;
@@ -116,6 +128,7 @@ private:
   QAction *frontAct, *forwardAct, *backwardAct, *backAct, *lockAct;
   QAction *zoomInAct, *zoomOutAct, *zoomFitAct, *zoom100Act;
   QAction *gridAct, *snapGridAct, *snapObjectsAct, *previewMacrosAct, *previewPictureAct, *canvasSizeAct, *helpAct;
+  QAction *guideCentreAct, *guide5Act, *guide10Act;
   QList<QAction *> recentActs;
 
   QString templatesDir;

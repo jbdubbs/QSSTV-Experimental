@@ -165,6 +165,8 @@ set(QSSTV_SOURCES
     editor/layerspanel.cpp
     editor/macropalette.cpp
     editor/canvassizedialog.cpp
+    editor/sizepreviewpanel.cpp
+    editor/templatepresets.cpp
     editor/templateeditor.cpp
     editor/editorsetup.cpp
     utils/externaleditor.cpp

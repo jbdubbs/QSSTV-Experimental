@@ -138,6 +138,11 @@ void ElementItem::refresh()
   const double m = elem.outline.width * 2 + 4;
   prepareGeometryChange();
   bounds = b.adjusted(-m, -m, m, m);
+  if (elem.shadow.on)
+    {
+      const double sm = m + elem.shadow.blur * 2 + 4;
+      bounds = bounds.united(b.translated(elem.shadow.dx, elem.shadow.dy).adjusted(-sm, -sm, sm, sm));
+    }
   update();
 }
 
@@ -330,7 +335,7 @@ QRectF EditorCanvas::selectionBounds() const
 
 QRectF EditorCanvas::localBoundsOf(const tpl::Element &e) const
 {
-  if (e.type != tpl::ItemType::Text) return tpl::localBounds(e, renderOpt);
+  if (e.type != tpl::ItemType::Text || e.textBox) return tpl::localBounds(e, renderOpt);
   // laying out a text is the expensive part and the hit tests, handles and guides ask for it all the time: remember it
   const QString key = e.text + QLatin1Char('\x1f') + e.font.family + QLatin1Char('\x1f') + QString::number(e.font.pointSize) + QLatin1Char('|')
                       + QString::number(e.font.weight) + QLatin1Char('|') + QString::number(e.font.stretch) + QLatin1Char('|')
@@ -459,6 +464,14 @@ void EditorCanvas::setMacroVars(const QHash<QChar, QString> &vars)
   viewport()->update();
 }
 
+void EditorCanvas::setGuides(bool centre, bool margin5, bool margin10)
+{
+  guideCentre = centre;
+  guideMargin5 = margin5;
+  guideMargin10 = margin10;
+  viewport()->update();
+}
+
 void EditorCanvas::setPreviewImage(const QImage &img)
 {
   preview = img;
@@ -526,6 +539,20 @@ void EditorCanvas::drawForeground(QPainter *p, const QRectF &rect)
   p->setBrush(Qt::NoBrush);
   p->drawRect(c);
 
+  // guides to place things by: dashed, light blue, over the template
+  if (guideCentre || guideMargin5 || guideMargin10)
+    {
+      p->setPen(QPen(QColor(0, 150, 215, 210), 0, Qt::DashLine));
+      p->setBrush(Qt::NoBrush);
+      if (guideCentre)
+        {
+          p->drawLine(QPointF(c.center().x(), c.top()), QPointF(c.center().x(), c.bottom()));
+          p->drawLine(QPointF(c.left(), c.center().y()), QPointF(c.right(), c.center().y()));
+        }
+      for (const auto &m : {qMakePair(guideMargin5, 0.05), qMakePair(guideMargin10, 0.10)})
+        if (m.first) p->drawRect(c.adjusted(c.width() * m.second, c.height() * m.second, -c.width() * m.second, -c.height() * m.second));
+    }
+
   // snap guides (canvas coordinates)
   if (!guideXs.isEmpty() || !guideYs.isEmpty())
     {
@@ -554,6 +581,31 @@ void EditorCanvas::drawForeground(QPainter *p, const QRectF &rect)
       const QPolygonF poly = viewportTransform().map(QPolygonF(selectionBounds()));
       p->setPen(QPen(accent, 1, Qt::DotLine));
       p->drawPolygon(poly);
+    }
+  if (sel.size() > 1 && op != OpMove && op != OpBand && op != OpCreate && !groupFrame().isNull())
+    {
+      // the frame of the unlocked items has handles of its own: they are resized and turned together
+      const QRectF frame = groupFrame();
+      if (!frame.isNull())
+        {
+          p->setPen(QPen(accent, 1));
+          p->setBrush(Qt::NoBrush);
+          p->setRenderHint(QPainter::Antialiasing, false);
+          p->drawPolygon(viewportTransform().map(QPolygonF(frame)));
+          p->setRenderHint(QPainter::Antialiasing, true);
+          for (int h = 0; h <= HRotate; h++)
+            {
+              const QPointF pt = groupHandleViewPoint(Handle(h));
+              p->setPen(QPen(accent, 1));
+              p->setBrush(palette().color(QPalette::Base));
+              if (h == HRotate)
+                {
+                  p->drawLine(groupHandleViewPoint(HTop), pt);
+                  p->drawEllipse(pt, handlePx / 2 + 1, handlePx / 2 + 1);
+                }
+              else p->drawRect(QRectF(pt.x() - handlePx / 2, pt.y() - handlePx / 2, handlePx, handlePx));
+            }
+        }
     }
   if (sel.size() == 1 && !sel.first().locked && op != OpMove)
     {
@@ -604,7 +656,7 @@ bool EditorCanvas::handleAllowed(const tpl::Element &e, Handle h) const
   if (h == HRotate) return true;
   switch (e.type)
     {
-    case tpl::ItemType::Text: return h == HTopLeft || h == HTopRight || h == HBottomRight || h == HBottomLeft;
+    case tpl::ItemType::Text: return e.textBox || h == HTopLeft || h == HTopRight || h == HBottomRight || h == HBottomLeft;
     case tpl::ItemType::Line: return h == HLeft || h == HRight;
     default: return true;
     }
@@ -626,8 +678,31 @@ QPointF EditorCanvas::handleViewPoint(const tpl::Element &e, Handle h) const
   return top + up * rotateOffsetPx;
 }
 
+QRectF EditorCanvas::groupFrame() const
+{
+  if (selected.size() < 2) return QRectF();
+  QRectF r;
+  for (const tpl::Element &e : selectedElements())
+    if (!e.locked) r = unite(r, sceneBounds(e));
+  return r;
+}
+
+QPointF EditorCanvas::groupHandleViewPoint(Handle h) const
+{
+  const QRectF r = groupFrame();
+  if (h != HRotate) return toView(localPoint(r, h));
+  return toView(localPoint(r, HTop)) + QPointF(0, -rotateOffsetPx);
+}
+
 EditorCanvas::Handle EditorCanvas::handleAt(const QPoint &viewPt) const
 {
+  if (selected.size() >= 2)
+    {
+      if (groupFrame().isNull()) return HNone;
+      for (int h = HRotate; h >= 0; h--)
+        if (QLineF(QPointF(viewPt), groupHandleViewPoint(Handle(h))).length() <= handleHitPx) return Handle(h);
+      return HNone;
+    }
   if (selected.size() != 1) return HNone;
   const tpl::Element *e = doc->find(*selected.begin());
   if (!e || e->locked) return HNone;
@@ -696,6 +771,12 @@ double EditorCanvas::snapDelta(const QVector<double> &candidates, const double (
   return best;
 }
 
+double EditorCanvas::snapEdge(const QVector<double> &candidates, double value, QVector<double> &guides) const
+{
+  const double edges[3] = {value, value, value};
+  return snapDelta(candidates, edges, guides);
+}
+
 QPointF EditorCanvas::snapPoint(const QPointF &p, Qt::KeyboardModifiers mods) const
 {
   if (!snapGrid || (mods & Qt::AltModifier)) return p;
@@ -733,6 +814,30 @@ void EditorCanvas::mousePressEvent(QMouseEvent *e)
     }
 
   const Handle h = handleAt(e->pos());
+  if (h != HNone && selected.size() >= 2)
+    {
+      // a handle of the frame around several items: they are resized or turned together
+      opBefore.clear();
+      for (const tpl::Element &el : selectedElements())
+        if (!el.locked) opBefore.append(el);
+      opGroup = true;
+      opGroupRect = groupFrame();
+      opHandle = h;
+      if (h == HRotate)
+        {
+          op = OpRotate;
+          opAnchorScene = opGroupRect.center();
+          opStartAngle = qRadiansToDegrees(qAtan2(scenePt.y() - opAnchorScene.y(), scenePt.x() - opAnchorScene.x()));
+        }
+      else
+        {
+          op = OpResize;
+          opAnchorScene = localPoint(opGroupRect, (h + 4) % 8);
+          collectSnapLines();
+        }
+      return;
+    }
+  opGroup = false;
   if (h != HNone)
     {
       opBefore = selectedElements();
@@ -751,6 +856,7 @@ void EditorCanvas::mousePressEvent(QMouseEvent *e)
           const QRectF lb = localBoundsOf(s);
           opAnchorLocal = localPoint(lb, opp);
           opAnchorScene = tpl::sceneTransform(s).map(opAnchorLocal);
+          collectSnapLines();
         }
       return;
     }
@@ -818,11 +924,13 @@ void EditorCanvas::mouseMoveEvent(QMouseEvent *e)
       break;
     case OpResize:
       opMoved = true;
-      updateResize(scenePt, e->modifiers());
+      if (opGroup) updateGroupResize(scenePt, e->modifiers());
+      else updateResize(scenePt, e->modifiers());
       break;
     case OpRotate:
       opMoved = true;
-      updateRotate(scenePt, e->modifiers());
+      if (opGroup) updateGroupRotate(scenePt, e->modifiers());
+      else updateRotate(scenePt, e->modifiers());
       break;
     case OpBand:
       {
@@ -942,7 +1050,7 @@ void EditorCanvas::updateResize(const QPointF &scenePt, Qt::KeyboardModifiers mo
   const bool corner = opHandle == HTopLeft || opHandle == HTopRight || opHandle == HBottomRight || opHandle == HBottomLeft;
   const Handle opp = Handle((opHandle + 4) % 8);
 
-  if (s.type == tpl::ItemType::Text)
+  if (s.type == tpl::ItemType::Text && !s.textBox)
     {
       // dragging a corner scales the text about the opposite corner
       const QPointF startHandle = tpl::sceneTransform(s).map(localPoint(localBoundsOf(s), opHandle));
@@ -958,13 +1066,33 @@ void EditorCanvas::updateResize(const QPointF &scenePt, Qt::KeyboardModifiers mo
       return;
     }
 
-  const QPointF lp = tpl::sceneTransform(s).inverted().map(scenePt);
+  QPointF lp = tpl::sceneTransform(s).inverted().map(scenePt);
   const QRectF lb = localBoundsOf(s);
   double l = lb.left(), t = lb.top(), r = lb.right(), b = lb.bottom();
   const bool hasLeft = opHandle == HTopLeft || opHandle == HLeft || opHandle == HBottomLeft;
   const bool hasRight = opHandle == HTopRight || opHandle == HRight || opHandle == HBottomRight;
   const bool hasTop = opHandle == HTopLeft || opHandle == HTop || opHandle == HTopRight;
   const bool hasBottom = opHandle == HBottomLeft || opHandle == HBottom || opHandle == HBottomRight;
+  guideXs.clear();
+  guideYs.clear();
+  if (!(mods & Qt::AltModifier) && s.rotation == 0 && s.skewH == 0 && s.skewV == 0)
+    {
+      // the edge being dragged meets the canvas, other items or the grid (only for an item that is not turned: its edges are then horizontal and vertical)
+      const QPointF sp = s.pos + lp;
+      const QRectF c = doc->doc().canvas;
+      if (hasLeft || hasRight)
+        {
+          double d = snapEdge(snapXs, sp.x(), guideXs);
+          if (guideXs.isEmpty() && snapGrid) d = c.left() + qRound((sp.x() - c.left()) / gridPx) * double(gridPx) - sp.x();
+          lp.rx() += d;
+        }
+      if (hasTop || hasBottom)
+        {
+          double d = snapEdge(snapYs, sp.y(), guideYs);
+          if (guideYs.isEmpty() && snapGrid) d = c.top() + qRound((sp.y() - c.top()) / gridPx) * double(gridPx) - sp.y();
+          lp.ry() += d;
+        }
+    }
   if (hasLeft) l = qMin(lp.x(), r - 1);
   if (hasRight) r = qMax(lp.x(), l + 1);
   if (hasTop) t = qMin(lp.y(), b - 1);
@@ -1003,6 +1131,74 @@ void EditorCanvas::updateRotate(const QPointF &scenePt, Qt::KeyboardModifiers mo
   tpl::Element e = s;
   e.rotation = rot;
   doc->replaceRaw(e);
+  viewport()->update();
+}
+
+void EditorCanvas::updateGroupResize(const QPointF &scenePt, Qt::KeyboardModifiers mods)
+{
+  if (opBefore.isEmpty()) return;
+  const QPointF startHandle = localPoint(opGroupRect, opHandle);
+  const bool hasX = opHandle != HTop && opHandle != HBottom;
+  const bool hasY = opHandle != HLeft && opHandle != HRight;
+  QPointF t = scenePt;
+  guideXs.clear();
+  guideYs.clear();
+  if (!(mods & Qt::AltModifier))
+    {
+      const QRectF c = doc->doc().canvas;
+      if (hasX)
+        {
+          double d = snapEdge(snapXs, t.x(), guideXs);
+          if (guideXs.isEmpty() && snapGrid) d = c.left() + qRound((t.x() - c.left()) / gridPx) * double(gridPx) - t.x();
+          t.rx() += d;
+        }
+      if (hasY)
+        {
+          double d = snapEdge(snapYs, t.y(), guideYs);
+          if (guideYs.isEmpty() && snapGrid) d = c.top() + qRound((t.y() - c.top()) / gridPx) * double(gridPx) - t.y();
+          t.ry() += d;
+        }
+    }
+  double sx = 1, sy = 1;
+  const double dx = startHandle.x() - opAnchorScene.x(), dy = startHandle.y() - opAnchorScene.y();
+  if (hasX && qAbs(dx) > 1e-6) sx = (t.x() - opAnchorScene.x()) / dx;
+  if (hasY && qAbs(dy) > 1e-6) sy = (t.y() - opAnchorScene.y()) / dy;
+  sx = qMax(sx, 0.02);
+  sy = qMax(sy, 0.02);
+  const bool corner = hasX && hasY;
+  if (corner && (mods & Qt::ShiftModifier)) sx = sy = qMax(sx, sy);   // keep the proportions of the group
+  for (const tpl::Element &b : opBefore)
+    {
+      tpl::Element el = b;
+      EditorDocument::scaleElement(el, opAnchorScene, sx, sy);
+      EditorDocument::fitTextRect(el);
+      doc->replaceRaw(el);
+    }
+  viewport()->update();
+}
+
+void EditorCanvas::updateGroupRotate(const QPointF &scenePt, Qt::KeyboardModifiers mods)
+{
+  if (opBefore.isEmpty()) return;
+  double delta = qRadiansToDegrees(qAtan2(scenePt.y() - opAnchorScene.y(), scenePt.x() - opAnchorScene.x())) - opStartAngle;
+  if (mods & Qt::ShiftModifier) delta = qRound(delta / 15.0) * 15.0;
+  QTransform turn;
+  turn.translate(opAnchorScene.x(), opAnchorScene.y());
+  turn.rotate(delta);
+  turn.translate(-opAnchorScene.x(), -opAnchorScene.y());
+  for (const tpl::Element &b : opBefore)
+    {
+      tpl::Element el = b;
+      // every item turns about its own centre by the same angle, and the centres move about the middle of the group
+      const QPointF centre = b.pos + b.rect.center();
+      const QPointF moved = turn.map(centre);
+      double rot = b.rotation + delta;
+      while (rot > 180) rot -= 360;
+      while (rot <= -180) rot += 360;
+      el.rotation = rot;
+      el.pos = b.pos + (moved - centre);
+      doc->replaceRaw(el);
+    }
   viewport()->update();
 }
 
@@ -1053,9 +1249,18 @@ void EditorCanvas::updateCursor(const QPoint &viewPt)
     }
   if (h != HNone)
     {
-      const tpl::Element *e = doc->find(*selected.begin());
-      const QPointF c = toView(tpl::sceneTransform(*e).map(localBoundsOf(*e).center()));
-      const QPointF d = handleViewPoint(*e, h) - c;
+      QPointF c, d;
+      if (selected.size() >= 2)
+        {
+          c = toView(groupFrame().center());
+          d = groupHandleViewPoint(h) - c;
+        }
+      else
+        {
+          const tpl::Element *e = doc->find(*selected.begin());
+          c = toView(tpl::sceneTransform(*e).map(localBoundsOf(*e).center()));
+          d = handleViewPoint(*e, h) - c;
+        }
       double a = qRadiansToDegrees(qAtan2(d.y(), d.x()));
       if (a < 0) a += 180;
       if (a >= 180) a -= 180;
@@ -1208,6 +1413,11 @@ tpl::Element EditorCanvas::defaultElement(tpl::ItemType type)
   return e;
 }
 
+void EditorCanvas::anchorNew(tpl::Element &e) const
+{
+  if (doc->doc().layout == tpl::TemplateDocument::Anchored) tpl::autoAnchor(e, doc->doc().canvas);
+}
+
 void EditorCanvas::createShape(const QRectF &rIn)
 {
   const Tool t = currentTool;
@@ -1217,7 +1427,24 @@ void EditorCanvas::createShape(const QRectF &rIn)
   const bool click = r.width() < clickSlopPx / zoomFactor && r.height() < clickSlopPx / zoomFactor;
   if (t == ToolText)
     {
-      addTextAt(rIn.topLeft(), QStringLiteral("Text"));
+      if (click)
+        {
+          addTextAt(rIn.topLeft(), QStringLiteral("Text"));
+          return;
+        }
+      // dragging out a rectangle with the Text tool makes a text box: the text is laid out inside it and shrinks to fit
+      tpl::Element tb = defaultElement(tpl::ItemType::Text);
+      tb.text = QStringLiteral("Text");
+      tb.textBox = true;
+      tb.shrinkToFit = true;
+      tb.wrap = true;
+      tb.valign = tpl::TextVAlign::Middle;
+      tb.align = tpl::TextAlign::Center;
+      tb.rect = QRectF(0, 0, qMax(r.width(), 20.0), qMax(r.height(), 14.0));
+      tb.pos = r.topLeft();
+      anchorNew(tb);
+      const QStringList ids = doc->addItems(QVector<tpl::Element>() << tb, tr("Add text box"));
+      if (!ids.isEmpty()) editText(ids.first(), true);
       return;
     }
   tpl::ItemType type = tpl::ItemType::Rect;
@@ -1244,6 +1471,7 @@ void EditorCanvas::createShape(const QRectF &rIn)
       e.rect = QRectF(0, 0, qMax(r.width(), 4.0), qMax(r.height(), 4.0));
       e.pos = r.topLeft();
     }
+  anchorNew(e);
   doc->addItems(QVector<tpl::Element>() << e, tr("Add %1").arg(describe(e).toLower()));
 }
 
@@ -1256,6 +1484,7 @@ QString EditorCanvas::addTextAt(const QPointF &pos, const QString &text)
   literal.expandMacros = false;
   const QRectF tb = tpl::textBounds(e, literal);
   e.pos = pos - tb.topLeft();
+  anchorNew(e);
   const QStringList ids = doc->addItems(QVector<tpl::Element>() << e, tr("Add text"));
   if (ids.isEmpty()) return QString();
   editText(ids.first(), true);
@@ -1271,6 +1500,7 @@ void EditorCanvas::addMacro(const QString &macro)
   literal.expandMacros = false;
   const QRectF tb = tpl::textBounds(e, literal);
   e.pos = QPointF(c.center().x() - tb.width() / 2, c.center().y()) - tb.topLeft() - QPointF(0, tb.height() / 2);
+  anchorNew(e);
   doc->addItems(QVector<tpl::Element>() << e, tr("Add text"));
 }
 
@@ -1317,6 +1547,7 @@ bool EditorCanvas::insertImage(const QImage &imgIn, const QPointF &centreIn)
   e.image = img;
   e.rect = QRectF(0, 0, w, h);
   e.pos = centre - QPointF(w / 2, h / 2);
+  anchorNew(e);
   doc->addItems(QVector<tpl::Element>() << e, tr("Add image"));
   return true;
 }
@@ -1341,7 +1572,7 @@ void EditorCanvas::editText(const QString &id, bool isNew)
   pal.setColor(QPalette::Base, light ? QColor(0x30, 0x30, 0x30) : QColor(0xf0, 0xf0, 0xf0));
   pal.setColor(QPalette::Text, light ? QColor(0xf0, 0xf0, 0xf0) : QColor(0x20, 0x20, 0x20));
   ed->setPalette(pal);
-  ed->setLineWrapMode(QPlainTextEdit::NoWrap);
+  ed->setLineWrapMode(el->textBox && el->wrap ? QPlainTextEdit::WidgetWidth : QPlainTextEdit::NoWrap);
   ed->setPlainText(el->text);
   ed->setToolTip(tr("Enter: new line. Ctrl+Enter or click outside: done. Esc: cancel."));
   ed->setGeometry(QRectF(vb.left() - 4, vb.top() - 4, qMax(140.0, vb.width() + 28), qMax(38.0, vb.height() + 16)).toRect());

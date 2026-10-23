@@ -1,7 +1,8 @@
 /***************************************************************************
  *   The properties dock of the template editor: picture, text and font,    *
- *   fill, gradient, outline, opacity and lock, and last the position, size *
- *   and rotation (those are mostly set with the mouse) of the selection.   *
+ *   fill, gradient, outline, shadow, opacity and lock, the anchors (when   *
+ *   the template keeps its proportions), and last the position, size and   *
+ *   rotation (those are mostly set with the mouse) of the selection.       *
  *   Editing a field changes every selected item (where it applies) in one  *
  *   undo step; showing a selection never writes anything back.             *
  *                                                                          *
@@ -56,7 +57,7 @@ private:
   QTimer refreshTimer;
 
   QLabel *emptyLabel;
-  QGroupBox *pictureBox, *textBox, *fillBox, *outlineBox, *opacityBox, *geometryBox;   // in the order they are shown
+  QGroupBox *pictureBox, *textBox, *fillBox, *outlineBox, *shadowBox, *opacityBox, *anchorBox, *geometryBox;   // in the order they are shown
   QDoubleSpinBox *xSpin, *ySpin, *wSpin, *hSpin, *rotSpin, *shearHSpin, *shearVSpin, *opacitySpin;
   QCheckBox *lockedCheck;
   QPushButton *fillButton;
@@ -73,6 +74,13 @@ private:
   QCheckBox *italicCheck, *underlineCheck, *strikeCheck;
   QLabel *pictureInfo;
   QPushButton *replaceImageButton;
+  // text in a box, corner radius, shadow, anchors
+  QCheckBox *boxCheck, *wrapCheck, *shrinkCheck, *shadowCheck;
+  QComboBox *alignCombo, *valignCombo, *anchorHCombo, *anchorVCombo;
+  QWidget *boxRow, *radiusRow;
+  QDoubleSpinBox *radiusSpin, *shadowXSpin, *shadowYSpin, *shadowBlurSpin;
+  QPushButton *shadowColorButton;
+  QLabel *anchorHint;
 };
 
 #endif  // PROPERTIESPANEL_H

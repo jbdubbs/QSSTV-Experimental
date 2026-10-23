@@ -49,5 +49,8 @@
         <file>icons/properties.svg</file>
         <file>icons/help.svg</file>
         <file>icons/template.svg</file>
+        <file>icons/guides.svg</file>
+        <file>icons/colorbar.svg</file>
+        <file>icons/sizes.svg</file>
     </qresource>
 </RCC>

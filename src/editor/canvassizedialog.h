@@ -13,6 +13,7 @@
 #include <QDialog>
 #include <QSize>
 #include <QString>
+#include <QStringList>
 #include <QVector>
 
 struct SizePreset
@@ -23,6 +24,7 @@ struct SizePreset
 
 class QCheckBox;
 class QComboBox;
+class QRadioButton;
 class QSpinBox;
 
 class CanvasSizeDialog : public QDialog
@@ -33,6 +35,14 @@ public:
   CanvasSizeDialog(const QVector<SizePreset> &presets, const QSize &current, bool scaleOption, const QString &title, QWidget *parent = nullptr);
   QSize canvasSize() const;
   bool scaleItems() const;
+
+  /*! shows the layout choice: keep the proportions of the template on every mode (items stick to the edges they are anchored to)
+      or stretch the whole template over the picture, as old templates do */
+  void setLayoutOption(bool keepProportions);
+  bool keepProportions() const;
+  /*! shows a "Start from" list (a new template); entry 0 should be the blank one */
+  void setStarters(const QStringList &names);
+  int starter() const;
 
   static const int minSide = 16;
   static const int maxSide = 4096;
@@ -46,6 +56,10 @@ private:
   QComboBox *combo;
   QSpinBox *widthSpin, *heightSpin;
   QCheckBox *scaleCheck;
+  QRadioButton *keepRadio = nullptr, *stretchRadio = nullptr;
+  QWidget *layoutBox = nullptr;
+  QComboBox *starterCombo = nullptr;
+  QWidget *starterRow = nullptr;
   bool updating = false;
 };
 

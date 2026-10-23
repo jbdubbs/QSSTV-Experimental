@@ -13,7 +13,7 @@ mkdir -p "$OUT"
 INC="-I$SRC/template -I$SRC/editor -I$SRC/utils -I$OUT -isystem $QT -isystem $QT/QtCore -isystem $QT/QtGui -isystem $QT/QtWidgets -isystem $QT/QtSvg -isystem $QT/QtTest"
 CXX="g++ -O1 -fPIC -std=gnu++17 -Wall -Wextra -Wno-unused-parameter -DQT_CORE_LIB -DQT_GUI_LIB -DQT_WIDGETS_LIB -DQT_SVG_LIB -DQT_TESTLIB_LIB $INC"
 
-for h in editordocument editorcanvas propertiespanel layerspanel macropalette canvassizedialog templateeditor gradientedit; do
+for h in editordocument editorcanvas propertiespanel layerspanel macropalette canvassizedialog sizepreviewpanel templateeditor gradientedit; do
   "$MOC" "$SRC/editor/$h.h" -o "$OUT/moc_$h.cpp"
 done
 "$MOC" "$SRC/utils/externaleditor.h" -o "$OUT/moc_externaleditor.cpp"
@@ -23,7 +23,7 @@ done
 # objects are rebuilt only when a source is newer
 SOURCES="template/templatedoc template/templatelegacy template/templaterender template/templatevars utils/macroexpansion utils/externaleditor
 editor/editordocument editor/editorcommands editor/editorcanvas editor/editoricons editor/gradientedit editor/propertiespanel
-editor/layerspanel editor/macropalette editor/canvassizedialog editor/templateeditor"
+editor/layerspanel editor/macropalette editor/canvassizedialog editor/sizepreviewpanel editor/templatepresets editor/templateeditor"
 OBJS=""
 for s in $SOURCES; do
   o="$OUT/$(basename $s).o"
@@ -32,7 +32,7 @@ for s in $SOURCES; do
     $CXX -c "$SRC/$s.cpp" -o "$o" &
   fi
 done
-for h in editordocument editorcanvas propertiespanel layerspanel macropalette canvassizedialog templateeditor gradientedit externaleditor; do
+for h in editordocument editorcanvas propertiespanel layerspanel macropalette canvassizedialog sizepreviewpanel templateeditor gradientedit externaleditor; do
   o="$OUT/moc_$h.o"
   OBJS="$OBJS $o"
   if [ ! -f "$o" ] || [ "$OUT/moc_$h.cpp" -nt "$o" ]; then $CXX -c "$OUT/moc_$h.cpp" -o "$o" & fi

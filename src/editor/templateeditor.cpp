@@ -26,6 +26,8 @@
 #include "layerspanel.h"
 #include "macropalette.h"
 #include "propertiespanel.h"
+#include "sizepreviewpanel.h"
+#include "templatepresets.h"
 #include "templatevars.h"
 
 namespace
@@ -63,6 +65,31 @@ TemplateEditor::TemplateEditor(QWidget *parent) : QMainWindow(parent)
   banner->setPalette(bp);
   banner->hide();
   lay->addWidget(banner);
+  // the old stretch layout squashes text on modes of another shape: say so and offer the other layout
+  layoutBanner = new QWidget;
+  layoutBanner->setObjectName(QStringLiteral("layoutBanner"));
+  QHBoxLayout *lb = new QHBoxLayout(layoutBanner);
+  lb->setContentsMargins(8, 4, 8, 4);
+  layoutBannerLabel = new QLabel(tr("This template is stretched over the picture, so text and shapes look squashed on a mode of another shape. “Keep proportions” lets text keep its shape and items stick to the edges."));
+  layoutBannerLabel->setWordWrap(true);
+  QPushButton *keepButton = new QPushButton(tr("Keep proportions"));
+  keepButton->setToolTip(tr("Switch to the layout that keeps proportions; every item is anchored to the nearest edge (you can change that in the Properties panel)"));
+  QPushButton *layoutDismiss = new QPushButton(tr("Dismiss"));
+  lb->addWidget(layoutBannerLabel, 1);
+  lb->addWidget(keepButton);
+  lb->addWidget(layoutDismiss);
+  layoutBanner->setAutoFillBackground(true);
+  QPalette lp = layoutBanner->palette();
+  lp.setColor(QPalette::Window, QColor(0xe0, 0xee, 0xff));
+  lp.setColor(QPalette::WindowText, QColor(0x10, 0x20, 0x40));
+  layoutBanner->setPalette(lp);
+  layoutBanner->hide();
+  lay->addWidget(layoutBanner);
+  connect(keepButton, &QPushButton::clicked, this, [this]() { applyCanvasSettings(doc.doc().canvas.size().toSize(), false, tpl::TemplateDocument::Anchored); });
+  connect(layoutDismiss, &QPushButton::clicked, this, [this]() {
+    layoutBannerDismissed = true;
+    layoutBanner->hide();
+  });
   lay->addWidget(view, 1);
   setCentralWidget(center);
   connect(bannerClose, &QPushButton::clicked, this, [this]() {
@@ -73,6 +100,10 @@ TemplateEditor::TemplateEditor(QWidget *parent) : QMainWindow(parent)
   properties = new PropertiesPanel(&doc, view, this);
   layers = new LayersPanel(&doc, view, this);
   macros = new MacroPalette(this);
+  sizePreview = new SizePreviewPanel(&doc, this);
+  connect(sizePreview, &SizePreviewPanel::keepProportionsRequested, this, [this]() {
+    applyCanvasSettings(doc.doc().canvas.size().toSize(), false, tpl::TemplateDocument::Anchored);
+  });
 
   createActions();
   createMenus();
@@ -101,8 +132,10 @@ TemplateEditor::TemplateEditor(QWidget *parent) : QMainWindow(parent)
   connect(&doc, &EditorDocument::fileChanged, this, &TemplateEditor::updateTitle);
   connect(&doc, &EditorDocument::reset, this, [this]() {
     bannerDismissed = false;
+    layoutBannerDismissed = false;
     updateTitle();
   });
+  connect(&doc, &EditorDocument::canvasChanged, this, &TemplateEditor::updateLayoutBanner);
   connect(doc.undoStack(), &QUndoStack::cleanChanged, this, &TemplateEditor::updateTitle);
   connect(doc.undoStack(), &QUndoStack::indexChanged, this, &TemplateEditor::updateActions);
   connect(QApplication::clipboard(), &QClipboard::dataChanged, this, &TemplateEditor::updateActions);
@@ -200,12 +233,12 @@ void TemplateEditor::createActions()
     return a;
   };
   selectTool = tool(tr("&Select"), QStringLiteral("select"), QKeySequence(Qt::Key_V), tr("Select and move items. Drag the handles to resize or rotate"), EditorCanvas::ToolSelect);
-  textTool = tool(tr("&Text"), QStringLiteral("text"), QKeySequence(Qt::Key_T), tr("Add text: click where it should go"), EditorCanvas::ToolText);
+  textTool = tool(tr("&Text"), QStringLiteral("text"), QKeySequence(Qt::Key_T), tr("Add text: click where it should go, or drag a box for text that wraps and shrinks to fit"), EditorCanvas::ToolText);
   rectTool = tool(tr("&Rectangle"), QStringLiteral("rect"), QKeySequence(Qt::Key_R), tr("Add a rectangle: drag on the canvas"), EditorCanvas::ToolRect);
   ellipseTool = tool(tr("&Ellipse"), QStringLiteral("ellipse"), QKeySequence(Qt::Key_E), tr("Add an ellipse: drag on the canvas"), EditorCanvas::ToolEllipse);
   lineTool = tool(tr("&Line"), QStringLiteral("line"), QKeySequence(Qt::Key_L), tr("Add a line: drag on the canvas"), EditorCanvas::ToolLine);
   replayTool = tool(tr("Re&play window"), QStringLiteral("replay"), QKeySequence(Qt::Key_P),
-                    tr("Add the replay window: drag on the canvas. The picture of the Transmit tab's preview is shown there"), EditorCanvas::ToolReplay);
+                    tr("Add the replay window: drag on the canvas. When the picture is sent, the picture received last (the preview on the Transmit tab) is shown there; here it is a hatched square"), EditorCanvas::ToolReplay);
   selectTool->setChecked(true);
   imageAct = makeAction(tr("&Picture…"), QStringLiteral("image"), QKeySequence(Qt::CTRL | Qt::Key_I), tr("Add a picture (a logo, for example) from a file. You can also drop picture files on the canvas"));
   connect(imageAct, &QAction::triggered, this, &TemplateEditor::insertImage);
@@ -260,6 +293,10 @@ void TemplateEditor::createActions()
   previewMacrosAct = toggle(tr("Preview &Macros"), QStringLiteral("macro"), tr("Show sample values instead of %c, %m and the other macros"), false);
   previewPictureAct = toggle(tr("Show Picture &Under Template"), QStringLiteral("eye"), tr("Show the current Transmit picture behind the template (only a guide, never saved)"), false);
   previewPictureAct->setEnabled(false);
+  guideCentreAct = toggle(tr("&Centre Lines"), QStringLiteral("guides"), tr("Show lines through the middle of the canvas"), false);
+  guide5Act = toggle(tr("&5 % Margin"), QStringLiteral("guides"), tr("Show a frame 5 % in from each edge, a margin to keep text inside"), false);
+  guide10Act = toggle(tr("&10 % Margin"), QStringLiteral("guides"), tr("Show a frame 10 % in from each edge"), false);
+  for (QAction *a : {guideCentreAct, guide5Act, guide10Act}) connect(a, &QAction::toggled, this, &TemplateEditor::applyGuides);
   connect(gridAct, &QAction::toggled, view, &EditorCanvas::setShowGrid);
   connect(snapGridAct, &QAction::toggled, view, &EditorCanvas::setSnapToGrid);
   connect(snapObjectsAct, &QAction::toggled, view, &EditorCanvas::setSnapToObjects);
@@ -315,6 +352,16 @@ void TemplateEditor::createMenus()
   insert->addAction(lineTool);
   insert->addAction(imageAct);
   insert->addAction(replayTool);
+  insert->addSeparator();
+  QMenu *barsMenu = insert->addMenu(tr("Colour &Bar"));
+  barsMenu->setIcon(QIcon());
+  const QStringList barStyles = templatePresets::barNames();
+  for (bool bottom : {true, false})
+    {
+      QMenu *m = barsMenu->addMenu(bottom ? tr("At the &Bottom") : tr("At the &Top"));
+      for (int i = 0; i < barStyles.size(); i++)
+        connect(m->addAction(barStyles.at(i)), &QAction::triggered, this, [this, i, bottom]() { insertBar(i, bottom); });
+    }
 
   QMenu *arrange = menuBar()->addMenu(tr("&Arrange"));
   arrange->addAction(frontAct);
@@ -340,6 +387,10 @@ void TemplateEditor::createMenus()
   viewMenu->addAction(gridAct);
   viewMenu->addAction(snapGridAct);
   viewMenu->addAction(snapObjectsAct);
+  QMenu *guidesMenu = viewMenu->addMenu(tr("G&uides"));
+  guidesMenu->addAction(guideCentreAct);
+  guidesMenu->addAction(guide5Act);
+  guidesMenu->addAction(guide10Act);
   viewMenu->addSeparator();
   viewMenu->addAction(previewMacrosAct);
   viewMenu->addAction(previewPictureAct);
@@ -434,9 +485,14 @@ void TemplateEditor::createDocks()
   macroDock->setWidget(macros);
   addDockWidget(Qt::RightDockWidgetArea, macroDock);
   tabifyDockWidget(layerDock, macroDock);
+  QDockWidget *sizeDock = new QDockWidget(tr("Size preview"), this);
+  sizeDock->setObjectName(QStringLiteral("sizePreviewDock"));
+  sizeDock->setWidget(sizePreview);
+  addDockWidget(Qt::RightDockWidgetArea, sizeDock);
+  tabifyDockWidget(macroDock, sizeDock);
   layerDock->raise();
   if (QMenu *vm = menuBar()->findChild<QMenu *>(QStringLiteral("viewMenu")))
-    for (QDockWidget *d : {propDock, layerDock, macroDock}) vm->addAction(d->toggleViewAction());
+    for (QDockWidget *d : {propDock, layerDock, macroDock, sizeDock}) vm->addAction(d->toggleViewAction());
   resizeDocks({propDock, layerDock}, {500, 200}, Qt::Vertical);
   resizeDocks({propDock}, {320}, Qt::Horizontal);
 }
@@ -464,7 +520,13 @@ void TemplateEditor::updateTitle()
   if (legacy)
     bannerLabel->setText(tr("This template was imported from the old .templ format. Saving writes a new .qtempl file and leaves %1 untouched; the template list then shows the new file.").arg(name));
   banner->setVisible(legacy && !doc.fileName().isEmpty() && !bannerDismissed);
+  updateLayoutBanner();
   updateActions();
+}
+
+void TemplateEditor::updateLayoutBanner()
+{
+  layoutBanner->setVisible(doc.doc().layout == tpl::TemplateDocument::Stretch && !doc.fileName().isEmpty() && !layoutBannerDismissed);
 }
 
 void TemplateEditor::updateActions()
@@ -512,16 +574,51 @@ void TemplateEditor::showContextMenu(const QPoint &globalPos)
 }
 
 // --- inputs from the application ------------------------------------------------------------------------------
+void TemplateEditor::setSizePresets(const QVector<SizePreset> &presets)
+{
+  sizePresets = presets;
+  sizePreview->setSizes(sizePresets, defaultSize);
+}
+
+void TemplateEditor::setDefaultCanvasSize(const QSize &size)
+{
+  defaultSize = size;
+  sizePreview->setSizes(sizePresets, defaultSize);
+}
+
 void TemplateEditor::setSampleValues(const QHash<QChar, QString> &values)
 {
   view->setMacroVars(values);
   macros->setValues(values);
+  sizePreview->setSampleValues(values);
+}
+
+void TemplateEditor::insertBar(int style, bool atBottom)
+{
+  QUndoStack *stack = doc.undoStack();
+  stack->beginMacro(tr("Add colour bar"));
+  const QStringList added = doc.addItems(QVector<tpl::Element>() << templatePresets::makeBar(style, atBottom, doc.doc().canvas), tr("Add colour bar"));
+  if (!added.isEmpty())
+    {
+      // a bar is a background: text and pictures stay in front of it
+      QStringList order = added;
+      for (const QString &id : doc.ids())
+        if (!added.contains(id)) order << id;
+      doc.reorder(order, tr("Send to back"));
+    }
+  stack->endMacro();
+}
+
+void TemplateEditor::applyGuides()
+{
+  view->setGuides(guideCentreAct->isChecked(), guide5Act->isChecked(), guide10Act->isChecked());
 }
 
 void TemplateEditor::setPreviewPicture(const QImage &img)
 {
   previewPicture = img;
   view->setPreviewImage(img);
+  sizePreview->setPicture(img);
   previewPictureAct->setEnabled(!img.isNull());
   if (img.isNull()) previewPictureAct->setChecked(false);
 }
@@ -576,11 +673,11 @@ bool TemplateEditor::openFile(const QString &fileName)
   return true;
 }
 
-bool TemplateEditor::newTemplate(const QSize &size)
+bool TemplateEditor::newTemplate(const QSize &size, tpl::TemplateDocument::Layout layout, int starter)
 {
   if (!maybeSave()) return false;
-  tpl::TemplateDocument d;
-  d.canvas = QRectF(QPointF(0, 0), QSizeF(size));
+  tpl::TemplateDocument d = templatePresets::makeStarter(starter, size);
+  d.layout = layout;
   doc.load(d, QString());
   view->zoomFit();
   return true;
@@ -589,8 +686,10 @@ bool TemplateEditor::newTemplate(const QSize &size)
 bool TemplateEditor::newTemplateDialog()
 {
   CanvasSizeDialog dlg(sizePresets, defaultSize, false, tr("New template"), this);
+  dlg.setLayoutOption(true);
+  dlg.setStarters(templatePresets::starterNames());
   if (dlg.exec() != QDialog::Accepted) return false;
-  return newTemplate(dlg.canvasSize());
+  return newTemplate(dlg.canvasSize(), dlg.keepProportions() ? tpl::TemplateDocument::Anchored : tpl::TemplateDocument::Stretch, dlg.starter());
 }
 
 void TemplateEditor::revert()
@@ -684,45 +783,41 @@ void TemplateEditor::changeCanvasSize()
 {
   const QRectF old = doc.doc().canvas;
   CanvasSizeDialog dlg(sizePresets, old.size().toSize(), true, tr("Canvas size"), this);
+  dlg.setLayoutOption(doc.doc().layout == tpl::TemplateDocument::Anchored);
   if (dlg.exec() != QDialog::Accepted) return;
-  applyCanvasSize(dlg.canvasSize(), dlg.scaleItems());
+  applyCanvasSettings(dlg.canvasSize(), dlg.scaleItems(), dlg.keepProportions() ? tpl::TemplateDocument::Anchored : tpl::TemplateDocument::Stretch);
 }
 
 void TemplateEditor::applyCanvasSize(const QSize &size, bool scaleItems)
 {
+  applyCanvasSettings(size, scaleItems, doc.doc().layout);
+}
+
+void TemplateEditor::applyCanvasSettings(const QSize &size, bool scaleItems, tpl::TemplateDocument::Layout layout)
+{
   const QRectF old = doc.doc().canvas;
   const QRectF now(old.topLeft(), QSizeF(size));
   // refuse what the document would refuse, before an undo macro is opened for nothing
-  if (now == old || size == old.size().toSize() || size.width() < 1 || size.height() < 1 || size.width() > tpl::limits::maxCoord || size.height() > tpl::limits::maxCoord) return;
+  const bool validSize = size.width() >= 1 && size.height() >= 1 && size.width() <= tpl::limits::maxCoord && size.height() <= tpl::limits::maxCoord;
+  const bool sizeChanged = validSize && !(now == old || size == old.size().toSize());
+  const bool layoutChanged = layout != doc.doc().layout;
+  if (!sizeChanged && !layoutChanged) return;
+  const QRectF newCanvas = sizeChanged ? now : old;
   QUndoStack *stack = doc.undoStack();
-  stack->beginMacro(tr("Change canvas size"));
-  doc.setCanvas(now, doc.doc().layout, tr("Canvas size"));
-  if (scaleItems && old.width() > 0 && old.height() > 0)
+  stack->beginMacro(sizeChanged ? tr("Change canvas size") : tr("Change layout"));
+  doc.setCanvas(newCanvas, layout, sizeChanged ? tr("Canvas size") : tr("Layout"));
+  if (sizeChanged && scaleItems && old.width() > 0 && old.height() > 0)
     {
       const double sx = now.width() / old.width(), sy = now.height() / old.height();
-      const double s = std::sqrt(sx * sy);
       QVector<tpl::Element> scaled = doc.doc().items;
-      for (tpl::Element &e : scaled)
-        {
-          if (e.type != tpl::ItemType::Text && (e.rotation != 0 || e.skewH != 0 || e.skewV != 0))
-            {
-              // stretching the rectangle along its own axes would shear a turned item: move its centre with the
-              // canvas and give it the mean scale instead
-              const QPointF centre = e.pos + e.rect.center();
-              const QPointF moved(old.x() + (centre.x() - old.x()) * sx, old.y() + (centre.y() - old.y()) * sy);
-              const QPointF c = e.rect.center();
-              e.rect = QRectF(c.x() - e.rect.width() * s / 2, c.y() - e.rect.height() * s / 2, e.rect.width() * s, e.rect.height() * s);
-              e.pos = moved - c;
-            }
-          else
-            {
-              e.pos = QPointF(old.x() + (e.pos.x() - old.x()) * sx, old.y() + (e.pos.y() - old.y()) * sy);
-              e.rect = QRectF(e.rect.x() * sx, e.rect.y() * sy, e.rect.width() * sx, e.rect.height() * sy);
-            }
-          e.font.pointSize *= s;
-          e.outline.width *= s;
-        }
+      for (tpl::Element &e : scaled) EditorDocument::scaleElement(e, old.topLeft(), sx, sy);
       doc.modifyItems(scaled, tr("Scale items"));
+    }
+  if (layoutChanged && layout == tpl::TemplateDocument::Anchored)
+    {
+      QVector<tpl::Element> anchoredItems = doc.doc().items;
+      for (tpl::Element &e : anchoredItems) tpl::autoAnchor(e, newCanvas);
+      doc.modifyItems(anchoredItems, tr("Set anchors"));
     }
   stack->endMacro();
   view->zoomFit();
@@ -775,6 +870,9 @@ void TemplateEditor::readSettings()
   gridAct->setChecked(s.value(QStringLiteral("grid"), false).toBool());
   snapGridAct->setChecked(s.value(QStringLiteral("snapGrid"), false).toBool());
   snapObjectsAct->setChecked(s.value(QStringLiteral("snapObjects"), true).toBool());
+  guideCentreAct->setChecked(s.value(QStringLiteral("guideCentre"), false).toBool());
+  guide5Act->setChecked(s.value(QStringLiteral("guide5"), false).toBool());
+  guide10Act->setChecked(s.value(QStringLiteral("guide10"), false).toBool());
   view->setGridSize(s.value(QStringLiteral("gridSize"), 16).toInt());
   s.endGroup();
   updateRecentMenu();
@@ -789,6 +887,9 @@ void TemplateEditor::writeSettings()
   s.setValue(QStringLiteral("grid"), gridAct->isChecked());
   s.setValue(QStringLiteral("snapGrid"), snapGridAct->isChecked());
   s.setValue(QStringLiteral("snapObjects"), snapObjectsAct->isChecked());
+  s.setValue(QStringLiteral("guideCentre"), guideCentreAct->isChecked());
+  s.setValue(QStringLiteral("guide5"), guide5Act->isChecked());
+  s.setValue(QStringLiteral("guide10"), guide10Act->isChecked());
   s.setValue(QStringLiteral("gridSize"), view->gridSize());
   s.endGroup();
 }

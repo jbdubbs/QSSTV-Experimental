@@ -58,6 +58,7 @@ PropertiesPanel::PropertiesPanel(EditorDocument *document, EditorCanvas *editorC
   connect(&refreshTimer, &QTimer::timeout, this, &PropertiesPanel::refresh);
   connect(doc, &EditorDocument::itemChanged, this, [this]() { refreshTimer.start(0); });
   connect(doc, &EditorDocument::reset, this, [this]() { refreshTimer.start(0); });
+  connect(doc, &EditorDocument::canvasChanged, this, [this]() { refreshTimer.start(0); });   // the layout decides whether anchors are shown
   connect(qApp, &QApplication::focusChanged, this, [this]() { doc->breakMerge(); });   // typing in another field starts a new undo step
   refresh();
 }
@@ -177,6 +178,31 @@ void PropertiesPanel::build()
   styleRow->addWidget(underlineCheck);
   styleRow->addWidget(strikeCheck);
   tl->addLayout(styleRow);
+  boxCheck = new QCheckBox(tr("Fit in a box"));
+  boxCheck->setToolTip(tr("Lay the text out inside a box that you resize: aligned, wrapped and made smaller if it is too long. Off: the text is as wide as it needs to be."));
+  tl->addWidget(boxCheck);
+  boxRow = new QWidget;
+  QFormLayout *boxForm = new QFormLayout(boxRow);
+  boxForm->setContentsMargins(0, 0, 0, 0);
+  alignCombo = new QComboBox;
+  alignCombo->addItem(tr("Left"), int(tpl::TextAlign::Left));
+  alignCombo->addItem(tr("Centre"), int(tpl::TextAlign::Center));
+  alignCombo->addItem(tr("Right"), int(tpl::TextAlign::Right));
+  alignCombo->setToolTip(tr("Where the lines sit between the left and right edge of the box"));
+  valignCombo = new QComboBox;
+  valignCombo->addItem(tr("Top"), int(tpl::TextVAlign::Top));
+  valignCombo->addItem(tr("Middle"), int(tpl::TextVAlign::Middle));
+  valignCombo->addItem(tr("Bottom"), int(tpl::TextVAlign::Bottom));
+  valignCombo->setToolTip(tr("Where the text sits between the top and bottom of the box"));
+  wrapCheck = new QCheckBox(tr("Wrap lines"));
+  wrapCheck->setToolTip(tr("Start a new line when a word does not fit the width of the box"));
+  shrinkCheck = new QCheckBox(tr("Shrink to fit"));
+  shrinkCheck->setToolTip(tr("Make the letters smaller (never larger) until all the text fits in the box. A long call sign or location then still fits."));
+  boxForm->addRow(tr("Align"), alignCombo);
+  boxForm->addRow(tr("Vertical"), valignCombo);
+  boxForm->addRow(wrapCheck);
+  boxForm->addRow(shrinkCheck);
+  tl->addWidget(boxRow);
   top->addWidget(textBox);
 
   // --- fill ------------------------------------------------------------------------------------------------
@@ -190,6 +216,14 @@ void PropertiesPanel::build()
   fl->addLayout(fr);
   gradientEdit = new GradientEdit;
   fl->addWidget(gradientEdit);
+  radiusRow = new QWidget;
+  QHBoxLayout *rr = new QHBoxLayout(radiusRow);
+  rr->setContentsMargins(0, 0, 0, 0);
+  radiusSpin = spin(0, 2000, 1, 1, QStringLiteral(" px"));
+  radiusSpin->setToolTip(tr("Rounds the corners of the rectangle (0 = square corners)"));
+  rr->addWidget(new QLabel(tr("Corner radius")));
+  rr->addWidget(radiusSpin, 1);
+  fl->addWidget(radiusRow);
   top->addWidget(fillBox);
 
   // --- outline ---------------------------------------------------------------------------------------------
@@ -214,6 +248,29 @@ void PropertiesPanel::build()
   ol->addRow(outlineJoinLabel, outlineJoinCombo);
   top->addWidget(outlineBox);
 
+  // --- shadow ------------------------------------------------------------------------------------------------
+  shadowBox = new QGroupBox(tr("Shadow"));
+  QGridLayout *sg = new QGridLayout(shadowBox);
+  shadowCheck = new QCheckBox(tr("Drop shadow"));
+  shadowCheck->setToolTip(tr("Draw the item once more behind itself, shifted, in the shadow colour"));
+  shadowColorButton = swatch(tr("Shadow colour (click to change); a transparent colour gives a lighter shadow"));
+  shadowXSpin = spin(-200, 200, 1, 1, QStringLiteral(" px"));
+  shadowYSpin = spin(-200, 200, 1, 1, QStringLiteral(" px"));
+  shadowBlurSpin = spin(0, 100, 1, 1, QStringLiteral(" px"));
+  shadowXSpin->setToolTip(tr("Shift to the right (negative: to the left); the direction does not turn with the item"));
+  shadowYSpin->setToolTip(tr("Shift down (negative: up)"));
+  shadowBlurSpin->setToolTip(tr("Softness of the edge (0 = sharp)"));
+  sg->addWidget(shadowCheck, 0, 0, 1, 2);
+  sg->addWidget(new QLabel(tr("Colour")), 1, 0);
+  sg->addWidget(shadowColorButton, 1, 1, 1, 3);
+  sg->addWidget(new QLabel(tr("X")), 2, 0);
+  sg->addWidget(shadowXSpin, 2, 1);
+  sg->addWidget(new QLabel(tr("Y")), 2, 2);
+  sg->addWidget(shadowYSpin, 2, 3);
+  sg->addWidget(new QLabel(tr("Blur")), 3, 0);
+  sg->addWidget(shadowBlurSpin, 3, 1);
+  top->addWidget(shadowBox);
+
   // --- opacity and lock --------------------------------------------------------------------------------------
   opacityBox = new QGroupBox(tr("Opacity and lock"));
   QGridLayout *og = new QGridLayout(opacityBox);
@@ -225,6 +282,31 @@ void PropertiesPanel::build()
   og->addWidget(opacitySpin, 0, 1);
   og->addWidget(lockedCheck, 1, 0, 1, 2);
   top->addWidget(opacityBox);
+
+  // --- anchor (only when the template keeps its proportions) -----------------------------------------------------
+  anchorBox = new QGroupBox(tr("Anchor"));
+  QFormLayout *af = new QFormLayout(anchorBox);
+  anchorHCombo = new QComboBox;
+  anchorHCombo->addItem(tr("Left"), int(tpl::AnchorH::Left));
+  anchorHCombo->addItem(tr("Centre"), int(tpl::AnchorH::Center));
+  anchorHCombo->addItem(tr("Right"), int(tpl::AnchorH::Right));
+  anchorHCombo->addItem(tr("Left and right"), int(tpl::AnchorH::Span));
+  anchorHCombo->addItem(tr("Scale with picture"), int(tpl::AnchorH::Scale));
+  anchorVCombo = new QComboBox;
+  anchorVCombo->addItem(tr("Top"), int(tpl::AnchorV::Top));
+  anchorVCombo->addItem(tr("Middle"), int(tpl::AnchorV::Middle));
+  anchorVCombo->addItem(tr("Bottom"), int(tpl::AnchorV::Bottom));
+  anchorVCombo->addItem(tr("Top and bottom"), int(tpl::AnchorV::Span));
+  anchorVCombo->addItem(tr("Scale with picture"), int(tpl::AnchorV::Scale));
+  anchorHCombo->setToolTip(tr("How the item follows the sides when the picture is wider or narrower than this canvas. Left, Centre and Right keep its distance to that side; Left and right also stretches it (a bar across the picture)."));
+  anchorVCombo->setToolTip(tr("How the item follows the top and bottom when the picture is taller or shorter than this canvas"));
+  anchorHint = new QLabel(tr("Text without a box, and items that are turned, are moved but not stretched."));
+  anchorHint->setWordWrap(true);
+  anchorHint->setStyleSheet(QStringLiteral("color: gray;"));
+  af->addRow(tr("Horizontal"), anchorHCombo);
+  af->addRow(tr("Vertical"), anchorVCombo);
+  af->addRow(anchorHint);
+  top->addWidget(anchorBox);
 
   // --- position and size -----------------------------------------------------------------------------------
   geometryBox = new QGroupBox(tr("Position and size"));
@@ -283,7 +365,7 @@ void PropertiesPanel::build()
   });
   connect(wSpin, &QDoubleSpinBox::valueChanged, this, [this](double v) {
     apply([v](tpl::Element &e) {
-      if (e.locked || e.type == tpl::ItemType::Text) return;
+      if (e.locked || (e.type == tpl::ItemType::Text && !e.textBox)) return;
       QRectF r = e.rect;
       r.setWidth(v);
       EditorDocument::setRectKeeping(e, r, r.topLeft());
@@ -291,7 +373,7 @@ void PropertiesPanel::build()
   });
   connect(hSpin, &QDoubleSpinBox::valueChanged, this, [this](double v) {
     apply([v](tpl::Element &e) {
-      if (e.locked || e.type == tpl::ItemType::Text || e.type == tpl::ItemType::Line) return;
+      if (e.locked || (e.type == tpl::ItemType::Text && !e.textBox) || e.type == tpl::ItemType::Line) return;
       QRectF r = e.rect;
       r.setHeight(v);
       EditorDocument::setRectKeeping(e, r, r.topLeft());
@@ -367,6 +449,53 @@ void PropertiesPanel::build()
   });
   connect(replaceImageButton, &QPushButton::clicked, this, &PropertiesPanel::replaceImage);
 
+  connect(boxCheck, &QCheckBox::toggled, this, [this](bool on) {
+    apply([on](tpl::Element &e) {
+      if (e.type != tpl::ItemType::Text || e.textBox == on) return;
+      e.textBox = on;
+      if (on)
+        {
+          // the box starts as exactly what the text takes now, so nothing moves or changes size; from then on the text shrinks rather than overflows
+          e.shrinkToFit = true;
+          tpl::RenderOptions literal;
+          literal.expandMacros = false;
+          EditorDocument::setRectKeeping(e, tpl::naturalTextBox(e, literal), QPointF(0, 0));
+        }
+    }, on ? tr("Put text in a box") : tr("Free text"), QString());
+  });
+  connect(alignCombo, &QComboBox::activated, this, [this](int i) {
+    const tpl::TextAlign a = tpl::TextAlign(alignCombo->itemData(i).toInt());
+    apply([a](tpl::Element &e) { e.align = a; }, tr("Align text"), QString());
+  });
+  connect(valignCombo, &QComboBox::activated, this, [this](int i) {
+    const tpl::TextVAlign a = tpl::TextVAlign(valignCombo->itemData(i).toInt());
+    apply([a](tpl::Element &e) { e.valign = a; }, tr("Align text"), QString());
+  });
+  connect(wrapCheck, &QCheckBox::toggled, this, [this](bool on) { apply([on](tpl::Element &e) { e.wrap = on; }, tr("Wrap lines"), QString()); });
+  connect(shrinkCheck, &QCheckBox::toggled, this, [this](bool on) { apply([on](tpl::Element &e) { e.shrinkToFit = on; }, tr("Shrink to fit"), QString()); });
+  connect(radiusSpin, &QDoubleSpinBox::valueChanged, this, [this](double v) {
+    apply([v](tpl::Element &e) { if (e.type == tpl::ItemType::Rect) e.radius = v; }, tr("Corner radius"), QStringLiteral("radius"));
+  });
+  connect(shadowCheck, &QCheckBox::toggled, this, [this](bool on) { apply([on](tpl::Element &e) { e.shadow.on = on; }, on ? tr("Add shadow") : tr("Remove shadow"), QString()); });
+  connect(shadowColorButton, &QPushButton::clicked, this, [this]() {
+    const QVector<tpl::Element> sel = canvas->selectedElements();
+    if (sel.isEmpty()) return;
+    const QColor c = pickColor(sel.first().shadow.color, tr("Shadow colour"));
+    if (!c.isValid()) return;
+    apply([c](tpl::Element &e) { e.shadow.color = c; }, tr("Change shadow"), QString());
+  });
+  connect(shadowXSpin, &QDoubleSpinBox::valueChanged, this, [this](double v) { apply([v](tpl::Element &e) { e.shadow.dx = v; }, tr("Change shadow"), QStringLiteral("shadowx")); });
+  connect(shadowYSpin, &QDoubleSpinBox::valueChanged, this, [this](double v) { apply([v](tpl::Element &e) { e.shadow.dy = v; }, tr("Change shadow"), QStringLiteral("shadowy")); });
+  connect(shadowBlurSpin, &QDoubleSpinBox::valueChanged, this, [this](double v) { apply([v](tpl::Element &e) { e.shadow.blur = v; }, tr("Change shadow"), QStringLiteral("shadowblur")); });
+  connect(anchorHCombo, &QComboBox::activated, this, [this](int i) {
+    const tpl::AnchorH a = tpl::AnchorH(anchorHCombo->itemData(i).toInt());
+    apply([a](tpl::Element &e) { e.anchorH = a; }, tr("Change anchor"), QString());
+  });
+  connect(anchorVCombo, &QComboBox::activated, this, [this](int i) {
+    const tpl::AnchorV a = tpl::AnchorV(anchorVCombo->itemData(i).toInt());
+    apply([a](tpl::Element &e) { e.anchorV = a; }, tr("Change anchor"), QString());
+  });
+
   // object names: used by the tests and by anything that automates the editor
   const struct { QObject *obj; const char *name; } names[] = {
     {xSpin, "xSpin"}, {ySpin, "ySpin"}, {wSpin, "wSpin"}, {hSpin, "hSpin"}, {rotSpin, "rotSpin"}, {shearHSpin, "shearHSpin"},
@@ -375,7 +504,11 @@ void PropertiesPanel::build()
     {outlineStyleCombo, "outlineStyleCombo"}, {outlineJoinCombo, "outlineJoinCombo"}, {textEdit, "textEdit"},
     {macroWarning, "macroWarning"}, {fontWarning, "fontWarning"}, {fontCombo, "fontCombo"}, {sizeSpin, "sizeSpin"},
     {weightCombo, "weightCombo"}, {italicCheck, "italicCheck"}, {spacingSpin, "spacingSpin"}, {pictureInfo, "pictureInfo"},
-    {pictureBox, "pictureBox"}, {textBox, "textBox"}, {fillBox, "fillBox"}, {outlineBox, "outlineBox"}, {opacityBox, "opacityBox"}, {geometryBox, "geometryBox"}};
+    {pictureBox, "pictureBox"}, {textBox, "textBox"}, {fillBox, "fillBox"}, {outlineBox, "outlineBox"}, {shadowBox, "shadowBox"}, {opacityBox, "opacityBox"},
+    {anchorBox, "anchorBox"}, {geometryBox, "geometryBox"}, {boxCheck, "boxCheck"}, {alignCombo, "alignCombo"}, {valignCombo, "valignCombo"},
+    {wrapCheck, "wrapCheck"}, {shrinkCheck, "shrinkCheck"}, {radiusSpin, "radiusSpin"}, {shadowCheck, "shadowCheck"}, {shadowColorButton, "shadowColorButton"},
+    {shadowXSpin, "shadowXSpin"}, {shadowYSpin, "shadowYSpin"}, {shadowBlurSpin, "shadowBlurSpin"}, {anchorHCombo, "anchorHCombo"}, {anchorVCombo, "anchorVCombo"},
+    {radiusRow, "radiusRow"}, {boxRow, "boxRow"}};
   for (const auto &n : names) n.obj->setObjectName(QLatin1String(n.name));
 }
 
@@ -416,7 +549,7 @@ void PropertiesPanel::refresh()
   const QVector<tpl::Element> sel = canvas->selectedElements();
   const bool any = !sel.isEmpty();
   emptyLabel->setVisible(!any);
-  for (QGroupBox *b : {pictureBox, textBox, fillBox, outlineBox, opacityBox, geometryBox}) b->setVisible(any);
+  for (QGroupBox *b : {pictureBox, textBox, fillBox, outlineBox, shadowBox, opacityBox, anchorBox, geometryBox}) b->setVisible(any);
   if (!any) return;
 
   updating = true;
@@ -447,8 +580,9 @@ void PropertiesPanel::refresh()
   const bool geo = !allLocked;
   xSpin->setEnabled(geo);
   ySpin->setEnabled(geo);
-  wSpin->setEnabled(geo && single && e.type != tpl::ItemType::Text);
-  hSpin->setEnabled(geo && single && e.type != tpl::ItemType::Text && e.type != tpl::ItemType::Line);
+  const bool sizeable = e.type != tpl::ItemType::Text || e.textBox;   // free text is sized by its font
+  wSpin->setEnabled(geo && single && sizeable);
+  hSpin->setEnabled(geo && single && sizeable && e.type != tpl::ItemType::Line);
   rotSpin->setEnabled(geo && single);
   shearHSpin->setEnabled(geo && single);
   shearVSpin->setEnabled(geo && single);
@@ -457,6 +591,30 @@ void PropertiesPanel::refresh()
   setSwatch(fillButton, e.gradient.isActive() && !e.gradient.stops.isEmpty() ? e.gradient.stops.first().color : e.fill);
   fillButton->setEnabled(!e.gradient.isActive());
   gradientEdit->setGradient(e.gradient, e.fill);
+  bool allRect = true, anyTurned = false, anyFreeText = false;
+  for (const tpl::Element &s : sel)
+    {
+      allRect &= s.type == tpl::ItemType::Rect;
+      anyTurned |= s.rotation != 0 || s.skewH != 0 || s.skewV != 0;
+      anyFreeText |= s.type == tpl::ItemType::Text && !s.textBox;
+    }
+  radiusRow->setVisible(allRect);
+  setValueIfChanged(radiusSpin, e.radius);
+  radiusSpin->setEnabled(!allLocked);
+
+  shadowCheck->setChecked(e.shadow.on);
+  setSwatch(shadowColorButton, e.shadow.color);
+  setValueIfChanged(shadowXSpin, e.shadow.dx);
+  setValueIfChanged(shadowYSpin, e.shadow.dy);
+  setValueIfChanged(shadowBlurSpin, e.shadow.blur);
+  for (QWidget *w : {static_cast<QWidget *>(shadowColorButton), static_cast<QWidget *>(shadowXSpin), static_cast<QWidget *>(shadowYSpin), static_cast<QWidget *>(shadowBlurSpin)})
+    w->setEnabled(e.shadow.on);
+
+  const bool anchored = doc->doc().layout == tpl::TemplateDocument::Anchored;
+  anchorBox->setVisible(anchored);
+  anchorHCombo->setCurrentIndex(qMax(0, anchorHCombo->findData(int(e.anchorH))));
+  anchorVCombo->setCurrentIndex(qMax(0, anchorVCombo->findData(int(e.anchorV))));
+  anchorHint->setVisible(anyTurned || anyFreeText);
 
   QString outlineTitle = tr("Outline");
   if (sameType && e.type == tpl::ItemType::Line) outlineTitle = tr("Line");
@@ -503,6 +661,13 @@ void PropertiesPanel::refresh()
       underlineCheck->setChecked(e.font.underline);
       strikeCheck->setChecked(e.font.strikeOut);
       setValueIfChanged(spacingSpin, e.font.letterSpacing);
+      boxCheck->setChecked(e.textBox);
+      boxCheck->setEnabled(!e.locked);
+      boxRow->setVisible(e.textBox);
+      alignCombo->setCurrentIndex(qMax(0, alignCombo->findData(int(e.align))));
+      valignCombo->setCurrentIndex(qMax(0, valignCombo->findData(int(e.valign))));
+      wrapCheck->setChecked(e.wrap);
+      shrinkCheck->setChecked(e.shrinkToFit);
     }
 
   const bool isPicture = single && (e.type == tpl::ItemType::Image || e.type == tpl::ItemType::Replay);
