@@ -5,6 +5,7 @@
 #include <cmath>
 #include "templatedoc.h"
 #include "templaterender.h"
+#include "templatevars.h"
 
 static int passed = 0, failed = 0;
 
@@ -758,6 +759,25 @@ static void testMacros()
   check(tpl::expandMacros("%c de %m", v) == "W1AW de N0CALL", "known macros");
   check(tpl::expandMacros("100%% %q|%", v) == "100% |", "escaped percent, unknown macro, trailing percent");
   check(tpl::expandMacros("no macros", v) == "no macros", "plain text untouched");
+
+  // the macro table behind the editor's palette and the "unknown macro" warning
+  QSet<QChar> seen;
+  bool unique = true;
+  for (const tpl::MacroInfo &m : tpl::macroTable())
+    {
+      if (seen.contains(m.tag)) unique = false;
+      seen.insert(m.tag);
+    }
+  check(unique, "every macro tag is used once");
+  check(seen.contains('a') && seen.contains('b'), "latitude (%a) and longitude (%b) are macros");
+  QHash<QChar, QString> pos;
+  pos.insert('a', "47.60620");
+  pos.insert('b', "-122.33210");
+  check(tpl::expandMacros("Lat %a Long %b", pos) == "Lat 47.60620 Long -122.33210", "position macros expand");
+  check(tpl::expandMacros("[%a]", QHash<QChar, QString>()) == "[]", "an empty position prints nothing");
+  check(tpl::unknownMacros("%a %b %m %%").isEmpty(), "position macros are not reported as unknown");
+  check(tpl::unknownMacros("%k") == "k", "a tag that is not in the table is reported");
+  check(tpl::sampleVars().value('a') == "47.60620" && tpl::sampleVars().value('b') == "-122.33210", "sample position values");
 }
 
 static void testFuzz(const QString &fx)

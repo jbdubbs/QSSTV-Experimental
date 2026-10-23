@@ -58,6 +58,8 @@ QHash<QChar, QString> editorMacroValues()
           set('x', iv->comment1);
           set('y', iv->comment2);
           set('z', iv->comment3);
+          set('a', iv->latitude);
+          set('b', iv->longitude);
         }
     }
   return v;

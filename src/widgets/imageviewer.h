@@ -109,6 +109,8 @@ public:
   QString comment1;
   QString comment2;
   QString comment3;
+  QString latitude;       // signed decimal degrees as shown on the TX tab (%a), empty when not set
+  QString longitude;      // %b
   bool stretch;
   void getOrgSize(int &w,int &h) {w=orgWidth; h=orgHeight;}
   QImage *getDisplayedImage();

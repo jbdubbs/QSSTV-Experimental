@@ -12,6 +12,6 @@ QT=${QT_INCLUDE:-/usr/include/qt6}
 OUT=${TMPDIR:-/tmp}/template-test.$$
 trap 'rm -f "$OUT"' EXIT
 g++ -O1 -fPIC -std=gnu++17 -Wall -Wextra -Wno-unused-parameter -I"$SRC/template" -I"$SRC/utils" -isystem "$QT" -isystem "$QT/QtCore" -isystem "$QT/QtGui" \
-    -o "$OUT" "$HERE/test.cpp" "$SRC/template/templatedoc.cpp" "$SRC/template/templatelegacy.cpp" "$SRC/template/templaterender.cpp" \
+    -o "$OUT" "$HERE/test.cpp" "$SRC/template/templatedoc.cpp" "$SRC/template/templatelegacy.cpp" "$SRC/template/templaterender.cpp" "$SRC/template/templatevars.cpp" \
     "$SRC/utils/macroexpansion.cpp" -lQt6Gui -lQt6Core
 "$OUT" "$HERE/fixtures" "$HERE/golden"

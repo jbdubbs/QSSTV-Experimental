@@ -63,6 +63,7 @@ txWidget *txWidgetPtr;
 galleryWidget *galleryWidgetPtr;
 waterfallText *waterfallPtr;
 rigControl *rigControllerPtr;
+gpsReader *gpsReaderPtr;
 xmlInterface *xmlIntfPtr;
 logBook *logBookPtr;
 fileWatcher *fileWatcherPtr;

@@ -17,7 +17,7 @@
 end to scroll.</p>
 <div class="page-toc"><strong>On this page</strong><ul>
 <li><a href="#operator">Operator</a></li><li><a href="#directories">Directories</a></li><li><a href="#gui">Gui</a></li>
-<li><a href="#sound">Sound</a></li><li><a href="#cat">CAT</a></li><li><a href="#cw">CW</a></li><li><a href="#repeater">Repeater</a></li>
+<li><a href="#sound">Sound</a></li><li><a href="#cat">CAT</a></li><li><a href="#gps">GPS</a></li><li><a href="#cw">CW</a></li><li><a href="#repeater">Repeater</a></li>
 <li><a href="#ftp">FTP</a></li><li><a href="#waterfall">Waterfall</a></li><li><a href="#hybrid">Hybrid</a></li>
 <li><a href="#drmprofiles">DRM</a></li><li><a href="#frequencies">Frequencies</a></li></ul></div>
 
@@ -104,6 +104,15 @@ With CAT working, the status bar shows the rig frequency.</p>
 (default 7362). When it is enabled, the program does not send the extra Hamlib data command from the Frequencies page.</p>
 <h3>TX on Delay</h3>
 <p>The time in seconds between keying the transmitter and starting the audio, for radios that need a moment to switch.</p>
+
+<h2 id="gps">GPS</h2>
+<p>Reads the position of the station from a GPS receiver that sends NMEA sentences over a serial port (most USB GPS receivers do). The position goes into the <em>Lat</em> and
+<em>Long</em> boxes on the Transmit tab and from there into the <code>%a</code> and <code>%b</code> template macros; see <a href="transmit.html#gps">GPS position</a>.</p>
+<p>Tick <strong>Enable GPS</strong>, choose the <strong>Serial port</strong> (the list shows the ports found; <strong>Rescan</strong> looks again, and you can type a name that is not listed) and the
+<strong>Baud rate</strong> (4800 or 9600 for most receivers). The GPS needs a port of its own: it must differ from the CAT serial port and the PTT serial port. The port is opened only while a position is read.
+<strong>Read the GPS before each WA8LMF beacon transmission</strong> makes <a href="transmit.html#beacon">WA8LMF Beacon Mode</a> read a fresh position for every picture.</p>
+<p><strong>Test</strong> reads the position now, with the port and baud rate shown on the page (they do not need to be saved first), and shows the result or the reason it failed. A receiver that sends data
+but has no fix yet, for example indoors, is reported as such. On Linux your user must be allowed to read the serial port (usually the <code>dialout</code> group).</p>
 
 <h2 id="cw">CW</h2>
 <figure><img src="../images/cfg-cw.png" alt="The CW configuration page with words per minute, text to send and tone" loading="lazy"><figcaption>CW page.</figcaption></figure>

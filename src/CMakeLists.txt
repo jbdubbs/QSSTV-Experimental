@@ -156,6 +156,8 @@ set(QSSTV_SOURCES
     template/templatelegacy.cpp
     template/templaterender.cpp
     template/templatevars.cpp
+    gps/nmeaparser.cpp
+    gps/gpsreader.cpp
     editor/editordocument.cpp
     editor/editorcommands.cpp
     editor/editorcanvas.cpp
@@ -272,6 +274,7 @@ set(QSSTV_SOURCES
     widgets/imagematrix.cpp
     widgets/waterfallform.cpp
     config/rigconfig.cpp
+    config/gpsconfig.cpp
     config/cwconfig.cpp
     config/drmprofileconfig.cpp
     config/ftpconfig.cpp
@@ -330,6 +333,7 @@ set(QSSTV_FORMS
     widgets/sweepform.ui
     widgets/waterfallform.ui
     config/rigconfig.ui
+    config/gpsconfig.ui
     config/cwconfig.ui
     config/drmprofileconfig.ui
     config/ftpconfig.ui
@@ -383,7 +387,7 @@ if(WIN32 OR APPLE)
 endif()
 
 target_include_directories(qsstv PRIVATE
-    config dispatch drmrx drmtx dsp editor logbook mainwidgets
+    config dispatch drmrx drmtx dsp editor gps logbook mainwidgets
     rig scope sound sstv template utils widgets xmlrpc videocapt
 )
 

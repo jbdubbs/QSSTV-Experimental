@@ -26,6 +26,9 @@
 #include "imageviewer.h"
 #include "templatedoc.h"
 #include "testpatternselection.h"
+#include "gpsreader.h"
+#include "nmeaparser.h"
+#include <QMessageBox>
 #include <QMenu>
 #include <QToolButton>
 
@@ -97,6 +100,10 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   connect(ui->toCallLineEdit,SIGNAL(editingFinished ()),SLOT(slotGetParams()));
   connect(ui->operatorLineEdit,SIGNAL(editingFinished ()),SLOT(slotGetParams()));
   connect(ui->rsvLineEdit,SIGNAL(editingFinished ()),SLOT(slotGetParams()));
+  connect(ui->latLineEdit,SIGNAL(editingFinished ()),SLOT(slotGetParams()));
+  connect(ui->lonLineEdit,SIGNAL(editingFinished ()),SLOT(slotGetParams()));
+  connect(ui->gpsToolButton,SIGNAL(clicked()),SLOT(slotGetGps()));
+  connect(gpsReaderPtr,&gpsReader::fixReady,this,&txWidget::slotGpsFix);
   connect(ui->xPlainTextEdit,SIGNAL(editingFinished()),SLOT(slotGetParams()));
   connect(ui->yPlainTextEdit,SIGNAL(editingFinished()),SLOT(slotGetParams()));
   connect(ui->zPlainTextEdit,SIGNAL(editingFinished()),SLOT(slotGetParams()));
@@ -223,6 +230,8 @@ void txWidget::readSettings()
   int enc=qSettings.value("drmImageEncoding",imageViewer::ENCJPEG2000).toInt();
   if(enc!=imageViewer::ENCAVIF || !avifWriteSupported()) enc=imageViewer::ENCJPEG2000;
   imageViewerPtr->setEncoding(enc);
+  imageViewerPtr->latitude=qSettings.value("latitude",QString()).toString();
+  imageViewerPtr->longitude=qSettings.value("longitude",QString()).toString();
   qSettings.endGroup();
   setParams();
 }
@@ -247,6 +256,8 @@ void txWidget::writeSettings()
   qSettings.setValue("compressedSize",compressedSize);
   qSettings.setValue("drmImageEncoding",imageViewerPtr->encoding());
   qSettings.setValue("gridLayout",gridLayout);
+  qSettings.setValue("latitude",imageViewerPtr->latitude);     // the position belongs to the station, not to one QSO
+  qSettings.setValue("longitude",imageViewerPtr->longitude);
   qSettings.endGroup();
 }
 
@@ -279,6 +290,8 @@ void txWidget::slotGetParams()
   getValue(imageViewerPtr->toCall,ui->toCallLineEdit);
   getValue(imageViewerPtr->toOperator,ui->operatorLineEdit);
   getValue(imageViewerPtr->rsv,ui->rsvLineEdit);
+  getValue(imageViewerPtr->latitude,ui->latLineEdit);
+  getValue(imageViewerPtr->longitude,ui->lonLineEdit);
   getValue(imageViewerPtr->comment1,ui->xPlainTextEdit);
   getValue(imageViewerPtr->comment2,ui->yPlainTextEdit);
   getValue(imageViewerPtr->comment3,ui->zPlainTextEdit);
@@ -309,6 +322,8 @@ void txWidget::setParams()
   setValue(useVOX,ui->voxCheckBox);
   setValue(useCW,ui->cwCheckBox);
   setValue(useHybrid,ui->hybridCheckBox);
+  setValue(imageViewerPtr->latitude,ui->latLineEdit);
+  setValue(imageViewerPtr->longitude,ui->lonLineEdit);
   setIndex(drmParams.bandwith,ui->drmTxBandwidthComboBox);
   setIndex(drmParams.interleaver,ui->drmTxInterleaveComboBox);
   setIndex(drmParams.protection,ui->drmTxProtectionComboBox);
@@ -1463,8 +1478,10 @@ void txWidget::startBeacon(int minutes)
   beaconMinutes=minutes;
   beaconRunning=true;
   beaconPending=false;
+  beaconWaitGps=false;
   beaconError.clear();
   updateBeaconUi();
+  if(beaconUsesGps()) requestGps(false);   // the first picture is sent after 10 s, time enough for the position
   // the first picture is already loaded (slotSnapshot); it is sent after 10 s, so the transmit settings can still be adjusted
   beaconHold=true;
   beaconTimer.start(10000);
@@ -1477,6 +1494,7 @@ void txWidget::stopBeacon()
   beaconRunning=false;
   beaconPending=false;
   beaconHold=false;
+  beaconWaitGps=false;
   beaconTimer.stop();
   beaconTick.stop();
   beaconCap.abort();
@@ -1500,6 +1518,7 @@ void txWidget::slotBeaconTick()
       txt=QString("WA8LMF Beacon Mode: next in %1:%2").arg(sec/60).arg(sec%60,2,10,QChar('0'));
     }
   else if(beaconCap.isBusy()) txt="WA8LMF Beacon Mode: grabbing camera image";
+  else if(beaconWaitGps) txt="WA8LMF Beacon Mode: reading the GPS";
   else txt="WA8LMF Beacon Mode: preparing transmission";
   emit beaconCountdownChanged(txt,false);
 }
@@ -1534,6 +1553,7 @@ void txWidget::slotBeaconTimer()
       beaconSkipped("no SSTV or DRM transmit mode is selected");
       return;
     }
+  if(beaconUsesGps()) requestGps(false);   // reads the position while the camera warms up
   beaconCap.start();
 }
 
@@ -1564,6 +1584,11 @@ void txWidget::slotBeaconFrame(const QImage &image)
 void txWidget::beaconTransmitLoaded()
 {
   if(!beaconRunning) return;
+  if(gpsAwaiting)
+    {
+      beaconWaitGps=true;   // the position is still being read: slotGpsFix() comes back here, the GPS timeout bounds the wait
+      return;
+    }
   // the capture takes a few seconds: check that nothing started meanwhile
   if(rxWidgetPtr->rxBusy())
     {
@@ -1584,4 +1609,59 @@ void txWidget::beaconTransmitLoaded()
   beaconPending=true;
   doTx=TXNORMAL;
   prepareTx();
+}
+
+// a GPS position is read for every beacon transmission when the GPS is set up and the option is on (Configuration > GPS)
+bool txWidget::beaconUsesGps() const
+{
+  return gpsEnabled && gpsBeaconRefresh;
+}
+
+bool txWidget::requestGps(bool manual)
+{
+  if(gpsAwaiting)
+    {
+      if(manual) gpsManual=true;   // a beacon read is already under way: the button joins it
+      return true;
+    }
+  if(!gpsReaderPtr->requestFix()) return false;
+  gpsAwaiting=true;
+  gpsManual=manual;
+  ui->gpsToolButton->setEnabled(false);
+  return true;
+}
+
+void txWidget::slotGetGps()
+{
+  if(!gpsEnabled)
+    {
+      QMessageBox::information(this,"GPS","The GPS is not enabled.\nSet it up in Options > Configuration > GPS.");
+      return;
+    }
+  if(!requestGps(true)) QMessageBox::information(this,"GPS","The GPS is busy, try again in a moment.");
+}
+
+void txWidget::slotGpsFix(bool ok,double lat,double lon,const QString &reason)
+{
+  if(!gpsAwaiting) return;   // somebody else's result, such as the Test button of Configuration > GPS
+  gpsAwaiting=false;
+  const bool manual=gpsManual;
+  gpsManual=false;
+  ui->gpsToolButton->setEnabled(true);
+  if(ok)
+    {
+      setValue(formatCoordinate(lat),ui->latLineEdit);
+      setValue(formatCoordinate(lon),ui->lonLineEdit);
+      slotGetParams();   // takes the values over and renders the template again
+    }
+  else
+    {
+      addToLog(QString("GPS: %1, using the last position").arg(reason),LOGTXMAIN);
+    }
+  if(beaconWaitGps)
+    {
+      beaconWaitGps=false;
+      beaconTransmitLoaded();   // a missing position never stops the beacon
+    }
+  if(!ok && manual) QMessageBox::warning(this,"GPS",reason);
 }

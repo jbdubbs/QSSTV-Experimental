@@ -50,6 +50,7 @@
 #include "configdialog.h"
 #include "configparams.h"
 #include "rigcontrol.h"
+#include "gpsreader.h"
 #include "waterfalltext.h"
 #include "calibration.h"
 #include "frequencyselectwidget.h"
@@ -105,6 +106,7 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
   pttIcon->setFrameShadow(QFrame::Raised);
   pttIcon->setLineWidth(2);
   rigControllerPtr=new rigControl(1); // must precede configDialog construction
+  gpsReaderPtr=new gpsReader(this);   // the GPS configuration page and the Transmit tab use it
   configDialogPtr=new configDialog(this);
   configDialogPtr->readSettings();
 

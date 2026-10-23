@@ -14,7 +14,7 @@
 <h1>Transmitting</h1>
 <div class="page-toc"><strong>On this page</strong><ul>
 <li><a href="#basic">Sending an SSTV picture</a></li><li><a href="#toolbar">Toolbar</a></li>
-<li><a href="#sstv">SSTV settings</a></li><li><a href="#grid">Framing and grids</a></li>
+<li><a href="#gps">GPS position</a></li><li><a href="#sstv">SSTV settings</a></li><li><a href="#grid">Framing and grids</a></li>
 <li><a href="#common">Options below the settings</a></li><li><a href="#tones">Tones and sweeps</a></li></ul></div>
 
 <h2 id="basic">Sending an SSTV picture</h2>
@@ -59,11 +59,21 @@ every time the dialog opens).</p>
 <p>WA8LMF Beacon Mode has no transmit settings of its own. Each picture is sent exactly as if you had pressed Start: with the
 <strong>SSTV</strong> or <strong>DRM</strong> tab that is currently selected, its mode and options, the selected template (for example a call
 sign overlay) and the picture size. The camera is only switched on while each later picture is captured, using the format and resolution chosen in the dialog. It is always off when the program starts.</p>
+<p>With <a href="configuration.html#gps">Configuration &gt; GPS</a> set up, each beacon picture is preceded by a fresh GPS reading, so a <code>%a</code>/<code>%b</code> position in the template follows a moving station.
+The reading runs while the camera starts, and the beacon waits for it for up to 10 seconds. If the GPS has no position the beacon is sent anyway, with the position that was last in the <em>Lat</em> and <em>Long</em> boxes.</p>
 <p>When a scheduled beacon picture cannot be transmitted, the countdown in the status bar is replaced by a red message, for example <em>WA8LMF Beacon Mode not sent 14:32: a picture is
 being received</em>, <em>no camera found</em>, or <em>the transmitter is busy</em>. The beacon tries again after 30 seconds and the countdown returns as soon as a
 picture is sent.</p>
 <div class="warn"><p>An unattended WA8LMF Beacon Mode transmission is still your transmission: follow your licence conditions on automatic and unattended operation, and
 identify as required (use a template with your call sign).</p></div>
+
+<h2 id="gps">GPS position</h2>
+<p>The <strong>Lat</strong> and <strong>Long</strong> boxes under <em>To</em>, <em>Op</em> and <em>RSV</em> hold the latitude and longitude of the station in decimal degrees (north and east positive, for example
+<code>47.60620</code> and <code>-122.33210</code>). A template shows them with the <code>%a</code> (latitude) and <code>%b</code> (longitude) <a href="template-editor.html#macros">macros</a>. Type the position in, or press
+the <strong>GPS</strong> button next to the boxes to read it from a GPS receiver, once it is set up in <a href="configuration.html#gps">Configuration &gt; GPS</a>. If the GPS cannot be read a message says why and
+the boxes keep their values. Unlike <em>To</em>, <em>Op</em> and <em>RSV</em>, the position is remembered when you close the program. What you type is printed as typed, so you can also use another notation, for example
+<code>47&deg;36'N</code>.</p>
+<p>A transmission uses the position that is in the boxes when you start it. <a href="#beacon">WA8LMF Beacon Mode</a> reads the GPS again for every picture.</p>
 
 <h2 id="sstv">SSTV settings</h2>
 <dl>
@@ -87,7 +97,7 @@ cell. The same Framing and Grid controls exist on the DRM tab.</p>
 <dt>CW (config &gt; CW)</dt><dd>Sends CW at the end of the transmission. The text is set in <a href="configuration.html#cw">Configuration &gt; CW</a>.</dd>
 <dt>Use Template and the template list</dt><dd>Lays the picture into a template (made with the <a href="template-editor.html">template editor</a>: press <span class="ui">Edit...</span> next to the list,
  or its arrow for a new template), for example with a callsign banner. The <strong>To</strong>, <strong>Op</strong> and <strong>RSV</strong> boxes and the three large text boxes (x, y, z)
- are values for the template; <strong>Refresh</strong> applies them to the picture.</dd>
+ are values for the template; <strong>Refresh</strong> applies them to the picture. The <strong>Lat</strong> and <strong>Long</strong> boxes hold the station position, see <a href="#gps">GPS position</a>.</dd>
 <dt>Size slider and size box</dt><dd>Under the picture: the size and the estimated transmit time. With DRM the slider sets the compressed picture size, and the preview
  updates while you drag it.</dd>
 </dl>

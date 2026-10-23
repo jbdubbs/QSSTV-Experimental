@@ -5,6 +5,7 @@
 #include "directoriesconfig.h"
 #include "drmprofileconfig.h"
 #include "ftpconfig.h"
+#include "gpsconfig.h"
 #include "guiconfig.h"
 #include "hybridconfig.h"
 #include "operatorconfig.h"

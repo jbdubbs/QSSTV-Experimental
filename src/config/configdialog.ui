@@ -159,6 +159,31 @@
        </item>
       </layout>
      </widget>
+     <widget class="QWidget" name="gpsTab">
+      <attribute name="title">
+       <string>GPS</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_gps">
+       <property name="spacing">
+        <number>1</number>
+       </property>
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="gpsConfig" name="gpsWidget" native="true"/>
+       </item>
+      </layout>
+     </widget>
      <widget class="QWidget" name="cwTab">
       <attribute name="title">
        <string>CW</string>
@@ -377,6 +402,12 @@
    <class>rigConfig</class>
    <extends>QWidget</extends>
    <header>rigconfig.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>gpsConfig</class>
+   <extends>QWidget</extends>
+   <header>gpsconfig.h</header>
    <container>1</container>
   </customwidget>
   <customwidget>

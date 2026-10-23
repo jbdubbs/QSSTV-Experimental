@@ -80,7 +80,9 @@ qsstv --encode rose.png --drm --drm-mode B --drm-qam 16 --drm-bw 2.8 --wav-out r
 the picture to a mode's size first (for example <code>320x256</code>), and <code>--template-replay</code> fills the template's replay slot. <code>--template-var</code> sets the text macros: <code>c=W1AW</code> replaces <code>%c</code>
 (repeatable; a macro you do not set expands to nothing).</p>
 <pre><code>qsstv --render-template bath.templ --template-size 320x256 --template-var c=W1AW --template-out preview.png
-qsstv --render-template cq.qtempl --template-base rose.png --template-var m=N0CALL</code></pre>
+qsstv --render-template cq.qtempl --template-base rose.png --template-var m=N0CALL
+qsstv --render-template here.qtempl --template-var a=47.6062 --template-var b=-122.3321</code></pre>
+<p>The latitude and longitude macros are <code>%a</code> and <code>%b</code>; the command line does not read a GPS, so give the position yourself.</p>
 <p><code class="wrap"><span class="nb">qsstv</span> <span class="nb">--convert-template</span> <span class="nb">cq.templ</span></code> writes the same template in the native <code>.qtempl</code> format next to the original (or to <code>--template-out</code>). The original is not touched.
 Both formats can be used in the templates folder; the <code>.templ</code> files made by QSSTV 9.x and by earlier versions of this program keep working. A file that is damaged or is not a template is refused with exit code 2 and
 never crashes the program.</p>

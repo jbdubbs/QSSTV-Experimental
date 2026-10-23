@@ -1121,6 +1121,83 @@
          </property>
         </widget>
        </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="latLabel">
+         <property name="text">
+          <string>Lat:</string>
+         </property>
+         <property name="wordWrap">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QLineEdit" name="latLineEdit">
+         <property name="minimumSize">
+          <size>
+           <width>120</width>
+           <height>25</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>120</width>
+           <height>25</height>
+          </size>
+         </property>
+         <property name="toolTip">
+          <string>Latitude for the %a template macro, in decimal degrees (north positive). Filled in by Get GPS.</string>
+         </property>
+         <property name="statusTip">
+          <string>Latitude for the %a template macro</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="2">
+        <widget class="QLabel" name="lonLabel">
+         <property name="text">
+          <string>Long</string>
+         </property>
+         <property name="wordWrap">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="3">
+        <widget class="QLineEdit" name="lonLineEdit">
+         <property name="minimumSize">
+          <size>
+           <width>50</width>
+           <height>25</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>100</width>
+           <height>25</height>
+          </size>
+         </property>
+         <property name="toolTip">
+          <string>Longitude for the %b template macro, in decimal degrees (east positive). Filled in by Get GPS.</string>
+         </property>
+         <property name="statusTip">
+          <string>Longitude for the %b template macro</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="4">
+        <widget class="QToolButton" name="gpsToolButton">
+         <property name="toolTip">
+          <string>Read the position from the GPS receiver (Configuration &gt; GPS)</string>
+         </property>
+         <property name="statusTip">
+          <string>Read the position from the GPS receiver</string>
+         </property>
+         <property name="text">
+          <string>GPS</string>
+         </property>
+        </widget>
+       </item>
       </layout>
      </item>
      <item>

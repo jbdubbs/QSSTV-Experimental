@@ -52,6 +52,7 @@ void configDialog::readSettings()
   ui->operatorWidget->readSettings();
   ui->repeaterWidget->readSettings();
   ui->catWidget->readSettings();
+  ui->gpsWidget->readSettings();
   ui->soundWidget->readSettings();
   ui->waterfallWidget->readSettings();
   ui->freqSelectWidget->readSettings();
@@ -76,6 +77,7 @@ void configDialog::writeSettings()
   ui->soundWidget->writeSettings();
   ui->guiWidget->writeSettings();
   ui->catWidget->writeSettings();
+  ui->gpsWidget->writeSettings();    // after CAT: it checks its port against the CAT and PTT ports
   ui->ftpWidget->writeSettings();
   ui->repeaterWidget->writeSettings();
   ui->hybridWidget->writeSettings();
