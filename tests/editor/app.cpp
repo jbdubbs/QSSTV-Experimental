@@ -329,6 +329,28 @@ int main(int argc, char **argv)
     chooseMode("Martin 1");
   }
 
+  // the right-click menus of the gallery tabs
+  printf("\n== gallery right-click menus\n");
+  {
+    auto entries = [](imageViewer &v) {
+      QStringList l;
+      for (QMenu *m : v.findChildren<QMenu *>())
+        for (QAction *a : m->actions()) l << (a->isSeparator() ? QStringLiteral("-") : a->text().remove('&'));
+      return l;
+    };
+    imageViewer cell;
+    cell.init(imageViewer::TEMPLATETHUMB);
+    const QStringList templatesMenu = {"New template...", "Edit template...", "-", "To TX", "View", "Properties", "-", "Load", "Print", "Copy", "-", "Delete"};
+    check(entries(cell) == templatesMenu, "Templates: New and Edit first, then To TX / View / Properties, then Load / Print / Copy, Delete alone at the bottom (" + entries(cell).join(" | ") + ")");
+    cell.init(imageViewer::TXSTOCKTHUMB);
+    const QStringList stockMenu = {"Load", "To TX", "Edit picture...", "Print", "Delete", "View", "Properties", "-", "Copy", "Paste"};
+    check(entries(cell) == stockMenu, "TX Stock: unchanged (" + entries(cell).join(" | ") + ")");
+    cell.init(imageViewer::TEMPLATETHUMB);
+    check(entries(cell) == templatesMenu, "switching a viewer between types leaves no stale separators or entries behind");
+    cell.init(imageViewer::RXSSTVTHUMB);
+    check(entries(cell) == QStringList({"Upload to FTP", "To TX", "Print", "Delete", "View", "Properties", "-", "Copy"}), "RX pictures: unchanged (" + entries(cell).join(" | ") + ")");
+  }
+
   printf("\n%d passed, %d failed\n", passed, failed);
   fflush(stdout);
   _exit(failed ? 1 : 0);   // the application's threads are not shut down by this probe

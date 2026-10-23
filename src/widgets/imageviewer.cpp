@@ -593,19 +593,7 @@ void imageViewer::setType(thumbType tp)
       setScaledContents(false);
       setAlignment(Qt::AlignCenter);
     }
-  popup->removeAction(newAct);
-  popup->removeAction(loadAct);
-  popup->removeAction(toTXAct);
-  popup->removeAction(editAct);
-  popup->removeAction(printAct);
-  popup->removeAction(uploadAct);
-  popup->removeAction(deleteAct);
-  popup->removeAction(clearAct);
-  popup->removeAction(viewAct);
-  popup->removeAction(propertiesAct);
-  popup->removeAction(copyAct);
-  popup->removeAction(resetFramingAct);
-  popup->removeAction(pasteAct);
+  popup->clear();   // the actions belong to this viewer and stay alive; the separators of an earlier type go
   if(tp==TEMPLATETHUMB)
     {
       newAct->setText(tr("&New template..."));
@@ -666,8 +654,6 @@ void imageViewer::setType(thumbType tp)
       break;
 
     case TXSTOCKTHUMB:
-    case TEMPLATETHUMB:
-      if(tp==TEMPLATETHUMB) popup->addAction(newAct);   // pictures are edited in an external editor, only templates are created here
       popup->addAction(loadAct);
       popup->addAction(toTXAct);
       popup->addAction(editAct);
@@ -676,8 +662,28 @@ void imageViewer::setType(thumbType tp)
       popup->addAction(viewAct);
       popup->addAction(propertiesAct);
       break;
+    case TEMPLATETHUMB:
+      // making and changing templates first (pictures are edited in an external editor, only templates are created here),
+      // then using and looking at one, then the file actions, and Delete on its own at the bottom
+      popup->addAction(newAct);
+      popup->addAction(editAct);
+      popup->addSeparator();
+      popup->addAction(toTXAct);
+      popup->addAction(viewAct);
+      popup->addAction(propertiesAct);
+      popup->addSeparator();
+      popup->addAction(loadAct);
+      popup->addAction(printAct);
+      popup->addAction(copyAct);
+      popup->addSeparator();
+      popup->addAction(deleteAct);
+      break;
     }
-  if(tp==TXIMG || tp==TXSTOCKTHUMB)
+  if(tp==TEMPLATETHUMB)
+    {
+      // the menu is complete: Copy sits with the file actions
+    }
+  else if(tp==TXIMG || tp==TXSTOCKTHUMB)
     {
       popup->addSeparator();
       popup->addAction(copyAct);
