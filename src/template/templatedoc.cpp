@@ -207,6 +207,31 @@ void sanitize(Element &e)
       s.color = validColor(s.color, QColor(Qt::black));
     }
   e.image = limitImage(e.image);
+  e.radius = clampd(e.radius, 0, limits::maxCoord);
+  Shadow &sh = e.shadow;
+  sh.color = validColor(sh.color, QColor(0, 0, 0, 160));
+  sh.dx = clampd(sh.dx, -limits::maxShadowOffset, limits::maxShadowOffset);
+  sh.dy = clampd(sh.dy, -limits::maxShadowOffset, limits::maxShadowOffset);
+  sh.blur = clampd(sh.blur, 0, limits::maxShadowBlur);
+}
+
+void autoAnchor(Element &e, const QRectF &canvas)
+{
+  e.anchorH = AnchorH::Left;
+  e.anchorV = AnchorV::Top;
+  if (canvas.width() <= 0 || canvas.height() <= 0) return;
+  const bool freeText = e.type == ItemType::Text && !e.textBox;
+  const bool turned = e.rotation != 0 || e.skewH != 0 || e.skewV != 0;
+  QRectF frame = freeText ? QRectF(e.pos, QSizeF(0, 0)) : e.rect.translated(e.pos);
+  // a turned item is placed by where it really is, and (not being stretched when anchored) never spans
+  if (turned && !freeText) frame = (e.itemTransform() * QTransform::fromTranslate(e.pos.x(), e.pos.y())).mapRect(e.rect);
+  const double cx = (frame.center().x() - canvas.left()) / canvas.width();
+  const double cy = (frame.center().y() - canvas.top()) / canvas.height();
+  e.anchorH = cx < 1.0 / 3 ? AnchorH::Left : (cx > 2.0 / 3 ? AnchorH::Right : AnchorH::Center);
+  e.anchorV = cy < 1.0 / 3 ? AnchorV::Top : (cy > 2.0 / 3 ? AnchorV::Bottom : AnchorV::Middle);
+  if (freeText || turned) return;
+  if (frame.width() >= 0.8 * canvas.width()) e.anchorH = AnchorH::Span;
+  if (frame.height() >= 0.8 * canvas.height()) e.anchorV = AnchorV::Span;
 }
 
 void sanitize(TemplateDocument &d)
@@ -273,6 +298,14 @@ static const struct { Qt::PenStyle v; const char *name; } styleNames[] = {
   {Qt::DashDotDotLine, "dashdotdot"}, {Qt::NoPen, "none"}};
 static const struct { Gradient::Kind v; const char *name; } kindNames[] = {
   {Gradient::Linear, "linear"}, {Gradient::Radial, "radial"}, {Gradient::Conical, "conical"}};
+static const struct { AnchorH v; const char *name; } anchorHNames[] = {
+  {AnchorH::Left, "left"}, {AnchorH::Center, "center"}, {AnchorH::Right, "right"}, {AnchorH::Span, "span"}, {AnchorH::Scale, "scale"}};
+static const struct { AnchorV v; const char *name; } anchorVNames[] = {
+  {AnchorV::Top, "top"}, {AnchorV::Middle, "middle"}, {AnchorV::Bottom, "bottom"}, {AnchorV::Span, "span"}, {AnchorV::Scale, "scale"}};
+static const struct { TextAlign v; const char *name; } alignNames[] = {
+  {TextAlign::Left, "left"}, {TextAlign::Center, "center"}, {TextAlign::Right, "right"}};
+static const struct { TextVAlign v; const char *name; } valignNames[] = {
+  {TextVAlign::Top, "top"}, {TextVAlign::Middle, "middle"}, {TextVAlign::Bottom, "bottom"}};
 
 template <class E, size_t N, class V> static const char *nameOf(const E (&table)[N], V v, const char *fallback)
 {
@@ -409,7 +442,7 @@ static QJsonObject elementToJson(const Element &e)
   if (e.rect.x() != 0) o["rx"] = e.rect.x();
   if (e.rect.y() != 0) o["ry"] = e.rect.y();
   if (e.type != ItemType::Text) { o["w"] = e.rect.width(); o["h"] = e.rect.height(); }
-  else if (e.rect != QRectF(0, 0, 100, 100)) { o["w"] = e.rect.width(); o["h"] = e.rect.height(); }
+  else if (e.textBox || e.rect != QRectF(0, 0, 100, 100)) { o["w"] = e.rect.width(); o["h"] = e.rect.height(); }
   if (e.rotation != 0) o["rotation"] = e.rotation;
   if (e.skewH != 0) o["skewX"] = e.skewH;
   if (e.skewV != 0) o["skewY"] = e.skewV;
@@ -422,8 +455,21 @@ static QJsonObject elementToJson(const Element &e)
     {
       o["text"] = e.text;
       o["font"] = fontToJson(e.font);
+      if (e.textBox)
+        {
+          o["box"] = true;
+          o["align"] = nameOf(alignNames, e.align, "left");
+          o["valign"] = nameOf(valignNames, e.valign, "top");
+          if (e.wrap) o["wrap"] = true;
+          if (e.shrinkToFit) o["fit"] = "shrink";
+        }
     }
   if (e.type == ItemType::Image && !e.image.isNull()) o["image"] = imageToDataUri(e.image);
+  if (e.radius > 0) o["radius"] = e.radius;
+  if (e.shadow.on)
+    o["shadow"] = QJsonObject{{"color", colorToString(e.shadow.color)}, {"dx", e.shadow.dx}, {"dy", e.shadow.dy}, {"blur", e.shadow.blur}};
+  if (e.anchorH != AnchorH::Left || e.anchorV != AnchorV::Top)
+    o["anchor"] = QJsonObject{{"h", nameOf(anchorHNames, e.anchorH, "left")}, {"v", nameOf(anchorVNames, e.anchorV, "top")}};
   return o;
 }
 
@@ -449,8 +495,29 @@ static bool elementFromJson(const QJsonObject &o, Element &e)
     {
       e.text = jstr(o, "text");
       e.font = fontFromJson(o.value(QLatin1String("font")).toObject());
+      e.textBox = jbool(o, "box", false);
+      e.align = valueOf(alignNames, jstr(o, "align"), TextAlign::Left);
+      e.valign = valueOf(valignNames, jstr(o, "valign"), TextVAlign::Top);
+      e.wrap = jbool(o, "wrap", false);
+      e.shrinkToFit = jstr(o, "fit") == QLatin1String("shrink");
     }
   if (e.type == ItemType::Image) e.image = imageFromDataUri(jstr(o, "image"));
+  e.radius = jnum(o, "radius", 0);
+  if (o.value(QLatin1String("shadow")).isObject())
+    {
+      const QJsonObject so = o.value(QLatin1String("shadow")).toObject();
+      e.shadow.on = true;
+      e.shadow.color = colorFromString(jstr(so, "color"), e.shadow.color);
+      e.shadow.dx = jnum(so, "dx", e.shadow.dx);
+      e.shadow.dy = jnum(so, "dy", e.shadow.dy);
+      e.shadow.blur = jnum(so, "blur", 0);
+    }
+  if (o.value(QLatin1String("anchor")).isObject())
+    {
+      const QJsonObject ao = o.value(QLatin1String("anchor")).toObject();
+      e.anchorH = valueOf(anchorHNames, jstr(ao, "h"), AnchorH::Left);
+      e.anchorV = valueOf(anchorVNames, jstr(ao, "v"), AnchorV::Top);
+    }
   return true;
 }
 

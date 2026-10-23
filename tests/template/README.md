@@ -5,7 +5,7 @@ legacy binary `.templ` format, and the headless renderer that the transmit path 
 
 | Script | What it checks | Needs |
 |---|---|---|
-| `run.sh` | Renderer parity with the legacy editor (golden images), JSON round trip, validation and limits, macro expansion, fuzzing of the legacy loader | `g++`, Qt6 headers |
+| `run.sh` | Renderer parity with the legacy editor (golden images), JSON round trip, validation and limits, macro expansion, fuzzing of the legacy loader; the newer features: the anchored layout (every anchor at wider, taller and same-shaped pictures; same shape = the stretched layout bit for bit), text in a box (alignment, wrap, shrink to fit), shadows (hard and blurred), rounded corners, and the file format of all of them | `g++`, Qt6 headers |
 | `cli.sh` | `--convert-template` / `--render-template` of the real application, error handling and exit codes | the built `qsstv-experimental`, `g++` |
 
 `TPL_FUZZ_ROUNDS=100000 tests/template/run.sh` runs a longer fuzz (default 6000 mutations of the synthetic template plus every truncation).

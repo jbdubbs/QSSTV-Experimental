@@ -40,6 +40,8 @@ const int maxImageSide = 4096;            //!< embedded images are scaled down t
 const int maxTextLength = 4096;
 const int maxStringLength = 128;          //!< ids, font families
 const int maxGradientStops = 16;
+const double maxShadowOffset = 200.0;     //!< |dx|,|dy| of a shadow
+const double maxShadowBlur = 100.0;
 const qint64 maxFileBytes = 64LL * 1024 * 1024;
 }
 
@@ -91,6 +93,25 @@ struct FontSpec
 
 enum class ItemType { Text, Rect, Ellipse, Line, Image, Replay };
 
+/*! How an item follows the picture it is laid over when the template's layout is Anchored (TemplateDocument::layout).
+    Left/Top, Center/Middle and Right/Bottom keep the item's distance (scaled) to that edge or the middle; Span keeps
+    both edges, so the item grows with the picture; Scale grows position and size in proportion (the old stretch). */
+enum class AnchorH { Left, Center, Right, Span, Scale };
+enum class AnchorV { Top, Middle, Bottom, Span, Scale };
+
+enum class TextAlign { Left, Center, Right };
+enum class TextVAlign { Top, Middle, Bottom };
+
+/*! Drop shadow of an item: the item drawn again in `color`, moved by (dx, dy) in canvas directions, optionally blurred. */
+struct Shadow
+{
+  bool on = false;
+  QColor color = QColor(0, 0, 0, 160);
+  double dx = 2;
+  double dy = 2;
+  double blur = 0;                        //!< radius in canvas pixels, 0 = hard edge
+};
+
 struct Element
 {
   ItemType type = ItemType::Rect;
@@ -108,6 +129,17 @@ struct Element
   QString text;                           //!< may contain %x macros
   FontSpec font;
   QImage image;
+  AnchorH anchorH = AnchorH::Left;        //!< only used when the document layout is Anchored
+  AnchorV anchorV = AnchorV::Top;
+  double radius = 0;                      //!< rectangle corner radius (0 = square corners)
+  Shadow shadow;
+  // Text in a box: `rect` is the box, the text is wrapped / aligned / shrunk inside it. Off = the text is drawn from its
+  // baseline start at the origin, as in the legacy editor.
+  bool textBox = false;
+  TextAlign align = TextAlign::Left;
+  TextVAlign valign = TextVAlign::Top;
+  bool wrap = false;                      //!< break lines at spaces to the width of the box
+  bool shrinkToFit = false;               //!< make the font smaller (never larger) until the text fits the box
   QTransform itemTransform() const;       //!< shear, then rotate, both about the centre of rect
 };
 
@@ -138,6 +170,12 @@ LoadResult loadLegacy(const QByteArray &data);        //!< templatelegacy.cpp
 bool looksLikeTemplate(const QByteArray &head);       //!< cheap sniff of the first bytes
 QByteArray toJson(const TemplateDocument &doc);
 bool saveFile(const QString &fileName, const TemplateDocument &doc, QString *error = nullptr);
+
+/*! Chooses the anchors from where the item sits: a frame covering most of an axis spans it, otherwise the third of the
+    canvas that holds the frame's centre decides (left/centre/right, top/middle/bottom). Text that is not in a box has no
+    frame, so its origin is used; a turned item is placed by where it really is and never spans. Used when a template becomes
+    Anchored and for new items in an anchored template. */
+void autoAnchor(Element &e, const QRectF &canvas);
 
 /*! clamps every value into the supported range (used by both loaders; exposed for the editor) */
 void sanitize(Element &e);
