@@ -241,6 +241,7 @@ void PropertiesPanel::build()
   outlineJoinCombo->addItem(tr("Round"), int(Qt::RoundJoin));
   outlineJoinCombo->addItem(tr("Mitre"), int(Qt::MiterJoin));
   outlineJoinCombo->addItem(tr("Bevel"), int(Qt::BevelJoin));
+  outlineJoinCombo->setToolTip(tr("Shape of the outer corners of the outline"));
   outlineJoinLabel = new QLabel(tr("Corners"));
   ol->addRow(tr("Colour"), outlineColorButton);
   ol->addRow(tr("Width"), outlineWidthSpin);
@@ -591,10 +592,11 @@ void PropertiesPanel::refresh()
   setSwatch(fillButton, e.gradient.isActive() && !e.gradient.stops.isEmpty() ? e.gradient.stops.first().color : e.fill);
   fillButton->setEnabled(!e.gradient.isActive());
   gradientEdit->setGradient(e.gradient, e.fill);
-  bool allRect = true, anyTurned = false, anyFreeText = false;
+  bool allRect = true, anyTurned = false, anyFreeText = false, anyJoin = false;
   for (const tpl::Element &s : sel)
     {
       allRect &= s.type == tpl::ItemType::Rect;
+      anyJoin |= s.type != tpl::ItemType::Ellipse && s.type != tpl::ItemType::Line;   // the others have corners to shape
       anyTurned |= s.rotation != 0 || s.skewH != 0 || s.skewV != 0;
       anyFreeText |= s.type == tpl::ItemType::Text && !s.textBox;
     }
@@ -624,9 +626,8 @@ void PropertiesPanel::refresh()
   setValueIfChanged(outlineWidthSpin, e.outline.width);
   outlineStyleCombo->setCurrentIndex(qMax(0, outlineStyleCombo->findData(int(e.outline.style))));
   outlineJoinCombo->setCurrentIndex(qMax(0, outlineJoinCombo->findData(int(e.outline.join))));
-  const bool hasJoin = !(sameType && e.type == tpl::ItemType::Line);
-  outlineJoinCombo->setVisible(hasJoin);
-  outlineJoinLabel->setVisible(hasJoin);
+  outlineJoinCombo->setVisible(anyJoin);
+  outlineJoinLabel->setVisible(anyJoin);
 
   textBox->setVisible(allText);
   if (allText)

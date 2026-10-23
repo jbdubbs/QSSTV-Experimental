@@ -70,7 +70,7 @@ struct Outline
 {
   QColor color = Qt::black;
   double width = 1.0;
-  Qt::PenJoinStyle join = Qt::BevelJoin;
+  Qt::PenJoinStyle join = Qt::MiterJoin;
   Qt::PenCapStyle cap = Qt::SquareCap;
   Qt::PenStyle style = Qt::SolidLine;
   double miterLimit = 2.0;

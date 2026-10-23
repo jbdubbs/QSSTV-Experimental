@@ -1414,6 +1414,18 @@ static void testShadowCornersPanel()
   check(panelChild<QWidget>(p, "radiusRow")->isVisibleTo(p), "a rectangle has a corner radius");
   panelChild<QDoubleSpinBox>(p, "radiusSpin")->setValue(12);
   check(near(get(*d, r).radius, 12), "which is set from the panel");
+  QComboBox *join = panelChild<QComboBox>(p, "outlineJoinCombo");
+  check(join->isVisibleTo(p), "and corners to shape on its outline");
+  join->setCurrentIndex(join->findData(int(Qt::RoundJoin)));
+  emit join->activated(join->currentIndex());
+  check(get(*d, r).outline.join == Qt::RoundJoin, "which the Corners box sets");
+  env.v->setSelection(QStringList(e));
+  QApplication::processEvents();
+  QApplication::processEvents();
+  check(!join->isVisibleTo(p), "an ellipse has no corners");
+  env.v->setSelection(QStringList(r));
+  QApplication::processEvents();
+  QApplication::processEvents();
   check(!panelChild<QDoubleSpinBox>(p, "shadowXSpin")->isEnabled(), "the shadow fields are off until the shadow is");
   QCheckBox *sh = panelChild<QCheckBox>(p, "shadowCheck");
   sh->setChecked(true);
@@ -1431,6 +1443,7 @@ static void testShadowCornersPanel()
   QApplication::processEvents();
   QApplication::processEvents();
   check(!panelChild<QWidget>(p, "radiusRow")->isVisibleTo(p), "no corner radius when an ellipse is selected too");
+  check(join->isVisibleTo(p), "but the corners of the rectangle can still be shaped");
   panelChild<QCheckBox>(p, "shadowCheck")->setChecked(false);
   panelChild<QCheckBox>(p, "shadowCheck")->setChecked(true);
   check(get(*d, e).shadow.on && get(*d, r).shadow.on, "a shadow can be set on several items at once");

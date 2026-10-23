@@ -238,7 +238,9 @@ LoadResult loadLegacy(const QByteArray &data)
       e.gradient = convertGradient(it.gradient);
       e.outline.color = it.pen.color();
       e.outline.width = it.pen.widthF();
-      e.outline.join = it.pen.joinStyle();
+      // the legacy renderer drew rectangles and picture borders with mitred corners whatever the pen said
+      const bool mitred = e.type == ItemType::Rect || e.type == ItemType::Image || e.type == ItemType::Replay;
+      e.outline.join = mitred ? Qt::MiterJoin : it.pen.joinStyle();
       e.outline.cap = it.pen.capStyle();
       e.outline.miterLimit = it.pen.miterLimit();
       const Qt::PenStyle ps = it.pen.style();

@@ -62,6 +62,14 @@ static void testGoldenParity(const QString &fx, const QString &gd)
   check(lr.doc.fromLegacy && lr.doc.items.size() == 14, QString("14 items imported (got %1)").arg(lr.doc.items.size()));
   check(lr.doc.canvas == QRectF(0, 0, 640, 496), "canvas is the saved border 640x496");
   check(lr.doc.hasReplay(), "replay slot present");
+  // the legacy renderer mitred rectangles and picture borders whatever the pen said (the fixture's rectangle has a round-join pen)
+  bool mitred = true, roundText = false;
+  for (const tpl::Element &e : lr.doc.items)
+    {
+      if (e.type == tpl::ItemType::Rect || e.type == tpl::ItemType::Image || e.type == tpl::ItemType::Replay) mitred &= e.outline.join == Qt::MiterJoin;
+      if (e.type == tpl::ItemType::Text && e.outline.join == Qt::RoundJoin) roundText = true;
+    }
+  check(mitred && roundText, "imported rectangles and borders are mitred, text keeps the join of its pen");
   const QImage replay(fx + "/replay.png");
   for (QSize sz : {QSize(320, 256), QSize(640, 496), QSize(1024, 768)})
     {
@@ -707,6 +715,38 @@ static void testShadowAndCorners()
   check(qAlpha(pill.pixel(10, 10)) == 0 && qAlpha(pill.pixel(50, 30)) == 255 && qAlpha(pill.pixel(12, 30)) == 255, "a radius bigger than the item makes a pill (clamped to half the short side)");
   sq.radius = 0;
   check(sameImage(render(sq), square), "radius 0 is the plain rectangle, bit for bit");
+
+  // the corner style of the outline: a 10 px white line centred on the edge of (20,20)-(80,80) reaches out to (15,15)
+  tpl::Element framed = element(tpl::ItemType::Rect, QPointF(0, 0), QRectF(20, 20, 60, 60));
+  framed.fill = Qt::blue;
+  framed.outline.color = Qt::white;
+  framed.outline.width = 10;
+  auto joined = [&](tpl::Element e, Qt::PenJoinStyle js) {
+    e.outline.join = js;
+    return render(e);
+  };
+  const QImage mitre = joined(framed, Qt::MiterJoin);
+  const QImage roundJ = joined(framed, Qt::RoundJoin);
+  const QImage bevel = joined(framed, Qt::BevelJoin);
+  check(qAlpha(mitre.pixel(15, 15)) == 255, "a rectangle with mitred corners is square out to the very corner");
+  check(qAlpha(roundJ.pixel(15, 15)) == 0 && qAlpha(roundJ.pixel(50, 15)) == 255, "round corners cut the tip off a rectangle's outline and leave the edges");
+  check(qAlpha(bevel.pixel(15, 15)) == 0 && qAlpha(bevel.pixel(50, 15)) == 255, "so do bevelled corners");
+  check(!sameImage(roundJ, bevel) && !sameImage(roundJ, mitre) && !sameImage(bevel, mitre), "all three corner styles look different");
+
+  // and the border of a picture and of the replay window, which has its own drawing code
+  QImage pic(60, 60, QImage::Format_ARGB32);
+  pic.fill(Qt::green);
+  tpl::Element framedPic = element(tpl::ItemType::Image, QPointF(0, 0), QRectF(20, 20, 60, 60));
+  framedPic.image = pic;
+  framedPic.outline.color = Qt::white;
+  framedPic.outline.width = 10;
+  check(qAlpha(joined(framedPic, Qt::MiterJoin).pixel(20, 20)) == 255 && qAlpha(joined(framedPic, Qt::RoundJoin).pixel(20, 20)) == 0
+        && qAlpha(joined(framedPic, Qt::BevelJoin).pixel(20, 20)) == 0, "the corner style applies to the border of a picture");
+  tpl::Element window = framedPic;
+  window.type = tpl::ItemType::Replay;
+  window.image = QImage();
+  check(qAlpha(joined(window, Qt::MiterJoin).pixel(20, 20)) == 255 && qAlpha(joined(window, Qt::RoundJoin).pixel(20, 20)) == 0,
+        "and to the border of the replay window");
 }
 
 static void testMacros()

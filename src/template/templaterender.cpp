@@ -222,11 +222,9 @@ QPainterPath textOf(const Element &e, const QString &text)
 
 void drawBorder(QPainter &p, const Element &e, const QPen &pen)
 {
-  QPen lpen(pen);
-  const qreal pad = lpen.widthF() / 2;
+  const qreal pad = pen.widthF() / 2;
   p.setBrush(Qt::NoBrush);
-  lpen.setJoinStyle(Qt::MiterJoin);
-  p.setPen(lpen);
+  p.setPen(pen);
   p.drawRect(e.rect.adjusted(pad, pad, -pad, -pad));
 }
 
@@ -266,18 +264,13 @@ void paintBody(QPainter &p, const Element &e, const RenderOptions &opt, const QC
   switch (e.type)
     {
     case ItemType::Rect:
-      {
-        QPen lpen(pen);
-        lpen.setJoinStyle(Qt::MiterJoin);
-        p.setPen(lpen);
-        if (e.radius > 0)
-          {
-            const qreal r = qMin<qreal>(e.radius, qMin(e.rect.width(), e.rect.height()) / 2);
-            p.drawRoundedRect(e.rect, r, r);
-          }
-        else p.drawRect(e.rect);
-        break;
-      }
+      if (e.radius > 0)
+        {
+          const qreal r = qMin<qreal>(e.radius, qMin(e.rect.width(), e.rect.height()) / 2);
+          p.drawRoundedRect(e.rect, r, r);
+        }
+      else p.drawRect(e.rect);
+      break;
     case ItemType::Ellipse:
       p.drawEllipse(e.rect);
       break;
