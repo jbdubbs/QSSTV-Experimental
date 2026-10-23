@@ -1380,6 +1380,102 @@ static void testLayoutAndAnchors()
   }
 }
 
+// Issue #126: a picture is inserted at the centre (anchored Centre), then dragged to a side; it has to stick to that side
+// on a wider SSTV format, so its anchors have to follow it
+static void testAnchorsFollowMoves()
+{
+  printf("== anchors follow the item when it moves (issue #126)\n");
+  Env env;
+  EditorDocument *d = env.d;
+  PropertiesPanel *p = panelOf(env.ed);
+  QImage logo(100, 100, QImage::Format_ARGB32);
+  logo.fill(Qt::blue);
+  env.v->insertImage(logo);
+  const QString id = d->doc().items.last().id;
+  check(get(*d, id).anchorH == tpl::AnchorH::Center && get(*d, id).anchorV == tpl::AnchorV::Middle, "a picture inserted at the centre is anchored to the centre");
+
+  env.v->setSelection(QStringList(id));
+  env.drag(320, 248, 70, 248, Qt::AltModifier);
+  check(near(get(*d, id).pos.x(), 20) && get(*d, id).anchorH == tpl::AnchorH::Left && get(*d, id).anchorV == tpl::AnchorV::Middle, "dragged to the left side it sticks to the left (the vertical anchor is unchanged)");
+  env.drag(70, 248, 570, 248, Qt::AltModifier);
+  check(near(get(*d, id).pos.x(), 520) && get(*d, id).anchorH == tpl::AnchorH::Right, "dragged to the right side it sticks to the right");
+  {
+    // and on PD120W (768 x 432) the picture keeps its distance to the right border: 20 canvas units at a scale of 0.871
+    QImage base(768, 432, QImage::Format_ARGB32);
+    base.fill(Qt::black);
+    const QImage out = tpl::overlay(d->doc(), base, tpl::RenderOptions());
+    int right = -1;
+    for (int x = 0; x < out.width(); x++)
+      if (qBlue(out.pixel(x, 216)) > 200) right = x;
+    check(right >= 745 && right <= 752, QString("rendered at 768 x 432 its right edge is at x=%1, near the right border").arg(right));
+  }
+  d->undoStack()->undo();
+  check(near(get(*d, id).pos.x(), 20) && get(*d, id).anchorH == tpl::AnchorH::Left, "undo puts the anchor back with the position");
+  d->undoStack()->redo();
+
+  // what the user chose is kept; the other axis still follows
+  tpl::Element manual = get(*d, id);
+  manual.anchorH = tpl::AnchorH::Center;
+  d->modifyItems(QVector<tpl::Element>() << manual, "Change anchor");
+  check(get(*d, id).anchorH == tpl::AnchorH::Center && near(get(*d, id).pos.x(), 520), "(an anchor changed on its own is taken as it is, even if it differs from the position)");
+  env.drag(570, 248, 70, 50, Qt::AltModifier);
+  check(get(*d, id).anchorH == tpl::AnchorH::Center && get(*d, id).anchorV == tpl::AnchorV::Top, "a hand-set anchor stays when the item moves, the automatic one on the other axis follows");
+
+  // the other ways of moving an item
+  {
+    tpl::Element r = EditorCanvas::defaultElement(tpl::ItemType::Rect);
+    r.rect = QRectF(0, 0, 100, 100);
+    r.pos = QPointF(270, 198);
+    tpl::autoAnchor(r, d->doc().canvas);
+    const QString rid = add(*d, r);
+    env.v->setSelection(QStringList(rid));
+    check(get(*d, rid).anchorH == tpl::AnchorH::Center, "(a shape in the middle is anchored to the centre)");
+    const int base = d->undoStack()->index();
+    for (int i = 0; i < 11; i++) env.key(Qt::Key_Left, Qt::ShiftModifier);
+    check(near(get(*d, rid).pos.x(), 160) && get(*d, rid).anchorH == tpl::AnchorH::Left, "nudging it across a third of the canvas changes the anchor");
+    check(d->undoStack()->index() == base + 1, "(still one undo step)");
+    d->undoStack()->undo();
+    check(near(get(*d, rid).pos.x(), 270) && get(*d, rid).anchorH == tpl::AnchorH::Center, "which undoes with the position");
+    QApplication::processEvents();
+    QApplication::processEvents();
+    panelChild<QDoubleSpinBox>(p, "xSpin")->setValue(500);
+    check(near(get(*d, rid).pos.x(), 500) && get(*d, rid).anchorH == tpl::AnchorH::Right, "so does typing a position in the Properties panel");
+  }
+
+  // an item touching a side follows it even though its centre is in the middle third
+  {
+    tpl::Element wide = EditorCanvas::defaultElement(tpl::ItemType::Rect);
+    wide.rect = QRectF(0, 0, 460, 100);
+    wide.pos = QPointF(180, 100);
+    tpl::autoAnchor(wide, d->doc().canvas);
+    check(wide.anchorH == tpl::AnchorH::Right, "a wide item against the right edge is anchored right");
+    wide.pos = QPointF(0, 100);
+    tpl::autoAnchor(wide, d->doc().canvas);
+    check(wide.anchorH == tpl::AnchorH::Left, "and against the left edge, left");
+    wide.rect = QRectF(0, 0, 320, 100);
+    wide.pos = QPointF(160, 100);
+    tpl::autoAnchor(wide, d->doc().canvas);
+    check(wide.anchorH == tpl::AnchorH::Center, "while a centred one stays centred");
+    wide.rect = QRectF(0, 0, 100, 340);
+    wide.pos = QPointF(270, 156);
+    tpl::autoAnchor(wide, d->doc().canvas);
+    check(wide.anchorV == tpl::AnchorV::Bottom, "the same goes for the bottom edge");
+  }
+
+  // scaling everything for a new canvas size is not a move: the anchors keep their meaning
+  {
+    Env e2;
+    tpl::Element r = EditorCanvas::defaultElement(tpl::ItemType::Rect);
+    r.rect = QRectF(0, 0, 100, 100);
+    r.pos = QPointF(100, 100);
+    r.anchorH = tpl::AnchorH::Center;   // not what the position suggests (Left): chosen by hand
+    r.anchorV = tpl::AnchorV::Top;
+    const QString rid = add(*e2.d, r);
+    e2.ed.applyCanvasSettings(QSize(320, 248), true, tpl::TemplateDocument::Anchored);
+    check(near(get(*e2.d, rid).pos.x(), 50) && get(*e2.d, rid).anchorH == tpl::AnchorH::Center, "a new canvas size with scaling leaves a hand-set anchor alone");
+  }
+}
+
 static void testTextBoxEditor()
 {
   printf("== text boxes in the editor\n");
@@ -2480,6 +2576,7 @@ int main(int argc, char **argv)
   testExternalEditor();
   testReviewFixes();
   testLayoutAndAnchors();
+  testAnchorsFollowMoves();
   testTextBoxEditor();
   testShadowCornersPanel();
   testSizePreviewAndGuides();

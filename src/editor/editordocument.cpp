@@ -227,7 +227,7 @@ void EditorDocument::clearItems(const QString &text)
   removeItems(ids(), text);
 }
 
-void EditorDocument::modifyItems(const QVector<tpl::Element> &afterIn, const QString &text, const QString &mergeKey)
+void EditorDocument::modifyItems(const QVector<tpl::Element> &afterIn, const QString &text, const QString &mergeKey, bool followAnchors)
 {
   QVector<tpl::Element> before, after;
   for (tpl::Element e : afterIn)
@@ -236,6 +236,7 @@ void EditorDocument::modifyItems(const QVector<tpl::Element> &afterIn, const QSt
       if (!cur) continue;
       tpl::sanitize(e);
       fitTextRect(e);
+      if (followAnchors && d.layout == tpl::TemplateDocument::Anchored) tpl::reanchor(*cur, e, d.canvas);
       before.append(*cur);
       after.append(e);
     }
@@ -252,6 +253,7 @@ void EditorDocument::commitModify(const QVector<tpl::Element> &beforeIn, const Q
       tpl::Element e = afterIn[i];
       tpl::sanitize(e);
       fitTextRect(e);
+      if (d.layout == tpl::TemplateDocument::Anchored) tpl::reanchor(beforeIn[i], e, d.canvas);
       before.append(beforeIn[i]);
       after.append(e);
     }

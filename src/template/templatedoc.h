@@ -174,8 +174,13 @@ bool saveFile(const QString &fileName, const TemplateDocument &doc, QString *err
 /*! Chooses the anchors from where the item sits: a frame covering most of an axis spans it, otherwise the third of the
     canvas that holds the frame's centre decides (left/centre/right, top/middle/bottom). Text that is not in a box has no
     frame, so its origin is used; a turned item is placed by where it really is and never spans. Used when a template becomes
-    Anchored and for new items in an anchored template. */
+    Anchored and for new items in an anchored template. An item that touches one side (within 5% of the canvas) follows that side
+    even when its centre is in the middle third. */
 void autoAnchor(Element &e, const QRectF &canvas);
+
+/*! An edit moved or resized an item: when its anchors on an axis were still the ones autoAnchor() picks for where it was, they
+    follow it to where it is now. Anchors the user chose, or changed in this very edit, stay. */
+void reanchor(const Element &before, Element &after, const QRectF &canvas);
 
 /*! clamps every value into the supported range (used by both loaders; exposed for the editor) */
 void sanitize(Element &e);

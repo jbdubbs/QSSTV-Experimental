@@ -55,8 +55,9 @@ public:
   void removeItems(const QStringList &ids, const QString &text);
   /*! Replaces the items having the ids of `after` by `after`. Items whose geometry depends on their content
       (text) are re-fitted first. A non-empty mergeKey lets consecutive edits of the same items fold into one
-      undo step, until breakMerge() is called. */
-  void modifyItems(const QVector<tpl::Element> &after, const QString &text, const QString &mergeKey = QString());
+      undo step, until breakMerge() is called. In an anchored template an item that moves or changes size takes the
+      anchors its new place suggests (tpl::reanchor) unless followAnchors is false. */
+  void modifyItems(const QVector<tpl::Element> &after, const QString &text, const QString &mergeKey = QString(), bool followAnchors = true);
   /*! Same with the previous state given by the caller (the canvas took it before a drag started). */
   void commitModify(const QVector<tpl::Element> &before, const QVector<tpl::Element> &after, const QString &text);
   void reorder(const QStringList &newOrder, const QString &text);

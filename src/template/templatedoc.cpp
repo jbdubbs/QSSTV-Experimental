@@ -230,8 +230,28 @@ void autoAnchor(Element &e, const QRectF &canvas)
   e.anchorH = cx < 1.0 / 3 ? AnchorH::Left : (cx > 2.0 / 3 ? AnchorH::Right : AnchorH::Center);
   e.anchorV = cy < 1.0 / 3 ? AnchorV::Top : (cy > 2.0 / 3 ? AnchorV::Bottom : AnchorV::Middle);
   if (freeText || turned) return;
+  // an item that touches one side follows that side, whichever third its centre is in (a wide picture against the right edge)
+  const double nearX = 0.05 * canvas.width(), nearY = 0.05 * canvas.height();
+  const double gapL = frame.left() - canvas.left(), gapR = canvas.right() - frame.right();
+  const double gapT = frame.top() - canvas.top(), gapB = canvas.bottom() - frame.bottom();
+  if (gapL < nearX && gapR >= nearX) e.anchorH = AnchorH::Left;
+  else if (gapR < nearX && gapL >= nearX) e.anchorH = AnchorH::Right;
+  if (gapT < nearY && gapB >= nearY) e.anchorV = AnchorV::Top;
+  else if (gapB < nearY && gapT >= nearY) e.anchorV = AnchorV::Bottom;
   if (frame.width() >= 0.8 * canvas.width()) e.anchorH = AnchorH::Span;
   if (frame.height() >= 0.8 * canvas.height()) e.anchorV = AnchorV::Span;
+}
+
+void reanchor(const Element &before, Element &after, const QRectF &canvas)
+{
+  if (before.pos == after.pos && before.rect == after.rect && before.rotation == after.rotation && before.skewH == after.skewH && before.skewV == after.skewV)
+    return;
+  Element was = before;
+  autoAnchor(was, canvas);
+  Element now = after;
+  autoAnchor(now, canvas);
+  if (after.anchorH == before.anchorH && before.anchorH == was.anchorH) after.anchorH = now.anchorH;
+  if (after.anchorV == before.anchorV && before.anchorV == was.anchorV) after.anchorV = now.anchorV;
 }
 
 void sanitize(TemplateDocument &d)

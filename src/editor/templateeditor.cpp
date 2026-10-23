@@ -815,13 +815,13 @@ void TemplateEditor::applyCanvasSettings(const QSize &size, bool scaleItems, tpl
       const double sx = now.width() / old.width(), sy = now.height() / old.height();
       QVector<tpl::Element> scaled = doc.doc().items;
       for (tpl::Element &e : scaled) EditorDocument::scaleElement(e, old.topLeft(), sx, sy);
-      doc.modifyItems(scaled, tr("Scale items"));
+      doc.modifyItems(scaled, tr("Scale items"), QString(), false);   // the anchors keep their meaning when everything scales together
     }
   if (layoutChanged && layout == tpl::TemplateDocument::Anchored)
     {
       QVector<tpl::Element> anchoredItems = doc.doc().items;
       for (tpl::Element &e : anchoredItems) tpl::autoAnchor(e, newCanvas);
-      doc.modifyItems(anchoredItems, tr("Set anchors"));
+      doc.modifyItems(anchoredItems, tr("Set anchors"), QString(), false);
     }
   stack->endMacro();
   view->zoomFit();
