@@ -604,95 +604,69 @@ void imageViewer::setType(thumbType tp)
       editAct->setText(tr("&Edit picture..."));
       editAct->setToolTip(tr("Edit a copy of this picture in your picture editor (Settings > GUI); the original is not changed"));
     }
+  // Every menu reads in groups, with a line between them: make or change the picture, use and look at it, send it somewhere, and
+  // remove it last on its own (so a slip of the mouse does not delete anything)
+  auto section=[this](std::initializer_list<QAction *> actions)
+  {
+    if(!popup->actions().isEmpty()) popup->addSeparator();
+    for(QAction *a : actions) popup->addAction(a);
+  };
   switch(tp)
     {
     case EXTVIEW:
-      popup->addAction(zoomInAct);
-      popup->addAction(zoomOutAct);
-      popup->addAction(propertiesAct);
+      section({zoomInAct,zoomOutAct,propertiesAct});
+      section({copyAct});
       break;
 
     case RXIMG:
-      popup->addAction(viewAct);
-      popup->addAction(clearAct);
-      popup->addAction(propertiesAct);
+      section({viewAct,propertiesAct});
+      section({copyAct});
+      section({clearAct});
       break;
 
     case TXIMG:
-      popup->addAction(loadAct);
-      popup->addAction(editAct);
-      popup->addAction(printAct);
-      popup->addAction(viewAct);
-      popup->addAction(propertiesAct);
-      popup->addAction(resetFramingAct);
-      popup->addAction(deleteAct);   // removes the image (or grid segment) from TX, the file is kept
+      // Delete takes the image (or grid segment) out of TX, the file is kept
+      section({loadAct,editAct});
+      section({viewAct,propertiesAct,resetFramingAct});
+      section({printAct,copyAct,pasteAct});
+      section({deleteAct});
       break;
 
     case PREVIEW:
-      popup->addAction(loadAct);
-      popup->addAction(toTXAct);
-      popup->addAction(viewAct);
-      popup->addAction(propertiesAct);
+      section({loadAct});
+      section({toTXAct,viewAct,propertiesAct});
+      section({copyAct});
       break;
 
     case RXSSTVTHUMB:
     case RXDRMTHUMB:
-      popup->addAction(uploadAct);
-      popup->addAction(toTXAct);
-      popup->addAction(printAct);
-      popup->addAction(deleteAct);
-      popup->addAction(viewAct);
-      popup->addAction(propertiesAct);
+      section({toTXAct,viewAct,propertiesAct});
+      section({uploadAct,printAct,copyAct});
+      section({deleteAct});
       break;
+
     case TXSSTVTHUMB:
     case TXDRMTHUMB:
-      popup->addAction(toTXAct);
-      popup->addAction(printAct);
-      popup->addAction(deleteAct);
-      popup->addAction(viewAct);
-      popup->addAction(propertiesAct);
+      section({toTXAct,viewAct,propertiesAct});
+      section({printAct,copyAct});
+      section({deleteAct});
       break;
 
     case TXSTOCKTHUMB:
-      popup->addAction(loadAct);
-      popup->addAction(toTXAct);
-      popup->addAction(editAct);
-      popup->addAction(printAct);
-      popup->addAction(deleteAct);
-      popup->addAction(viewAct);
-      popup->addAction(propertiesAct);
+      // a copy of a picture is edited in your picture editor; Load adds a picture from a file, Paste one from the clipboard
+      section({editAct});
+      section({toTXAct,viewAct,propertiesAct});
+      section({loadAct,printAct,copyAct,pasteAct});
+      section({deleteAct});
       break;
+
     case TEMPLATETHUMB:
-      // making and changing templates first (pictures are edited in an external editor, only templates are created here),
-      // then using and looking at one, then the file actions, and Delete on its own at the bottom
-      popup->addAction(newAct);
-      popup->addAction(editAct);
-      popup->addSeparator();
-      popup->addAction(toTXAct);
-      popup->addAction(viewAct);
-      popup->addAction(propertiesAct);
-      popup->addSeparator();
-      popup->addAction(loadAct);
-      popup->addAction(printAct);
-      popup->addAction(copyAct);
-      popup->addSeparator();
-      popup->addAction(deleteAct);
+      // making and changing templates first (pictures are edited in an external editor, only templates are created here)
+      section({newAct,editAct});
+      section({toTXAct,viewAct,propertiesAct});
+      section({loadAct,printAct,copyAct});
+      section({deleteAct});
       break;
-    }
-  if(tp==TEMPLATETHUMB)
-    {
-      // the menu is complete: Copy sits with the file actions
-    }
-  else if(tp==TXIMG || tp==TXSTOCKTHUMB)
-    {
-      popup->addSeparator();
-      popup->addAction(copyAct);
-      popup->addAction(pasteAct);
-    }
-  else
-    {
-      popup->addSeparator();
-      popup->addAction(copyAct);
     }
   popupEnabled=true;
 
@@ -1085,11 +1059,6 @@ void imageViewer::slotNew()
 }
 
 
-void imageViewer::slotPrint()
-{
-}
-
-
 void imageViewer::slotUploadFTP()
 {
   QString remoteDir;
@@ -1105,6 +1074,11 @@ void imageViewer::slotUploadFTP()
     }
   if (!remoteDir.isEmpty())
     dispatcherPtr->uploadToRXServer(remoteDir, imageFileName);
+}
+
+
+void imageViewer::slotPrint()
+{
 }
 
 

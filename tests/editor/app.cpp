@@ -339,16 +339,41 @@ int main(int argc, char **argv)
       return l;
     };
     imageViewer cell;
-    cell.init(imageViewer::TEMPLATETHUMB);
-    const QStringList templatesMenu = {"New template...", "Edit template...", "-", "To TX", "View", "Properties", "-", "Load", "Print", "Copy", "-", "Delete"};
-    check(entries(cell) == templatesMenu, "Templates: New and Edit first, then To TX / View / Properties, then Load / Print / Copy, Delete alone at the bottom (" + entries(cell).join(" | ") + ")");
+    struct { imageViewer::thumbType type; const char *name; QStringList entries; } menus[] = {
+      {imageViewer::TEMPLATETHUMB, "Templates", {"New template...", "Edit template...", "-", "To TX", "View", "Properties", "-", "Load", "Print", "Copy", "-", "Delete"}},
+      {imageViewer::TXSTOCKTHUMB, "TX Stock", {"Edit picture...", "-", "To TX", "View", "Properties", "-", "Load", "Print", "Copy", "Paste", "-", "Delete"}},
+      {imageViewer::RXSSTVTHUMB, "RX SSTV", {"To TX", "View", "Properties", "-", "Upload to FTP", "Print", "Copy", "-", "Delete"}},
+      {imageViewer::RXDRMTHUMB, "RX DRM", {"To TX", "View", "Properties", "-", "Upload to FTP", "Print", "Copy", "-", "Delete"}},
+      {imageViewer::TXSSTVTHUMB, "TX SSTV", {"To TX", "View", "Properties", "-", "Print", "Copy", "-", "Delete"}},
+      {imageViewer::TXDRMTHUMB, "TX DRM", {"To TX", "View", "Properties", "-", "Print", "Copy", "-", "Delete"}},
+      {imageViewer::TXIMG, "the TX picture", {"Load", "Edit picture...", "-", "View", "Properties", "Reset zoom/pan", "-", "Print", "Copy", "Paste", "-", "Delete"}},
+      {imageViewer::PREVIEW, "the RX preview on the TX tab", {"Load", "-", "To TX", "View", "Properties", "-", "Copy"}},
+      {imageViewer::RXIMG, "the live RX picture", {"View", "Properties", "-", "Copy", "-", "Clear"}},
+      {imageViewer::EXTVIEW, "the picture viewer window", {"Zoom In (+)", "Zoom Out (-)", "Properties", "-", "Copy"}},
+    };
+    for (const auto &m : menus)
+      {
+        cell.init(m.type);
+        check(entries(cell) == m.entries, QString("%1: %2").arg(m.name, entries(cell).join(" | ")));
+      }
+    // however they differ, the groups are always separated by a single line, never at an end, and Delete / Clear is last on its own
+    bool shape = true;
+    for (const auto &m : menus)
+      {
+        cell.init(m.type);
+        const QStringList e = entries(cell);
+        shape &= !e.isEmpty() && e.first() != "-" && e.last() != "-";
+        for (int i = 1; i < e.size(); i++) shape &= !(e[i] == "-" && e[i - 1] == "-");
+        for (int i = 0; i < e.size(); i++)
+          if (e[i] == "Delete" || e[i] == "Clear") shape &= i == e.size() - 1 && i > 0 && e[i - 1] == "-";
+      }
+    check(shape, "no menu starts or ends with a line or has two in a row, and Delete / Clear sit last, alone");
+    // a viewer that changes type leaves nothing of the old menu behind
     cell.init(imageViewer::TXSTOCKTHUMB);
-    const QStringList stockMenu = {"Load", "To TX", "Edit picture...", "Print", "Delete", "View", "Properties", "-", "Copy", "Paste"};
-    check(entries(cell) == stockMenu, "TX Stock: unchanged (" + entries(cell).join(" | ") + ")");
     cell.init(imageViewer::TEMPLATETHUMB);
-    check(entries(cell) == templatesMenu, "switching a viewer between types leaves no stale separators or entries behind");
-    cell.init(imageViewer::RXSSTVTHUMB);
-    check(entries(cell) == QStringList({"Upload to FTP", "To TX", "Print", "Delete", "View", "Properties", "-", "Copy"}), "RX pictures: unchanged (" + entries(cell).join(" | ") + ")");
+    cell.init(imageViewer::RXIMG);
+    cell.init(imageViewer::TEMPLATETHUMB);
+    check(entries(cell) == menus[0].entries, "switching a viewer between types leaves no stale separators or entries behind");
   }
 
   printf("\n%d passed, %d failed\n", passed, failed);
