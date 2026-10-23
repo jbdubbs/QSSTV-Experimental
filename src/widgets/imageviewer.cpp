@@ -95,8 +95,6 @@ imageViewer::imageViewer(QWidget *parent): QLabel(parent)
   connect(toTXMenu, SIGNAL(triggered(QAction*)), this, SLOT(slotToTXSegment(QAction*)));
   editAct = new QAction(tr("&Edit"), this);
   connect(editAct, SIGNAL(triggered()), this, SLOT(slotEdit()));
-  printAct = new QAction(tr("&Print"), this);
-  connect(printAct, SIGNAL(triggered()), this, SLOT(slotPrint()));
   uploadAct = new QAction(tr("&Upload to FTP"), this);
   connect(uploadAct, SIGNAL(triggered()), this, SLOT(slotUploadFTP()));
   deleteAct = new QAction(tr("&Delete"), this);
@@ -628,7 +626,7 @@ void imageViewer::setType(thumbType tp)
       // Delete takes the image (or grid segment) out of TX, the file is kept
       section({loadAct,editAct});
       section({viewAct,propertiesAct,resetFramingAct});
-      section({printAct,copyAct,pasteAct});
+      section({copyAct,pasteAct});
       section({deleteAct});
       break;
 
@@ -641,14 +639,14 @@ void imageViewer::setType(thumbType tp)
     case RXSSTVTHUMB:
     case RXDRMTHUMB:
       section({toTXAct,viewAct,propertiesAct});
-      section({uploadAct,printAct,copyAct});
+      section({uploadAct,copyAct});
       section({deleteAct});
       break;
 
     case TXSSTVTHUMB:
     case TXDRMTHUMB:
       section({toTXAct,viewAct,propertiesAct});
-      section({printAct,copyAct});
+      section({copyAct});
       section({deleteAct});
       break;
 
@@ -656,7 +654,7 @@ void imageViewer::setType(thumbType tp)
       // a copy of a picture is edited in your picture editor; Load adds a picture from a file, Paste one from the clipboard
       section({editAct});
       section({toTXAct,viewAct,propertiesAct});
-      section({loadAct,printAct,copyAct,pasteAct});
+      section({loadAct,copyAct,pasteAct});
       section({deleteAct});
       break;
 
@@ -664,7 +662,7 @@ void imageViewer::setType(thumbType tp)
       // making and changing templates first (pictures are edited in an external editor, only templates are created here)
       section({newAct,editAct});
       section({toTXAct,viewAct,propertiesAct});
-      section({loadAct,printAct,copyAct});
+      section({loadAct,copyAct});
       section({deleteAct});
       break;
     }
@@ -1074,11 +1072,6 @@ void imageViewer::slotUploadFTP()
     }
   if (!remoteDir.isEmpty())
     dispatcherPtr->uploadToRXServer(remoteDir, imageFileName);
-}
-
-
-void imageViewer::slotPrint()
-{
 }
 
 

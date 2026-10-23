@@ -340,13 +340,13 @@ int main(int argc, char **argv)
     };
     imageViewer cell;
     struct { imageViewer::thumbType type; const char *name; QStringList entries; } menus[] = {
-      {imageViewer::TEMPLATETHUMB, "Templates", {"New template...", "Edit template...", "-", "To TX", "View", "Properties", "-", "Load", "Print", "Copy", "-", "Delete"}},
-      {imageViewer::TXSTOCKTHUMB, "TX Stock", {"Edit picture...", "-", "To TX", "View", "Properties", "-", "Load", "Print", "Copy", "Paste", "-", "Delete"}},
-      {imageViewer::RXSSTVTHUMB, "RX SSTV", {"To TX", "View", "Properties", "-", "Upload to FTP", "Print", "Copy", "-", "Delete"}},
-      {imageViewer::RXDRMTHUMB, "RX DRM", {"To TX", "View", "Properties", "-", "Upload to FTP", "Print", "Copy", "-", "Delete"}},
-      {imageViewer::TXSSTVTHUMB, "TX SSTV", {"To TX", "View", "Properties", "-", "Print", "Copy", "-", "Delete"}},
-      {imageViewer::TXDRMTHUMB, "TX DRM", {"To TX", "View", "Properties", "-", "Print", "Copy", "-", "Delete"}},
-      {imageViewer::TXIMG, "the TX picture", {"Load", "Edit picture...", "-", "View", "Properties", "Reset zoom/pan", "-", "Print", "Copy", "Paste", "-", "Delete"}},
+      {imageViewer::TEMPLATETHUMB, "Templates", {"New template...", "Edit template...", "-", "To TX", "View", "Properties", "-", "Load", "Copy", "-", "Delete"}},
+      {imageViewer::TXSTOCKTHUMB, "TX Stock", {"Edit picture...", "-", "To TX", "View", "Properties", "-", "Load", "Copy", "Paste", "-", "Delete"}},
+      {imageViewer::RXSSTVTHUMB, "RX SSTV", {"To TX", "View", "Properties", "-", "Upload to FTP", "Copy", "-", "Delete"}},
+      {imageViewer::RXDRMTHUMB, "RX DRM", {"To TX", "View", "Properties", "-", "Upload to FTP", "Copy", "-", "Delete"}},
+      {imageViewer::TXSSTVTHUMB, "TX SSTV", {"To TX", "View", "Properties", "-", "Copy", "-", "Delete"}},
+      {imageViewer::TXDRMTHUMB, "TX DRM", {"To TX", "View", "Properties", "-", "Copy", "-", "Delete"}},
+      {imageViewer::TXIMG, "the TX picture", {"Load", "Edit picture...", "-", "View", "Properties", "Reset zoom/pan", "-", "Copy", "Paste", "-", "Delete"}},
       {imageViewer::PREVIEW, "the RX preview on the TX tab", {"Load", "-", "To TX", "View", "Properties", "-", "Copy"}},
       {imageViewer::RXIMG, "the live RX picture", {"View", "Properties", "-", "Copy", "-", "Clear"}},
       {imageViewer::EXTVIEW, "the picture viewer window", {"Zoom In (+)", "Zoom Out (-)", "Properties", "-", "Copy"}},

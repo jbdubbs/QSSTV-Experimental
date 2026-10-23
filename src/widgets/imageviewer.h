@@ -145,7 +145,6 @@ private slots:
   void slotClear();
   void slotLoad();
   void slotNew();
-  void slotPrint();
   void slotUploadFTP();
   void slotProperties();
   void slotCopy();
@@ -201,7 +200,6 @@ private:
   QAction *toTXAct;
   QMenu *toTXMenu;
   QAction *editAct;
-  QAction *printAct;
   QAction *uploadAct;
   QAction *deleteAct;
   QAction *clearAct;
