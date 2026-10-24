@@ -27,7 +27,7 @@
    <item>
     <widget class="QCheckBox" name="enableCheckBox">
      <property name="toolTip">
-      <string>Allow the Get GPS button and the WA8LMF beacon to read a GPS receiver</string>
+      <string>Let the GPS button and the beacon read the receiver</string>
      </property>
      <property name="text">
       <string>Enable GPS</string>
@@ -58,7 +58,7 @@
         </sizepolicy>
        </property>
        <property name="toolTip">
-        <string>The port of the GPS receiver. It must differ from the CAT and the PTT port.</string>
+        <string>Must differ from the CAT and PTT ports</string>
        </property>
        <property name="editable">
         <bool>true</bool>
@@ -95,7 +95,7 @@
      <item>
       <widget class="QComboBox" name="baudComboBox">
        <property name="toolTip">
-        <string>Most GPS receivers send NMEA at 4800 or 9600 baud</string>
+        <string>Usually 4800 or 9600</string>
        </property>
        <item>
         <property name="text">
@@ -147,7 +147,7 @@
    <item>
     <widget class="QCheckBox" name="beaconRefreshCheckBox">
      <property name="toolTip">
-      <string>Read the GPS before each WA8LMF beacon transmission, so the Lat and Long in the picture follow the station. Without a position the last one is used.</string>
+      <string>Keeps Lat and Long current in every beacon picture</string>
      </property>
      <property name="text">
       <string>Read the GPS before each WA8LMF beacon transmission</string>
@@ -157,7 +157,7 @@
    <item>
     <widget class="QCheckBox" name="placeCheckBox">
      <property name="toolTip">
-      <string>Ask OpenStreetMap (nominatim.openstreetmap.org) for the city and state of a new position, for the %g template macro and the Place box of the Transmit tab. The position is sent to that service. Without a connection the last place stays.</string>
+      <string>Fills the Place box (%g macro). Needs internet.</string>
      </property>
      <property name="text">
       <string>Look up the city and state on the internet (sends the position to OpenStreetMap)</string>
@@ -169,7 +169,7 @@
      <item>
       <widget class="QPushButton" name="testPushButton">
        <property name="toolTip">
-        <string>Read the position now with the port and baud rate shown here</string>
+        <string>Read the position with the settings shown here</string>
        </property>
        <property name="text">
         <string>Test</string>
