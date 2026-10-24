@@ -6,6 +6,9 @@
 #include "placelookup.h"
 #include "rigcontrol.h"
 
+#include <QAbstractItemView>
+#include <QDir>
+#include <QFileInfo>
 #include <QMessageBox>
 #include <QSerialPortInfo>
 
@@ -21,6 +24,7 @@ gpsConfig::gpsConfig(QWidget *parent) : baseConfig(parent), ui(new Ui::gpsConfig
   connect(ui->rescanToolButton,SIGNAL(clicked()),SLOT(slotRescanPorts()));
   connect(ui->enableCheckBox,SIGNAL(clicked()),SLOT(slotEnableChanged()));
   connect(ui->testPushButton,SIGNAL(clicked()),SLOT(slotTest()));
+  ui->portComboBox->view()->setTextElideMode(Qt::ElideMiddle);   // by-id names are long and differ at both ends
   slotRescanPorts();
 }
 
@@ -98,21 +102,44 @@ void gpsConfig::setParams()
   ui->resultLabel->clear();
 }
 
-// the serial ports of the system, as Configuration > CAT would name them
+QList<gpsConfig::portChoice> gpsConfig::serialPorts(const QString &byIdDir)
+{
+  QList<portChoice> ports;
+#ifdef Q_OS_LINUX
+  const QFileInfoList links=QDir(byIdDir).entryInfoList(QDir::AllEntries|QDir::System|QDir::NoDotAndDotDot,QDir::Name);
+  for(const QFileInfo &link:links) ports.append({link.absoluteFilePath(),link.symLinkTarget()});
+#else
+  Q_UNUSED(byIdDir);
+#endif
+  if(!ports.isEmpty()) return ports;
+  const QList<QSerialPortInfo> found=QSerialPortInfo::availablePorts();
+  for(const QSerialPortInfo &info:found)
+    {
+#ifdef Q_OS_WIN
+      ports.append({info.portName(),info.description()});
+#else
+      ports.append({info.systemLocation(),info.description()});
+#endif
+    }
+  return ports;
+}
+
+bool gpsConfig::samePort(const QString &a,const QString &b)
+{
+  if(a.compare(b,Qt::CaseInsensitive)==0) return true;
+  const QString ca=QFileInfo(a).canonicalFilePath();   // empty for a name that is not a path, such as COM1
+  return !ca.isEmpty() && ca==QFileInfo(b).canonicalFilePath();
+}
+
 void gpsConfig::slotRescanPorts()
 {
   const QString current=ui->portComboBox->currentText();
   ui->portComboBox->clear();
-  const QList<QSerialPortInfo> ports=QSerialPortInfo::availablePorts();
-  for(const QSerialPortInfo &info:ports)
+  const QList<portChoice> ports=serialPorts();
+  for(const portChoice &p:ports)
     {
-#ifdef Q_OS_WIN
-      const QString name=info.portName();
-#else
-      const QString name=info.systemLocation();
-#endif
-      ui->portComboBox->addItem(name);
-      ui->portComboBox->setItemData(ui->portComboBox->count()-1,info.description(),Qt::ToolTipRole);
+      ui->portComboBox->addItem(p.name);
+      ui->portComboBox->setItemData(ui->portComboBox->count()-1,p.info,Qt::ToolTipRole);
     }
   ui->portComboBox->setCurrentText(current.isEmpty()?gpsPort:current);
 }
@@ -122,9 +149,9 @@ QString gpsConfig::portConflict(const QString &port) const
 {
   if(rigControllerPtr==nullptr || port.isEmpty()) return QString();
   const scatParams *cp=rigControllerPtr->params();
-  if(cp->enableCAT && cp->serialPort.compare(port,Qt::CaseInsensitive)==0)
+  if(cp->enableCAT && samePort(cp->serialPort,port))
     return QString("The GPS port (%1) must be different from the CAT serial port").arg(port);
-  if(cp->enableSerialPTT && cp->pttSerialPort.compare(port,Qt::CaseInsensitive)==0)
+  if(cp->enableSerialPTT && samePort(cp->pttSerialPort,port))
     return QString("The GPS port (%1) must be different from the PTT serial port").arg(port);
   return QString();
 }

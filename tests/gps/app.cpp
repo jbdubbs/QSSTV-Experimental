@@ -4,6 +4,7 @@
 // Built and run by tests/gps/app.sh against an existing build-cmake tree (it links the application's object files).
 #include <QtTest>
 #include <QtWidgets>
+#include <QSerialPortInfo>
 #include <cstdio>
 #include <cstdlib>
 #include <fcntl.h>
@@ -472,6 +473,46 @@ int main(int argc, char **argv)
             portBox->setCurrentText("/dev/does-not-exist-gps");
             QTest::mouseClick(testButton, Qt::LeftButton);
             checkWait([&] {return result->text().contains("Cannot open");}, [&] {return "Test explains a port that cannot be opened: " + result->text();});
+
+            // the list of ports: on Linux the by-id names
+            {
+              QTemporaryDir dir;
+              check(dir.isValid(), "(a scratch folder for fake /dev/serial/by-id links)");
+              QFile::link(slave, dir.path() + "/usb-Fake_GPS_0001-if00-port0");
+              QFile::link("/dev/does-not-exist-gps", dir.path() + "/usb-Broken-if00-port0");
+              const QList<gpsConfig::portChoice> list = gpsConfig::serialPorts(dir.path());
+              check(list.size() == 2 && list.at(0).name == dir.path() + "/usb-Broken-if00-port0" && list.at(1).name == dir.path() + "/usb-Fake_GPS_0001-if00-port0",
+                    "the ports offered are the links of the by-id folder, sorted (" + QString::number(list.size()) + " found)");
+              check(list.size() == 2 && list.at(1).info == QFileInfo(slave).absoluteFilePath(), "each with the device it points to as its hint");
+              QTemporaryDir empty;
+              const QList<gpsConfig::portChoice> fallback = gpsConfig::serialPorts(empty.path());
+              check(fallback.size() == QSerialPortInfo::availablePorts().size(), "without by-id links the ports of the system are offered (" + QString::number(fallback.size()) + ")");
+              for (const gpsConfig::portChoice &p : fallback) if (p.name.startsWith(empty.path())) check(false, "(fallback names a link of the empty folder)");
+              check(gpsConfig::serialPorts("/nonexistent-folder/by-id").size() == fallback.size(), "and so does a computer without that folder");
+
+              // the page itself lists what the real folder holds: no generic /dev/ttyUSB* names next to the by-id ones
+              const QList<gpsConfig::portChoice> real = gpsConfig::serialPorts();
+              QStringList wanted;
+              for (const gpsConfig::portChoice &p : real) wanted << p.name;
+              QMetaObject::invokeMethod(page, "slotRescanPorts");
+              QStringList shown;
+              for (int i = 0; i < portBox->count(); i++) shown << portBox->itemText(i);
+              check(shown == wanted, "Rescan fills the list with them (" + QString::number(shown.size()) + " ports)");
+              if (QDir("/dev/serial/by-id").exists() && !QDir("/dev/serial/by-id").isEmpty(QDir::AllEntries | QDir::System | QDir::NoDotAndDotDot))
+                check(!shown.isEmpty() && shown.first().startsWith("/dev/serial/by-id/") && !shown.contains("/dev/ttyUSB0"), "this computer has by-id ports: those are listed, not /dev/ttyUSB0");
+
+              // the same adapter under two names is still one port
+              check(gpsConfig::samePort(slave, dir.path() + "/usb-Fake_GPS_0001-if00-port0"), "a by-id link and its device are the same port");
+              check(!gpsConfig::samePort(slave, "/dev/null") && gpsConfig::samePort("COM1", "com1") && !gpsConfig::samePort("COM1", "COM2"), "other ports and plain names are told apart");
+              rigControllerPtr->params()->enableCAT = true;
+              rigControllerPtr->params()->serialPort = slave;
+              portBox->setCurrentText(dir.path() + "/usb-Fake_GPS_0001-if00-port0");
+              enableBox->setChecked(false);
+              boxes = 0;
+              QTest::mouseClick(enableBox, Qt::LeftButton);
+              checkWait([&] {return boxes > 0 && !enableBox->isChecked();}, [&] {return "the GPS cannot be enabled on a by-id link of the CAT port: " + lastBox;});
+              rigControllerPtr->params()->enableCAT = false;
+            }
 
             // the GPS may not use the CAT port
             rigControllerPtr->params()->enableCAT = true;
