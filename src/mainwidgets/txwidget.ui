@@ -47,10 +47,10 @@
        <item>
         <widget class="QToolButton" name="startToolButton">
          <property name="toolTip">
-          <string>Start transmit</string>
+          <string>Transmit the picture</string>
          </property>
          <property name="statusTip">
-          <string>Start transmit</string>
+          <string>Transmit the picture</string>
          </property>
          <property name="text">
           <string>...</string>
@@ -70,10 +70,10 @@
        <item>
         <widget class="QToolButton" name="stopToolButton">
          <property name="toolTip">
-          <string>Stop transmit</string>
+          <string>Stop the transmission, back to receive</string>
          </property>
          <property name="statusTip">
-          <string>Stop transmit</string>
+          <string>Stop the transmission, back to receive</string>
          </property>
          <property name="text">
           <string>...</string>
@@ -93,10 +93,10 @@
        <item>
         <widget class="QToolButton" name="openToolButton">
          <property name="toolTip">
-          <string>Load image</string>
+          <string>Load a picture to transmit</string>
          </property>
          <property name="statusTip">
-          <string>Load image</string>
+          <string>Load a picture to transmit</string>
          </property>
          <property name="text">
           <string>...</string>
@@ -116,10 +116,10 @@
        <item>
         <widget class="QToolButton" name="editToolButton">
          <property name="toolTip">
-          <string>Edit this picture in your picture editor (a copy is edited, the original is not changed)</string>
+          <string>Edit a copy of the picture in your editor</string>
          </property>
          <property name="statusTip">
-          <string>Edit this picture in your picture editor (a copy is edited, the original is not changed)</string>
+          <string>Edit a copy of the picture in your editor</string>
          </property>
          <property name="text">
           <string>...</string>
@@ -139,10 +139,10 @@
        <item>
         <widget class="QToolButton" name="snapshotToolButton">
          <property name="toolTip">
-          <string>Camera snapshot</string>
+          <string>Camera picture or WA8LMF Beacon Mode</string>
          </property>
          <property name="statusTip">
-          <string>Camera snapshot</string>
+          <string>Camera picture or WA8LMF Beacon Mode</string>
          </property>
          <property name="text">
           <string>...</string>
@@ -162,10 +162,10 @@
        <item>
         <widget class="QToolButton" name="binaryToolButton">
          <property name="toolTip">
-          <string>Send binary file</string>
+          <string>Send a binary file (DRM)</string>
          </property>
          <property name="statusTip">
-          <string>Send binary file</string>
+          <string>Send a binary file (DRM)</string>
          </property>
          <property name="text">
           <string>...</string>
@@ -197,6 +197,9 @@
        </item>
        <item>
         <widget class="QCheckBox" name="hybridCheckBox">
+         <property name="toolTip">
+          <string>Hybrid mode: DRM plus an internet server</string>
+         </property>
          <property name="text">
           <string>Hybrid</string>
          </property>
@@ -205,10 +208,10 @@
        <item>
         <widget class="QToolButton" name="uploadToolButton">
          <property name="toolTip">
-          <string>Upload Now</string>
+          <string>Upload to the hybrid server, no transmission</string>
          </property>
          <property name="statusTip">
-          <string>Upload Now</string>
+          <string>Upload to the hybrid server, no transmission</string>
          </property>
          <property name="text">
           <string>Upload</string>
@@ -241,10 +244,10 @@
        <item>
         <widget class="QToolButton" name="repeaterToneToolButton">
          <property name="toolTip">
-          <string>Send repeater tone</string>
+          <string>Send a 1750 Hz repeater tone (3 s)</string>
          </property>
          <property name="statusTip">
-          <string>Send repeater tone</string>
+          <string>Send a 1750 Hz repeater tone (3 s)</string>
          </property>
          <property name="text">
           <string>...</string>
@@ -264,10 +267,10 @@
        <item>
         <widget class="QToolButton" name="generateToneToolButton">
          <property name="toolTip">
-          <string>Send tone</string>
+          <string>Send a test tone</string>
          </property>
          <property name="statusTip">
-          <string>Send tone</string>
+          <string>Send a test tone</string>
          </property>
          <property name="text">
           <string>...</string>
@@ -287,10 +290,10 @@
        <item>
         <widget class="QToolButton" name="sweepToneToolButton">
          <property name="toolTip">
-          <string>Send sweep tones</string>
+          <string>Send a test frequency sweep</string>
          </property>
          <property name="statusTip">
-          <string>Send sweep tones</string>
+          <string>Send a test frequency sweep</string>
          </property>
          <property name="text">
           <string>...</string>
@@ -336,6 +339,9 @@
        </item>
        <item>
         <widget class="QSlider" name="sizeSlider">
+         <property name="toolTip">
+          <string>Compressed picture size (DRM)</string>
+         </property>
          <property name="minimum">
           <number>1</number>
          </property>
@@ -367,6 +373,9 @@
        </item>
        <item>
         <widget class="QLabel" name="sizeKbLabel">
+         <property name="toolTip">
+          <string>Compressed picture size</string>
+         </property>
          <property name="minimumSize">
           <size>
            <width>80</width>
@@ -398,6 +407,9 @@
        </item>
        <item>
         <widget class="QLabel" name="sizeDurationLabel">
+         <property name="toolTip">
+          <string>Estimated transmit time</string>
+         </property>
          <property name="minimumSize">
           <size>
            <width>50</width>
@@ -474,10 +486,10 @@
            <item row="0" column="3">
             <widget class="QComboBox" name="sstvModeComboBox">
              <property name="toolTip">
-              <string>Transmit mode</string>
+              <string>SSTV mode: sets picture size and transmit time</string>
              </property>
              <property name="statusTip">
-              <string>Transmit mode</string>
+              <string>SSTV mode: sets picture size and transmit time</string>
              </property>
             </widget>
            </item>
@@ -516,12 +528,16 @@
             </widget>
            </item>
            <item row="3" column="3">
-            <widget class="QComboBox" name="sstvResizeComboBox"/>
+            <widget class="QComboBox" name="sstvResizeComboBox">
+             <property name="toolTip">
+              <string>How the picture fits the frame: Stretch, Crop, Fit, Free</string>
+             </property>
+            </widget>
            </item>
            <item row="4" column="3">
             <widget class="QComboBox" name="sstvGridComboBox">
              <property name="toolTip">
-              <string>Stitch several images together (columns x rows) for modes larger than PD160; right-click a segment to load, edit, copy or paste it</string>
+              <string>Pictures in a grid (modes over PD160); right-click a cell</string>
              </property>
             </widget>
            </item>
@@ -555,7 +571,7 @@
          <item row="0" column="0">
           <widget class="QLabel" name="drmModeLabel">
            <property name="toolTip">
-            <string>Robustness mode. Higher mode letters are more robust but slower.</string>
+            <string>Robustness: higher letters are more robust, slower</string>
            </property>
            <property name="minimumSize">
             <size>
@@ -577,7 +593,7 @@
          <item row="0" column="1">
           <widget class="QComboBox" name="drmTxModeComboBox">
            <property name="toolTip">
-            <string>Robustness mode. Higher mode letters are more robust but slower.</string>
+            <string>Robustness: higher letters are more robust, slower</string>
            </property>
            <property name="sizeAdjustPolicy">
             <enum>QComboBox::AdjustToContents</enum>
@@ -602,7 +618,7 @@
          <item row="0" column="2">
           <widget class="QLabel" name="drmQAMLabel">
            <property name="toolTip">
-            <string>Bits per carrier. 4 = most robust, 64 = fastest but needs a clean signal.</string>
+            <string>QAM level: 4 is most robust, 64 is fastest</string>
            </property>
            <property name="minimumSize">
             <size>
@@ -624,7 +640,7 @@
          <item row="0" column="3">
           <widget class="QComboBox" name="drmTxQAMComboBox">
            <property name="toolTip">
-            <string>Bits per carrier. 4 = most robust, 64 = fastest but needs a clean signal.</string>
+            <string>QAM level: 4 is most robust, 64 is fastest</string>
            </property>
            <property name="sizeAdjustPolicy">
             <enum>QComboBox::AdjustToContents</enum>
@@ -649,7 +665,7 @@
          <item row="0" column="4">
           <widget class="QLabel" name="drmBandwidthLabel">
            <property name="toolTip">
-            <string>Occupied bandwidth. Wider is faster. 4.8 kHz is for VHF/UHF FM only.</string>
+            <string>Bandwidth: wider is faster (4.8 kHz: VHF/UHF FM only)</string>
            </property>
            <property name="minimumSize">
             <size>
@@ -671,7 +687,7 @@
          <item row="0" column="5">
           <widget class="QComboBox" name="drmTxBandwidthComboBox">
            <property name="toolTip">
-            <string>Occupied bandwidth. Wider is faster. 4.8 kHz is for VHF/UHF FM only.</string>
+            <string>Bandwidth: wider is faster (4.8 kHz: VHF/UHF FM only)</string>
            </property>
             <property name="sizeAdjustPolicy">
              <enum>QComboBox::AdjustToContents</enum>
@@ -696,7 +712,7 @@
          <item row="1" column="0">
           <widget class="QLabel" name="drmInterleavelabel">
            <property name="toolTip">
-            <string>Time interleaving. Long survives longer fades but adds delay.</string>
+            <string>Interleaving: Long survives longer fades, adds delay</string>
            </property>
            <property name="minimumSize">
             <size>
@@ -718,7 +734,7 @@
          <item row="1" column="1" colspan="2">
           <widget class="QComboBox" name="drmTxInterleaveComboBox">
            <property name="toolTip">
-            <string>Time interleaving. Long survives longer fades but adds delay.</string>
+            <string>Interleaving: Long survives longer fades, adds delay</string>
            </property>
            <item>
             <property name="text">
@@ -735,7 +751,7 @@
          <item row="1" column="4">
           <widget class="QLabel" name="drmProtectionLabel">
            <property name="toolTip">
-            <string>Error-correction strength. High is more robust but slower.</string>
+            <string>Error protection: High is more robust, slower</string>
            </property>
            <property name="minimumSize">
             <size>
@@ -757,7 +773,7 @@
          <item row="1" column="5">
           <widget class="QComboBox" name="drmTxProtectionComboBox">
            <property name="toolTip">
-            <string>Error-correction strength. High is more robust but slower.</string>
+            <string>Error protection: High is more robust, slower</string>
            </property>
            <property name="sizeAdjustPolicy">
             <enum>QComboBox::AdjustToContents</enum>
@@ -777,7 +793,7 @@
          <item row="2" column="0">
           <widget class="QLabel" name="drmProfileLabel">
            <property name="toolTip">
-            <string>Saved parameter preset. Edit in Settings > DRM.</string>
+            <string>Saved DRM settings (Configuration &gt; DRM)</string>
            </property>
            <property name="text">
             <string>Profile</string>
@@ -790,7 +806,7 @@
          <item row="2" column="1" colspan="3">
           <widget class="QComboBox" name="drmProfileComboBox">
            <property name="toolTip">
-            <string>Saved parameter preset. Edit in Settings > DRM.</string>
+            <string>Saved DRM settings (Configuration &gt; DRM)</string>
            </property>
            <property name="maximumSize">
             <size>
@@ -803,7 +819,7 @@
          <item row="2" column="4">
           <widget class="QLabel" name="drmReadSolomonLabel">
            <property name="toolTip">
-            <string>Extra Reed-Solomon coding on file data. RS1-RS4 add more redundancy: slower, more robust.</string>
+            <string>Reed-Solomon for files: RS1-RS4 more robust, slower</string>
            </property>
            <property name="minimumSize">
             <size>
@@ -825,7 +841,7 @@
          <item row="2" column="5">
           <widget class="QComboBox" name="drmTxReedSolomonComboBox">
            <property name="toolTip">
-            <string>Extra Reed-Solomon coding on file data. RS1-RS4 add more redundancy: slower, more robust.</string>
+            <string>Reed-Solomon for files: RS1-RS4 more robust, slower</string>
            </property>
            <property name="sizeAdjustPolicy">
             <enum>QComboBox::AdjustToContents</enum>
@@ -870,7 +886,7 @@
          <item row="3" column="1" colspan="3">
           <widget class="QComboBox" name="drmEncodingComboBox">
            <property name="toolTip">
-            <string>Image compression. JPEG2000 gives a progressive preview; AVIF is cleaner at small sizes but all-or-nothing.</string>
+            <string>JPEG2000: progressive preview. AVIF: cleaner when small.</string>
            </property>
            <item>
             <property name="text">
@@ -897,7 +913,7 @@
          <item row="4" column="1" colspan="3">
           <widget class="QComboBox" name="drmResizeComboBox">
            <property name="toolTip">
-            <string>Stretch, crop, fit or freely zoom/pan the selected grid cell (a single image is always zoom/pan)</string>
+            <string>How the picture fits the frame: Stretch, Crop, Fit, Free</string>
            </property>
           </widget>
          </item>
@@ -914,7 +930,7 @@
          <item row="4" column="5">
           <widget class="QComboBox" name="drmGridComboBox">
            <property name="toolTip">
-            <string>Stitch several images together (columns x rows); right-click a segment to load, edit, copy or paste it</string>
+            <string>Pictures in a grid; right-click a cell for options</string>
            </property>
           </widget>
          </item>
@@ -939,6 +955,9 @@
        </item>
        <item>
         <widget class="QProgressBar" name="txProgressBar">
+         <property name="toolTip">
+          <string>Transmission progress</string>
+         </property>
          <property name="value">
           <number>0</number>
          </property>
@@ -957,20 +976,20 @@
        <item row="1" column="1">
         <widget class="QComboBox" name="templatesComboBox">
          <property name="toolTip">
-          <string>Select template</string>
+          <string>Template for the picture</string>
          </property>
          <property name="statusTip">
-          <string>Select template</string>
+          <string>Template for the picture</string>
          </property>
         </widget>
        </item>
        <item row="0" column="1">
         <widget class="QCheckBox" name="cwCheckBox">
          <property name="toolTip">
-          <string>Send CW at end (text is set in Configuration &gt; CW)</string>
+          <string>Send CW at the end (Configuration &gt; CW)</string>
          </property>
          <property name="statusTip">
-          <string>Send CW at end (text is set in Configuration &gt; CW)</string>
+          <string>Send CW at the end (Configuration &gt; CW)</string>
          </property>
          <property name="text">
           <string>CW (config &gt; CW)</string>
@@ -979,6 +998,9 @@
        </item>
        <item row="1" column="0">
         <widget class="QCheckBox" name="templateCheckBox">
+         <property name="toolTip">
+          <string>Lay the picture into the template</string>
+         </property>
          <property name="text">
           <string>Use Template</string>
          </property>
@@ -987,10 +1009,10 @@
        <item row="0" column="0">
         <widget class="QCheckBox" name="voxCheckBox">
          <property name="toolTip">
-          <string>Send leading tone</string>
+          <string>Send a leading tone so VOX keys the radio</string>
          </property>
          <property name="statusTip">
-          <string>Send leading tone</string>
+          <string>Send a leading tone so VOX keys the radio</string>
          </property>
          <property name="text">
           <string>VOX</string>
@@ -1038,10 +1060,10 @@
           </size>
          </property>
          <property name="toolTip">
-          <string>Template info</string>
+          <string>Call sign of the other station (%c)</string>
          </property>
          <property name="statusTip">
-          <string>Template info</string>
+          <string>Call sign of the other station (%c)</string>
          </property>
         </widget>
        </item>
@@ -1076,10 +1098,10 @@
           </size>
          </property>
          <property name="toolTip">
-          <string>Template info</string>
+          <string>Name of the other operator (%o)</string>
          </property>
          <property name="statusTip">
-          <string>Template info</string>
+          <string>Name of the other operator (%o)</string>
          </property>
         </widget>
        </item>
@@ -1114,10 +1136,10 @@
           </size>
          </property>
          <property name="toolTip">
-          <string>Template info</string>
+          <string>RSV report to send (%r)</string>
          </property>
          <property name="statusTip">
-          <string>Template info</string>
+          <string>RSV report to send (%r)</string>
          </property>
         </widget>
        </item>
@@ -1151,10 +1173,10 @@
           </size>
          </property>
          <property name="toolTip">
-          <string>Latitude for the %a template macro, in decimal degrees (north positive). Filled in by Get GPS.</string>
+          <string>Latitude, decimal degrees, north positive (%a)</string>
          </property>
          <property name="statusTip">
-          <string>Latitude for the %a template macro</string>
+          <string>Latitude, decimal degrees, north positive (%a)</string>
          </property>
         </widget>
          </item>
@@ -1183,17 +1205,17 @@
           </size>
          </property>
          <property name="toolTip">
-          <string>Longitude for the %b template macro, in decimal degrees (east positive). Filled in by Get GPS.</string>
+          <string>Longitude, decimal degrees, east positive (%b)</string>
          </property>
          <property name="statusTip">
-          <string>Longitude for the %b template macro</string>
+          <string>Longitude, decimal degrees, east positive (%b)</string>
          </property>
         </widget>
          </item>
          <item>
         <widget class="QToolButton" name="gpsToolButton">
          <property name="toolTip">
-          <string>Read the position from the GPS receiver (Configuration &gt; GPS)</string>
+          <string>Read the position from the GPS receiver</string>
          </property>
          <property name="statusTip">
           <string>Read the position from the GPS receiver</string>
@@ -1243,10 +1265,10 @@
           </size>
          </property>
          <property name="toolTip">
-          <string>City and state for the %g template macro. Filled in from the position when the lookup is on (Configuration &gt; GPS), or type it.</string>
+          <string>City and state (%g), looked up or typed in</string>
          </property>
          <property name="statusTip">
-          <string>City and state for the %g template macro</string>
+          <string>City and state (%g), looked up or typed in</string>
          </property>
         </widget>
        </item>
@@ -1275,6 +1297,9 @@
        </item>
        <item>
         <widget class="xyzPlainTextEdit" name="xPlainTextEdit">
+         <property name="toolTip">
+          <string>Text for the %x macro</string>
+         </property>
          <property name="sizePolicy">
           <sizepolicy hsizetype="Expanding" vsizetype="Ignored">
            <horstretch>0</horstretch>
@@ -1320,6 +1345,9 @@
        </item>
        <item>
         <widget class="xyzPlainTextEdit" name="yPlainTextEdit">
+         <property name="toolTip">
+          <string>Text for the %y macro</string>
+         </property>
          <property name="sizePolicy">
           <sizepolicy hsizetype="Expanding" vsizetype="Ignored">
            <horstretch>0</horstretch>
@@ -1365,6 +1393,9 @@
        </item>
        <item>
         <widget class="xyzPlainTextEdit" name="zPlainTextEdit">
+         <property name="toolTip">
+          <string>Text for the %z macro</string>
+         </property>
          <property name="sizePolicy">
           <sizepolicy hsizetype="Expanding" vsizetype="Ignored">
            <horstretch>0</horstretch>
@@ -1394,6 +1425,9 @@
        </property>
        <item>
         <widget class="QPushButton" name="refreshPushButton">
+         <property name="toolTip">
+          <string>Apply the template values to the picture</string>
+         </property>
          <property name="text">
           <string>Refresh</string>
          </property>
@@ -1401,6 +1435,9 @@
        </item>
        <item>
         <widget class="imageViewer" name="previewWidget" native="true">
+         <property name="toolTip">
+          <string>Picture for the template's replay slot</string>
+         </property>
          <property name="minimumSize">
           <size>
            <width>100</width>
@@ -1436,7 +1473,7 @@
         <bool>false</bool>
        </property>
        <property name="toolTip">
-        <string>Rx Notifications seen for the last DRM Hybrid image sent</string>
+        <string>Receive notifications for the last hybrid picture</string>
        </property>
        <property name="statusTip">
         <string/>

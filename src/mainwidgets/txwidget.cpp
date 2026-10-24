@@ -85,7 +85,7 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
     // Edit... opens the selected template in the template editor; its menu starts a new one
     QToolButton *editTemplate=new QToolButton(this);
     editTemplate->setText(tr("Edit..."));
-    editTemplate->setToolTip(tr("Edit the selected template (the arrow: make a new template)"));
+    editTemplate->setToolTip(tr("Edit the selected template; the arrow starts a new one"));
     editTemplate->setStatusTip(editTemplate->toolTip());
     QMenu *templateMenu=new QMenu(editTemplate);
     templateMenu->addAction(tr("New template..."),this,&txWidget::slotNewTemplate);
@@ -1470,13 +1470,13 @@ void txWidget::updateBeaconUi()
       painter.end();
       icon=QIcon(pm);
       ui->snapshotToolButton->setStyleSheet("QToolButton { background-color: rgba(0,200,0,70); border: 1px solid rgb(0,140,0); border-radius: 4px; }");
-      ui->snapshotToolButton->setToolTip(QString("WA8LMF Beacon Mode running (every %1 min) - click to stop").arg(beaconMinutes));
+      ui->snapshotToolButton->setToolTip(QString("WA8LMF Beacon Mode every %1 min - click to stop").arg(beaconMinutes));
     }
   else
     {
       icon=QIcon(":/icons/tb_camera.png");
       ui->snapshotToolButton->setStyleSheet(QString());
-      ui->snapshotToolButton->setToolTip("Camera snapshot / WA8LMF Beacon Mode");
+      ui->snapshotToolButton->setToolTip("Camera picture or WA8LMF Beacon Mode");
     }
   ui->snapshotToolButton->setIcon(icon);
 }
