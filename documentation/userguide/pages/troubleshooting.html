@@ -54,6 +54,9 @@
 <dt>My template shows the wrong font</dt><dd>The font is not installed on this computer; another one is used. The template editor shows a notice for such a text and keeps the font name, so the template still looks right on a computer that has the font.</dd>
 <dt>Distorted transmit audio</dt><dd>Lower the output level and check the radio's ALC. Use the tone test (see <a href="transmit.html#tones">Tones and sweeps</a>).</dd>
 <dt>The picture is cropped or letterboxed on the transmit side</dt><dd>Change <strong>Framing</strong> between Stretch, Crop, Fit and Free.</dd>
+<dt>The GPS button says it cannot open the port</dt><dd>Check the port in <a href="configuration.html#gps">Configuration &gt; GPS</a> (<strong>Rescan</strong> lists the ports found). On Linux your user must be allowed to use the serial port, usually by being in the <code>dialout</code> group; log out and in again after joining it. Close any other program that is reading the receiver, and use a port other than the CAT and PTT ports.</dd>
+<dt>"No GPS data" or "has no position fix yet"</dt><dd>"No GPS data" means nothing readable arrived: the port or the baud rate is wrong (most receivers use 4800 or 9600, try the other one). "No position fix yet" means the receiver talks but has not found its position; give it a clear view of the sky, a cold start can take several minutes. <strong>Test</strong> on the GPS page tells which of the two you have.</dd>
+<dt>The Place box stays empty</dt><dd>Tick <em>Look up the city and state on the internet</em> on the <a href="configuration.html#gps">GPS page</a> and make sure the computer is online; <strong>Test</strong> there shows the reason when the lookup fails. On Linux the OpenSSL libraries must be installed for the secure connection. The box can always be filled in by hand.</dd>
 </dl>
 
 <h2 id="files">Files and settings</h2>
