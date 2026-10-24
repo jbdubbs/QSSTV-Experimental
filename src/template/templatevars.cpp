@@ -33,6 +33,7 @@ const QVector<MacroInfo> &macroTable()
     {'z', tr("Comment 3"), tr("Third comment line (TX tab)"), QStringLiteral("Comment 3")},
     {'a', tr("Latitude"), tr("Latitude in decimal degrees, north positive (TX tab, from the GPS or typed in)"), QStringLiteral("47.60620")},
     {'b', tr("Longitude"), tr("Longitude in decimal degrees, east positive (TX tab, from the GPS or typed in)"), QStringLiteral("-122.33210")},
+    {'g', tr("Place"), tr("City and state of the position (TX tab, looked up on the internet from the position or typed in)"), QStringLiteral("Seattle, WA")},
     {'s', tr("MER"), tr("Signal quality (MER, dB) of the last received DRM picture"), QStringLiteral("21")},
   };
   return table;

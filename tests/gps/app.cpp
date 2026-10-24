@@ -1,5 +1,5 @@
 // Drives the GPS inside the REAL application objects (main window, TX tab, Configuration > GPS), offscreen, with a fake GPS
-// receiver on a pseudo terminal:
+// receiver on a pseudo terminal and a fake web server in place of the place service of OpenStreetMap:
 //   app <scratch-dir> <fixtures-dir>
 // Built and run by tests/gps/app.sh against an existing build-cmake tree (it links the application's object files).
 #include <QtTest>
@@ -18,6 +18,8 @@
 #include "mainwindow.h"
 #include "templatedoc.h"
 #include "nmeaparser.h"
+#include "placelookup.h"
+#include "fakeservice.h"
 #include "rigcontrol.h"
 #include "sstvparam.h"
 #include "txfunctions.h"
@@ -107,6 +109,9 @@ int main(int argc, char **argv)
   });
   closer.start(100);
 
+  fakeService fake;
+  placeLookupPtr->setServiceUrl(fake.url());
+
   txWidget *txw = txWidgetPtr;
   imageViewer *tx = txw->getImageViewerPtr();
   QLineEdit *lat = txw->findChild<QLineEdit *>("latLineEdit");
@@ -132,8 +137,8 @@ int main(int argc, char **argv)
     check(txw->beaconUsesGps(), "the beacon reads the GPS when it is set up");
     check(txw->requestGps(false), "(the beacon asks for a position)");
     txw->beaconTransmitLoaded();
-    check(txw->beaconWaitGps && txw->beaconError.isEmpty(), "while the position is being read, the beacon waits");
-    check(waitFor([&] {return !txw->beaconWaitGps;}), "and goes on when it arrives");
+    check(txw->beaconWaitPosition && txw->beaconError.isEmpty(), "while the position is being read, the beacon waits");
+    check(waitFor([&] {return !txw->beaconWaitPosition;}), "and goes on when it arrives");
     check(lat->text() == "47.60620" && lon->text() == "-122.33210", "with the position in the boxes (" + lat->text() + ", " + lon->text() + ")");
     check(txw->beaconError.contains("no valid picture"), "and the beacon continued: " + txw->beaconError);
     txw->stopBeacon();
@@ -144,8 +149,8 @@ int main(int argc, char **argv)
     txw->beaconError.clear();
     check(txw->requestGps(false), "(the beacon asks again, the port is gone)");
     txw->beaconTransmitLoaded();
-    check(txw->beaconWaitGps, "the beacon waits again");
-    check(waitFor([&] {return !txw->beaconWaitGps;}), "and goes on even though the GPS failed");
+    check(txw->beaconWaitPosition, "the beacon waits again");
+    check(waitFor([&] {return !txw->beaconWaitPosition;}), "and goes on even though the GPS failed");
     check(txw->beaconError.contains("no valid picture"), "(it did continue)");
     check(lat->text() == "47.60620" && boxes == 0, "the last position stays and no message box blocks an unattended beacon");
     txw->stopBeacon();
@@ -245,17 +250,152 @@ int main(int argc, char **argv)
     gpsEnabled = true;
   }
 
+  printf("\n== city and state (%%g)\n");
+  {
+    QLineEdit *place = txw->findChild<QLineEdit *>("placeLineEdit");
+    check(place != nullptr, "the Transmit tab has a Place box");
+    if (!place) return 1;
+    gpsPort = slave;
+    gpsEnabled = true;
+    gpsPlaceLookup = false;
+    place->clear();
+    txw->slotGetParams();
+    fake.body = seattle;
+    feeding = true;
+    sentence = nmea("GPGGA,123519,4736.372,N,12219.926,W,1,08,0.9,545.4,M,46.9,M,,");
+
+    // off: the position stays on the computer
+    QTest::mouseClick(gpsButton, Qt::LeftButton);
+    checkWait([&] {return lat->text() == "47.60620" && gpsButton->isEnabled();}, [&] {return "(the GPS button reads the position, " + lat->text() + ")";});
+    QTest::qWait(300);
+    check(fake.hits == 0 && place->text().isEmpty(), "with the lookup off nothing is asked and the Place box stays empty");
+
+    // a template that prints the place
+    tpl::TemplateDocument d;
+    d.canvas = QRectF(0, 0, 320, 256);
+    tpl::Element e;
+    e.type = tpl::ItemType::Text;
+    e.text = "%g";
+    e.pos = QPointF(10, 120);
+    e.font.pointSize = 36;
+    e.fill = Qt::white;
+    d.items << e;
+    QString err;
+    check(tpl::saveFile(templatesPath + "/gpsplace.qtempl", d, &err), "(template with %g saved)");
+    galleryWidgetPtr->changedMatrix(imageViewer::TEMPLATETHUMB);
+    txw->setupTemplatesComboBox();
+    QTest::qWait(200);
+    QComboBox *combo = txw->findChild<QComboBox *>("templatesComboBox");
+    check(combo && combo->findText("gpsplace") >= 0, "(the template is in the TX list)");
+    if (!combo) return 1;
+    combo->setCurrentIndex(combo->findText("gpsplace"));
+    txw->slotGetParams();
+    auto lit = [](const QImage &im) {
+      int n = 0;
+      for (int y = 0; y < im.height(); y++)
+        for (int x = 0; x < im.width(); x++)
+          if (qGray(im.pixel(x, y)) > 128) n++;
+      return n;
+    };
+    check(lit(*tx->getDisplayedImage()) < 50, "without a place the macro prints nothing");
+
+    // on: the GPS button finds the place of the position
+    gpsPlaceLookup = true;
+    QTest::mouseClick(gpsButton, Qt::LeftButton);
+    checkWait([&] {return place->text() == "Seattle, WA";}, [&] {return "the GPS button also fills in the place (" + place->text() + ")";});
+    check(fake.hits == 1 && fake.lastRequest.contains("lat=47.60620") && fake.lastRequest.contains("lon=-122.33210"), "that asked the service for the position");
+    check(tx->place == "Seattle, WA", "the template value follows");
+    check(lit(*tx->getDisplayedImage()) > 300, "and the picture shows it (" + QString::number(lit(*tx->getDisplayedImage())) + " light pixels)");
+    check(editorMacroValues().value('g') == "Seattle, WA", "the template editor previews the same value");
+
+    // a place that was typed stays when a coordinate box is left without a change
+    place->setText("My Town, XX");
+    emit place->editingFinished();
+    check(tx->place == "My Town, XX", "a typed place reaches the template value");
+    emit lat->editingFinished();
+    QTest::qWait(300);
+    check(fake.hits == 1 && place->text() == "My Town, XX", "leaving the Lat box unchanged does not look it up again");
+
+    // typed coordinates: the place follows
+    fake.body = missoula;
+    lat->setText("46.8721");
+    lon->setText("-113.9940");
+    emit lat->editingFinished();
+    checkWait([&] {return place->text() == "Missoula, MT";}, [&] {return "new coordinates typed in bring a new place (" + place->text() + ")";});
+    check(fake.hits == 2 && tx->place == "Missoula, MT", "with one request");
+
+    // a lookup that fails keeps the place; typed coordinates give no message, and the next try goes out again
+    fake.status = 500;
+    boxes = 0;
+    lat->setText("40.5");
+    lon->setText("-100.5");
+    emit lat->editingFinished();
+    checkWait([&] {return fake.hits == 3 && !txw->placeAwaiting;}, [&] {return "(the service answers with an error, " + QString::number(fake.hits) + " requests)";});
+    QTest::qWait(200);
+    check(place->text() == "Missoula, MT" && boxes == 0, "a failed lookup keeps the place and does not interrupt with a message box");
+    fake.status = 200;
+    fake.body = seattle;
+    emit lon->editingFinished();
+    checkWait([&] {return place->text() == "Seattle, WA";}, [&] {return "leaving a box again tries the lookup again (" + place->text() + ")";});
+
+    // the GPS button says what went wrong
+    fake.status = 500;
+    sentence = nmea("GPGGA,123519,3351.000,S,15112.000,E,1,08,0.9,545.4,M,46.9,M,,");
+    boxes = 0;
+    QTest::mouseClick(gpsButton, Qt::LeftButton);
+    checkWait([&] {return boxes > 0;}, [&] {return "the GPS button reports a failed lookup: " + lastBox;});
+    check(lastBox.contains("500") && lat->text() == "-33.85000" && place->text() == "Seattle, WA", "with the position taken and the place kept");
+    fake.status = 200;
+
+    // the beacon sends the picture after the place has arrived (the TX tab holds a picture by now: marked as not valid, a beacon that
+    // gets as far as sending stops with an error instead of transmitting)
+    tx->setValidImage(false);
+    fake.body = missoula;
+    fake.delayMs = 700;
+    sentence = nmea("GPGGA,123519,4736.372,N,12219.926,W,1,08,0.9,545.4,M,46.9,M,,");
+    QString shown;
+    QObject::connect(txw, &txWidget::beaconCountdownChanged, txw, [&](const QString &text, bool) {shown = text;});
+    txw->beaconRunning = true;
+    txw->beaconError.clear();
+    check(txw->requestGps(false), "(the beacon asks for a position)");
+    txw->beaconTransmitLoaded();
+    check(txw->beaconWaitPosition, "the beacon waits for the position");
+    checkWait([&] {return txw->placeAwaiting;}, [&] {return QString("(the position is in, the place is being looked up)");});
+    txw->slotBeaconTick();
+    check(txw->beaconWaitPosition && txw->beaconError.isEmpty() && shown.contains("looking up the place"), "and then for the place: " + shown);
+    checkWait([&] {return !txw->beaconWaitPosition;}, [&] {return QString("the beacon goes on");});
+    check(place->text() == "Missoula, MT" && txw->beaconError.contains("no valid picture"), "once the place is in the picture (" + place->text() + ")");
+    txw->stopBeacon();
+    fake.delayMs = 0;
+
+    // a lookup that fails never holds the beacon back
+    fake.status = 500;
+    sentence = nmea("GPGGA,123519,3351.000,S,15112.000,E,1,08,0.9,545.4,M,46.9,M,,");
+    boxes = 0;
+    txw->beaconRunning = true;
+    txw->beaconError.clear();
+    check(txw->requestGps(false), "(the beacon asks again, the service is failing)");
+    txw->beaconTransmitLoaded();
+    checkWait([&] {return !txw->beaconWaitPosition;}, [&] {return QString("the beacon goes on without a place");});
+    check(txw->beaconError.contains("no valid picture") && place->text() == "Missoula, MT" && boxes == 0, "keeping the last place and showing no message box");
+    txw->stopBeacon();
+    fake.status = 200;
+  }
+
   printf("\n== the position is remembered\n");
   {
     txw->writeSettings();
     QSettings qs;
     check(qs.value("TX/latitude").toString() == "-33.85000" && qs.value("TX/longitude").toString() == "151.20000", "saved with the TX settings");
+    check(qs.value("TX/place").toString() == "Missoula, MT", "with the place");
     lat->setText("");
     lon->setText("");
+    txw->findChild<QLineEdit *>("placeLineEdit")->setText("");
     txw->slotGetParams();
-    check(tx->latitude.isEmpty(), "(cleared)");
+    check(tx->latitude.isEmpty() && tx->place.isEmpty(), "(cleared)");
     txw->readSettings();
     check(lat->text() == "-33.85000" && lon->text() == "151.20000" && tx->latitude == "-33.85000", "and restored at the next start");
+    check(tx->place == "Missoula, MT" && txw->findChild<QLineEdit *>("placeLineEdit")->text() == "Missoula, MT", "also the place");
   }
 
   printf("\n== Configuration > GPS\n");
@@ -268,10 +408,11 @@ int main(int argc, char **argv)
         QComboBox *baudBox = page->findChild<QComboBox *>("baudComboBox");
         QCheckBox *enableBox = page->findChild<QCheckBox *>("enableCheckBox");
         QCheckBox *refreshBox = page->findChild<QCheckBox *>("beaconRefreshCheckBox");
+        QCheckBox *placeBox = page->findChild<QCheckBox *>("placeCheckBox");
         QPushButton *testButton = page->findChild<QPushButton *>("testPushButton");
         QLabel *result = page->findChild<QLabel *>("resultLabel");
-        check(portBox && baudBox && enableBox && refreshBox && testButton && result, "with port, baud, enable, beacon option, Test button and result");
-        if (portBox && baudBox && enableBox && refreshBox && testButton && result)
+        check(portBox && baudBox && enableBox && refreshBox && placeBox && testButton && result, "with port, baud, enable, beacon option, place lookup, Test button and result");
+        if (portBox && baudBox && enableBox && refreshBox && placeBox && testButton && result)
           {
             // settings round trip: the page holds the values, writeSettings() saves them, readSettings() loads them
             QSettings qs;
@@ -279,17 +420,19 @@ int main(int argc, char **argv)
             portBox->setCurrentText(slave);
             baudBox->setCurrentText("9600");
             refreshBox->setChecked(false);
+            placeBox->setChecked(true);
             configDialogPtr->writeSettings();
             check(qs.value("GPS/enabled").toBool() && qs.value("GPS/port").toString() == slave && qs.value("GPS/baud").toInt() == 9600
-                  && qs.value("GPS/beaconRefresh").toBool() == false, "the settings are written");
-            check(gpsEnabled && gpsPort == slave && gpsBaud == 9600 && !gpsBeaconRefresh, "and are what the program uses");
+                  && qs.value("GPS/beaconRefresh").toBool() == false && qs.value("GPS/placeLookup").toBool() == true, "the settings are written");
+            check(gpsEnabled && gpsPort == slave && gpsBaud == 9600 && !gpsBeaconRefresh && gpsPlaceLookup, "and are what the program uses");
             gpsEnabled = false;
             gpsPort.clear();
             gpsBaud = 0;
             gpsBeaconRefresh = true;
+            gpsPlaceLookup = false;
             configDialogPtr->readSettings();
-            check(gpsEnabled && gpsPort == slave && gpsBaud == 9600 && !gpsBeaconRefresh, "and read back");
-            check(portBox->currentText() == slave && baudBox->currentText() == "9600" && enableBox->isChecked() && !refreshBox->isChecked(), "and shown on the page");
+            check(gpsEnabled && gpsPort == slave && gpsBaud == 9600 && !gpsBeaconRefresh && gpsPlaceLookup, "and read back");
+            check(portBox->currentText() == slave && baudBox->currentText() == "9600" && enableBox->isChecked() && !refreshBox->isChecked() && placeBox->isChecked(), "and shown on the page");
             gpsBeaconRefresh = true;
 
             // Test uses the values on the page, leaves the TX tab alone
@@ -298,11 +441,33 @@ int main(int argc, char **argv)
             portBox->setCurrentText(slave);
             feeding = true;
             sentence = nmea("GPGGA,123519,4736.372,N,12219.926,W,1,08,0.9,545.4,M,46.9,M,,");
+            placeBox->setChecked(false);
+            const int hitsBefore = fake.hits;
             QTest::mouseClick(testButton, Qt::LeftButton);
             checkWait([&] {return result->text().startsWith("Position:");}, [&] {return "Test shows the position: " + result->text();});
             check(result->text().contains("47.60620") && result->text().contains("-122.33210"), "with the coordinates");
             check(lat->text() == "1.0" && tx->latitude == "1.0", "and does not touch the Lat and Long of the TX tab");
             check(testButton->isEnabled(), "the Test button is usable again");
+            check(fake.hits == hitsBefore, "(no place was asked for: the lookup was not on when the position came)");
+
+            // with the lookup checked on the page the Test button also shows the place, whatever is saved
+            placeBox->setChecked(true);
+            gpsPlaceLookup = false;
+            fake.body = seattle;
+            sentence = nmea("GPGGA,123519,3000.000,N,09000.000,W,1,08,0.9,545.4,M,46.9,M,,");
+            const QString placeBefore = tx->place;
+            QTest::mouseClick(testButton, Qt::LeftButton);
+            checkWait([&] {return result->text().contains("Place:") || result->text().contains("busy");}, [&] {return "Test also shows the place: " + result->text();});
+            check(result->text().contains("30.00000") && result->text().contains("Place: Seattle, WA"), "next to the position");
+            check(tx->place == placeBefore, "and does not change the Place of the TX tab");
+            check(testButton->isEnabled(), "(the Test button is usable again)");
+
+            fake.status = 500;
+            sentence = nmea("GPGGA,123519,2000.000,N,08000.000,W,1,08,0.9,545.4,M,46.9,M,,");
+            QTest::mouseClick(testButton, Qt::LeftButton);
+            checkWait([&] {return result->text().contains("500");}, [&] {return "a failing lookup is explained under the position: " + result->text();});
+            check(result->text().contains("20.00000") && testButton->isEnabled(), "(the position is still shown)");
+            fake.status = 200;
 
             portBox->setCurrentText("/dev/does-not-exist-gps");
             QTest::mouseClick(testButton, Qt::LeftButton);

@@ -158,6 +158,7 @@ set(QSSTV_SOURCES
     template/templatevars.cpp
     gps/nmeaparser.cpp
     gps/gpsreader.cpp
+    gps/placelookup.cpp
     editor/editordocument.cpp
     editor/editorcommands.cpp
     editor/editorcanvas.cpp

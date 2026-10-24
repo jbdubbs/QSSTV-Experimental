@@ -35,6 +35,14 @@ somebody else. Original copyright notices inside the source files are kept and t
   (Makoto Mori, JE3HHT) so the two programs interoperate. No MMSSTV code is included.
 - Sample-rate calibration uses WWV time ticks and NTP; the tick-waterfall display follows the idea used in MMSSTV.
 
+### Online services
+
+- The optional city and state lookup (`%g`; Configuration > GPS; off unless the user turns it on) sends the station
+  position to the Nominatim reverse-geocoding service of OpenStreetMap, <https://nominatim.openstreetmap.org/>, with a
+  User-Agent that names the program, one request at a time and no repeat request for a position within about a
+  kilometre. The place names are data &copy; OpenStreetMap contributors under the Open Database License (ODbL),
+  <https://www.openstreetmap.org/copyright>.
+
 ## Libraries used at build time or shipped in binary releases
 
 Linux AppImage and Windows zip builds bundle these libraries unmodified. Each is under its own license; the

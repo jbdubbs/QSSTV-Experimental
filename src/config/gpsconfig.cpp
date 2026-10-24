@@ -3,6 +3,7 @@
 #include "appglobal.h"
 #include "gpsreader.h"
 #include "nmeaparser.h"
+#include "placelookup.h"
 #include "rigcontrol.h"
 
 #include <QMessageBox>
@@ -12,6 +13,7 @@ bool    gpsEnabled;
 QString gpsPort;
 int     gpsBaud;
 bool    gpsBeaconRefresh;
+bool    gpsPlaceLookup;
 
 gpsConfig::gpsConfig(QWidget *parent) : baseConfig(parent), ui(new Ui::gpsConfig)
 {
@@ -40,6 +42,7 @@ void gpsConfig::readSettings()
   gpsPort=qSettings.value("port",defaultPort).toString();
   gpsBaud=qSettings.value("baud",4800).toInt();
   gpsBeaconRefresh=qSettings.value("beaconRefresh",true).toBool();
+  gpsPlaceLookup=qSettings.value("placeLookup",false).toBool();   // off: the position leaves the computer
   qSettings.endGroup();
   setParams();
 }
@@ -64,6 +67,7 @@ void gpsConfig::writeSettings()
   qSettings.setValue("port",gpsPort);
   qSettings.setValue("baud",gpsBaud);
   qSettings.setValue("beaconRefresh",gpsBeaconRefresh);
+  qSettings.setValue("placeLookup",gpsPlaceLookup);
   qSettings.endGroup();
 }
 
@@ -73,13 +77,15 @@ void gpsConfig::getParams()
   const QString portCopy=gpsPort;
   const int baudCopy=gpsBaud;
   const bool refreshCopy=gpsBeaconRefresh;
+  const bool placeCopy=gpsPlaceLookup;
 
   getValue(gpsEnabled,ui->enableCheckBox);
   gpsPort=ui->portComboBox->currentText().trimmed();
   getValue(gpsBaud,ui->baudComboBox);
   getValue(gpsBeaconRefresh,ui->beaconRefreshCheckBox);
+  getValue(gpsPlaceLookup,ui->placeCheckBox);
 
-  changed=(enabledCopy!=gpsEnabled || portCopy!=gpsPort || baudCopy!=gpsBaud || refreshCopy!=gpsBeaconRefresh);
+  changed=(enabledCopy!=gpsEnabled || portCopy!=gpsPort || baudCopy!=gpsBaud || refreshCopy!=gpsBeaconRefresh || placeCopy!=gpsPlaceLookup);
 }
 
 void gpsConfig::setParams()
@@ -88,6 +94,7 @@ void gpsConfig::setParams()
   ui->portComboBox->setCurrentText(gpsPort);
   setValue(gpsBaud,ui->baudComboBox);
   setValue(gpsBeaconRefresh,ui->beaconRefreshCheckBox);
+  setValue(gpsPlaceLookup,ui->placeCheckBox);
   ui->resultLabel->clear();
 }
 
@@ -133,12 +140,13 @@ void gpsConfig::slotEnableChanged()
     }
 }
 
-// tries the port and baud rate as they are on the page now, whether or not they have been saved
+// tries the port, the baud rate and the place lookup as they are on the page now, whether or not they have been saved
 void gpsConfig::slotTest()
 {
   const QString port=ui->portComboBox->currentText().trimmed();
   int baud;
   getValue(baud,ui->baudComboBox);
+  const bool lookup=ui->placeCheckBox->isChecked();
   if(gpsReaderPtr==nullptr || port.isEmpty()) return;
   ui->resultLabel->setText(tr("Reading %1 ...").arg(port));
   ui->testPushButton->setEnabled(false);
@@ -149,10 +157,32 @@ void gpsConfig::slotTest()
       ui->testPushButton->setEnabled(true);
       return;
     }
-  connect(gpsReaderPtr,&gpsReader::fixReady,this,[this](bool ok,double lat,double lon,const QString &reason)
+  connect(gpsReaderPtr,&gpsReader::fixReady,this,[this,lookup](bool ok,double lat,double lon,const QString &reason)
     {
-      ui->testPushButton->setEnabled(true);
-      if(ok) ui->resultLabel->setText(tr("Position: %1, %2").arg(formatCoordinate(lat),formatCoordinate(lon)));
-      else ui->resultLabel->setText(reason);
+      if(!ok)
+        {
+          ui->testPushButton->setEnabled(true);
+          ui->resultLabel->setText(reason);
+          return;
+        }
+      const QString position=tr("Position: %1, %2").arg(formatCoordinate(lat),formatCoordinate(lon));
+      if(!lookup || placeLookupPtr==nullptr)
+        {
+          ui->testPushButton->setEnabled(true);
+          ui->resultLabel->setText(position);
+          return;
+        }
+      ui->resultLabel->setText(position+tr("\nLooking up the place ..."));
+      if(!placeLookupPtr->requestPlace(lat,lon))
+        {
+          ui->testPushButton->setEnabled(true);
+          ui->resultLabel->setText(position+tr("\nThe place lookup is busy, try again in a moment"));
+          return;
+        }
+      connect(placeLookupPtr,&placeLookup::placeReady,this,[this,position](bool placeOk,const QString &place,const QString &why)
+        {
+          ui->testPushButton->setEnabled(true);
+          ui->resultLabel->setText(position+"\n"+(placeOk?tr("Place: %1").arg(place):why));
+        },Qt::SingleShotConnection);
     },Qt::SingleShotConnection);
 }

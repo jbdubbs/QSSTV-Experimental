@@ -1,6 +1,7 @@
 #!/bin/sh
-# Tests of src/gps: the NMEA parser and the one-shot GPS reader (the reader talks to a pseudo terminal that the test feeds).
-# Builds a small standalone binary; needs Qt6 Core/Gui/Widgets/SerialPort headers and moc (Qt6 libexec; or MOC=).
+# Tests of src/gps: the NMEA parser, the one-shot GPS reader (it talks to a pseudo terminal that the test feeds) and the place
+# lookup (it asks a little web server of the test). Builds a small standalone binary; needs Qt6 Core/Gui/Widgets/SerialPort/Network
+# headers and moc (Qt6 libexec; or MOC=).
 #   tests/gps/run.sh
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -11,8 +12,10 @@ OUT=${TMPDIR:-/tmp}/gps-test.$$
 mkdir -p "$OUT"
 trap 'rm -rf "$OUT"' EXIT
 "$MOC" "$SRC/gps/gpsreader.h" -o "$OUT/moc_gpsreader.cpp"
+"$MOC" "$SRC/gps/placelookup.h" -o "$OUT/moc_placelookup.cpp"
 g++ -O1 -fPIC -std=gnu++17 -Wall -Wextra -Wno-unused-parameter -I"$SRC/gps" -I"$SRC/config" -I"$SRC/utils" \
-    -isystem "$QT" -isystem "$QT/QtCore" -isystem "$QT/QtGui" -isystem "$QT/QtWidgets" -isystem "$QT/QtSerialPort" \
+    -isystem "$QT" -isystem "$QT/QtCore" -isystem "$QT/QtGui" -isystem "$QT/QtWidgets" -isystem "$QT/QtSerialPort" -isystem "$QT/QtNetwork" \
     -o "$OUT/gpstest" "$HERE/test.cpp" "$SRC/gps/nmeaparser.cpp" "$SRC/gps/gpsreader.cpp" "$OUT/moc_gpsreader.cpp" \
-    -lQt6SerialPort -lQt6Widgets -lQt6Gui -lQt6Core
+    "$SRC/gps/placelookup.cpp" "$OUT/moc_placelookup.cpp" \
+    -lQt6Network -lQt6SerialPort -lQt6Widgets -lQt6Gui -lQt6Core
 "$OUT/gpstest"

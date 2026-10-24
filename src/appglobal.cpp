@@ -64,6 +64,7 @@ galleryWidget *galleryWidgetPtr;
 waterfallText *waterfallPtr;
 rigControl *rigControllerPtr;
 gpsReader *gpsReaderPtr;
+placeLookup *placeLookupPtr;
 xmlInterface *xmlIntfPtr;
 logBook *logBookPtr;
 fileWatcher *fileWatcherPtr;

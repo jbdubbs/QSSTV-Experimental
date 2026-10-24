@@ -27,6 +27,7 @@
 #include "templatedoc.h"
 #include "testpatternselection.h"
 #include "gpsreader.h"
+#include "placelookup.h"
 #include "nmeaparser.h"
 #include <QMessageBox>
 #include <QMenu>
@@ -100,10 +101,12 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   connect(ui->toCallLineEdit,SIGNAL(editingFinished ()),SLOT(slotGetParams()));
   connect(ui->operatorLineEdit,SIGNAL(editingFinished ()),SLOT(slotGetParams()));
   connect(ui->rsvLineEdit,SIGNAL(editingFinished ()),SLOT(slotGetParams()));
-  connect(ui->latLineEdit,SIGNAL(editingFinished ()),SLOT(slotGetParams()));
-  connect(ui->lonLineEdit,SIGNAL(editingFinished ()),SLOT(slotGetParams()));
+  connect(ui->latLineEdit,SIGNAL(editingFinished ()),SLOT(slotPositionEdited()));
+  connect(ui->lonLineEdit,SIGNAL(editingFinished ()),SLOT(slotPositionEdited()));
+  connect(ui->placeLineEdit,SIGNAL(editingFinished ()),SLOT(slotGetParams()));
   connect(ui->gpsToolButton,SIGNAL(clicked()),SLOT(slotGetGps()));
   connect(gpsReaderPtr,&gpsReader::fixReady,this,&txWidget::slotGpsFix);
+  connect(placeLookupPtr,&placeLookup::placeReady,this,&txWidget::slotPlaceReady);
   connect(ui->xPlainTextEdit,SIGNAL(editingFinished()),SLOT(slotGetParams()));
   connect(ui->yPlainTextEdit,SIGNAL(editingFinished()),SLOT(slotGetParams()));
   connect(ui->zPlainTextEdit,SIGNAL(editingFinished()),SLOT(slotGetParams()));
@@ -232,6 +235,8 @@ void txWidget::readSettings()
   imageViewerPtr->setEncoding(enc);
   imageViewerPtr->latitude=qSettings.value("latitude",QString()).toString();
   imageViewerPtr->longitude=qSettings.value("longitude",QString()).toString();
+  imageViewerPtr->place=qSettings.value("place",QString()).toString();
+  placeKey=imageViewerPtr->latitude+"|"+imageViewerPtr->longitude;   // the saved place belongs to the saved position
   qSettings.endGroup();
   setParams();
 }
@@ -258,6 +263,7 @@ void txWidget::writeSettings()
   qSettings.setValue("gridLayout",gridLayout);
   qSettings.setValue("latitude",imageViewerPtr->latitude);     // the position belongs to the station, not to one QSO
   qSettings.setValue("longitude",imageViewerPtr->longitude);
+  qSettings.setValue("place",imageViewerPtr->place);
   qSettings.endGroup();
 }
 
@@ -292,6 +298,7 @@ void txWidget::slotGetParams()
   getValue(imageViewerPtr->rsv,ui->rsvLineEdit);
   getValue(imageViewerPtr->latitude,ui->latLineEdit);
   getValue(imageViewerPtr->longitude,ui->lonLineEdit);
+  getValue(imageViewerPtr->place,ui->placeLineEdit);
   getValue(imageViewerPtr->comment1,ui->xPlainTextEdit);
   getValue(imageViewerPtr->comment2,ui->yPlainTextEdit);
   getValue(imageViewerPtr->comment3,ui->zPlainTextEdit);
@@ -324,6 +331,7 @@ void txWidget::setParams()
   setValue(useHybrid,ui->hybridCheckBox);
   setValue(imageViewerPtr->latitude,ui->latLineEdit);
   setValue(imageViewerPtr->longitude,ui->lonLineEdit);
+  setValue(imageViewerPtr->place,ui->placeLineEdit);
   setIndex(drmParams.bandwith,ui->drmTxBandwidthComboBox);
   setIndex(drmParams.interleaver,ui->drmTxInterleaveComboBox);
   setIndex(drmParams.protection,ui->drmTxProtectionComboBox);
@@ -1478,7 +1486,7 @@ void txWidget::startBeacon(int minutes)
   beaconMinutes=minutes;
   beaconRunning=true;
   beaconPending=false;
-  beaconWaitGps=false;
+  beaconWaitPosition=false;
   beaconError.clear();
   updateBeaconUi();
   if(beaconUsesGps()) requestGps(false);   // the first picture is sent after 10 s, time enough for the position
@@ -1494,7 +1502,7 @@ void txWidget::stopBeacon()
   beaconRunning=false;
   beaconPending=false;
   beaconHold=false;
-  beaconWaitGps=false;
+  beaconWaitPosition=false;
   beaconTimer.stop();
   beaconTick.stop();
   beaconCap.abort();
@@ -1518,7 +1526,7 @@ void txWidget::slotBeaconTick()
       txt=QString("WA8LMF Beacon Mode: next in %1:%2").arg(sec/60).arg(sec%60,2,10,QChar('0'));
     }
   else if(beaconCap.isBusy()) txt="WA8LMF Beacon Mode: grabbing camera image";
-  else if(beaconWaitGps) txt="WA8LMF Beacon Mode: reading the GPS";
+  else if(beaconWaitPosition) txt=placeAwaiting?"WA8LMF Beacon Mode: looking up the place":"WA8LMF Beacon Mode: reading the GPS";
   else txt="WA8LMF Beacon Mode: preparing transmission";
   emit beaconCountdownChanged(txt,false);
 }
@@ -1584,9 +1592,9 @@ void txWidget::slotBeaconFrame(const QImage &image)
 void txWidget::beaconTransmitLoaded()
 {
   if(!beaconRunning) return;
-  if(gpsAwaiting)
+  if(gpsAwaiting || placeAwaiting)
     {
-      beaconWaitGps=true;   // the position is still being read: slotGpsFix() comes back here, the GPS timeout bounds the wait
+      beaconWaitPosition=true;   // the position is still coming: slotGpsFix() or slotPlaceReady() comes back here, the timeouts of the GPS and the lookup bound the wait
       return;
     }
   // the capture takes a few seconds: check that nothing started meanwhile
@@ -1653,15 +1661,62 @@ void txWidget::slotGpsFix(bool ok,double lat,double lon,const QString &reason)
       setValue(formatCoordinate(lat),ui->latLineEdit);
       setValue(formatCoordinate(lon),ui->lonLineEdit);
       slotGetParams();   // takes the values over and renders the template again
+      requestPlace(manual);
     }
   else
     {
       addToLog(QString("GPS: %1, using the last position").arg(reason),LOGTXMAIN);
     }
-  if(beaconWaitGps)
+  if(beaconWaitPosition && !placeAwaiting)
     {
-      beaconWaitGps=false;
+      beaconWaitPosition=false;
       beaconTransmitLoaded();   // a missing position never stops the beacon
     }
   if(!ok && manual) QMessageBox::warning(this,"GPS",reason);
+}
+
+bool txWidget::requestPlace(bool manual)
+{
+  if(!gpsPlaceLookup || placeAwaiting) return false;
+  bool latOk,lonOk;
+  const double lat=imageViewerPtr->latitude.toDouble(&latOk);
+  const double lon=imageViewerPtr->longitude.toDouble(&lonOk);
+  if(!latOk || !lonOk || lat<-90 || lat>90 || lon<-180 || lon>180) return false;
+  if(!placeLookupPtr->requestPlace(lat,lon)) return false;
+  placeKey=imageViewerPtr->latitude+"|"+imageViewerPtr->longitude;
+  placeAwaiting=true;
+  placeManual=manual;
+  return true;
+}
+
+void txWidget::slotPlaceReady(bool ok,const QString &place,const QString &reason)
+{
+  if(!placeAwaiting) return;   // somebody else's result, such as the Test button of Configuration > GPS
+  placeAwaiting=false;
+  const bool manual=placeManual;
+  placeManual=false;
+  if(ok)
+    {
+      setValue(place,ui->placeLineEdit);
+      slotGetParams();   // takes the place over and renders the template again
+    }
+  else
+    {
+      placeKey.clear();   // the next time the position is left or read, the lookup is tried again
+      addToLog(QString("Place lookup: %1, keeping the last place").arg(reason),LOGTXMAIN);
+    }
+  if(beaconWaitPosition && !gpsAwaiting)
+    {
+      beaconWaitPosition=false;
+      beaconTransmitLoaded();   // a missing place never stops the beacon
+    }
+  if(!ok && manual) QMessageBox::warning(this,"Place",reason);
+}
+
+// typed-in coordinates: the place follows them, but only when they changed (a box that is just left must not replace a place typed in)
+void txWidget::slotPositionEdited()
+{
+  slotGetParams();
+  if(imageViewerPtr->latitude+"|"+imageViewerPtr->longitude==placeKey) return;
+  requestPlace(false);
 }

@@ -17,7 +17,7 @@
    <item>
     <widget class="QLabel" name="infoLabel">
      <property name="text">
-      <string>Reads the position of the station from a GPS receiver that sends NMEA sentences over a serial port. The position goes into the Lat and Long fields of the Transmit tab and into the %a and %b template macros.</string>
+      <string>Reads the position of the station from a GPS receiver that sends NMEA sentences over a serial port. The position goes into the Lat and Long fields of the Transmit tab and into the %a and %b template macros. The city and state (%g) can be looked up from it.</string>
      </property>
      <property name="wordWrap">
       <bool>true</bool>
@@ -151,6 +151,16 @@
      </property>
      <property name="text">
       <string>Read the GPS before each WA8LMF beacon transmission</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="placeCheckBox">
+     <property name="toolTip">
+      <string>Ask OpenStreetMap (nominatim.openstreetmap.org) for the city and state of a new position, for the %g template macro and the Place box of the Transmit tab. The position is sent to that service. Without a connection the last place stays.</string>
+     </property>
+     <property name="text">
+      <string>Look up the city and state on the internet (sends the position to OpenStreetMap)</string>
      </property>
     </widget>
    </item>

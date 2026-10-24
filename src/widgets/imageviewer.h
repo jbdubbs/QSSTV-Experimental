@@ -111,6 +111,7 @@ public:
   QString comment3;
   QString latitude;       // signed decimal degrees as shown on the TX tab (%a), empty when not set
   QString longitude;      // %b
+  QString place;          // city and state as shown on the TX tab (%g)
   bool stretch;
   void getOrgSize(int &w,int &h) {w=orgWidth; h=orgHeight;}
   QImage *getDisplayedImage();

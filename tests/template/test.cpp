@@ -778,6 +778,12 @@ static void testMacros()
   check(tpl::unknownMacros("%a %b %m %%").isEmpty(), "position macros are not reported as unknown");
   check(tpl::unknownMacros("%k") == "k", "a tag that is not in the table is reported");
   check(tpl::sampleVars().value('a') == "47.60620" && tpl::sampleVars().value('b') == "-122.33210", "sample position values");
+  check(seen.contains('g'), "the place (%g) is a macro");
+  QHash<QChar, QString> place;
+  place.insert('g', "Seattle, WA");
+  check(tpl::expandMacros("QTH %g!", place) == "QTH Seattle, WA!", "the place macro expands");
+  check(tpl::expandMacros("[%g]", QHash<QChar, QString>()) == "[]", "an empty place prints nothing");
+  check(tpl::unknownMacros("%g %a").isEmpty() && tpl::sampleVars().value('g') == "Seattle, WA", "the place macro is known and has a sample");
 }
 
 static void testFuzz(const QString &fx)

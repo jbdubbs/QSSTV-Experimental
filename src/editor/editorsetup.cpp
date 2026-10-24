@@ -60,6 +60,7 @@ QHash<QChar, QString> editorMacroValues()
           set('z', iv->comment3);
           set('a', iv->latitude);
           set('b', iv->longitude);
+          set('g', iv->place);
         }
     }
   return v;

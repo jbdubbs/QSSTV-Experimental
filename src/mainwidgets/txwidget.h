@@ -116,6 +116,8 @@ public slots:
   void slotBeaconFailed(const QString &reason);
   void slotGetGps();
   void slotGpsFix(bool ok,double lat,double lon,const QString &reason);
+  void slotPlaceReady(bool ok,const QString &place,const QString &reason);
+  void slotPositionEdited();
   void slotSize(int fsize);
   void slotSizeApply();
   void slotSizeReleased();
@@ -161,6 +163,8 @@ private:
   bool beaconUsesGps() const;
   //! asks the GPS for a position; the result comes back in slotGpsFix(). false: the GPS is busy with another request
   bool requestGps(bool manual);
+  //! asks for the city and state of the position in the Lat and Long boxes, when that lookup is on; the result comes back in slotPlaceReady()
+  bool requestPlace(bool manual);
   void startBeacon(int minutes);
   void stopBeacon();
   void updateBeaconUi();
@@ -184,9 +188,12 @@ private:
   bool beaconHold=false;        // a picture is loaded and waiting for the 10 s to pass
   beaconCapture beaconCap;
   bool beaconPending=false;     // a beacon picture is on its way through prepareTx()/startTxImage()
-  bool beaconWaitGps=false;     // the beacon picture is ready, but the position is still being read: slotGpsFix() sends it
+  bool beaconWaitPosition=false;     // the beacon picture is ready, but the position (the GPS, then the place) is still coming: slotGpsFix() or slotPlaceReady() sends it
   bool gpsAwaiting=false;       // this widget has a GPS request in flight (the Test button of Configuration > GPS does not count)
   bool gpsManual=false;         // ... and the Get GPS button made it, so a failure is shown in a message box
+  bool placeAwaiting=false;     // a place lookup of this widget is in flight (the Test button of Configuration > GPS does not count)
+  bool placeManual=false;       // ... and the Get GPS button started it
+  QString placeKey;             // the Lat and Long text that the last lookup was for: a box that is left unchanged asks nothing
   QTimer repeaterTxDelayTimer;
   int repeaterIndex;
   QImage resultImage;

@@ -1,10 +1,15 @@
-// Tests of src/gps: the NMEA parser and the one-shot GPS reader.
-// The reader runs against a pseudo terminal that this test feeds, so no GPS receiver is needed.
+// Tests of src/gps: the NMEA parser, the one-shot GPS reader and the place lookup.
+// The reader runs against a pseudo terminal that this test feeds, so no GPS receiver is needed; the place lookup asks a
+// little HTTP server of this test instead of OpenStreetMap, so no internet is needed either.
 #include "nmeaparser.h"
 #include "gpsreader.h"
+#include "placelookup.h"
+#include "fakeservice.h"
 
 #include <QCoreApplication>
 #include <QEventLoop>
+#include <QTcpServer>
+#include <QTcpSocket>
 #include <QTimer>
 #include <cmath>
 #include <cstdio>
@@ -230,11 +235,173 @@ static void testReader()
   ::close(master);
 }
 
+// ---- the place lookup ----
+
+static QString placeOf(const char *json,QString *err=nullptr)
+{
+  QString e;
+  const QString p=placeLookup::placeFromReply(json,e);
+  if(err) *err=e;
+  return p;
+}
+
+static void testPlaceParser()
+{
+  QString err;
+  // the replies of the real service for three famous spots (shortened)
+  CHECK(placeOf("{\"addresstype\":\"city\",\"name\":\"Seattle\",\"address\":{\"city\":\"Seattle\",\"county\":\"King County\",\"state\":\"Washington\",\"ISO3166-2-lvl4\":\"US-WA\",\"country\":\"United States\",\"country_code\":\"us\"}}")=="Seattle, WA");
+  CHECK(placeOf("{\"address\":{\"city\":\"Missoula\",\"county\":\"Missoula County\",\"state\":\"Montana\",\"ISO3166-2-lvl4\":\"US-MT\",\"country\":\"United States\",\"country_code\":\"us\"}}")=="Missoula, MT");
+  CHECK(placeOf("{\"address\":{\"city\":\"City of Westminster\",\"ISO3166-2-lvl8\":\"GB-WSM\",\"state\":\"England\",\"ISO3166-2-lvl4\":\"GB-ENG\",\"country\":\"United Kingdom\",\"country_code\":\"gb\"}}")=="City of Westminster, England");
+
+  // the codes of Canada and Australia, the names elsewhere
+  CHECK(placeOf("{\"address\":{\"town\":\"Banff\",\"state\":\"Alberta\",\"ISO3166-2-lvl4\":\"CA-AB\",\"country_code\":\"ca\"}}")=="Banff, AB");
+  CHECK(placeOf("{\"address\":{\"city\":\"Sydney\",\"state\":\"New South Wales\",\"ISO3166-2-lvl4\":\"AU-NSW\",\"country_code\":\"au\"}}")=="Sydney, NSW");
+  CHECK(placeOf("{\"address\":{\"city\":\"Munich\",\"state\":\"Bavaria\",\"ISO3166-2-lvl4\":\"DE-BY\",\"country_code\":\"de\"}}")=="Munich, Bavaria");
+  // a US place whose reply has no ISO code falls back to the name of the state
+  CHECK(placeOf("{\"address\":{\"city\":\"Seattle\",\"state\":\"Washington\",\"country_code\":\"us\"}}")=="Seattle, Washington");
+  // the code of another country is not taken for a US state
+  CHECK(placeOf("{\"address\":{\"city\":\"Tijuana\",\"state\":\"Baja California\",\"ISO3166-2-lvl4\":\"MX-BCN\",\"country_code\":\"us\"}}")=="Tijuana, Baja California");
+
+  // the smallest named place wins; the county stands in for a place without a name of its own
+  CHECK(placeOf("{\"address\":{\"village\":\"Tiny\",\"county\":\"X County\",\"state\":\"Montana\",\"ISO3166-2-lvl4\":\"US-MT\",\"country_code\":\"us\"}}")=="Tiny, MT");
+  CHECK(placeOf("{\"address\":{\"hamlet\":\"Hamlet\",\"county\":\"X County\",\"state\":\"Ohio\",\"ISO3166-2-lvl4\":\"US-OH\",\"country_code\":\"us\"}}")=="Hamlet, OH");
+  CHECK(placeOf("{\"address\":{\"county\":\"King County\",\"state\":\"Washington\",\"ISO3166-2-lvl4\":\"US-WA\",\"country_code\":\"us\"}}")=="King County, WA");
+
+  // no state: the country stands in, unless it is the place itself
+  CHECK(placeOf("{\"address\":{\"city\":\"Paris\",\"country\":\"France\",\"country_code\":\"fr\"}}")=="Paris, France");
+  CHECK(placeOf("{\"address\":{\"city\":\"Monaco\",\"country\":\"Monaco\",\"country_code\":\"mc\"}}")=="Monaco");
+  // no place name at all: the state alone
+  CHECK(placeOf("{\"address\":{\"state\":\"Texas\",\"ISO3166-2-lvl4\":\"US-TX\",\"country_code\":\"us\"}}")=="TX");
+  CHECK(placeOf("{\"address\":{\"city\":\"  Seattle \",\"state\":\"Washington\",\"country_code\":\"xx\"}}")=="Seattle, Washington");
+
+  // nothing to show
+  CHECK(placeOf("{\"error\":\"Unable to geocode\"}",&err).isEmpty() && err.contains("No place"));
+  CHECK(placeOf("{\"address\":{}}",&err).isEmpty() && err.contains("No place"));
+  CHECK(placeOf("{\"address\":{\"road\":\"Main Street\"}}",&err).isEmpty() && err.contains("No place"));
+  CHECK(placeOf("",&err).isEmpty() && err.contains("Unexpected"));
+  CHECK(placeOf("<html>502 Bad Gateway</html>",&err).isEmpty() && err.contains("Unexpected"));
+  CHECK(placeOf("[1,2,3]",&err).isEmpty() && err.contains("Unexpected"));
+  CHECK(placeOf("{\"address\":{\"city\":\"Seattle\"}}",&err)=="Seattle" && err.isEmpty());
+}
+
+struct PlaceResult
+{
+  bool got=false;
+  bool ok=false;
+  QString place,reason;
+};
+
+static PlaceResult waitPlace(placeLookup &pl,int safetyMs=8000)
+{
+  PlaceResult r;
+  QEventLoop loop;
+  QMetaObject::Connection c=QObject::connect(&pl,&placeLookup::placeReady,[&](bool ok,const QString &place,const QString &reason)
+    {
+      r.got=true;
+      r.ok=ok;
+      r.place=place;
+      r.reason=reason;
+      loop.quit();
+    });
+  QTimer::singleShot(safetyMs,&loop,&QEventLoop::quit);
+  loop.exec();
+  QObject::disconnect(c);
+  return r;
+}
+
+static void testPlaceLookup()
+{
+  fakeService fake;
+  CHECK(fake.server.isListening());
+  placeLookup pl;
+  pl.setServiceUrl(fake.url());
+  fake.body=seattle;
+
+  // 1. an answer, and what the service is asked
+  bool early=false;
+  QMetaObject::Connection c=QObject::connect(&pl,&placeLookup::placeReady,[&] {early=true;});
+  CHECK(pl.requestPlace(47.6062,-122.3321));
+  CHECK(!early);                                       // the answer never arrives inside the call
+  QObject::disconnect(c);
+  CHECK(pl.busy());
+  CHECK(!pl.requestPlace(1,2));                        // one request at a time
+  PlaceResult r=waitPlace(pl);
+  CHECK(r.got && r.ok && r.place=="Seattle, WA");
+  CHECK(!pl.busy());
+  CHECK(fake.hits==1);
+  const QByteArray head=fake.lastRequest;
+  CHECK(head.startsWith("GET /reverse?"));
+  CHECK(head.contains("lat=47.60620") && head.contains("lon=-122.33210"));
+  CHECK(head.contains("format=jsonv2") && head.contains("zoom=10") && head.contains("addressdetails=1") && head.contains("accept-language=en"));
+  CHECK(head.contains("User-Agent: QSSTV-Experimental"));      // the service refuses requests without one
+
+  // 2. a position within a kilometre of the answered one needs no request
+  early=false;
+  c=QObject::connect(&pl,&placeLookup::placeReady,[&] {early=true;});
+  CHECK(pl.requestPlace(47.6100,-122.3300));
+  CHECK(!early);
+  QObject::disconnect(c);
+  r=waitPlace(pl);
+  CHECK(r.got && r.ok && r.place=="Seattle, WA");
+  CHECK(fake.hits==1);
+
+  // 3. a position further away asks again
+  fake.body=missoula;
+  CHECK(pl.requestPlace(46.8721,-113.9940));
+  r=waitPlace(pl);
+  CHECK(r.got && r.ok && r.place=="Missoula, MT");
+  CHECK(fake.hits==2);
+  CHECK(fake.lastRequest.contains("lat=46.87210") && fake.lastRequest.contains("lon=-113.99400"));
+
+  // 4. the service refuses (rate limit): a reason, and the failure is not remembered
+  fake.status=429;
+  CHECK(pl.requestPlace(40.0,-100.0));
+  r=waitPlace(pl);
+  CHECK(r.got && !r.ok && r.reason.contains("429"));
+  fake.status=200;
+  fake.body=seattle;
+  CHECK(pl.requestPlace(40.0,-100.0));
+  r=waitPlace(pl);
+  CHECK(r.got && r.ok && r.place=="Seattle, WA");
+  CHECK(fake.hits==4);
+
+  // 5. an answer that holds no place (open sea) or is not JSON
+  fake.body="{\"error\":\"Unable to geocode\"}";
+  CHECK(pl.requestPlace(0.0,-30.0));
+  r=waitPlace(pl);
+  CHECK(r.got && !r.ok && r.reason.contains("No place"));
+  fake.body="<html>proxy login</html>";
+  CHECK(pl.requestPlace(0.5,-30.0));
+  r=waitPlace(pl);
+  CHECK(r.got && !r.ok && r.reason.contains("Unexpected"));
+  CHECK(!pl.busy());
+
+  // 6. a service that does not answer: the timeout ends the request
+  fake.silent=true;
+  CHECK(pl.requestPlace(10.0,10.0,400));
+  r=waitPlace(pl);
+  CHECK(r.got && !r.ok && r.reason.contains("did not answer"));
+  fake.silent=false;
+
+  // 7. nobody listens at the address
+  const QUrl dead=fake.url();
+  fake.server.close();
+  pl.setServiceUrl(dead);
+  CHECK(pl.requestPlace(20.0,20.0));
+  r=waitPlace(pl);
+  CHECK(r.got && !r.ok && r.reason.contains("Cannot reach"));
+  CHECK(!pl.busy());
+}
+
 int main(int argc,char **argv)
 {
   QCoreApplication app(argc,argv);
   testParser();
   std::printf("parser done\n");
+  std::fflush(stdout);
+  testPlaceParser();
+  testPlaceLookup();
+  std::printf("place lookup done\n");
   std::fflush(stdout);
   testReader();
   if(failures) std::printf("%d check(s) FAILED\n",failures);

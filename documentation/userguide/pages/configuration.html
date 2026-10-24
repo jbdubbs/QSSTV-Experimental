@@ -111,7 +111,11 @@ With CAT working, the status bar shows the rig frequency.</p>
 <p>Tick <strong>Enable GPS</strong>, choose the <strong>Serial port</strong> (the list shows the ports found; <strong>Rescan</strong> looks again, and you can type a name that is not listed) and the
 <strong>Baud rate</strong> (4800 or 9600 for most receivers). The GPS needs a port of its own: it must differ from the CAT serial port and the PTT serial port. The port is opened only while a position is read.
 <strong>Read the GPS before each WA8LMF beacon transmission</strong> makes <a href="transmit.html#beacon">WA8LMF Beacon Mode</a> read a fresh position for every picture.</p>
-<p><strong>Test</strong> reads the position now, with the port and baud rate shown on the page (they do not need to be saved first), and shows the result or the reason it failed. A receiver that sends data
+<p><strong>Look up the city and state on the internet</strong> is off until you tick it, because the position leaves your computer: it is sent to the Nominatim service of
+<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, which answers with the city and state for the <em>Place</em> box and the <code>%g</code> template macro. A position within about a
+kilometre of the last one is not asked again, so a station that stays put makes one request. The connection is secure (https): Windows uses its own TLS, and on Linux the OpenSSL libraries have to be installed, as they normally are.
+With no connection the <em>Place</em> box keeps its text.</p>
+<p><strong>Test</strong> reads the position now, with the port and baud rate shown on the page (they do not need to be saved first), and shows the result or the reason it failed. With the lookup ticked it also shows the place. A receiver that sends data
 but has no fix yet, for example indoors, is reported as such. On Linux your user must be allowed to read the serial port (usually the <code>dialout</code> group).</p>
 
 <h2 id="cw">CW</h2>

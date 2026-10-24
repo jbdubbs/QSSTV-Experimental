@@ -1604,6 +1604,7 @@ int imageViewer::applyTemplate()
           opt.vars.insert('z',comment3);
           opt.vars.insert('a',latitude);
           opt.vars.insert('b',longitude);
+          opt.vars.insert('g',place);
           opt.vars.insert('s',QString::number(lastAvgMER,'g',2));
           if(tl.doc.hasReplay()) opt.replay=replayPicture();
 
