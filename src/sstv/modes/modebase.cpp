@@ -70,6 +70,7 @@ modeBase::modeBase(esstvMode m, unsigned int len, bool tx, bool narrowMode)
   pixelArrayPtr=NULL;
   pixelPositionTable=NULL;
   debugStatePtr=NULL;
+  separatorFreq[0]=separatorFreq[1]=0;
   addToLog(QString("mb constructor mode=%1").arg((int) m),LOGMODES);
   if(transmit)
     {
@@ -254,12 +255,8 @@ modeBase::eModeBase modeBase::process(quint16 *demod,unsigned int syncPos,bool g
                 logFilePtr->addToAux(QString("m15avg\t%1\t%2\t%3").arg(avgFreqGap).arg(avgFreqGapCounter-AVGFRQOFFSET).arg(avgFreqGap/(avgFreqGapCounter-AVGFRQOFFSET)));
                 avgFreqGap/=(avgFreqGapCounter-AVGFRQOFFSET);
                 addToLog(QString("GapCounter1 %1 at %2").arg(avgFreqGap).arg(sampleCounter),LOGMODES);
-                if(avgFreqGap > 2100)
-                  {
-//                    subLine=10;
-                    avgOddEvenFreq=avgFreqGap;
-                    logFilePtr->addToAux(QString("m15 eval: %1").arg(avgOddEvenFreq));
-                  }
+                separatorFreq[0]=avgFreqGap;
+                separatorFreq[1]=0; // the second one of this line pair is not measured yet
                 switchState(MBSETUPLINE);
               }
             else
@@ -278,15 +275,7 @@ modeBase::eModeBase modeBase::process(quint16 *demod,unsigned int syncPos,bool g
                 logFilePtr->addToAux(QString("m23avg\t%1\t%2\t%3").arg(avgFreqGap).arg(avgFreqGapCounter-AVGFRQOFFSET).arg(avgFreqGap/(avgFreqGapCounter-AVGFRQOFFSET)));
                 avgFreqGap/=(avgFreqGapCounter-AVGFRQOFFSET);
                 addToLog(QString("GapCounter2 %1 at %2").arg(avgFreqGap).arg(sampleCounter),LOGMODES);
-                if(avgFreqGap < 1700)
-                  {
-                    addToLog(QString("Switching to 1500 GapCounter2 %1 at %2").arg(avgFreqGap).arg(i+ rxPos),LOGMODES);
-                    if(avgOddEvenFreq>avgFreqGap)
-                      {
-                        subLine=3;
-                        logFilePtr->addToAux("m23 switch subline 3");
-                      }
-                  }
+                separatorFreq[1]=avgFreqGap;
                 switchState(MBSETUPLINE);
               }
             else
@@ -394,14 +383,23 @@ void modeBase::grayConversion()
 
 void modeBase::yuvConversion(unsigned char *array)
 {
+  yuvConversion(array,redArrayPtr,blueArrayPtr);
+}
+
+/**
+  \brief the same with the chroma given, for a row whose chroma is not in redArray and blueArray
+*/
+
+void modeBase::yuvConversion(const unsigned char *array,const unsigned char *redArray,const unsigned char *blueArray)
+{
   unsigned int i;
   int r,g,b;
   QRgb *pixelArray=rxWidgetPtr->getImageViewerPtr()->getScanLineAddress(displayLineCounter);
   for (i=0;i<activeSSTVParam->numberOfPixels;i++)
     {
-      r=(100*array[i]+140*redArrayPtr[i]-17850)/100;
-      b=(100*array[i]+178*blueArrayPtr[i]-22695)/100;
-      g=(100*array[i]- 71*redArrayPtr[i]-33*blueArrayPtr[i]+13260)/100;
+      r=(100*array[i]+140*redArray[i]-17850)/100;
+      b=(100*array[i]+178*blueArray[i]-22695)/100;
+      g=(100*array[i]- 71*redArray[i]-33*blueArray[i]+13260)/100;
 //      r=b=g=array[i]; //test
       r=(r>255 ? 255 : r); r=(r<0 ? 0 : r);
       b=(b>255 ? 255 : b); b=(b<0 ? 0 : b);

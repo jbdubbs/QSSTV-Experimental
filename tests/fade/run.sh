@@ -9,11 +9,11 @@
 #
 #   tests/fade/run.sh                              # uses ../../build-cmake/qsstv-experimental
 #   QSSTV_BIN=/path/to/qsstv-experimental tests/fade/run.sh
-#   FADE_CASES="R36:6" tests/fade/run.sh           # only these MODE:hold-seconds cases
+#   FADE_CASES="R36:6" tests/fade/run.sh           # only these MODE:hold-seconds[:noise seed] cases
 #
-# Robot 36 note: a Robot 36 picture that goes through noise can come out with everything below it moved up by whole line pairs
-# (2, 4, 6 ... rows), with a fade of a second or two as well, so it is not caused by the wait for the signal. wavtool.py rows
-# therefore fits each end of the picture on its own (6 rows, 8 px) and prints the move; the other modes never move.
+# Rows must not move: a Robot 36 picture that went through noise used to come out with everything below it moved up by whole
+# line pairs (issue #130), so wavtool.py rows is not given any vertical tolerance. The R36 cases with a seed (MODE:hold:seed) are
+# ones that moved on the receiver before that was fixed.
 #
 # Needs: the built qsstv-experimental, ffmpeg (scales the test picture), python3 with numpy and Pillow.
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -48,10 +48,10 @@ prepare() {      # encode the picture once per mode, decode it clean
 }
 
 echo "== fades (mode:seconds at the bottom; 1.5 s ramps each way, noise 25 dB below the signal)"
-for spec in ${FADE_CASES:-R36:3 R36:6 R36:12 M1:10 M1:15 S1:15 PD120:10 PD120:15}; do
-  m=${spec%%:*}; hold=${spec##*:}
+for spec in ${FADE_CASES:-R36:3 R36:6 R36:12 R36:6:2 R36:6:3 R36:6:4 R36:9:2 M1:10 M1:15 S1:15 PD120:10 PD120:15}; do
+  IFS=: read -r m hold seed <<< "$spec"
   prepare $m || { bad "$spec: could not prepare"; continue; }
-  py fade "$T/$m.wav" "$T/f_$spec.wav" --start-frac 0.30 --hold $hold
+  py fade "$T/$m.wav" "$T/f_$spec.wav" --start-frac 0.30 --hold $hold --seed ${seed:-1}
   mkdir -p "$T/o_$spec"; run -o "$T/o_$spec" "$T/f_$spec.wav"
   n=$(npng "$T/o_$spec")
   if [ "$n" != 1 ]; then bad "$spec: $n pictures, want 1"; continue; fi
@@ -62,7 +62,7 @@ done
 
 echo "== a fade that outlasts the picture: one picture, the part before the fade is there, no hang"
 for spec in ${FADE_LONG:-R36:30 PD120:130}; do
-  m=${spec%%:*}; hold=${spec##*:}
+  IFS=: read -r m hold <<< "$spec"
   prepare $m || { bad "$spec: could not prepare"; continue; }
   py fade "$T/$m.wav" "$T/fl_$spec.wav" --start-frac 0.3 --hold $hold
   mkdir -p "$T/ol_$spec"; run -o "$T/ol_$spec" "$T/fl_$spec.wav"; rc=$?
@@ -71,6 +71,18 @@ for spec in ${FADE_LONG:-R36:30 PD120:130}; do
   r=$(py rows "$T/clean_$m"/*.png "$T/ol_$spec"/*.png 0.2 0)
   top=$(echo "$r" | sed 's/.*top \([0-9.]*\).*/\1/')
   ge "$top" 0.9 && ok "$spec: one picture, saved ($r)" || bad "$spec: one picture but its top differs ($r)"
+done
+
+echo "== a Robot 36 picture found by its sync pulses (VIS code cut off), starting on either line of a pair"
+prepare R36 && for cut in 1.75 2.05; do
+  py cut "$T/R36.wav" "$T/nv_$cut.wav" --start $cut
+  mkdir -p "$T/onv_$cut"; run -o "$T/onv_$cut" "$T/nv_$cut.wav"
+  n=$(npng "$T/onv_$cut")
+  if [ "$n" != 1 ]; then bad "R36 cut at $cut s: $n pictures, want 1"; continue; fi
+  # the top lines are missing, so the rest sits a few rows higher: allow that, and the colours must still be right (the bottom is red/blue and magenta/green)
+  r=$(py rows "$T/clean_R36"/*.png "$T/onv_$cut"/*.png 0.2 0.2 --rows 6)
+  bot=$(echo "$r" | sed 's/.*bottom \([0-9.]*\).*/\1/')
+  ge "$bot" 0.9 && ok "R36 cut at $cut s: one picture, right colours ($r)" || bad "R36 cut at $cut s: bottom rows differ ($r)"
 done
 
 echo "== a transmission that ends for good, then a new picture"

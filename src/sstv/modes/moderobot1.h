@@ -32,6 +32,7 @@
 #define MODEROBOT1_H
 
 #include "modebase.h"
+#include <vector>
 
 
 /**
@@ -49,8 +50,13 @@ private:
 //  unsigned long adjustSyncPosition(unsigned long syncPos0);
 	void setupParams(double clock);
 	void showLine();
+  void lineDone(const unsigned char *y,unsigned int separatorHz);
   embState txSetupLine();
 	void getLine();
+
+  bool redWaiting;                    //!< a red line is read and its row waits for the blue line that goes with it
+  std::vector<unsigned char> waitingY; //!< luminance and red chroma of that line
+  std::vector<unsigned char> waitingR;
 
 };
 

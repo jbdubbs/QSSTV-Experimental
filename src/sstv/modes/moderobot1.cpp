@@ -29,11 +29,15 @@
  *   your version.                                                         *
  ***************************************************************************/
 #include "moderobot1.h"
+#include <cstring>
 
 // used by Robot36
 
+#define SEPARATORMID 1900 // Hz: the separator is 1500 Hz before a red line and 2300 Hz before a blue line
+
 modeRobot1::modeRobot1(esstvMode m,unsigned int len, bool tx,bool narrowMode):modeBase(m,len,tx,narrowMode)
 {
+  redWaiting=false;
 }
 
 
@@ -82,7 +86,7 @@ modeBase::embState modeRobot1::rxSetupLine()
     case 4:
       debugState=stColorLine1;
       calcPixelPositionTable(REDLINE,false);
-      pixelArrayPtr=redArrayPtr;
+      pixelArrayPtr=(separatorFreq[0]>=SEPARATORMID) ? blueArrayPtr : redArrayPtr; // by the separator: the picture can start on a blue line
       markerFloat+=visibleLineLength;
       marker=(unsigned int)round(markerFloat);
       return MBPIXELS;
@@ -126,7 +130,7 @@ modeBase::embState modeRobot1::rxSetupLine()
     case 11:
       debugState=stColorLine3;
       calcPixelPositionTable(BLUELINE,false);
-      pixelArrayPtr=blueArrayPtr;
+      pixelArrayPtr=(separatorFreq[1]>=SEPARATORMID) ? blueArrayPtr : redArrayPtr;
       markerFloat+=visibleLineLength;
       marker=(unsigned int)round(markerFloat);
       return MBPIXELS;
@@ -146,12 +150,59 @@ modeBase::embState modeRobot1::rxSetupLine()
     }
 }
 
+/**
+  \brief draw the two rows of a line pair
+
+  The chroma is sent as red on one line and blue on the next, and the two rows of that pair are drawn with both. The separator before
+  each chroma says which of the two it is (1500 Hz red, 2300 Hz blue) and the chroma is stored by that, so a picture that is found by
+  its sync pulses and starts on a blue line still gets the right colours: a red line waits for the blue line that follows it, even when
+  that one is in the next pair the receiver reads. One row is drawn for every line, in line order. Only the colours depend on the separators, the
+  rows follow the time table, so noise, which makes the separators random, cannot move them (issue #130).
+*/
+
 void modeRobot1::showLine()
 {
-  yuvConversion(yArrayPtr);
+  unsigned int n=activeSSTVParam->numberOfPixels;
+  if(displayLineCounter==0) redWaiting=false; // a new picture, or this one decoded again with another clock
+  if(waitingY.size()!=n)
+    {
+      waitingY.assign(n,128);
+      waitingR.assign(n,128);
+    }
+  lineDone(yArrayPtr,separatorFreq[0]);
+  lineDone(greenArrayPtr,separatorFreq[1]);
+  if(redWaiting && ((lineCounter+1)>=activeSSTVParam->numberOfDataLines)) // the last line of the picture: no blue line follows
+    {
+      yuvConversion(waitingY.data(),waitingR.data(),blueArrayPtr);
+      redWaiting=false;
+    }
   addToLog(QString("displayCounter %1 lineCounter:%2").arg(displayLineCounter).arg(lineCounter),LOGMODES);
-  yuvConversion(greenArrayPtr);
-  addToLog(QString("displayCounter %1 lineCounter:%2").arg(displayLineCounter).arg(lineCounter),LOGMODES);
+}
+
+/**
+  \brief a line has been received: draw what can be drawn now
+
+  \param[in] y the luminance of the line
+  \param[in] separatorHz the tone measured in the separator before its chroma
+*/
+
+void modeRobot1::lineDone(const unsigned char *y,unsigned int separatorHz)
+{
+  unsigned int n=activeSSTVParam->numberOfPixels;
+  if(separatorHz<SEPARATORMID) // red line: its row waits for the blue line of the pair
+    {
+      if(redWaiting) yuvConversion(waitingY.data(),waitingR.data(),blueArrayPtr); // another red line instead (noise): still draw its row
+      memcpy(waitingY.data(),y,n);
+      memcpy(waitingR.data(),redArrayPtr,n);
+      redWaiting=true;
+    }
+  else if(redWaiting) // blue line: both rows of the pair
+    {
+      yuvConversion(waitingY.data(),waitingR.data(),blueArrayPtr);
+      yuvConversion(y,waitingR.data(),blueArrayPtr);
+      redWaiting=false;
+    }
+  else yuvConversion(y,redArrayPtr,blueArrayPtr); // first line of a picture that starts on a blue line: the red of the pair after it is the nearest there is
 }
 
 

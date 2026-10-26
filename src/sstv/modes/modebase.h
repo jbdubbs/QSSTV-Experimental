@@ -123,6 +123,7 @@ protected:
   unsigned int debugState;
   uint avgFreqGap;
   uint avgFreqGapCounter;
+  uint separatorFreq[2]; //!< Robot 36: the tone (Hz) measured in the first and the second separator of the line pair being received (0: not measured)
 
 	DSPFLOAT txFreq;
 	unsigned int txDur;
@@ -130,6 +131,7 @@ protected:
 	virtual void showLine();
 	void combineColors();
 	void yuvConversion(unsigned char *array);
+  void yuvConversion(const unsigned char *array,const unsigned char *redArray,const unsigned char *blueArray);
   void grayConversion();
   /*!
       \brief setup the rx mode timing for one subline  at a time.
@@ -163,7 +165,6 @@ private:
   int avgSample;
   int avgSampleCounter;
   bool narrow;
-  uint avgOddEvenFreq;
 
 
 };

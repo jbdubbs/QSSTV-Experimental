@@ -11,9 +11,13 @@
   wavtool.py join out.wav A.wav FRACTION GAP B.wav [--snr dB]
       The first FRACTION of A, then GAP seconds of noise (a transmission that stops for good), then all of B.
 
-  wavtool.py rows clean.png decoded.png TOP BOTTOM
+  wavtool.py cut in.wav out.wav --start S
+      Drop the first S seconds, for example the header with the VIS code: the receiver then finds the picture by its sync
+      pulses alone and may start on either line of a Robot 36 line pair.
+
+  wavtool.py rows clean.png decoded.png TOP BOTTOM [--rows N] [--px N]
       Compare two pictures row by row; print the share of rows that agree in the top TOP and the bottom BOTTOM
-      fraction of the picture ("top 1.00 bottom 0.98"). Each end may be moved up to 8 px sideways and 6 rows to fit.
+      fraction of the picture ("top 1.00 bottom 0.98"). Each end may be moved up to --px pixels sideways (8) and --rows rows (0) to fit.
 
 The encoder leaves the RIFF/data sizes unfinished, so the data chunk is read to the end of the file. Output is 16 bit
 PCM mono at the input's rate.
@@ -84,6 +88,11 @@ def cmd_fade(a):
     write_wav(a.outfile, x * g + noise, rate)
 
 
+def cmd_cut(a):
+    x, rate = read_wav(a.infile)
+    write_wav(a.outfile, x[int(a.start * rate):], rate)
+
+
 def cmd_join(a):
     xa, ra = read_wav(a.a)
     xb, rb = read_wav(a.b)
@@ -108,14 +117,13 @@ def cmd_rows(a):
     def best_share(r0, r1):
         """Share of the rows r0..r1 that agree, with the decoded picture moved to fit them best.
 
-        A picture that follows a lost sync is received a few pixels sideways, and a Robot 36 picture that went through
-        noise can lose whole line pairs (a fade or not: see the notes in run.sh). Neither is what is tested here (is it
-        still one picture, with its top and bottom there), so each end is fitted on its own, within 8 px and 6 rows,
+        A picture that follows a lost sync is received a few pixels sideways, which is not what is tested here (is it still
+        one picture, with its top and bottom there), so each end is fitted on its own within --px pixels and --rows rows,
         small moves first. Rows with no counterpart after the move are not judged."""
         if r1 <= r0:
             return 1.0, 0, 0
         best = (-1.0, 0, 0)
-        for dx, dy in sorted(((dx, dy) for dx in range(-8, 9) for dy in range(-6, 7)), key=lambda m: abs(m[0]) + abs(m[1])):
+        for dx, dy in sorted(((dx, dy) for dx in range(-a.px, a.px + 1) for dy in range(-a.rows, a.rows + 1)), key=lambda m: abs(m[0]) + abs(m[1])):
             rows = [r for r in range(r0, r1) if 0 <= r - dy < h]
             if not rows:
                 continue
@@ -160,11 +168,18 @@ def main():
     j.add_argument('--snr', type=float, default=25.0)
     j.add_argument('--seed', type=int, default=1)
     j.set_defaults(fn=cmd_join)
+    c = sub.add_parser('cut')
+    c.add_argument('infile')
+    c.add_argument('outfile')
+    c.add_argument('--start', type=float, required=True, help='seconds to drop from the start')
+    c.set_defaults(fn=cmd_cut)
     r = sub.add_parser('rows')
     r.add_argument('clean')
     r.add_argument('decoded')
     r.add_argument('top', type=float)
     r.add_argument('bottom', type=float)
+    r.add_argument('--px', type=int, default=8, help='largest sideways move that is tried (default 8)')
+    r.add_argument('--rows', type=int, default=0, help='largest vertical move that is tried (default 0)')
     r.set_defaults(fn=cmd_rows)
     a = ap.parse_args()
     sys.exit(a.fn(a) or 0)
