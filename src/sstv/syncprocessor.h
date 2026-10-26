@@ -19,7 +19,6 @@ struct ssenitivity
 {
   unsigned int minMatchedLines;
   unsigned int maxLineDistanceModeDetect;
-  unsigned int maxLineDistanceInSync;
   DSPFLOAT onRatio;
   DSPFLOAT offRatio;
   int minVolume;
