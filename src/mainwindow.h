@@ -32,6 +32,8 @@ public:
   void updateModeLock();
   //! switch between SSTV and DRM exactly as clicking the tab does (headless decode / encode)
   void switchMode(int rxtxMode) {slotModeChange(rxtxMode);}
+  //! true once the quit is confirmed: settings are written for the last time and nothing may open a message box
+  bool isQuitting() const {return quitting;}
   spectrumWidget *spectrumFramePtr;
   //! opens the built-in Users Guide, at `page` (e.g. "pages/template-editor.html") when it exists
   void openUserGuide(const QString &page);

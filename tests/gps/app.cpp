@@ -662,6 +662,50 @@ int main(int argc, char **argv)
       }
   }
 
+  // Last: quitting stops the application's threads.
+  printf("\n== quitting with a GPS port that the CAT port has taken (#127)\n");
+  {
+    // The quit writes every page of the Configuration dialog. A GPS page that finds its port taken by the CAT or PTT port must not
+    // open a message box then: nobody can see or answer it (its parent is the hidden dialog), and while it is open the program does not end.
+    QWidget *page = configDialogPtr->findChild<QWidget *>("gpsWidget");
+    QComboBox *portBox = page ? page->findChild<QComboBox *>("portComboBox") : nullptr;
+    QCheckBox *enableBox = page ? page->findChild<QCheckBox *>("enableCheckBox") : nullptr;
+    QPushButton *testButton = page ? page->findChild<QPushButton *>("testPushButton") : nullptr;
+    QLabel *result = page ? page->findChild<QLabel *>("resultLabel") : nullptr;
+    check(portBox && enableBox && testButton && result, "(the GPS page)");
+    if (!(portBox && enableBox && testButton && result)) return 1;
+    rigConfig *rig = configDialogPtr->findChild<rigConfig *>("catWidget");
+    QCheckBox *catEnable = rig ? rig->findChild<QCheckBox *>("enableCATCheckBox") : nullptr;
+    QComboBox *catBox = rig ? rig->findChild<QComboBox *>("serialPortComboBox") : nullptr;
+    check(catEnable && catBox, "(the CAT page)");
+    if (!(catEnable && catBox)) return 1;
+    catBox->setCurrentText(slave);
+    catEnable->setChecked(true);   // (setChecked does not click: the rig is not started)
+    rig->getParams();
+    enableBox->setChecked(true);   // (the same: the conflict is not noticed here, as when the port is chosen after the box was ticked)
+    portBox->setCurrentText(slave);
+    boxes = 0;
+    emit portBox->activated(portBox->currentIndex());   // the port is picked from the list while the box is ticked
+    checkWait([&] {return boxes > 0 && !enableBox->isChecked();}, [&] {return "picking the CAT port for an enabled GPS is refused: " + lastBox.section('\n', 0, 0);});
+    enableBox->setChecked(true);   // (ticked again, for the quit below)
+    feeding = false;
+    boxes = 0;
+    lastBox.clear();
+    QTest::mouseClick(testButton, Qt::LeftButton);
+    checkWait([&] {return testButton->isEnabled();}, [&] {return "the Test button is usable again: " + result->text();}, 12000);
+    check(result->text().contains("different from the CAT serial port"), "Test says that the port belongs to CAT: " + result->text());
+    check(boxes == 0, "(and does so without a message box)");
+
+    confirmClose = false;
+    boxes = 0;
+    lastBox.clear();
+    QMetaObject::invokeMethod(mainWindowPtr, "slotExit", Qt::DirectConnection);
+    check(boxes == 0, "quitting opens no message box: " + lastBox.section('\n', 0, 0));
+    check(!gpsEnabled, "and leaves the GPS disabled, as it cannot work on that port");
+    QSettings qs;
+    check(!qs.value("GPS/enabled").toBool(), "which is what is saved");
+  }
+
   printf("\n%d passed, %d failed\n", passed, failed);
   fflush(stdout);
   _exit(failed ? 1 : 0);   // the application's threads are not shut down by this probe

@@ -2,6 +2,7 @@
 #include "ui_gpsconfig.h"
 #include "appglobal.h"
 #include "gpsreader.h"
+#include "mainwindow.h"
 #include "nmeaparser.h"
 #include "placelookup.h"
 #include "rigcontrol.h"
@@ -19,7 +20,9 @@ gpsConfig::gpsConfig(QWidget *parent) : baseConfig(parent), ui(new Ui::gpsConfig
 {
   ui->setupUi(this);
   connect(ui->rescanToolButton,SIGNAL(clicked()),SLOT(slotRescanPorts()));
-  connect(ui->enableCheckBox,SIGNAL(clicked()),SLOT(slotEnableChanged()));
+  connect(ui->enableCheckBox,SIGNAL(clicked()),SLOT(slotCheckPort()));
+  connect(ui->portComboBox,SIGNAL(activated(int)),SLOT(slotCheckPort()));   // a port chosen or typed after the box was ticked
+  if(ui->portComboBox->lineEdit()!=nullptr) connect(ui->portComboBox->lineEdit(),SIGNAL(editingFinished()),SLOT(slotCheckPort()));
   connect(ui->testPushButton,SIGNAL(clicked()),SLOT(slotTest()));
   slotRescanPorts();
 }
@@ -57,7 +60,17 @@ void gpsConfig::writeSettings()
       const QString conflict=portConflict(gpsPort);
       if(!conflict.isEmpty())
         {
-          QMessageBox::critical(this,"Configuration error",conflict+"\nThe GPS has been disabled.");
+          if(mainWindowPtr!=nullptr && mainWindowPtr->isQuitting())
+            {
+              // the settings are written for the last time: nobody can answer a message box now, and while one is open the program does not end
+              addToLog(conflict+": the GPS has been disabled",LOGPARAM);
+            }
+          else
+            {
+              // the Configuration dialog has been closed by now: the box belongs to the main window, where it can be seen
+              QWidget *owner=isVisible()? static_cast<QWidget *>(this):static_cast<QWidget *>(mainWindowPtr);
+              QMessageBox::critical(owner,"Configuration error",conflict+"\nThe GPS has been disabled.");
+            }
           gpsEnabled=false;
           setValue(false,ui->enableCheckBox);
         }
@@ -115,7 +128,8 @@ QString gpsConfig::portConflict(const QString &port) const
   return QString();
 }
 
-void gpsConfig::slotEnableChanged()
+// the GPS cannot be enabled on a port that CAT or PTT uses, whether the box is ticked last or the port is chosen last
+void gpsConfig::slotCheckPort()
 {
   if(!ui->enableCheckBox->isChecked()) return;
   const QString conflict=portConflict(ui->portComboBox->currentText().trimmed());
@@ -134,6 +148,12 @@ void gpsConfig::slotTest()
   getValue(baud,ui->baudComboBox);
   const bool lookup=ui->placeCheckBox->isChecked();
   if(gpsReaderPtr==nullptr || port.isEmpty()) return;
+  const QString conflict=portConflict(port);
+  if(!conflict.isEmpty())
+    {
+      ui->resultLabel->setText(conflict);   // the port is not opened: it is busy, and opening it could key the PTT
+      return;
+    }
   ui->resultLabel->setText(tr("Reading %1 ...").arg(port));
   ui->testPushButton->setEnabled(false);
   const bool started=gpsReaderPtr->requestFix(port,baud);

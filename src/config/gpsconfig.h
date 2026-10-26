@@ -26,7 +26,7 @@ public:
 
 private slots:
   void slotRescanPorts();
-  void slotEnableChanged();
+  void slotCheckPort();
   void slotTest();
 
 private:
