@@ -302,18 +302,20 @@ void sstvRx::process()
       advanceBuffers();
       break;
     case PROCESSING:
-      if(syncState!=syncProcessor::INSYNC)
+      if(syncProcPtr->retraceFlag)
         {
-          switchState(END);
-        }
-      else if(syncProcPtr->retraceFlag)
-        {
+          // checked before the sync state: a retrace also puts the processor in RETRACEWAIT, which would end the picture
+          // without the rewind, and the new picture would lose the retrace pulse where it starts
           addToLog(QString("retrace detected"),LOGRXFUNC);
           saveImage();
           rewindBuffers(8*RXSTRIPE);
           syncProcPtr->resetRetraceFlag();
           resetParams(false);
           break;
+        }
+      else if(syncState!=syncProcessor::INSYNC)
+        {
+          switchState(END);
         }
       else
         {
@@ -341,11 +343,7 @@ void sstvRx::process()
     case WAITFORSYNC:
       {
 
-        if(!(syncState==syncProcessor::INSYNC))
-          {
-            switchState(END);
-          }
-        else if(syncProcPtr->retraceFlag)
+        if(syncProcPtr->retraceFlag)
           {
             addToLog(QString("retrace detected"),LOGRXFUNC);
             saveImage();
@@ -355,6 +353,10 @@ void sstvRx::process()
             resetParams(false);
             //          addToLog(QString("after resetParms readIndex:=%1 sampleCounter:=%2").arg(bufferVideoDemod.getReadIndex()).arg(syncProcPtr->sampleCounter),LOGRXFUNC);
             break;
+          }
+        else if(!(syncState==syncProcessor::INSYNC))
+          {
+            switchState(END);
           }
 
         else

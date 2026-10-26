@@ -21,16 +21,17 @@
 
 
 #define NUMBEROFSENSITIVITIES 4
+#define OUTOFSYNCEXTRALINES 4 // lines after the expected end of the picture that are still waited for (the end is an estimate)
 
 
 
 ssenitivity sensitivityArray[NUMBEROFSENSITIVITIES]=
 {
-  // minMatchedLines maxLineDistanceModeDetect maxLineDistanceInSync onRatio offRatio minVolume maxTempOutOfSyncLines maxOutOfSyncLines;
-  {         4,                2,                       7,              0.5,    0.3,   2000,        10, 15},
-  {         4,                2,                       7,              0.5  ,  0.3,   1000,        10, 20},
-  {         4,                2,                       7,              0.5,    0.3,   100,         15, 30},
-  {         4,                2,                       7 ,             0.5,    0.3,   500,         15, 30}
+  // minMatchedLines maxLineDistanceModeDetect maxLineDistanceInSync onRatio offRatio minVolume maxTempOutOfSyncLines maxOutOfSyncLines minOutOfSyncSeconds;
+  {         4,                2,                       7,              0.5,    0.3,   2000,        10, 15, 10},
+  {         4,                2,                       7,              0.5  ,  0.3,   1000,        10, 20, 20},
+  {         4,                2,                       7,              0.5,    0.3,   100,         15, 30, 30},
+  {         4,                2,                       7 ,             0.5,    0.3,   500,         15, 30,  0}
 };
 
 
@@ -482,7 +483,7 @@ void  syncProcessor::calcSyncQuality()
     str=QString("FS: %1,%2 ").arg(fs).arg(((fs*3)/25));
     syncQuality-=((fs*3)/25);
   }
-  if(missingLines>=sensitivityArray[sensitivity].maxOutOfSyncLines)
+  if(missingLines>=maxOutOfSyncLines())
   {
     str+=QString("missingLines: %1 ").arg(missingLines);
     syncQuality=-1;
@@ -496,6 +497,29 @@ void  syncProcessor::calcSyncQuality()
     addToLog(QString("syncQuality SYNCLOST %1").arg(str),LOGSYNCQUALITY);
     switchProcessState(SYNCLOST);
   }
+}
+
+/**
+ * @brief syncProcessor::maxOutOfSyncLines
+ * @return the number of lines without a sync pulse after which the picture is given up
+ *
+ * The table gives a number of lines, which is a very different time per mode (20 lines is 3 s for Robot 36 and 10 s
+ * for PD120). A fade longer than that ended the picture, and the signal coming back started a new one, so the
+ * sensitivity also has a time that is waited at least. That only holds while the picture should still be running:
+ * once its last line is due there is nothing left to wait for, and the receiver goes back to hunting (issue #129).
+ */
+
+uint syncProcessor::maxOutOfSyncLines()
+{
+  uint lines=sensitivityArray[sensitivity].maxOutOfSyncLines;
+  if(samplesPerLine<=0) return lines;
+  uint floorLines=(uint)ceil(sensitivityArray[sensitivity].minOutOfSyncSeconds*SAMPLERATE/samplesPerLine);
+  if(floorLines>lines)
+  {
+    DSPFLOAT imageEnd=syncPosition+SSTVTable[currentMode].imageTime*modifiedClock+OUTOFSYNCEXTRALINES*samplesPerLine;
+    if((sampleCounter+RXSTRIPE)<imageEnd) lines=floorLines;
+  }
+  return lines;
 }
 
 /**

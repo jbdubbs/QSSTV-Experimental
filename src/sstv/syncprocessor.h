@@ -25,6 +25,7 @@ struct ssenitivity
   int minVolume;
   int maxTempOutOfSyncLines;
   int maxOutOfSyncLines;
+  DSPFLOAT minOutOfSyncSeconds;   // a fade this long does not end the picture (as long as the picture is still running)
 };
 
 struct ssyncEntry
@@ -201,6 +202,7 @@ private:
   void checkSyncArray();
   void trackSyncs();
   void calcSyncQuality();
+  uint maxOutOfSyncLines();
   void calculateLineNumber(uint fromIdx, uint toIdx);
   void regression(DSPFLOAT &a, DSPFLOAT &b, bool initial);
   bool slantAdjust(bool initial);
