@@ -1,4 +1,5 @@
 #include "syncprocessor.h"
+#include "linematch.h"
 #include <QApplication>
 #include "appglobal.h"
 #include "sstvparam.h"
@@ -472,7 +473,7 @@ void  syncProcessor::calcSyncQuality()
     for(k=activeChainPtr->count()-10;k<activeChainPtr->count()-1;k++)
     {
       tmp=activeChainPtr->at(k)->to-activeChainPtr->at(k)->from-1;
-      tmp/=activeChainPtr->at(k)->lineSpacing; // this gives us the number of false syncs per line
+      if(activeChainPtr->at(k)->lineSpacing>0) tmp/=activeChainPtr->at(k)->lineSpacing; // this gives us the number of false syncs per line
       fs+=tmp;
     }
   }
@@ -904,14 +905,12 @@ bool syncProcessor::lineCompare(DSPFLOAT samPerLine, int srcIdx, int dstIdx, qui
   double delta;
   delta=(double)(syncArray[dstIdx].end-syncArray[srcIdx].end);
 
-  lineNumber=(delta+samPerLine/2.) /samPerLine;
-  fraction=(double)lineNumber-delta/samPerLine;
-  if(fraction<0) fraction=-fraction;
-  //  if(fraction<lineTolerance)
+  bool match=lineMatch(delta,samPerLine,lineTolerance,lineNumber,fraction);
+  //  if(match)
   //  addToLog(QString("Lnbr: %1, fract: %2, delta: %3 src: %4,dest: %5, OK %6")
-  //           .arg(lineNumber).arg(fraction).arg(delta).arg(srcIdx).arg(dstIdx).arg(fraction<lineTolerance)
+  //           .arg(lineNumber).arg(fraction).arg(delta).arg(srcIdx).arg(dstIdx).arg(match)
   //           ,LOGSYNCCOMP);
-  return (fraction<lineTolerance);
+  return match;
 }
 
 void syncProcessor::resetRetraceFlag()
