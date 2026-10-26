@@ -29,6 +29,7 @@ public slots:
   void slotEnablePTT();
   void slotEnableXMLRPC();
   void slotRestart();
+  void slotRescanPorts();
   void slotCheckPTT0();
   void slotCheckPTT1();
   void slotCheckPTT2();

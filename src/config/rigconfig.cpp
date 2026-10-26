@@ -25,6 +25,7 @@
 #include "configparams.h"
 #include "supportfunctions.h"
 #include "rigcontrol.h"
+#include "serialports.h"
 #include <QSettings>
 #include <QMessageBox>
 
@@ -36,12 +37,15 @@ rigConfig::rigConfig(QWidget *parent) : baseConfig(parent),  ui(new Ui::rigConfi
   connect(ui->enablePTTCheckBox,SIGNAL(clicked()),SLOT(slotEnablePTT()));
   connect(ui->enableXMLRPCCheckBox,SIGNAL(clicked()),SLOT(slotEnableXMLRPC()));
   connect(ui->restartPushButton,SIGNAL(clicked()),SLOT(slotRestart()));
+  connect(ui->rescanToolButton,SIGNAL(clicked()),SLOT(slotRescanPorts()));
+  connect(ui->pttRescanToolButton,SIGNAL(clicked()),SLOT(slotRescanPorts()));
   connect(ui->RTSCheckBox,SIGNAL(clicked()),SLOT(slotCheckPTT0()));
   connect(ui->DTRCheckBox,SIGNAL(clicked()),SLOT(slotCheckPTT1()));
   connect(ui->nRTSCheckBox,SIGNAL(clicked()),SLOT(slotCheckPTT2()));
   connect(ui->nDTRCheckBox,SIGNAL(clicked()),SLOT(slotCheckPTT3()));
   rigController=NULL;
   cp=NULL;
+  slotRescanPorts();
 }
 
 
@@ -119,7 +123,7 @@ void rigConfig::getParams()
 {
   scatParams *cpCopy=new scatParams;
   *cpCopy=*cp;
-  getValue(cp->serialPort,ui->serialPortLineEdit);
+  cp->serialPort=ui->serialPortComboBox->currentText().trimmed();
   if(ui->radioModelComboBox->count()!=0) getValue(cp->radioModel,ui->radioModelComboBox);
   getValue(cp->civAddress,ui->civAddressLineEdit);
   getValue(cp->baudrate,ui->baudrateComboBox);
@@ -129,7 +133,7 @@ void rigConfig::getParams()
   getValue(cp->handshake,ui->handshakeComboBox);
   getValue(cp->enableCAT,ui->enableCATCheckBox);
   getValue(cp->enableSerialPTT,ui->enablePTTCheckBox);
-  getValue(cp->pttSerialPort,ui->pttSerialPortLineEdit);
+  cp->pttSerialPort=ui->pttSerialPortComboBox->currentText().trimmed();
   getValue(cp->activeRTS,ui->RTSCheckBox);
   getValue(cp->activeDTR,ui->DTRCheckBox);
   getValue(cp->nactiveRTS,ui->nRTSCheckBox);
@@ -169,7 +173,7 @@ void rigConfig::getParams()
 void rigConfig::setParams()
 {
   if(rigController->getRadioList(ui->radioModelComboBox)) setValue(cp->radioModel,ui->radioModelComboBox);
-  setValue(cp->serialPort,ui->serialPortLineEdit);
+  ui->serialPortComboBox->setCurrentText(cp->serialPort);
   setValue(cp->civAddress,ui->civAddressLineEdit);
   setValue(cp->baudrate,ui->baudrateComboBox);
   setValue(cp->parity,ui->parityComboBox);
@@ -178,7 +182,7 @@ void rigConfig::setParams()
   setValue(cp->handshake,ui->handshakeComboBox);
   setValue(cp->enableCAT,ui->enableCATCheckBox);
   setValue(cp->enableSerialPTT,ui->enablePTTCheckBox);
-  setValue(cp->pttSerialPort,ui->pttSerialPortLineEdit);
+  ui->pttSerialPortComboBox->setCurrentText(cp->pttSerialPort);
   if(cp->activeRTS) cp->nactiveRTS=false;
   if(cp->activeDTR) cp->nactiveDTR=false;
 
@@ -206,7 +210,7 @@ void rigConfig::setParams()
     }
   if(cp->enableCAT && cp->enableSerialPTT)
     {
-      if(cp->serialPort==cp->pttSerialPort)
+      if(samePort(cp->serialPort,cp->pttSerialPort))
         {
           cp->enableSerialPTT=false;
         }
@@ -223,7 +227,7 @@ void rigConfig::slotEnableCAT()
 {
   if(ui->enableCATCheckBox->isChecked() && ui->enablePTTCheckBox->isChecked())
     {
-      if(ui->pttSerialPortLineEdit->text()==ui->serialPortLineEdit->text())
+      if(samePort(ui->pttSerialPortComboBox->currentText().trimmed(),ui->serialPortComboBox->currentText().trimmed()))
         {
           QMessageBox::critical(this,"Configuration error",
                                 "The PTT serialport must be different from the CAT serial port if both are enabled");
@@ -249,7 +253,7 @@ void rigConfig::slotEnablePTT()
 {
   if(ui->enableCATCheckBox->isChecked() && ui->enablePTTCheckBox->isChecked())
     {
-      if(ui->pttSerialPortLineEdit->text()==ui->serialPortLineEdit->text())
+      if(samePort(ui->pttSerialPortComboBox->currentText().trimmed(),ui->serialPortComboBox->currentText().trimmed()))
         {
           QMessageBox::critical(this,"Configuration error",
                                 "The PTT serialport must be different from the CAT serial port if both are enabled");
@@ -263,6 +267,13 @@ void rigConfig::slotEnablePTT()
       ui->enableXMLRPCCheckBox->setChecked(false);
     }
   getParams();
+}
+
+// the CAT port and the PTT port are chosen from the same list
+void rigConfig::slotRescanPorts()
+{
+  fillPortComboBox(ui->serialPortComboBox);
+  fillPortComboBox(ui->pttSerialPortComboBox);
 }
 
 void rigConfig::slotEnableXMLRPC()

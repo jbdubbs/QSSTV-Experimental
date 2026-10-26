@@ -90,6 +90,11 @@ unplug or Windows sleep and resume), the program recovers when it comes back.</p
 <figure><img src="../images/cfg-cat.png" alt="The CAT configuration page with PTT serial port, Hamlib control, XMLRPC interface and TX on delay" loading="lazy"><figcaption>CAT page.</figcaption></figure>
 
 <p>Rig control and PTT. There are three independent parts.</p>
+<p>The <strong>PTT Serial Port</strong> and <strong>Serial Port/Host</strong> boxes are lists of the serial ports found; <strong>Rescan</strong> next to each looks again, and you can type a name that is not listed
+(for <strong>Serial Port/Host</strong> also the <code>host:port</code> of a rig server, for the radio models that use one). On Linux the lists hold the names under <code>/dev/serial/by-id</code>, for example
+<code>usb-Silicon_Labs_CP2105_...-if00-port0</code>: they name the adapter, so they keep working when you plug it into another socket (<code>/dev/ttyUSB0</code> may become <code>/dev/ttyUSB1</code>).
+A serial port that has no such name, such as the built-in <code>/dev/ttyS0</code>, can be typed in. The CAT, PTT and <a href="#gps">GPS</a> ports must be different ports; a by-id name and the
+<code>/dev/ttyUSB0</code> it points to count as the same one.</p>
 <h3>Special Serial Port</h3>
 <p>Enable a plain serial port for PTT: tick <strong>Enable PTT serial Interface</strong>, set <strong>PTT Serial Port</strong>, and choose which lines key
 the transmitter with <strong>+RTS</strong>, <strong>+DTR</strong>, <strong>-RTS</strong> and <strong>-DTR</strong> (the sign sets the polarity).</p>

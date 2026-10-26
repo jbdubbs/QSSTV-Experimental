@@ -24,21 +24,6 @@ public:
   void getParams();
   void setParams();
 
-  //! A serial port to choose from: the name to open and, as a hint, what it is
-  struct portChoice
-  {
-    QString name;
-    QString info;
-  };
-  /*!
-    The serial ports to offer. On Linux these are the names in /dev/serial/by-id, which stay the same
-    when a USB adapter is plugged into another socket (/dev/ttyUSB0 changes); where there are none
-    (a computer without USB serial adapters, or without that directory) and elsewhere the ports Qt finds.
-  */
-  static QList<portChoice> serialPorts(const QString &byIdDir=QStringLiteral("/dev/serial/by-id"));
-  //! the same port under another name, for example a by-id link and the /dev/ttyUSB0 it points to
-  static bool samePort(const QString &a,const QString &b);
-
 private slots:
   void slotRescanPorts();
   void slotEnableChanged();

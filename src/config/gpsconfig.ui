@@ -63,6 +63,12 @@
        <property name="editable">
         <bool>true</bool>
        </property>
+       <property name="sizeAdjustPolicy">
+        <enum>QComboBox::AdjustToMinimumContentsLengthWithIcon</enum>
+       </property>
+       <property name="minimumContentsLength">
+        <number>16</number>
+       </property>
       </widget>
      </item>
      <item>

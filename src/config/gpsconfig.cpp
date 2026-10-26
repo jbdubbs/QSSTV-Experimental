@@ -5,12 +5,9 @@
 #include "nmeaparser.h"
 #include "placelookup.h"
 #include "rigcontrol.h"
+#include "serialports.h"
 
-#include <QAbstractItemView>
-#include <QDir>
-#include <QFileInfo>
 #include <QMessageBox>
-#include <QSerialPortInfo>
 
 bool    gpsEnabled;
 QString gpsPort;
@@ -24,7 +21,6 @@ gpsConfig::gpsConfig(QWidget *parent) : baseConfig(parent), ui(new Ui::gpsConfig
   connect(ui->rescanToolButton,SIGNAL(clicked()),SLOT(slotRescanPorts()));
   connect(ui->enableCheckBox,SIGNAL(clicked()),SLOT(slotEnableChanged()));
   connect(ui->testPushButton,SIGNAL(clicked()),SLOT(slotTest()));
-  ui->portComboBox->view()->setTextElideMode(Qt::ElideMiddle);   // by-id names are long and differ at both ends
   slotRescanPorts();
 }
 
@@ -102,46 +98,9 @@ void gpsConfig::setParams()
   ui->resultLabel->clear();
 }
 
-QList<gpsConfig::portChoice> gpsConfig::serialPorts(const QString &byIdDir)
-{
-  QList<portChoice> ports;
-#ifdef Q_OS_LINUX
-  const QFileInfoList links=QDir(byIdDir).entryInfoList(QDir::AllEntries|QDir::System|QDir::NoDotAndDotDot,QDir::Name);
-  for(const QFileInfo &link:links) ports.append({link.absoluteFilePath(),link.symLinkTarget()});
-#else
-  Q_UNUSED(byIdDir);
-#endif
-  if(!ports.isEmpty()) return ports;
-  const QList<QSerialPortInfo> found=QSerialPortInfo::availablePorts();
-  for(const QSerialPortInfo &info:found)
-    {
-#ifdef Q_OS_WIN
-      ports.append({info.portName(),info.description()});
-#else
-      ports.append({info.systemLocation(),info.description()});
-#endif
-    }
-  return ports;
-}
-
-bool gpsConfig::samePort(const QString &a,const QString &b)
-{
-  if(a.compare(b,Qt::CaseInsensitive)==0) return true;
-  const QString ca=QFileInfo(a).canonicalFilePath();   // empty for a name that is not a path, such as COM1
-  return !ca.isEmpty() && ca==QFileInfo(b).canonicalFilePath();
-}
-
 void gpsConfig::slotRescanPorts()
 {
-  const QString current=ui->portComboBox->currentText();
-  ui->portComboBox->clear();
-  const QList<portChoice> ports=serialPorts();
-  for(const portChoice &p:ports)
-    {
-      ui->portComboBox->addItem(p.name);
-      ui->portComboBox->setItemData(ui->portComboBox->count()-1,p.info,Qt::ToolTipRole);
-    }
-  ui->portComboBox->setCurrentText(current.isEmpty()?gpsPort:current);
+  fillPortComboBox(ui->portComboBox);
 }
 
 // The GPS must have a port of its own: hamlib keeps the CAT port and QSerialPort the PTT port open

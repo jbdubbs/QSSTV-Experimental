@@ -22,6 +22,7 @@
 #include "placelookup.h"
 #include "fakeservice.h"
 #include "rigcontrol.h"
+#include "serialports.h"
 #include "sstvparam.h"
 #include "txfunctions.h"
 #include "drmtransmitter.h"
@@ -480,20 +481,20 @@ int main(int argc, char **argv)
               check(dir.isValid(), "(a scratch folder for fake /dev/serial/by-id links)");
               QFile::link(slave, dir.path() + "/usb-Fake_GPS_0001-if00-port0");
               QFile::link("/dev/does-not-exist-gps", dir.path() + "/usb-Broken-if00-port0");
-              const QList<gpsConfig::portChoice> list = gpsConfig::serialPorts(dir.path());
+              const QList<serialPortChoice> list = serialPortList(dir.path());
               check(list.size() == 2 && list.at(0).name == dir.path() + "/usb-Broken-if00-port0" && list.at(1).name == dir.path() + "/usb-Fake_GPS_0001-if00-port0",
                     "the ports offered are the links of the by-id folder, sorted (" + QString::number(list.size()) + " found)");
               check(list.size() == 2 && list.at(1).info == QFileInfo(slave).absoluteFilePath(), "each with the device it points to as its hint");
               QTemporaryDir empty;
-              const QList<gpsConfig::portChoice> fallback = gpsConfig::serialPorts(empty.path());
+              const QList<serialPortChoice> fallback = serialPortList(empty.path());
               check(fallback.size() == QSerialPortInfo::availablePorts().size(), "without by-id links the ports of the system are offered (" + QString::number(fallback.size()) + ")");
-              for (const gpsConfig::portChoice &p : fallback) if (p.name.startsWith(empty.path())) check(false, "(fallback names a link of the empty folder)");
-              check(gpsConfig::serialPorts("/nonexistent-folder/by-id").size() == fallback.size(), "and so does a computer without that folder");
+              for (const serialPortChoice &p : fallback) if (p.name.startsWith(empty.path())) check(false, "(fallback names a link of the empty folder)");
+              check(serialPortList("/nonexistent-folder/by-id").size() == fallback.size(), "and so does a computer without that folder");
 
               // the page itself lists what the real folder holds: no generic /dev/ttyUSB* names next to the by-id ones
-              const QList<gpsConfig::portChoice> real = gpsConfig::serialPorts();
+              const QList<serialPortChoice> real = serialPortList();
               QStringList wanted;
-              for (const gpsConfig::portChoice &p : real) wanted << p.name;
+              for (const serialPortChoice &p : real) wanted << p.name;
               QMetaObject::invokeMethod(page, "slotRescanPorts");
               QStringList shown;
               for (int i = 0; i < portBox->count(); i++) shown << portBox->itemText(i);
@@ -502,8 +503,8 @@ int main(int argc, char **argv)
                 check(!shown.isEmpty() && shown.first().startsWith("/dev/serial/by-id/") && !shown.contains("/dev/ttyUSB0"), "this computer has by-id ports: those are listed, not /dev/ttyUSB0");
 
               // the same adapter under two names is still one port
-              check(gpsConfig::samePort(slave, dir.path() + "/usb-Fake_GPS_0001-if00-port0"), "a by-id link and its device are the same port");
-              check(!gpsConfig::samePort(slave, "/dev/null") && gpsConfig::samePort("COM1", "com1") && !gpsConfig::samePort("COM1", "COM2"), "other ports and plain names are told apart");
+              check(samePort(slave, dir.path() + "/usb-Fake_GPS_0001-if00-port0"), "a by-id link and its device are the same port");
+              check(!samePort(slave, "/dev/null") && samePort("COM1", "com1") && !samePort("COM1", "COM2"), "other ports and plain names are told apart");
               rigControllerPtr->params()->enableCAT = true;
               rigControllerPtr->params()->serialPort = slave;
               portBox->setCurrentText(dir.path() + "/usb-Fake_GPS_0001-if00-port0");
@@ -524,6 +525,140 @@ int main(int argc, char **argv)
             checkWait([&] {return boxes > 0 && !enableBox->isChecked();}, [&] {return "the GPS cannot be enabled on the CAT port: " + lastBox;});
             rigControllerPtr->params()->enableCAT = false;
           }
+      }
+  }
+
+  printf("\n== Configuration > CAT: the CAT and PTT serial ports\n");
+  {
+    rigConfig *rig = configDialogPtr->findChild<rigConfig *>("catWidget");
+    check(rig != nullptr, "the Configuration dialog has a CAT page");
+    QComboBox *catBox = rig ? rig->findChild<QComboBox *>("serialPortComboBox") : nullptr;
+    QComboBox *pttBox = rig ? rig->findChild<QComboBox *>("pttSerialPortComboBox") : nullptr;
+    QToolButton *catRescan = rig ? rig->findChild<QToolButton *>("rescanToolButton") : nullptr;
+    QToolButton *pttRescan = rig ? rig->findChild<QToolButton *>("pttRescanToolButton") : nullptr;
+    QCheckBox *catEnable = rig ? rig->findChild<QCheckBox *>("enableCATCheckBox") : nullptr;
+    QCheckBox *pttEnable = rig ? rig->findChild<QCheckBox *>("enablePTTCheckBox") : nullptr;
+    check(catBox && pttBox && catRescan && pttRescan && catEnable && pttEnable, "with a CAT port and a PTT port list, a Rescan button for each and the two enable boxes");
+    if (catBox && pttBox && catRescan && pttRescan && catEnable && pttEnable)
+      {
+        check(catBox->isEditable() && pttBox->isEditable(), "both lists accept a name that is not in them");
+        scatParams *cp = rigControllerPtr->params();
+        QTemporaryDir dir;
+        check(dir.isValid(), "(a scratch folder for fake /dev/serial/by-id links)");
+        const QString fakeLink = dir.path() + "/usb-Fake_Rig_0001-if00-port0";
+        const QString brokenLink = dir.path() + "/usb-Broken-if00-port0";
+        QFile::link(slave, fakeLink);
+        QFile::link("/dev/does-not-exist-rig", brokenLink);
+
+        // the list: the by-id links, each with the device it points to as its hint, for the CAT and the PTT port alike
+        for (QComboBox *box : {catBox, pttBox})
+          {
+            fillPortComboBox(box, dir.path());
+            QStringList shown;
+            for (int i = 0; i < box->count(); i++) shown << box->itemText(i);
+            check(shown == QStringList({brokenLink, fakeLink}), QString("%1 offers the links of the by-id folder, sorted").arg(box->objectName()));
+            check(box->count() == 2 && box->itemData(1, Qt::ToolTipRole).toString() == QFileInfo(slave).absoluteFilePath(), "each with the device it points to as its hint");
+            box->setCurrentText("localhost:4532");
+            fillPortComboBox(box, dir.path());
+            check(box->currentText() == "localhost:4532", "a host of a rig server that was typed stays when the list is filled again");
+          }
+
+        // a long name in the list must not make the page, and with it the whole Configuration dialog, wider
+        {
+          QComboBox *gpsBox = configDialogPtr->findChild<QWidget *>("gpsWidget")->findChild<QComboBox *>("portComboBox");
+          const QString longLink = dir.path() + "/usb-" + QString(120, 'X') + "-if00-port0";
+          QFile::link(slave, longLink);
+          for (QComboBox *box : {catBox, pttBox, gpsBox})
+            {
+              fillPortComboBox(box, dir.path());
+              check(box->count() == 3 && box->minimumSizeHint().width() < 300 && box->sizeHint().width() < 300,
+                    QString("%1 stays narrow with a %2 character name in the list (%3 px)").arg(box->objectName()).arg(longLink.size()).arg(box->minimumSizeHint().width()));
+            }
+          QFile::remove(longLink);
+        }
+
+        // Rescan on either button fills both lists with what the real folder holds
+        const QList<serialPortChoice> real = serialPortList();
+        QStringList wanted;
+        for (const serialPortChoice &p : real) wanted << p.name;
+        for (QToolButton *button : {catRescan, pttRescan})
+          {
+            catBox->clear();
+            pttBox->clear();
+            QTest::mouseClick(button, Qt::LeftButton);
+            QStringList catShown, pttShown;
+            for (int i = 0; i < catBox->count(); i++) catShown << catBox->itemText(i);
+            for (int i = 0; i < pttBox->count(); i++) pttShown << pttBox->itemText(i);
+            check(catShown == wanted && pttShown == wanted, QString("%1 fills both lists with the ports of this computer (%2)").arg(button->objectName()).arg(wanted.size()));
+          }
+        if (QDir("/dev/serial/by-id").exists() && !QDir("/dev/serial/by-id").isEmpty(QDir::AllEntries | QDir::System | QDir::NoDotAndDotDot))
+          check(!wanted.isEmpty() && wanted.first().startsWith("/dev/serial/by-id/") && !wanted.contains("/dev/ttyUSB0"), "this computer has by-id ports: those are listed, not /dev/ttyUSB0");
+
+        // settings round trip
+        QSettings qs;
+        catEnable->setChecked(false);
+        pttEnable->setChecked(false);
+        catBox->setCurrentText(fakeLink);
+        pttBox->setCurrentText("  " + brokenLink + " ");
+        configDialogPtr->writeSettings();
+        check(cp->serialPort == fakeLink && cp->pttSerialPort == brokenLink, "the CAT and PTT ports are what the program uses (spaces around a name are dropped)");
+        cp->serialPort.clear();
+        cp->pttSerialPort.clear();
+        catBox->setCurrentText("");
+        pttBox->setCurrentText("");
+        configDialogPtr->readSettings();
+        check(cp->serialPort == fakeLink && cp->pttSerialPort == brokenLink, "and are read back");
+        check(catBox->currentText() == fakeLink && pttBox->currentText() == brokenLink, "and shown on the page");
+
+        catBox->setCurrentText("localhost:4532");
+        configDialogPtr->writeSettings();
+        configDialogPtr->readSettings();
+        check(cp->serialPort == "localhost:4532" && catBox->currentText() == "localhost:4532", "a host:port for a rig server is kept as it was typed");
+
+        // the PTT port opens through a by-id link (the real code path of the serial PTT; the device is a pseudo terminal)
+        {
+          cp->enableSerialPTT = true;
+          cp->activeRTS = true;
+          cp->pttSerialPort = brokenLink;
+          boxes = 0;
+          rigControllerPtr->activatePTT(true);
+          check(boxes > 0 && lastBox.contains("Unable to open serial port"), "a link to a device that is not there is reported: " + lastBox.section('\n', 0, 0));
+          cp->pttSerialPort = fakeLink;
+          boxes = 0;
+          rigControllerPtr->activatePTT(true);
+          QTest::qWait(300);
+          check(boxes == 0, "a link to a device that is there opens it without a message");
+          rigControllerPtr->activatePTT(false);
+          cp->enableSerialPTT = false;
+          cp->activeRTS = false;
+        }
+
+        // one port cannot be both: a by-id link of the CAT port is the CAT port
+        catBox->setCurrentText(slave);
+        pttBox->setCurrentText(fakeLink);
+        catEnable->setChecked(true);   // (setChecked does not click: the rig is not started)
+        pttEnable->setChecked(false);
+        boxes = 0;
+        QTest::mouseClick(pttEnable, Qt::LeftButton);
+        checkWait([&] {return boxes > 0 && !pttEnable->isChecked();}, [&] {return "the PTT port cannot be a by-id link of the CAT port: " + lastBox;});
+        pttBox->setCurrentText("/dev/null");
+        boxes = 0;
+        QTest::mouseClick(pttEnable, Qt::LeftButton);
+        QTest::qWait(300);
+        check(boxes == 0 && pttEnable->isChecked(), "another port is accepted");
+        pttEnable->setChecked(false);
+
+        // a saved pair that is the same port twice does not start with both on
+        cp->enableCAT = true;
+        cp->enableSerialPTT = true;
+        cp->serialPort = slave;
+        cp->pttSerialPort = fakeLink;
+        rig->setParams();
+        check(!cp->enableSerialPTT && !pttEnable->isChecked(), "a saved CAT and PTT port that are the same device start with the PTT port off");
+        cp->enableCAT = false;
+        cp->enableSerialPTT = false;
+        catEnable->setChecked(false);
+        rig->getParams();
       }
   }
 

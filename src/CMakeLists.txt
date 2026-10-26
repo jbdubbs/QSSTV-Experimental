@@ -276,6 +276,7 @@ set(QSSTV_SOURCES
     widgets/waterfallform.cpp
     config/rigconfig.cpp
     config/gpsconfig.cpp
+    config/serialports.cpp
     config/cwconfig.cpp
     config/drmprofileconfig.cpp
     config/ftpconfig.cpp
