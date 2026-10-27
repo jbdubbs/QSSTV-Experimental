@@ -1668,6 +1668,106 @@ static void testShadowCornersPanel()
   check(pr > 45, QString("boxed text, blurred shadows and rounded corners look the same on the canvas and in the renderer (PSNR %1 dB)").arg(pr, 0, 'f', 1));
 }
 
+// issue #134: the outline can be switched off from the panel, and a width of 0 cannot be entered
+static void testOutlineOffPanel()
+{
+  printf("== outline off in the panel (#134)\n");
+  Env env;
+  EditorDocument *d = env.d;
+  PropertiesPanel *p = panelOf(env.ed);
+  const QString el = add(*d, make(tpl::ItemType::Ellipse, QPointF(200, 50), QSizeF(80, 80)));
+  const QString rc = add(*d, make(tpl::ItemType::Rect, QPointF(50, 50), QSizeF(100, 60)));
+  const QString tx = add(*d, make(tpl::ItemType::Text, QPointF(50, 150)));
+  const QString ln = add(*d, make(tpl::ItemType::Line, QPointF(50, 220), QSizeF(100, 2)));
+  const QString im = add(*d, make(tpl::ItemType::Image, QPointF(200, 150), QSizeF(40, 20)));
+  d->undoStack()->clear();
+  QGroupBox *box = panelChild<QGroupBox>(p, "outlineBox");
+  QDoubleSpinBox *width = panelChild<QDoubleSpinBox>(p, "outlineWidthSpin");
+  QComboBox *style = panelChild<QComboBox>(p, "outlineStyleCombo");
+  auto select = [&](const QStringList &ids) {
+    env.v->setSelection(ids);
+    QApplication::processEvents();
+    QApplication::processEvents();
+  };
+
+  select(QStringList(el));
+  check(box->isCheckable() && box->isChecked() && width->isEnabled(), "an ellipse has an outline: the Outline box is ticked, its fields are active");
+  check(style->findData(int(Qt::NoPen)) < 0, "the style list has no 'None' any more");
+  check(near(width->minimum(), 0.5), "the width starts at 0.5 pixel");
+  const int base = d->undoStack()->index();
+  box->setChecked(false);
+  QApplication::processEvents();
+  check(get(*d, el).outline.style == Qt::NoPen && d->undoStack()->index() == base + 1, "unticking the box switches the outline off, in one undo step");
+  check(!width->isEnabled() && !style->isEnabled() && !panelChild<QPushButton>(p, "outlineColorButton")->isEnabled(), "and greys out the rest of the section");
+  d->undoStack()->undo();
+  QApplication::processEvents();
+  QApplication::processEvents();
+  check(get(*d, el).outline.style == Qt::SolidLine && box->isChecked() && width->isEnabled(), "undo brings the outline back, and the box follows");
+  d->undoStack()->redo();
+  QApplication::processEvents();
+  QApplication::processEvents();
+  check(get(*d, el).outline.style == Qt::NoPen && !box->isChecked(), "redo switches it off again");
+  box->setChecked(true);
+  QApplication::processEvents();
+  check(get(*d, el).outline.style == Qt::SolidLine && width->isEnabled(), "ticking it gives a solid outline back");
+
+  // a width of 0 cannot be typed, and a document cannot hold one
+  width->setValue(0);
+  check(near(width->value(), 0.5) && get(*d, el).outline.width >= 0.5, "0 in the width field becomes 0.5");
+  tpl::Element zero = get(*d, el);
+  zero.outline.width = 0;
+  zero.outline.style = Qt::DashLine;
+  d->modifyItems(QVector<tpl::Element>() << zero, "zero");
+  QApplication::processEvents();
+  QApplication::processEvents();
+  check(get(*d, el).outline.style == Qt::NoPen && get(*d, el).outline.width >= 0.5 && !box->isChecked(), "an outline of width 0 handed to the document means no outline, and the panel shows it");
+
+  // selecting an item shows its state without creating undo steps
+  select(QStringList(rc));
+  const int idx = d->undoStack()->index();
+  check(!box->isChecked() && !width->isEnabled(), "a new rectangle has no outline: the box is not ticked");
+  select(QStringList(tx));
+  check(box->isChecked() && box->title() == "Outline", "text has an outline");
+  select(QStringList(ln));
+  check(box->isChecked() && box->title() == "Line", "a line's section is called Line");
+  select(QStringList(im));
+  check(!box->isChecked() && box->title() == "Border", "a picture's is called Border, and it has none to begin with");
+  check(d->undoStack()->index() == idx, "looking at the items changed nothing");
+
+  // several items at once
+  select(QStringList(tx) << el);
+  check(get(*d, el).outline.style == Qt::NoPen && get(*d, tx).outline.style == Qt::SolidLine, "a text with an outline and an ellipse without");
+  box->setChecked(!box->isChecked());   // like the other boxes, it shows the first item's state: flip it twice to set every item
+  box->setChecked(!box->isChecked());
+  QApplication::processEvents();
+  box->setChecked(false);
+  QApplication::processEvents();
+  check(get(*d, tx).outline.style == Qt::NoPen && get(*d, el).outline.style == Qt::NoPen, "the box switches off the outline of every selected item");
+  box->setChecked(true);
+  QApplication::processEvents();
+  check(get(*d, tx).outline.style == Qt::SolidLine && get(*d, el).outline.style == Qt::SolidLine, "and back on");
+
+  // what the canvas draws: no outline pixels when it is off
+  tpl::Element fillOnly = make(tpl::ItemType::Rect, QPointF(20, 20), QSizeF(60, 40));
+  fillOnly.fill = Qt::red;
+  fillOnly.outline.color = Qt::blue;
+  fillOnly.outline.width = 4;
+  Env e2;
+  const QString id2 = add(*e2.d, fillOnly);   // a new rectangle's outline is off already
+  e2.v->clearSelection();
+  QApplication::processEvents();
+  bool blue = false;
+  const QImage off = e2.v->renderItems(1.0);
+  for (int y = 0; y < off.height() && !blue; y++)
+    for (int x = 0; x < off.width(); x++)
+      if (qAlpha(off.pixel(x, y)) > 0 && qBlue(off.pixel(x, y)) > 100)
+        {
+          blue = true;
+          break;
+        }
+  check(!blue && get(*e2.d, id2).outline.style == Qt::NoPen, "the canvas draws no outline pixels for an item whose outline is off");
+}
+
 static void testSizePreviewAndGuides()
 {
   printf("== size preview and guides\n");
@@ -2579,6 +2679,7 @@ int main(int argc, char **argv)
   testAnchorsFollowMoves();
   testTextBoxEditor();
   testShadowCornersPanel();
+  testOutlineOffPanel();
   testSizePreviewAndGuides();
   testPresets();
   testGroupTransformAndSnapping();

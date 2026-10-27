@@ -17,7 +17,10 @@ multi-line text, an image with a border, the replay slot, z-order). `golden/` ho
 rendered from it: the frame it is laid over (`base_WxH.png`), the result with and without a replay picture at three sizes, and the gallery thumbnail.
 `fixtures/Montserrat-Bold.otf` (SIL OFL, see `Montserrat-OFL.txt`) is loaded by the tests so the text renders the same on every machine.
 
-The new renderer reproduces those images bit for bit (PSNR 999 dB). The same was checked against four real user templates (not committed).
+The new renderer reproduced those images bit for bit (PSNR 999 dB). The same was checked against four real user templates (not committed).
+
+One deliberate difference since #134: the fixture's yellow-bordered picture has a pen of width 0, which Qt draws as a one-pixel cosmetic line. A width of 0 now means
+no outline, so that line is gone and the goldens were regenerated from the new renderer (the changed pixels are confined to that picture's border).
 
 `legacy-golden/gen.cpp` regenerates the fixtures and goldens from the legacy classes. It links against the object files of a build made **before**
 the legacy editor was removed (see `build.sh`), so it only works on such a checkout; it is kept as the record of where the goldens came from.

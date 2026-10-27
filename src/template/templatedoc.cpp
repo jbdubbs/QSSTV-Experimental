@@ -83,6 +83,8 @@ QGradient Gradient::build(const QRectF &f) const
 
 QPen Outline::toPen() const
 {
+  // a pen of width 0 is cosmetic in Qt: it always draws one device pixel, so "no width" must mean "no pen"
+  if (width <= 0) return QPen(Qt::NoPen);
   QPen p(color);
   p.setWidthF(width);
   p.setJoinStyle(join);
@@ -189,6 +191,11 @@ void sanitize(Element &e)
   Outline &o = e.outline;
   o.color = validColor(o.color, QColor(Qt::black));
   o.width = clampd(o.width, 0, 200, 1);
+  if (o.width <= 0)   // an outline of no width is no outline; the width stays usable for when it is switched on again
+    {
+      o.style = Qt::NoPen;
+      o.width = 1;
+    }
   o.miterLimit = clampd(o.miterLimit, 1, 100, 2);
 
   FontSpec &f = e.font;

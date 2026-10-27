@@ -90,6 +90,7 @@ static void testGoldenParity(const QString &fx, const QString &gd)
   const QImage thumb = tpl::renderThumbnail(lr.doc);
   const double p = psnr(thumb, QImage(gd + "/synthetic_thumb.png"), &md);
   check(p >= 45, QString("thumbnail: PSNR %1 dB, max channel diff %2").arg(p, 0, 'f', 1).arg(md));
+  if (p < 45) thumb.save(QDir::tempPath() + "/tpl_fail_synthetic_thumb.png");
 }
 
 static void testJsonRoundTrip(const QString &fx, const QString &gd)
@@ -750,6 +751,118 @@ static void testShadowAndCorners()
         "and to the border of the replay window");
 }
 
+// --- issue #134: an outline of no width is no outline (a Qt pen of width 0 is cosmetic and draws one pixel) --------------
+static int countPixels(const QImage &im, bool (*pred)(QRgb))
+{
+  int n = 0;
+  for (int y = 0; y < im.height(); y++)
+    for (int x = 0; x < im.width(); x++)
+      if (pred(im.pixel(x, y))) n++;
+  return n;
+}
+
+static void testOutlineOff(const QString &fx)
+{
+  printf("== outline off (#134)\n");
+  tpl::Outline o;
+  o.width = 0;
+  check(o.toPen().style() == Qt::NoPen, "a pen of width 0 is no pen");
+  o.width = 2;
+  check(o.toPen().style() == Qt::SolidLine && o.toPen().widthF() == 2, "a pen of width 2 is a 2 pixel pen");
+
+  auto render = [](tpl::Element e) {
+    tpl::TemplateDocument d;
+    d.canvas = QRectF(0, 0, 200, 120);
+    d.layout = tpl::TemplateDocument::Stretch;
+    d.items << e;
+    return tpl::overlay(d, transparent(200, 120), tpl::RenderOptions());
+  };
+  auto blueish = [](QRgb c) { return qBlue(c) > 100 && qAlpha(c) > 0; };
+  auto dark = [](QRgb c) { return qRed(c) < 128 && qAlpha(c) > 128; };
+
+  tpl::Element rect = element(tpl::ItemType::Rect, QPointF(20, 20), QRectF(0, 0, 100, 60));
+  rect.fill = Qt::red;
+  rect.outline.color = Qt::blue;
+  rect.outline.width = 3;
+  check(countPixels(render(rect), blueish) > 100, "a rectangle with a 3 pixel outline shows it");
+  rect.outline.width = 0;
+  const QImage noWidth = render(rect);
+  check(countPixels(noWidth, blueish) == 0, "width 0: no outline pixels at all");
+  rect.outline.width = 3;
+  rect.outline.style = Qt::NoPen;
+  check(sameImage(noWidth, render(rect)), "width 0 renders exactly like the outline switched off");
+  check(ink(noWidth) == QRect(20, 20, 100, 60), QString("and the rectangle is just its fill (%1,%2 %3x%4)").arg(ink(noWidth).x()).arg(ink(noWidth).y()).arg(ink(noWidth).width()).arg(ink(noWidth).height()));
+
+  tpl::Element text = element(tpl::ItemType::Text, QPointF(10, 70), QRectF(0, -30, 150, 40));
+  text.text = "HELLO";
+  text.font.family = "Montserrat";
+  text.font.pointSize = 30;
+  text.font.weight = 700;
+  text.fill = Qt::white;
+  text.outline.color = Qt::black;
+  text.outline.width = 2;
+  check(countPixels(render(text), dark) > 50, "white text with a 2 pixel black outline shows the outline");
+  text.outline.width = 0;
+  check(countPixels(render(text), dark) == 0, "width 0: the text has no outline");
+
+  // the shadow of an item with no outline is the same as with the outline switched off
+  tpl::Element shadowed = rect;
+  shadowed.shadow.on = true;
+  shadowed.shadow.dx = shadowed.shadow.dy = 6;
+  shadowed.outline.width = 0;
+  shadowed.outline.style = Qt::SolidLine;
+  const QImage s0 = render(shadowed);
+  shadowed.outline.width = 3;
+  shadowed.outline.style = Qt::NoPen;
+  check(sameImage(s0, render(shadowed)), "and so is the shadow");
+
+  // files: the loaders turn width 0 into "no outline", keeping a usable width for when it is switched on again
+  const char *json = R"({"format":"qsstv-template","version":1,"canvas":{"w":100,"h":50},
+      "items":[{"type":"rect","x":5,"y":5,"w":20,"h":10,"outline":{"w":0,"style":"dash","color":"#00f"}},
+               {"type":"rect","x":5,"y":5,"w":20,"h":10,"outline":{"w":1.5,"style":"dash"}}]})";
+  const tpl::LoadResult jr = tpl::loadJson(json);
+  check(jr.ok && jr.doc.items.size() == 2, "a template with an outline of width 0 loads");
+  if (jr.ok && jr.doc.items.size() == 2)
+    {
+      check(jr.doc.items.at(0).outline.style == Qt::NoPen && jr.doc.items.at(0).outline.width == 1, "its outline is off, width 1");
+      check(jr.doc.items.at(1).outline.style == Qt::DashLine && jr.doc.items.at(1).outline.width == 1.5, "a real outline is left alone");
+    }
+  const tpl::LoadResult lr = tpl::loadFile(fx + "/synthetic.templ");   // the fixture has a picture whose pen has width 0
+  bool zeroPenOff = false;
+  for (const tpl::Element &e : lr.doc.items)
+    if (e.type == tpl::ItemType::Image && e.outline.color == QColor(255, 255, 0)) zeroPenOff = e.outline.style == Qt::NoPen;
+  check(zeroPenOff, "a legacy pen of width 0 is imported as no outline");
+
+  // a picture or the replay window without a border fills its whole rectangle
+  QImage red(10, 10, QImage::Format_ARGB32);
+  red.fill(Qt::red);
+  tpl::Element pic = element(tpl::ItemType::Image, QPointF(10, 10), QRectF(0, 0, 40, 30));
+  pic.image = red;
+  pic.outline.color = Qt::blue;
+  pic.outline.width = 4;
+  const QImage framed = render(pic);
+  check(qBlue(framed.pixel(11, 11)) > 200 && qRed(framed.pixel(11, 11)) < 50, "a picture with a 4 pixel border has the border at its edge");
+  pic.outline.style = Qt::NoPen;
+  const QImage bare = render(pic);
+  check(ink(bare) == QRect(10, 10, 40, 30) && qRed(bare.pixel(10, 10)) > 200 && qRed(bare.pixel(49, 39)) > 200,
+        "without the border the picture fills the whole rectangle, not a smaller one");
+  pic.outline.style = Qt::SolidLine;
+  pic.outline.width = 0;
+  check(sameImage(bare, render(pic)), "and width 0 is the same as no border");
+  tpl::Element slot = element(tpl::ItemType::Replay, QPointF(10, 10), QRectF(0, 0, 40, 30));
+  slot.outline.color = Qt::blue;
+  slot.outline.width = 4;
+  slot.outline.style = Qt::NoPen;
+  tpl::TemplateDocument rd;
+  rd.canvas = QRectF(0, 0, 200, 120);
+  rd.layout = tpl::TemplateDocument::Stretch;
+  rd.items << slot;
+  tpl::RenderOptions ro;
+  ro.replay = red;
+  const QImage replayed = tpl::overlay(rd, transparent(200, 120), ro);
+  check(ink(replayed) == QRect(10, 10, 40, 30), "the replay window without a border fills its rectangle too");
+}
+
 static void testMacros()
 {
   printf("== macros\n");
@@ -853,6 +966,7 @@ int main(int argc, char **argv)
   testAnchoredLayout(fx, gd);
   testTextBox();
   testShadowAndCorners();
+  testOutlineOff(fx);
   testMacros();
   testFuzz(fx);
   printf("\n%d passed, %d failed\n", passed, failed);

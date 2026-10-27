@@ -255,6 +255,7 @@ void paintBody(QPainter &p, const Element &e, const RenderOptions &opt, const QC
 {
   QPen pen = e.outline.toPen();
   if (flat) pen.setColor(*flat);
+  const qreal inset = pen.style() == Qt::NoPen ? 0 : pen.widthF() / 2;   // a picture sits inside its border, and fills its rectangle without one
   const bool shaped = e.type == ItemType::Rect || e.type == ItemType::Ellipse;
   if (flat) p.setBrush(QBrush(*flat));
   else if (shaped && e.gradient.isActive()) p.setBrush(QBrush(e.gradient.build(e.rect)));
@@ -290,7 +291,7 @@ void paintBody(QPainter &p, const Element &e, const RenderOptions &opt, const QC
           p.drawRect(e.rect);
           break;
         }
-      drawScaled(p, e, e.image, pen.widthF() / 2);
+      drawScaled(p, e, e.image, inset);
       drawBorder(p, e, pen);
       break;
     case ItemType::Replay:
@@ -301,16 +302,15 @@ void paintBody(QPainter &p, const Element &e, const RenderOptions &opt, const QC
             p.drawRect(e.rect);
             break;
           }
-        const qreal pad = pen.widthF() / 2;
         if (opt.replay.isNull())
           {
             p.setPen(pen);
             p.setBrush(QBrush(Qt::black, Qt::Dense7Pattern));
-            p.drawRect(e.rect.adjusted(2 * pad, 2 * pad, -2 * pad, -2 * pad));
+            p.drawRect(e.rect.adjusted(2 * inset, 2 * inset, -2 * inset, -2 * inset));
           }
         else
           {
-            drawScaled(p, e, opt.replay, pad);
+            drawScaled(p, e, opt.replay, inset);
           }
         drawBorder(p, e, pen);
         break;

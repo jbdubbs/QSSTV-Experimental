@@ -228,11 +228,13 @@ void PropertiesPanel::build()
 
   // --- outline ---------------------------------------------------------------------------------------------
   outlineBox = new QGroupBox(tr("Outline"));
+  outlineBox->setCheckable(true);   // unticked = no outline at all; Qt greys out what is inside
+  outlineBox->setToolTip(tr("Untick to draw no outline"));
   QFormLayout *ol = new QFormLayout(outlineBox);
   outlineColorButton = swatch(tr("Outline color (click to change)"));
-  outlineWidthSpin = spin(0, 200, 0.5, 1, QStringLiteral(" px"));
+  outlineWidthSpin = spin(0.5, 200, 0.5, 1, QStringLiteral(" px"));
+  outlineWidthSpin->setToolTip(tr("Width of the outline; to remove the outline, untick the box above"));
   outlineStyleCombo = new QComboBox;
-  outlineStyleCombo->addItem(tr("None"), int(Qt::NoPen));
   outlineStyleCombo->addItem(tr("Solid"), int(Qt::SolidLine));
   outlineStyleCombo->addItem(tr("Dashed"), int(Qt::DashLine));
   outlineStyleCombo->addItem(tr("Dotted"), int(Qt::DotLine));
@@ -407,6 +409,9 @@ void PropertiesPanel::build()
     apply([gr](tpl::Element &e) { e.gradient = gr; }, tr("Change gradient"), QStringLiteral("gradient"));
   });
 
+  connect(outlineBox, &QGroupBox::toggled, this, [this](bool on) {
+    apply([on](tpl::Element &e) { e.outline.style = on ? Qt::SolidLine : Qt::NoPen; }, on ? tr("Add outline") : tr("Remove outline"), QString());
+  });
   connect(outlineColorButton, &QPushButton::clicked, this, [this]() {
     const QVector<tpl::Element> sel = canvas->selectedElements();
     if (sel.isEmpty()) return;
@@ -622,6 +627,7 @@ void PropertiesPanel::refresh()
   if (sameType && e.type == tpl::ItemType::Line) outlineTitle = tr("Line");
   else if (sameType && (e.type == tpl::ItemType::Image || e.type == tpl::ItemType::Replay)) outlineTitle = tr("Border");
   outlineBox->setTitle(outlineTitle);
+  outlineBox->setChecked(e.outline.style != Qt::NoPen);
   setSwatch(outlineColorButton, e.outline.color);
   setValueIfChanged(outlineWidthSpin, e.outline.width);
   outlineStyleCombo->setCurrentIndex(qMax(0, outlineStyleCombo->findData(int(e.outline.style))));
