@@ -7,6 +7,7 @@
 #include "dispatchevents.h"
 #include "dispatcher.h"
 #include "modes/modes.h"
+#include "rxtrace.h"
 
 #ifndef QT_NO_DEBUG
 #include "scope/scopeview.h"
@@ -55,6 +56,11 @@ const QString stateStr[syncProcessor::RETRACEWAIT+1]=
   "Retrace Wait"
 };
 
+static QString traceTime(quint32 counter)
+{
+  return QString("t=%1").arg(counter/(double)SAMPLERATE,0,'f',2);
+}
+
 /*!
  * \brief syncProcessor::syncProcessor constructor
  *
@@ -72,6 +78,12 @@ syncProcessor::syncProcessor(bool narrow, QObject *parent) :  QObject(parent),st
   detectNarrow=narrow;
   currentModePtr=NULL;
   visMode=NOTVALID;
+  trDetectCounter=trFreezeCounter=0;
+  trViaVis=false;
+  trHits=trFarHits=trFreezes=trResyncs=trMaxGapLines=0;
+  trStripes=trStarts=trAccepted=trRetrace=trVis=trGateOpen=0;
+  trLevelSum=0;
+  trLevelPeak=0;
   maxLineSamples=getMaxLineSamples();
   //  syncFound=false;
   if(!detectNarrow)
@@ -180,6 +192,7 @@ void syncProcessor::process()
 {
   streamDecode.process(freqPtr,sampleCounter); // only VIS and FSK if not narrow
   extractSync();
+  if(rxTraceOn()) traceStats();
 
 #ifndef QT_NO_DEBUG
   if(detectNarrow)
@@ -226,6 +239,7 @@ void syncProcessor::extractSync()
       {
         syncArray[syncArrayIndex].start=sampleCounter+i;
         syncArray[syncArrayIndex].startVolume=syncVolumePtr[i];
+        trStarts++;
         switchSyncState(SYNCACTIVE,sampleCounter+i);
       }
       break;
@@ -240,6 +254,7 @@ void syncProcessor::extractSync()
         syncArray[syncArrayIndex].end=sampleCounter+i;
         if(validateSync())
         {
+          trAccepted++;
           switchSyncState(SYNCVALID,sampleCounter+i);
         }
         else
@@ -258,6 +273,7 @@ void syncProcessor::extractSync()
   {
     if(activeChainPtr==NULL)
     {
+      if(rxTraceOn()) traceLost("nochain");
       switchProcessState(SYNCLOST);
     }
     else
@@ -265,7 +281,16 @@ void syncProcessor::extractSync()
       lastSync=syncArray[activeChainPtr->last()->to].end;
       if((sampleCounter+RXSTRIPE-RXSTRIPE/7)>(lastSync+sensitivityArray[sensitivity].maxTempOutOfSyncLines*samplesPerLine))
       {
-        if(sensitivity!=(NUMBEROFSENSITIVITIES-1)) tempOutOfSync=true; // no temp out of sync if DX
+        if(sensitivity!=(NUMBEROFSENSITIVITIES-1)) // no temp out of sync if DX
+        {
+          if(!tempOutOfSync)
+          {
+            trFreezes++;
+            trFreezeCounter=sampleCounter;
+            if(rxTraceOn()) rxTrace("FREEZE",QString("%1\tproc=%2\tmode=%3\tlines=%4\tchain=%5").arg(traceTime(sampleCounter)).arg(detectNarrow?"N":"W").arg(getSSTVModeNameShort(currentMode)).arg(currentModePtr->receivedLines()).arg(activeChainPtr->count()));
+          }
+          tempOutOfSync=true;
+        }
       }
       missingLines=(uint) round(((sampleCounter+RXSTRIPE-RXSTRIPE/7)-(lastSync+samplesPerLine))/samplesPerLine+1);
       calcSyncQuality();
@@ -333,6 +358,7 @@ bool syncProcessor::validateSync()
     case MODEDETECT:
       if(findMatch())
       {
+        trViaVis=(visMode!=NOTVALID);
         visMode=NOTVALID; //reset visMode;
         //we have a new mode
         if(!createModeBase())
@@ -363,6 +389,12 @@ bool syncProcessor::validateSync()
           slantAdjustLine=6;
           slantAdjust(true);
           switchProcessState(INSYNC);
+          trDetectCounter=sampleCounter;
+          trHits=trFarHits=trFreezes=trResyncs=trMaxGapLines=0;
+          if(rxTraceOn()) rxTrace("DETECT",QString("%1\tproc=%2\tmode=%3\tvia=%4\tvis_age_s=%5\tchain=%6\tfract=%7\tline_ms=%8\tsens=%9\tmin_volume=%10")
+                                  .arg(traceTime(sampleCounter)).arg(detectNarrow?"N":"W").arg(getSSTVModeNameShort(currentMode)).arg(trViaVis?"vis":"sync")
+                                  .arg(trViaVis?QString::number(((int)sampleCounter-(int)visEndCounter)/(double)SAMPLERATE,'f',1):QString("-")).arg(activeChainPtr->count())
+                                  .arg(calcTotalFract(activeChainPtr),0,'f',4).arg(samplesPerLine*1000./SAMPLERATE,0,'f',1).arg(sensitivity).arg(sensitivityArray[sensitivity].minVolume));
           addToLog(QString("Mode detected: %1, sync at %2").arg(getSSTVModeNameShort(currentMode)).arg(syncPosition),LOGSYNCEVAL);
         }
       }
@@ -399,6 +431,10 @@ void  syncProcessor::trackSyncs()
   }
   if(addToChain(currentMode,activeChainPtr->last()->to))
   {
+    uint spacing=activeChainPtr->last()->lineSpacing;
+    uint missedBefore=missingLines;
+    bool wasFrozen=tempOutOfSync;
+    bool resynced=false;
     falseSyncs=0;
     missingLines=0;
     if(tempOutOfSync)
@@ -407,7 +443,20 @@ void  syncProcessor::trackSyncs()
       if(activeChainPtr->last()->lineSpacing<=2)
       {
         tempOutOfSync=false;
+        resynced=true;
       }
+    }
+    trHits++;
+    if(spacing>trMaxGapLines) trMaxGapLines=spacing;
+    if(spacing>2) trFarHits++;
+    if(resynced) trResyncs++;
+    if(rxTraceOn())
+    {
+      if(spacing>2) rxTrace("HIT",QString("%1\tproc=%2\tmode=%3\tspacing=%4\tmissed=%5\tfrozen=%6\tresync=%7")
+                            .arg(traceTime(sampleCounter)).arg(detectNarrow?"N":"W").arg(getSSTVModeNameShort(currentMode)).arg(spacing).arg(missedBefore).arg(wasFrozen).arg(resynced));
+      if(resynced) rxTrace("RESYNC",QString("%1\tproc=%2\tmode=%3\tfrozen_s=%4\tspacing=%5\tprev_spacing=%6\tlines=%7")
+                           .arg(traceTime(sampleCounter)).arg(detectNarrow?"N":"W").arg(getSSTVModeNameShort(currentMode)).arg(((int)sampleCounter-(int)trFreezeCounter)/(double)SAMPLERATE,0,'f',1)
+                           .arg(spacing).arg(activeChainPtr->count()>=2?(int)activeChainPtr->at(activeChainPtr->count()-2)->lineSpacing:0).arg(currentModePtr->receivedLines()));
     }
   }
 
@@ -428,6 +477,7 @@ void  syncProcessor::trackSyncs()
     slantAdjust(false);
     if(falseSlantSync>=10)
     {
+      if(rxTraceOn()) traceLost("falseslant");
       switchProcessState(SYNCLOSTFALSESYNC);
     }
   }
@@ -443,6 +493,8 @@ void syncProcessor::slotNewCall(QString call)
 
 void syncProcessor::slotVisCodeDetected(int mode,uint visSampleCounter)
 {
+  trVis++;
+  if(rxTraceOn()) rxTrace("VIS",QString("%1\tproc=%2\tmode=%3\taccepted=%4\tstate=%5").arg(traceTime(sampleCounter)).arg(detectNarrow?"N":"W").arg(getSSTVModeNameShort((esstvMode)mode)).arg((mode>=idxStart) && (mode<=idxEnd)).arg(stateStr[syncProcesState]));
   if((mode>=idxStart) && (mode<=idxEnd))
   {
     visMode=(esstvMode)mode;
@@ -495,6 +547,7 @@ void  syncProcessor::calcSyncQuality()
   {
 
     addToLog(QString("syncQuality SYNCLOST %1").arg(str),LOGSYNCQUALITY);
+    if(rxTraceOn()) traceLost(missingLines>=maxOutOfSyncLines() ? "missing" : "slant");
     switchProcessState(SYNCLOST);
   }
 }
@@ -523,6 +576,62 @@ uint syncProcessor::maxOutOfSyncLines()
 }
 
 /**
+ * @brief syncProcessor::traceStats
+ *
+ * Receiver trace (rxtrace.h): once a minute, how many sync-like pulses started, how many passed the width test, and the
+ * level of the input.
+ */
+
+void syncProcessor::traceStats()
+{
+  for(int i=0;i<RXSTRIPE;i++)
+  {
+    DSPFLOAT v=inputVolumePtr[i];
+    trLevelSum+=v;
+    if(v>trLevelPeak) trLevelPeak=v;
+    if(v>=sensitivityArray[sensitivity].minVolume) trGateOpen++;
+  }
+  trStripes++;
+  if(trStripes>=(60*SAMPLERATE)/RXSTRIPE)
+  {
+    double samples=(double)trStripes*RXSTRIPE;
+    rxTrace("PULSE-STATS",QString("%1\tproc=%2\tseconds=%3\tstarts=%4\taccepted=%5\tretrace=%6\tvis=%7\tlevel_mean=%8\tlevel_peak=%9\tgate_open_pct=%10\tstate=%11")
+            .arg(traceTime(sampleCounter)).arg(detectNarrow?"N":"W").arg(samples/SAMPLERATE,0,'f',1).arg(trStarts).arg(trAccepted).arg(trRetrace).arg(trVis)
+            .arg(trLevelSum/samples,0,'f',0).arg(trLevelPeak,0,'f',0).arg(100.*trGateOpen/samples,0,'f',1).arg(stateStr[syncProcesState]));
+    trStripes=trStarts=trAccepted=trRetrace=trVis=trGateOpen=0;
+    trLevelSum=0;
+    trLevelPeak=0;
+  }
+}
+
+/**
+ * @brief syncProcessor::traceLost
+ * @param reason why the picture is given up
+ */
+
+void syncProcessor::traceLost(const char *reason)
+{
+  rxTrace("LOST",QString("%1\tproc=%2\tmode=%3\treason=%4\tmissing_lines=%5\tlimit_lines=%6\ttable_lines=%7\tfalse_slant=%8\tage_s=%9\tlines=%10")
+          .arg(traceTime(sampleCounter)).arg(detectNarrow?"N":"W").arg(getSSTVModeNameShort(currentMode)).arg(reason).arg(missingLines).arg(maxOutOfSyncLines())
+          .arg(sensitivityArray[sensitivity].maxOutOfSyncLines).arg(falseSlantSync).arg(((int)sampleCounter-(int)trDetectCounter)/(double)SAMPLERATE,0,'f',1)
+          .arg(currentModePtr?(int)currentModePtr->receivedLines():-1));
+}
+
+/**
+ * @brief syncProcessor::traceSummary
+ * @return the fields of the receiver trace's SAVE line that come from the sync tracking
+ */
+
+QString syncProcessor::traceSummary()
+{
+  double age=((int)sampleCounter-(int)trDetectCounter)/(double)SAMPLERATE;
+  double ageLines=(samplesPerLine>0) ? age*SAMPLERATE/samplesPerLine : 0;
+  return QString("proc=%1\tvia=%2\tage_s=%3\thits=%4\tfar_hits=%5\tfreezes=%6\tresyncs=%7\tmax_gap_s=%8\thits_per_line=%9")
+      .arg(detectNarrow?"N":"W").arg(trViaVis?"vis":"sync").arg(age,0,'f',1).arg(trHits).arg(trFarHits).arg(trFreezes).arg(trResyncs)
+      .arg(trMaxGapLines*samplesPerLine/SAMPLERATE,0,'f',1).arg(ageLines>0?trHits/ageLines:0.,0,'f',3);
+}
+
+/**
  * @brief syncProcessor::calculateLineNumber
  * @param fromIdx
  * @param toIdx
@@ -543,12 +652,14 @@ void syncProcessor::checkSyncArray()
 
   if(syncArray[syncArrayIndex].retrace)
   {
+    trRetrace++;
     syncArray[0]=syncArray[syncArrayIndex];
     syncArrayIndex=0;
     //      syncPosition=syncArray[0].end + FILTERDELAYCORRECTION;
     addToLog(QString("Found retrace: start:%1 end:%2  width %3").arg(syncArray[0].start).arg(syncArray[0].end).arg(syncArray[0].end-syncArray[0].start),LOGSYNCACCEPTED);
     if(syncProcesState==INSYNC)
     {
+      if(rxTraceOn()) rxTrace("RETRACE",QString("%1\tproc=%2\tmode=%3\tage_s=%4\tlines=%5").arg(traceTime(sampleCounter)).arg(detectNarrow?"N":"W").arg(getSSTVModeNameShort(currentMode)).arg(((int)sampleCounter-(int)trDetectCounter)/(double)SAMPLERATE,0,'f',1).arg(currentModePtr->receivedLines()));
       retraceFlag=true;
       syncProcesState=RETRACEWAIT;
     }

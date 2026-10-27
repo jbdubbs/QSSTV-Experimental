@@ -6,6 +6,7 @@
 #include "filterparam.h"
 #include "filters.h"
 #include "modes/modebase.h"
+#include "rxtrace.h"
 
 
 #ifndef QT_NO_DEBUG
@@ -37,6 +38,7 @@ sstvRx::sstvRx(QObject *parent) : QObject(parent),syncNarrowProc(true),syncWideP
   syncFilterPtr=NULL;
   videoFilterPtr=NULL;
   syncProcPtr=NULL;
+  endCause="imageend";
 #ifndef QT_NO_DEBUG
   scopeViewerData=new scopeView("Data Scope");
   scopeViewerSyncNarrow=new scopeView("Sync Scope Narrow");
@@ -272,6 +274,7 @@ void sstvRx::process()
       syncProcPtr->currentModePtr->redrawFast(true);
       if(syncProcPtr->currentModePtr->process(modeDemodPtr(),syncPosition-syncProcPtr->sampleCounter,true,syncProcPtr->sampleCounter)!=modeBase::MBRUNNING)
         {
+          endCause="imageend";
           switchState(END);
           break;
         }
@@ -307,7 +310,7 @@ void sstvRx::process()
           // checked before the sync state: a retrace also puts the processor in RETRACEWAIT, which would end the picture
           // without the rewind, and the new picture would lose the retrace pulse where it starts
           addToLog(QString("retrace detected"),LOGRXFUNC);
-          saveImage();
+          saveImage("retrace");
           rewindBuffers(8*RXSTRIPE);
           syncProcPtr->resetRetraceFlag();
           resetParams(false);
@@ -315,12 +318,14 @@ void sstvRx::process()
         }
       else if(syncState!=syncProcessor::INSYNC)
         {
+          endCause="notinsync";
           switchState(END);
         }
       else
         {
           if(syncProcPtr->currentModePtr->process(modeDemodPtr(),0,false,syncProcPtr->sampleCounter)!=modeBase::MBRUNNING)
             {
+              endCause="imageend";
               switchState(END);
             }
         }
@@ -346,7 +351,7 @@ void sstvRx::process()
         if(syncProcPtr->retraceFlag)
           {
             addToLog(QString("retrace detected"),LOGRXFUNC);
-            saveImage();
+            saveImage("retrace");
             //          addToLog(QString("before rewind readIndex:=%1 sampleCounter:=%2").arg(bufferVideoDemod.getReadIndex()).arg(syncProcPtr->sampleCounter),LOGRXFUNC);
             rewindBuffers(8*RXSTRIPE);
             syncProcPtr->resetRetraceFlag();
@@ -356,6 +361,7 @@ void sstvRx::process()
           }
         else if(!(syncState==syncProcessor::INSYNC))
           {
+            endCause="notinsync";
             switchState(END);
           }
 
@@ -369,12 +375,14 @@ void sstvRx::process()
                   {
                     if(syncProcPtr->currentModePtr->process(modeDemodPtr(),0,false,syncProcPtr->sampleCounter)==modeBase::MBENDOFIMAGE)
                       {
+                        endCause="imageend";
                         switchState(END);
                       }
                     demodSkip(RXSTRIPE);
                   }
                 if(syncProcPtr->currentModePtr->process(modeDemodPtr(),0,false,syncProcPtr->sampleCounter)==modeBase::MBENDOFIMAGE)
                   {
+                    endCause="imageend";
                     switchState(END);
                   }
                 else
@@ -390,7 +398,7 @@ void sstvRx::process()
       resetParams(true);
       break;
     case SYNCLOST:
-      saveImage();
+      saveImage("synclost");
       diff=(syncProcPtr->sampleCounter-syncProcPtr->lastValidSyncCounter)/RXSTRIPE;
       addToLog(QString("rewind after synclost %1").arg(diff),LOGRXFUNC);
       rewindBuffers(diff*RXSTRIPE);
@@ -400,19 +408,27 @@ void sstvRx::process()
     case WAIT:
       break;
     case END:
-      saveImage();
+      saveImage(endCause);
       resetParams(false); // will set state to HUNTING
       advanceBuffers();
       break;
     }
 }
 
-void sstvRx::saveImage()
+void sstvRx::saveImage(const char *why)
 {
   bool done=false;
   addToLog("saveImage",LOGRXFUNC);
   endImageSSTVRXEvent *endce;
-  if(syncProcPtr->currentModePtr->receivedLines()<(syncProcPtr->currentModePtr->imageLines()*minCompletion)/100)
+  bool incomplete=syncProcPtr->currentModePtr->receivedLines()<(syncProcPtr->currentModePtr->imageLines()*minCompletion)/100;
+  if(rxTraceOn())
+    {
+      rxTrace("SAVE",QString("t=%1\tmode=%2\tresult=%3\tcause=%4\tlines=%5\timage_lines=%6\tpercent=%7\tmin_complete=%8\t%9")
+              .arg(syncProcPtr->sampleCounter/(double)SAMPLERATE,0,'f',2).arg(getSSTVModeNameShort(syncProcPtr->getMode())).arg(incomplete?"discarded":"saved").arg(why)
+              .arg(syncProcPtr->currentModePtr->receivedLines()).arg(syncProcPtr->currentModePtr->imageLines())
+              .arg(100.*syncProcPtr->currentModePtr->receivedLines()/syncProcPtr->currentModePtr->imageLines(),0,'f',1).arg(minCompletion).arg(syncProcPtr->traceSummary()));
+    }
+  if(incomplete)
     {
       endce = new endImageSSTVRXEvent(NOTVALID); //indicate there  is no valid image
     }
@@ -435,7 +451,7 @@ void sstvRx::switchState(eSSTVState  newState)
 
 void sstvRx::finishInput()
 {
-  if(syncProcPtr && isReceivingImage()) saveImage();
+  if(syncProcPtr && isReceivingImage()) saveImage("stop");
 }
 
 void sstvRx::eraseImage()

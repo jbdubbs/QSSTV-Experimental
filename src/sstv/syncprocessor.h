@@ -129,6 +129,7 @@ public:
   void recalculateMatchArray();
   DSPFLOAT getNewClock() {return modifiedClock;}
   void setSyncDetectionEnabled(bool enable) {enableSyncDetection=enable;}
+  QString traceSummary();
 
 
   quint32 sampleCounter;
@@ -212,6 +213,26 @@ private:
   quint16 falseSlantSync;
   quint16 falseSyncs;
   quint16 missingLines;
+
+  // receiver trace (rxtrace.h, QSSTV_RX_TRACE): only written, never read by the receiver
+  void traceStats();
+  void traceLost(const char *reason);
+  quint32 trDetectCounter;   // sampleCounter when the picture was detected
+  quint32 trFreezeCounter;   // sampleCounter when the display froze
+  bool trViaVis;
+  uint trHits;               // pulses added to the chain since detection
+  uint trFarHits;            // ... of which more than 2 lines after the last one
+  uint trFreezes;
+  uint trResyncs;
+  uint trMaxGapLines;
+  uint trStripes;            // PULSE-STATS: stripes in this minute, sync-like pulses started / accepted, retrace pulses, VIS codes
+  uint trStarts;
+  uint trAccepted;
+  uint trRetrace;
+  uint trVis;
+  uint trGateOpen;           // samples with an input level of at least minVolume
+  double trLevelSum;
+  DSPFLOAT trLevelPeak;
 
   bool detectNarrow;
   bool enableSyncDetection;

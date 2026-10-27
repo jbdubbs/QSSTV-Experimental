@@ -52,7 +52,7 @@ private:
   void process();
   void switchState(eSSTVState  newState);
   void resetParams(bool bufferReset);
-  void saveImage();
+  void saveImage(const char *why);
   void advanceBuffers();
   void rewindBuffers(uint rlen);
   quint16 *modeDemodPtr();
@@ -81,6 +81,7 @@ private:
   bool usingWide;
   syncProcessor *syncProcPtr;
   DSPFLOAT agcVolume;
+  const char *endCause;   // why the picture ended, for the receiver trace (rxtrace.h)
 };
 
 #endif // SSTVRX_H
