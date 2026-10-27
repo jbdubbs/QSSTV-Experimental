@@ -216,9 +216,9 @@ include it. The macOS CI job checks an AVIF DRM round trip on the bundled app (`
 
 ## macOS
 
-Apple Silicon (arm64) and Intel (x86_64), both **experimental**: CI builds each natively (the Intel build runs on a
-`macos-15-intel` runner; because Homebrew's libraries target the runner's OS, the Intel build requires macOS 15 or newer), builds and decodes test recordings on every change, but nobody
-has yet verified live audio, microphone access or CAT control on real hardware.
+Apple Silicon (arm64) and Intel (x86_64): CI builds each natively (the Intel build runs on a
+`macos-15-intel` runner; because Homebrew's libraries target the runner's OS, the Intel build requires macOS 15 or newer), builds and decodes test recordings on every change, and testers
+have verified the app's operation on real Intel and Apple Silicon Macs. CI cannot cover live audio, the microphone prompt, the GUI or CAT.
 
 ```
 brew install cmake pkg-config qt@6 fftw openjpeg hamlib libvorbis
