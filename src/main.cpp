@@ -611,7 +611,8 @@ int main( int argc, char ** argv )
   if(encode && parser.isSet(drmOpt))
     {
       // --encode --drm: send the picture through the normal DRM TX path into a wav file
-      QImage img(parser.value(encodeOpt));
+      QImage img;
+      loadImageAutoRotate(img,parser.value(encodeOpt));   // like the Transmit tab: a photo's EXIF/HEIF orientation is applied
       if(img.isNull())
         {
           fprintf(stderr,"--encode needs a readable image\n");
@@ -650,7 +651,8 @@ int main( int argc, char ** argv )
         {
           if(getSSTVModeNameShort((esstvMode)i).compare(parser.value(modeOpt),Qt::CaseInsensitive)==0) txMode=(esstvMode)i;
         }
-      QImage img(parser.value(encodeOpt));
+      QImage img;
+      loadImageAutoRotate(img,parser.value(encodeOpt));   // like the Transmit tab: a photo's EXIF/HEIF orientation is applied
       if(txMode==NOTVALID || img.isNull())
         {
           fprintf(stderr,"--encode needs a readable image and a valid --mode (see --list-modes)\n");

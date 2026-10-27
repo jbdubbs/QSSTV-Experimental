@@ -67,7 +67,7 @@ pictures that arrived in full). It applies to the picture that is cut off when y
 <h2 id="encode">--encode</h2>
 <p><code class="wrap"><span class="nb">qsstv</span> <span class="nb">--encode</span> <span class="nb">picture.png</span> <span class="nb">--mode</span> <span class="nb">PD120</span> <span class="nb">--wav-out</span> <span class="nb">picture.wav</span></code> converts a picture into the SSTV audio for the chosen mode, through the normal transmit path,
 and writes it to a WAV file; no sound card is used. The default output name is <code>&lt;image&gt;.wav</code>. As with <code>--batch</code>, your settings are read
-but never written. Add <code>--drm</code> to make a DRM transmission instead; then <code>--drm-mode</code>, <code>--drm-bw</code>, <code>--drm-qam</code>, <code>--drm-prot</code>,
+but never written. The EXIF or HEIF orientation of a photo is applied, as when you open it on the Transmit tab. Add <code>--drm</code> to make a DRM transmission instead; then <code>--drm-mode</code>, <code>--drm-bw</code>, <code>--drm-qam</code>, <code>--drm-prot</code>,
 <code>--drm-interleave</code>, <code>--drm-rs</code>, <code>--drm-size</code> and <code>--drm-encoding</code> choose the parameters (otherwise your Transmit-tab settings are used).</p>
 <pre><code>qsstv --encode rose.png --mode PD120 --wav-out pd120.wav
 qsstv --encode rose.png --drm --drm-mode B --drm-qam 16 --drm-bw 2.8 --wav-out rose-drm.wav</code></pre>
