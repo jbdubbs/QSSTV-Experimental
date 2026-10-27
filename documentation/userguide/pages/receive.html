@@ -52,7 +52,9 @@
 <dt>Sensitivity</dt><dd>Low, Normal, High or DX. Higher is more sensitive: the receiver starts on weaker signals, but may start on noise more often.
  It also waits longer for a fading signal to come back: if the signal sinks into the noise in the middle of a picture, the picture stays open for at
  least 10 s (Low), 20 s (Normal) or 30 s (High), but never past the time the picture should be finished, and carries on in the same picture
- if the signal returns in time.</dd>
+ if the signal returns in time. Only a picture that has shown itself to be a real transmission gets that long wait: one that started from a
+ VIS code, or that has had about a dozen sync pulses in consecutive lines. A start on noise is given up after a few lines, so noise does not tie up the receiver
+ or end up as a picture.</dd>
 <dt>Mode</dt><dd><strong>Auto</strong> detects the mode from the transmission header. You can instead force one mode from the list
  (all the modes in <a href="sstv-modes.html">SSTV modes</a>).</dd>
 <dt>Default Image format</dt><dd>The file format used for saved pictures (the common formats the build can write, such as png and jpg).</dd>

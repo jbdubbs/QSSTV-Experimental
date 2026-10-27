@@ -214,12 +214,18 @@ private:
   quint16 falseSyncs;
   quint16 missingLines;
 
+  // how well the picture being received has proven itself, and which pulses count for its wait (issue #135)
+  uint nearHits;             // pulses at most NEARLINES lines after the last one since detection
+  uint nearRun;              // ... in a row; starts again when the display freezes
+  bool proven;               // started by a fresh VIS code, or enough near pulses
+  int trustedEnd;            // end of the last pulse that restarts the wait for sync
+
   // receiver trace (rxtrace.h, QSSTV_RX_TRACE): only written, never read by the receiver
   void traceStats();
   void traceLost(const char *reason);
   quint32 trDetectCounter;   // sampleCounter when the picture was detected
   quint32 trFreezeCounter;   // sampleCounter when the display froze
-  bool trViaVis;
+  bool trViaVis;             // the picture was started with a VIS code (also decides `proven`, below)
   uint trHits;               // pulses added to the chain since detection
   uint trFarHits;            // ... of which more than 2 lines after the last one
   uint trFreezes;

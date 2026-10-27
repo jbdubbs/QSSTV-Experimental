@@ -85,6 +85,23 @@ prepare R36 && for cut in 1.75 2.05; do
   ge "$bot" 0.9 && ok "R36 cut at $cut s: one picture, right colours ($r)" || bad "R36 cut at $cut s: bottom rows differ ($r)"
 done
 
+echo "== a picture found by its sync pulses (VIS code cut off) that then fades, in noise 25 and 10 dB below the signal"
+# The long wait for a fading signal is only given to a picture that has shown itself to be a transmission (issue #135): by a VIS
+# code, or by a run of sync pulses. This one has no VIS code, and fades after 30% of the picture.
+for spec in ${FADE_SYNC:-R36:6:25 M1:10:25 R36:6:10 M1:10:10}; do
+  IFS=: read -r m hold snr <<< "$spec"
+  prepare $m || { bad "$spec: could not prepare"; continue; }
+  py cut "$T/$m.wav" "$T/sc_$m.wav" --start 2.05
+  py fade "$T/sc_$m.wav" "$T/sf_$spec.wav" --start-frac 0.30 --hold $hold --snr $snr --seed 1
+  mkdir -p "$T/osf_$spec"; run -o "$T/osf_$spec" "$T/sf_$spec.wav"
+  n=$(npng "$T/osf_$spec")
+  if [ "$n" != 1 ]; then bad "$spec: $n pictures, want 1"; continue; fi
+  if [ "$snr" -lt 25 ]; then ok "$spec: one picture"; continue; fi    # in that much noise the rows do not match any more, one picture is the check
+  r=$(py rows "$T/clean_$m"/*.png "$T/osf_$spec"/*.png 0.2 0.2 --rows 8)
+  top=$(echo "$r" | sed 's/.*top \([0-9.]*\).*/\1/'); bot=$(echo "$r" | sed 's/.*bottom \([0-9.]*\).*/\1/')
+  if ge "$top" 0.9 && ge "$bot" 0.9; then ok "$spec: one picture ($r)"; else bad "$spec: one picture but rows differ ($r)"; fi
+done
+
 echo "== a transmission that ends for good, then a new picture"
 for spec in ${FADE_JOIN:-R36:0.5 PD120:0.5}; do
   m=${spec%%:*}; frac=${spec##*:}

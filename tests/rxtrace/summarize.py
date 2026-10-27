@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Summarize a receiver trace (src/sstv/rxtrace.h, QSSTV_RX_TRACE) from tests/rxtrace/capture.sh (issue #135).
 
-  summarize.py trace.tsv [--pics DIR] [--min-hits N]
+  summarize.py trace.tsv [--pics DIR] [--min-hits N] [--brief | --windows SECONDS]
 
 One line per picture the receiver started (DETECT .. SAVE), how every display freeze ended, and the totals: pictures per
 mode, saved and discarded, the time the receiver spent on them, and the sync-like pulse rate and level per 10 minutes.
@@ -9,6 +9,9 @@ mode, saved and discarded, the time the receiver spent on them, and the sync-lik
 A picture is called "real" when it was started by a VIS code, or when its sync pulses came on at least 0.4 of the lines
 with --min-hits (default 20) or more of them. That is a rule of thumb for reading the table, not something the
 receiver uses; look at the saved pictures to be sure.
+
+--brief prints one line for scripts: pictures started, saved, seconds spent on them, the longest one in seconds.
+--windows SECONDS prints, for every picture, a time in the recording (SECONDS after it was detected) to mix a signal in at.
 
 Stdlib only.
 """
@@ -77,12 +80,29 @@ def main():
     ap.add_argument('trace')
     ap.add_argument('--pics', help='directory with the pictures the receiver saved (checked against the trace)')
     ap.add_argument('--min-hits', type=int, default=20)
+    ap.add_argument('--brief', action='store_true')
+    ap.add_argument('--windows', type=float, metavar='SECONDS')
     a = ap.parse_args()
 
     ev = parse(a.trace)
     if not ev:
         sys.exit('%s: no events' % a.trace)
     pics = pictures(ev)
+    if a.brief:
+        done = [p for p in pics if p['save'] is not None]
+        ages = [num(p['save'], 'age_s') for p in done]
+        print('%d %d %.0f %.0f' % (len(pics), sum(1 for p in done if p['save'].get('result') == 'saved'), sum(ages), max(ages or [0])))
+        return
+    if a.windows is not None:
+        # the receiver's clock starts again after every sync lost (it resets and discards what it had buffered), so the
+        # time in the recording is the sum of the clocks of the finished runs plus the clock of this one
+        base = 0.0
+        for utc, e, d in ev:
+            if e == 'DETECT':
+                print('%.1f' % (base + num(d, 't') + a.windows))
+            elif e == 'SAVE' and d.get('cause') == 'synclost':
+                base += num(d, 't')
+        return
     print('trace %s: %d events, %s .. %s' % (a.trace, len(ev), ev[0][0], ev[-1][0]))
 
     print('\n== pictures (DETECT .. SAVE)')

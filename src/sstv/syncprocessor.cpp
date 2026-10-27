@@ -24,6 +24,15 @@
 #define NUMBEROFSENSITIVITIES 4
 #define OUTOFSYNCEXTRALINES 4 // lines after the expected end of the picture that are still waited for (the end is an estimate)
 
+// What noise can and cannot do to a picture it started (issue #135). On a busy band 15 or so pulses a second pass the width test,
+// and now and then four of them fall on the line grid of some mode and start a picture. A pulse at a whole number of lines from
+// the last one is then found again by chance every few seconds, so a picture of noise must not be kept alive by such pulses.
+#define NEARLINES 2           // a pulse at most this many lines after the last one: the picture is being followed
+#define TRUSTEDLINES 4        // ... at most this many lines after the last one: it restarts the wait for sync
+#define PROVENPULSES 12       // near pulses after which a picture that did not start from a VIS code has proven itself
+#define RESYNCPULSES 3        // near pulses in a row that wake a frozen display
+#define VISFRESHSECONDS 10    // a VIS code at most this old started the picture
+
 
 
 ssenitivity sensitivityArray[NUMBEROFSENSITIVITIES]=
@@ -79,6 +88,9 @@ syncProcessor::syncProcessor(bool narrow, QObject *parent) :  QObject(parent),st
   currentModePtr=NULL;
   visMode=NOTVALID;
   trDetectCounter=trFreezeCounter=0;
+  nearHits=nearRun=0;
+  proven=false;
+  trustedEnd=0;
   trViaVis=false;
   trHits=trFarHits=trFreezes=trResyncs=trMaxGapLines=0;
   trStripes=trStarts=trAccepted=trRetrace=trVis=trGateOpen=0;
@@ -278,7 +290,7 @@ void syncProcessor::extractSync()
     }
     else
     {
-      lastSync=syncArray[activeChainPtr->last()->to].end;
+      lastSync=trustedEnd;
       if((sampleCounter+RXSTRIPE-RXSTRIPE/7)>(lastSync+sensitivityArray[sensitivity].maxTempOutOfSyncLines*samplesPerLine))
       {
         if(sensitivity!=(NUMBEROFSENSITIVITIES-1)) // no temp out of sync if DX
@@ -287,6 +299,7 @@ void syncProcessor::extractSync()
           {
             trFreezes++;
             trFreezeCounter=sampleCounter;
+            nearRun=0;
             if(rxTraceOn()) rxTrace("FREEZE",QString("%1\tproc=%2\tmode=%3\tlines=%4\tchain=%5").arg(traceTime(sampleCounter)).arg(detectNarrow?"N":"W").arg(getSSTVModeNameShort(currentMode)).arg(currentModePtr->receivedLines()).arg(activeChainPtr->count()));
           }
           tempOutOfSync=true;
@@ -391,6 +404,9 @@ bool syncProcessor::validateSync()
           switchProcessState(INSYNC);
           trDetectCounter=sampleCounter;
           trHits=trFarHits=trFreezes=trResyncs=trMaxGapLines=0;
+          nearHits=nearRun=0;
+          proven=trViaVis && ((int)sampleCounter-(int)visEndCounter)>=0 && ((int)sampleCounter-(int)visEndCounter)<=VISFRESHSECONDS*SAMPLERATE;
+          trustedEnd=syncArray[activeChainPtr->last()->to].end;
           if(rxTraceOn()) rxTrace("DETECT",QString("%1\tproc=%2\tmode=%3\tvia=%4\tvis_age_s=%5\tchain=%6\tfract=%7\tline_ms=%8\tsens=%9\tmin_volume=%10")
                                   .arg(traceTime(sampleCounter)).arg(detectNarrow?"N":"W").arg(getSSTVModeNameShort(currentMode)).arg(trViaVis?"vis":"sync")
                                   .arg(trViaVis?QString::number(((int)sampleCounter-(int)visEndCounter)/(double)SAMPLERATE,'f',1):QString("-")).arg(activeChainPtr->count())
@@ -435,17 +451,27 @@ void  syncProcessor::trackSyncs()
     uint missedBefore=missingLines;
     bool wasFrozen=tempOutOfSync;
     bool resynced=false;
+    int hitEnd=syncArray[activeChainPtr->last()->to].end;
     falseSyncs=0;
-    missingLines=0;
-    if(tempOutOfSync)
+    missingLines=0;   // (the wait is counted from trustedEnd, see extractSync)
+    if(spacing<=NEARLINES)
     {
-      // check if we can resynchronize
-      if(activeChainPtr->last()->lineSpacing<=2)
-      {
-        tempOutOfSync=false;
-        resynced=true;
-      }
+      nearHits++;
+      nearRun++;
+      if(nearHits>=PROVENPULSES) proven=true;
     }
+    else
+    {
+      nearRun=0;
+    }
+    if(tempOutOfSync && nearRun>=RESYNCPULSES)
+    {
+      // check if we can resynchronize: a signal that is back gives a pulse on every line, a pulse that fits by chance does not
+      tempOutOfSync=false;
+      resynced=true;
+    }
+    // a pulse far from the last one, or one while the display waits for the signal, does not restart the wait for sync until it has been confirmed
+    if(resynced || (!wasFrozen && spacing<=TRUSTEDLINES)) trustedEnd=hitEnd;
     trHits++;
     if(spacing>trMaxGapLines) trMaxGapLines=spacing;
     if(spacing>2) trFarHits++;
@@ -560,12 +586,15 @@ void  syncProcessor::calcSyncQuality()
  * for PD120). A fade longer than that ended the picture, and the signal coming back started a new one, so the
  * sensitivity also has a time that is waited at least. That only holds while the picture should still be running:
  * once its last line is due there is nothing left to wait for, and the receiver goes back to hunting (issue #129).
+ *
+ * Only a picture that has proven itself gets the time: noise starts pictures too, and with the time it kept the receiver
+ * busy and ended up in the gallery as a picture of noise (issue #135).
  */
 
 uint syncProcessor::maxOutOfSyncLines()
 {
   uint lines=sensitivityArray[sensitivity].maxOutOfSyncLines;
-  if(samplesPerLine<=0) return lines;
+  if(samplesPerLine<=0 || !proven) return lines;
   uint floorLines=(uint)ceil(sensitivityArray[sensitivity].minOutOfSyncSeconds*SAMPLERATE/samplesPerLine);
   if(floorLines>lines)
   {
@@ -626,9 +655,9 @@ QString syncProcessor::traceSummary()
 {
   double age=((int)sampleCounter-(int)trDetectCounter)/(double)SAMPLERATE;
   double ageLines=(samplesPerLine>0) ? age*SAMPLERATE/samplesPerLine : 0;
-  return QString("proc=%1\tvia=%2\tage_s=%3\thits=%4\tfar_hits=%5\tfreezes=%6\tresyncs=%7\tmax_gap_s=%8\thits_per_line=%9")
+  return QString("proc=%1\tvia=%2\tage_s=%3\thits=%4\tfar_hits=%5\tfreezes=%6\tresyncs=%7\tmax_gap_s=%8\thits_per_line=%9\tnear_hits=%10\tproven=%11")
       .arg(detectNarrow?"N":"W").arg(trViaVis?"vis":"sync").arg(age,0,'f',1).arg(trHits).arg(trFarHits).arg(trFreezes).arg(trResyncs)
-      .arg(trMaxGapLines*samplesPerLine/SAMPLERATE,0,'f',1).arg(ageLines>0?trHits/ageLines:0.,0,'f',3);
+      .arg(trMaxGapLines*samplesPerLine/SAMPLERATE,0,'f',1).arg(ageLines>0?trHits/ageLines:0.,0,'f',3).arg(nearHits).arg(proven);
 }
 
 /**
