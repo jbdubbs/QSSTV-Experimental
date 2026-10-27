@@ -198,10 +198,16 @@ formats your build can read.
 |---|---|---|---|---|
 | WebP | yes | yes | yes | needs Qt's `qtimageformats` (Fedora `qt6-qtimageformats`) |
 | AVIF | yes | yes | yes | opening files needs KDE `kimageformats` and libavif; AVIF over DRM needs only libavif |
-| HEIC/HEIF | yes | yes | no | needs `kimageformats` and libheif **with an HEVC decoder** (Fedora `libheif-freeworld`, Debian/Ubuntu `libheif-plugin-libde265`) |
+| HEIC/HEIF | yes | yes | yes | needs `kimageformats` and libheif **with an HEVC decoder** (Fedora `libheif-freeworld`, Debian/Ubuntu `libheif-plugin-libde265`); on macOS nothing to install |
 
 Fedora's stock libheif has no HEVC decoder, so HEIC loads there once a freeworld or HEVC-capable libheif is
 installed; AVIF works either way. HEIC decoding uses libde265 (LGPL); HEVC patent exposure varies by jurisdiction.
+On macOS, HEIC is read by Qt's own `qmacheif` plugin through Apple's image framework, which the bundle includes (`macdeployqt`
+copies it), so the KDE plugin is built there for AVIF only.
+
+A picture's EXIF/HEIF orientation is applied wherever it is loaded, including `--encode`. `tests/imageorient/run.sh` checks
+that by sending sideways JPEGs (and, on macOS, HEIC files written by the system) through `--encode` and `--batch` and comparing
+them with the original; the macOS CI job runs it on the bundled app, and it runs on Linux too (JPEG only, HEIC needs macOS).
 
 Sending and receiving AVIF over DRM (Transmit > DRM > Encoding) does not use the plugin: the program links libavif directly
 (Fedora `libavif-devel`, Debian/Ubuntu `libavif-dev`, Homebrew `libavif`), and libavif must be built with the libaom

@@ -125,6 +125,15 @@ jobs:
           ls "$RUNNER_TEMP/avifout" | grep -q '_drm\.avif$'
           grep -q "DRM, 160x124" "$RUNNER_TEMP/avif.txt"
 
+      - name: HEIC and photo orientation
+        # HEIC opens through Apple's ImageIO (Qt's qmacheif plugin, copied into the bundle by macdeployqt), and a photo stored
+        # sideways (EXIF/HEIF orientation tag, JPEG and HEIC) is sent the right way up. tests/imageorient/run.sh has the details.
+        run: |
+          set -e
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet pillow
+          PATH="$RUNNER_TEMP/venv/bin:$PATH" bash tests/imageorient/run.sh "$PWD/build/QSSTV-Experimental.app/Contents/MacOS/qsstv-experimental" "$RUNNER_TEMP/orient" all
+
       - name: Package
         run: |
           set -e
