@@ -118,7 +118,7 @@ int main(int argc, char **argv)
   check(editors().isEmpty(), "closing the editor leaves no window behind");
   editButton->click();
   QTest::qWait(300);
-  check(editors().size() == 1 && QFileInfo(editors().first()->document()->fileName()).canonicalFilePath() == QFileInfo(target).canonicalFilePath(), "the editor opens again afterwards (the old one stayed locked after a cancelled close)");
+  check(editors().size() == 1 && QFileInfo(editors().first()->document()->fileName()).canonicalFilePath() == QFileInfo(target).canonicalFilePath(), "the editor opens again afterwards (the old one stayed locked after a canceled close)");
   editors().first()->document()->undoStack()->clear();
   editors().first()->close();
   QTest::qWait(200);
@@ -277,7 +277,7 @@ int main(int argc, char **argv)
     QTest::qWait(200);
     combo->setCurrentIndex(combo->findText("anchortest"));
     QTest::qWait(100);
-    auto colourBounds = [](const QImage &im, int r, int g, int b) {
+    auto colorBounds = [](const QImage &im, int r, int g, int b) {
       int x0 = im.width(), y0 = im.height(), x1 = -1, y1 = -1;
       for (int y = 0; y < im.height(); y++)
         for (int x = 0; x < im.width(); x++)
@@ -316,13 +316,13 @@ int main(int argc, char **argv)
     QTest::qWait(200);
     const QImage m1 = tx->getDisplayedImage()->copy();
     check(m1.size() == QSize(320, 256), QString("Martin 1: the picture is 320 x 256 (%1 x %2)").arg(m1.width()).arg(m1.height()));
-    const QRect red1 = colourBounds(m1, 255, 0, 0), dot1 = colourBounds(m1, 0, 255, 0);
+    const QRect red1 = colorBounds(m1, 255, 0, 0), dot1 = colorBounds(m1, 0, 255, 0);
     check(red1 == QRect(0, 216, 320, 40) && dot1.width() >= 58 && dot1.width() <= 61 && std::abs(dot1.width() - dot1.height()) <= 1, QString("the bar is at the bottom, the circle round (bar %1,%2 %3x%4, circle %5x%6)").arg(red1.x()).arg(red1.y()).arg(red1.width()).arg(red1.height()).arg(dot1.width()).arg(dot1.height()));
     check(chooseMode("Robot 36"), "(Robot 36 chosen)");   // 320 x 240
     QTest::qWait(200);
     const QImage r36 = tx->getDisplayedImage()->copy();
     check(r36.size() == QSize(320, 240), QString("Robot 36: 320 x 240 (%1 x %2)").arg(r36.width()).arg(r36.height()));
-    const QRect red2 = colourBounds(r36, 255, 0, 0), dot2 = colourBounds(r36, 0, 255, 0);
+    const QRect red2 = colorBounds(r36, 255, 0, 0), dot2 = colorBounds(r36, 0, 255, 0);
     // the template is scaled by 240/256 to fit the height: the bar (anchored to span and to the bottom) still reaches both sides and the bottom
     check(red2.left() == 0 && red2.right() == 319 && red2.bottom() == 239 && red2.height() >= 36 && red2.height() <= 39, QString("the bar is still at the bottom and across the width (%1,%2 %3x%4)").arg(red2.x()).arg(red2.y()).arg(red2.width()).arg(red2.height()));
     check(dot2.width() >= 54 && dot2.width() <= 58 && std::abs(dot2.width() - dot2.height()) <= 1, QString("and the circle is still round, not squashed (%1 x %2)").arg(dot2.width()).arg(dot2.height()));

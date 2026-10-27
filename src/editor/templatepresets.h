@@ -1,6 +1,6 @@
 /***************************************************************************
  *   Ready-made starting points for the template editor: starter templates  *
- *   for a new template, and colour bars to insert. Plain tpl:: data        *
+ *   for a new template, and color bars to insert. Plain tpl:: data        *
  *   builders (QtGui only), scaled to the size of the canvas they are for.  *
  *                                                                          *
  *   This program is free software; you can redistribute it and/or modify   *
@@ -25,7 +25,7 @@ QStringList starterNames();
     scale with the height of the canvas (they are designed for 496 pixels). An index out of range gives the blank template. */
 tpl::TemplateDocument makeStarter(int index, const QSize &canvas);
 
-/*! names of the colour bar styles */
+/*! names of the color bar styles */
 QStringList barNames();
 
 /*! A bar across the full width of the canvas, at its bottom or top, filled with the gradient of the given style. It is anchored

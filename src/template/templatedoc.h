@@ -117,8 +117,8 @@ struct Element
   ItemType type = ItemType::Rect;
   QString id;
   QPointF pos;                            //!< item origin; text is drawn from its baseline start at the origin
-  QRectF rect = QRectF(0, 0, 100, 100);   //!< item-local rectangle (rotation/shear centre; shape for the others)
-  double rotation = 0;                    //!< degrees, about the centre of rect
+  QRectF rect = QRectF(0, 0, 100, 100);   //!< item-local rectangle (rotation/shear center; shape for the others)
+  double rotation = 0;                    //!< degrees, about the center of rect
   double skewH = 0;                       //!< QTransform::shear factors
   double skewV = 0;
   double opacity = 1.0;
@@ -140,14 +140,14 @@ struct Element
   TextVAlign valign = TextVAlign::Top;
   bool wrap = false;                      //!< break lines at spaces to the width of the box
   bool shrinkToFit = false;               //!< make the font smaller (never larger) until the text fits the box
-  QTransform itemTransform() const;       //!< shear, then rotate, both about the centre of rect
+  QTransform itemTransform() const;       //!< shear, then rotate, both about the center of rect
 };
 
 struct TemplateDocument
 {
   enum Layout { Stretch, Anchored };
   QRectF canvas = QRectF(0, 0, 320, 256);  //!< the area that is mapped onto the target picture
-  Layout layout = Stretch;                 //!< Stretch: canvas stretched over the target (legacy behaviour)
+  Layout layout = Stretch;                 //!< Stretch: canvas stretched over the target (legacy behavior)
   QVector<Element> items;                  //!< paint order, first = bottom
   bool fromLegacy = false;                 //!< imported from the binary .templ format
   bool hasReplay() const;
@@ -172,10 +172,10 @@ QByteArray toJson(const TemplateDocument &doc);
 bool saveFile(const QString &fileName, const TemplateDocument &doc, QString *error = nullptr);
 
 /*! Chooses the anchors from where the item sits: a frame covering most of an axis spans it, otherwise the third of the
-    canvas that holds the frame's centre decides (left/centre/right, top/middle/bottom). Text that is not in a box has no
+    canvas that holds the frame's center decides (left/center/right, top/middle/bottom). Text that is not in a box has no
     frame, so its origin is used; a turned item is placed by where it really is and never spans. Used when a template becomes
     Anchored and for new items in an anchored template. An item that touches one side (within 5% of the canvas) follows that side
-    even when its centre is in the middle third. */
+    even when its center is in the middle third. */
 void autoAnchor(Element &e, const QRectF &canvas);
 
 /*! An edit moved or resized an item: when its anchors on an axis were still the ones autoAnchor() picks for where it was, they

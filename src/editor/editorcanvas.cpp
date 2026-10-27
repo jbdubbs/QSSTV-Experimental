@@ -464,9 +464,9 @@ void EditorCanvas::setMacroVars(const QHash<QChar, QString> &vars)
   viewport()->update();
 }
 
-void EditorCanvas::setGuides(bool centre, bool margin5, bool margin10)
+void EditorCanvas::setGuides(bool center, bool margin5, bool margin10)
 {
-  guideCentre = centre;
+  guideCenter = center;
   guideMargin5 = margin5;
   guideMargin10 = margin10;
   viewport()->update();
@@ -540,11 +540,11 @@ void EditorCanvas::drawForeground(QPainter *p, const QRectF &rect)
   p->drawRect(c);
 
   // guides to place things by: dashed, light blue, over the template
-  if (guideCentre || guideMargin5 || guideMargin10)
+  if (guideCenter || guideMargin5 || guideMargin10)
     {
       p->setPen(QPen(QColor(0, 150, 215, 210), 0, Qt::DashLine));
       p->setBrush(Qt::NoBrush);
-      if (guideCentre)
+      if (guideCenter)
         {
           p->drawLine(QPointF(c.center().x(), c.top()), QPointF(c.center().x(), c.bottom()));
           p->drawLine(QPointF(c.left(), c.center().y()), QPointF(c.right(), c.center().y()));
@@ -1189,14 +1189,14 @@ void EditorCanvas::updateGroupRotate(const QPointF &scenePt, Qt::KeyboardModifie
   for (const tpl::Element &b : opBefore)
     {
       tpl::Element el = b;
-      // every item turns about its own centre by the same angle, and the centres move about the middle of the group
-      const QPointF centre = b.pos + b.rect.center();
-      const QPointF moved = turn.map(centre);
+      // every item turns about its own center by the same angle, and the centers move about the middle of the group
+      const QPointF center = b.pos + b.rect.center();
+      const QPointF moved = turn.map(center);
       double rot = b.rotation + delta;
       while (rot > 180) rot -= 360;
       while (rot <= -180) rot += 360;
       el.rotation = rot;
-      el.pos = b.pos + (moved - centre);
+      el.pos = b.pos + (moved - center);
       doc->replaceRaw(el);
     }
   viewport()->update();
@@ -1522,7 +1522,7 @@ QImage EditorCanvas::loadPicture(const QString &fileName, QString *error)
   return img.convertToFormat(QImage::Format_ARGB32);
 }
 
-bool EditorCanvas::insertImageFile(const QString &fileName, const QPointF &centre)
+bool EditorCanvas::insertImageFile(const QString &fileName, const QPointF &center)
 {
   QString error;
   const QImage img = loadPicture(fileName, &error);
@@ -1531,10 +1531,10 @@ bool EditorCanvas::insertImageFile(const QString &fileName, const QPointF &centr
       emit statusMessage(error);
       return false;
     }
-  return insertImage(img, centre);
+  return insertImage(img, center);
 }
 
-bool EditorCanvas::insertImage(const QImage &imgIn, const QPointF &centreIn)
+bool EditorCanvas::insertImage(const QImage &imgIn, const QPointF &centerIn)
 {
   if (imgIn.isNull()) return false;
   QImage img = imgIn;
@@ -1545,11 +1545,11 @@ bool EditorCanvas::insertImage(const QImage &imgIn, const QPointF &centreIn)
   // natural size, but no more than half the canvas, aspect kept
   const double k = qMin(1.0, qMin(c.width() * 0.5 / img.width(), c.height() * 0.5 / img.height()));
   const double w = qMax(4.0, img.width() * k), h = qMax(4.0, img.height() * k);
-  const QPointF centre = qIsNaN(centreIn.x()) ? c.center() : centreIn;
+  const QPointF center = qIsNaN(centerIn.x()) ? c.center() : centerIn;
   tpl::Element e = defaultElement(tpl::ItemType::Image);
   e.image = img;
   e.rect = QRectF(0, 0, w, h);
-  e.pos = centre - QPointF(w / 2, h / 2);
+  e.pos = center - QPointF(w / 2, h / 2);
   anchorNew(e);
   doc->addItems(QVector<tpl::Element>() << e, tr("Add image"));
   return true;

@@ -1,6 +1,6 @@
 /***************************************************************************
  *   The template editor's icons: monochrome SVGs (editor/icons) drawn in   *
- *   the palette's text colour, so they stay readable in dark mode.         *
+ *   the palette's text color, so they stay readable in dark mode.         *
  *                                                                          *
  *   This program is free software; you can redistribute it and/or modify   *
  *   it under the terms of the GNU General Public License as published by   *
@@ -16,7 +16,7 @@
 
 namespace editorIcons
 {
-/*! the icon `name` (the file name without .svg) in the colours of `pal`; a null icon for an unknown name */
+/*! the icon `name` (the file name without .svg) in the colors of `pal`; a null icon for an unknown name */
 QIcon icon(const QString &name, const QPalette &pal);
 /*! all icon names, for the tests */
 QStringList names();

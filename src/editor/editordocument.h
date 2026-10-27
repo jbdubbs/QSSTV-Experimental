@@ -76,7 +76,7 @@ public:
   static void fitTextRect(tpl::Element &e);
   /*! Scales the item about `origin` (canvas coordinates) by sx, sy: position and size follow, while fonts, strokes, corners and
       shadows scale by the mean of the two. An item that is turned or skewed keeps its shape: it takes the mean scale about its own
-      centre and the centre moves like any other point. Used for a new canvas size and for resizing a group of items. */
+      center and the center moves like any other point. Used for a new canvas size and for resizing a group of items. */
   static void scaleElement(tpl::Element &e, const QPointF &origin, double sx, double sy);
 
   // --- used by the commands and by the canvas (no undo step) --------------------------------------------------

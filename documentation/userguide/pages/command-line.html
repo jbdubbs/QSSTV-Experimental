@@ -76,7 +76,7 @@ qsstv --encode rose.png --drm --drm-mode B --drm-qam 16 --drm-bw 2.8 --wav-out r
 <h2 id="template">--render-template and --convert-template</h2>
 <p>Two headless options for the templates used on the Transmit tab (<a href="transmit.html">Transmit</a>). Neither starts the receiver or opens a window.</p>
 <p><code class="wrap"><span class="nb">qsstv</span> <span class="nb">--render-template</span> <span class="nb">cq.templ</span> <span class="nb">--template-var</span> <span class="nb">m=N0CALL</span></code> lays the template over a picture exactly as the transmit path does and saves the result as
-<code>cq.templ.png</code> (change that with <code>--template-out</code>). Without <code>--template-base</code> the template is laid over a grey frame the size of the template; <code>--template-size WxH</code> scales
+<code>cq.templ.png</code> (change that with <code>--template-out</code>). Without <code>--template-base</code> the template is laid over a gray frame the size of the template; <code>--template-size WxH</code> scales
 the picture to a mode's size first (for example <code>320x256</code>), and <code>--template-replay</code> fills the template's replay slot. <code>--template-var</code> sets the text macros: <code>c=W1AW</code> replaces <code>%c</code>
 (repeatable; a macro you do not set expands to nothing).</p>
 <pre><code>qsstv --render-template bath.templ --template-size 320x256 --template-var c=W1AW --template-out preview.png
@@ -124,7 +124,7 @@ never crashes the program.</p>
 <tr><td><code>--render-template &lt;file&gt;</code></td><td>Headless: lay a template (<code>.qtempl</code> or legacy <code>.templ</code>) over a picture and save the result as a PNG.</td></tr>
 <tr><td><code>--convert-template &lt;file&gt;</code></td><td>Headless: convert a template to the native <code>.qtempl</code> format.</td></tr>
 <tr><td><code>--template-out &lt;file&gt;</code></td><td>With <code>--render-template</code>: the PNG to write. With <code>--convert-template</code>: the <code>.qtempl</code> to write.</td></tr>
-<tr><td><code>--template-base &lt;image&gt;</code></td><td>With <code>--render-template</code>: the picture to lay the template over (default: a grey frame).</td></tr>
+<tr><td><code>--template-base &lt;image&gt;</code></td><td>With <code>--render-template</code>: the picture to lay the template over (default: a gray frame).</td></tr>
 <tr><td><code>--template-size &lt;WxH&gt;</code></td><td>With <code>--render-template</code>: scale the picture to this size first.</td></tr>
 <tr><td><code>--template-var &lt;x=value&gt;</code></td><td>With <code>--render-template</code>: the value of a text macro (repeatable).</td></tr>
 <tr><td><code>--template-replay &lt;image&gt;</code></td><td>With <code>--render-template</code>: the picture for the template's replay slot.</td></tr>

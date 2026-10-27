@@ -211,7 +211,7 @@ them with the original; the macOS CI job runs it on the bundled app, and it runs
 
 Sending and receiving AVIF over DRM (Transmit > DRM > Encoding) does not use the plugin: the program links libavif directly
 (Fedora `libavif-devel`, Debian/Ubuntu `libavif-dev`, Homebrew `libavif`), and libavif must be built with the libaom
-encoder. Without libavif at build time the AVIF choice is greyed out and everything else works. All the release builds
+encoder. Without libavif at build time the AVIF choice is grayed out and everything else works. All the release builds
 include it. The macOS CI job checks an AVIF DRM round trip on the bundled app (`.github/workflows/macos.yml`).
 
 ## macOS

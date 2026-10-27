@@ -63,14 +63,14 @@ static void testGoldenParity(const QString &fx, const QString &gd)
   check(lr.doc.fromLegacy && lr.doc.items.size() == 14, QString("14 items imported (got %1)").arg(lr.doc.items.size()));
   check(lr.doc.canvas == QRectF(0, 0, 640, 496), "canvas is the saved border 640x496");
   check(lr.doc.hasReplay(), "replay slot present");
-  // the legacy renderer mitred rectangles and picture borders whatever the pen said (the fixture's rectangle has a round-join pen)
-  bool mitred = true, roundText = false;
+  // the legacy renderer mitered rectangles and picture borders whatever the pen said (the fixture's rectangle has a round-join pen)
+  bool mitered = true, roundText = false;
   for (const tpl::Element &e : lr.doc.items)
     {
-      if (e.type == tpl::ItemType::Rect || e.type == tpl::ItemType::Image || e.type == tpl::ItemType::Replay) mitred &= e.outline.join == Qt::MiterJoin;
+      if (e.type == tpl::ItemType::Rect || e.type == tpl::ItemType::Image || e.type == tpl::ItemType::Replay) mitered &= e.outline.join == Qt::MiterJoin;
       if (e.type == tpl::ItemType::Text && e.outline.join == Qt::RoundJoin) roundText = true;
     }
-  check(mitred && roundText, "imported rectangles and borders are mitred, text keeps the join of its pen");
+  check(mitered && roundText, "imported rectangles and borders are mitered, text keeps the join of its pen");
   const QImage replay(fx + "/replay.png");
   for (QSize sz : {QSize(320, 256), QSize(640, 496), QSize(1024, 768)})
     {
@@ -112,7 +112,7 @@ static void testJsonRoundTrip(const QString &fx, const QString &gd)
       "items":[{"type":"rect","x":5,"y":5,"w":20,"h":10,"fill":"#f00"},{"type":"text","text":"%c","x":2,"y":20,"font":{"family":"Sans","size":10}}]})";
   tpl::LoadResult m = tpl::loadJson(minimal);
   check(m.ok && m.doc.items.size() == 2 && m.doc.canvas.width() == 100, "hand written minimal template loads");
-  check(m.ok && m.doc.items.at(0).fill == QColor(255, 0, 0), "colour parsed");
+  check(m.ok && m.doc.items.at(0).fill == QColor(255, 0, 0), "color parsed");
 }
 
 static void testValidation()
@@ -134,7 +134,7 @@ static void testValidation()
       const tpl::Element &e = r.doc.items.at(0);
       check(std::abs(e.pos.x()) <= tpl::limits::maxCoord && e.rect.width() <= tpl::limits::maxCoord, "huge coordinates clamped");
       check(e.rotation <= 3600 && e.opacity == 1.0 && e.outline.width <= 200 && e.outline.miterLimit >= 1, "rotation/opacity/pen clamped");
-      check(e.fill.isValid(), "bad colour replaced");
+      check(e.fill.isValid(), "bad color replaced");
       check(r.doc.canvas.width() >= 1 && r.doc.canvas.height() >= 1, "degenerate canvas replaced by a default");
       const tpl::Element &t = r.doc.items.at(1);
       check(t.font.pointSize >= 1 && t.font.weight <= 1000, "font size/weight clamped");
@@ -368,7 +368,7 @@ static void testAnchoredLayout(const QString &fx, const QString &gd)
   turned.anchorH = AnchorH::Scale;
   turned.anchorV = AnchorV::Top;
   const tpl::Element ts = at(turned, 800, 300);
-  check(ts.rect == turned.rect && std::abs((ts.pos.x() + ts.rect.center().x()) - (turned.pos.x() + turned.rect.center().x()) * 800.0 / 600) < 1e-9, "Scale only moves its centre in proportion");
+  check(ts.rect == turned.rect && std::abs((ts.pos.x() + ts.rect.center().x()) - (turned.pos.x() + turned.rect.center().x()) * 800.0 / 600) < 1e-9, "Scale only moves its center in proportion");
   tpl::Element text = element(tpl::ItemType::Text, QPointF(100, 250), QRectF(0, -30, 150, 40));
   text.anchorH = AnchorH::Right;
   text.anchorV = AnchorV::Bottom;
@@ -466,7 +466,7 @@ static void testTextBox()
   e.align = tpl::TextAlign::Right;
   QRect r = ink(render(e));
   check(!l.isNull() && l.left() >= 100 && l.left() <= 108, QString("left aligned: the text starts at the left edge of the box (x=%1)").arg(l.left()));
-  check(std::abs(c.center().x() - 200) <= 3, QString("centred: the middle of the text is the middle of the box (x=%1)").arg(c.center().x()));
+  check(std::abs(c.center().x() - 200) <= 3, QString("centered: the middle of the text is the middle of the box (x=%1)").arg(c.center().x()));
   check(r.right() <= 300 && r.right() >= 292, QString("right aligned: the text ends at the right edge (x=%1)").arg(r.right()));
   check(std::abs(l.width() - c.width()) <= 1 && std::abs(c.width() - r.width()) <= 1, "alignment moves the text, it does not change it");
   e.align = tpl::TextAlign::Left;
@@ -476,7 +476,7 @@ static void testTextBox()
   e.valign = tpl::TextVAlign::Bottom;
   const QRect bot = ink(render(e));
   check(top.top() >= 60 && top.top() <= 72, QString("top: the text starts at the top of the box (y=%1)").arg(top.top()));
-  check(std::abs(mid.center().y() - 120) <= 10, QString("middle: centred in the box (y=%1)").arg(mid.center().y()));
+  check(std::abs(mid.center().y() - 120) <= 10, QString("middle: centered in the box (y=%1)").arg(mid.center().y()));
   check(bot.bottom() <= 180 && bot.bottom() >= 168, QString("bottom: the text ends at the bottom of the box (y=%1)").arg(bot.bottom()));
 
   // a long text without shrink or wrap runs out of the box on one line
@@ -590,7 +590,7 @@ static void testTextBox()
   tpl::RenderOptions o;
   o.vars.insert('c', "W1AW");
   const QRect m = ink(tpl::overlay(d, transparent(400, 300), o));
-  check(std::abs(m.center().x() - 200) <= 3, "an expanded macro is centred in its box");
+  check(std::abs(m.center().x() - 200) <= 3, "an expanded macro is centered in its box");
   // gradient over the box
   tpl::Element grad = boxed("MMMM", QRectF(100, 60, 200, 60));
   grad.gradient.kind = tpl::Gradient::Linear;
@@ -717,7 +717,7 @@ static void testShadowAndCorners()
   sq.radius = 0;
   check(sameImage(render(sq), square), "radius 0 is the plain rectangle, bit for bit");
 
-  // the corner style of the outline: a 10 px white line centred on the edge of (20,20)-(80,80) reaches out to (15,15)
+  // the corner style of the outline: a 10 px white line centered on the edge of (20,20)-(80,80) reaches out to (15,15)
   tpl::Element framed = element(tpl::ItemType::Rect, QPointF(0, 0), QRectF(20, 20, 60, 60));
   framed.fill = Qt::blue;
   framed.outline.color = Qt::white;
@@ -726,13 +726,13 @@ static void testShadowAndCorners()
     e.outline.join = js;
     return render(e);
   };
-  const QImage mitre = joined(framed, Qt::MiterJoin);
+  const QImage miter = joined(framed, Qt::MiterJoin);
   const QImage roundJ = joined(framed, Qt::RoundJoin);
   const QImage bevel = joined(framed, Qt::BevelJoin);
-  check(qAlpha(mitre.pixel(15, 15)) == 255, "a rectangle with mitred corners is square out to the very corner");
+  check(qAlpha(miter.pixel(15, 15)) == 255, "a rectangle with mitered corners is square out to the very corner");
   check(qAlpha(roundJ.pixel(15, 15)) == 0 && qAlpha(roundJ.pixel(50, 15)) == 255, "round corners cut the tip off a rectangle's outline and leave the edges");
-  check(qAlpha(bevel.pixel(15, 15)) == 0 && qAlpha(bevel.pixel(50, 15)) == 255, "so do bevelled corners");
-  check(!sameImage(roundJ, bevel) && !sameImage(roundJ, mitre) && !sameImage(bevel, mitre), "all three corner styles look different");
+  check(qAlpha(bevel.pixel(15, 15)) == 0 && qAlpha(bevel.pixel(50, 15)) == 255, "so do beveled corners");
+  check(!sameImage(roundJ, bevel) && !sameImage(roundJ, miter) && !sameImage(bevel, miter), "all three corner styles look different");
 
   // and the border of a picture and of the replay window, which has its own drawing code
   QImage pic(60, 60, QImage::Format_ARGB32);

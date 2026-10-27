@@ -365,7 +365,7 @@ int main( int argc, char ** argv )
                                   "save the result as a PNG and exit (see --template-base, --template-size, --template-var, --template-replay, --template-out).","file");
   QCommandLineOption convertTplOpt("convert-template","Headless: convert the template <file> (a legacy .templ or a .qtempl) to the native .qtempl format and exit (see --template-out). The original is not touched.","file");
   QCommandLineOption tplOutOpt("template-out","With --render-template: the PNG to write (default: <file>.png). With --convert-template: the .qtempl to write (default: next to the original).","file");
-  QCommandLineOption tplBaseOpt("template-base","With --render-template: the picture to lay the template over (default: a grey frame the size of the template).","image");
+  QCommandLineOption tplBaseOpt("template-base","With --render-template: the picture to lay the template over (default: a gray frame the size of the template).","image");
   QCommandLineOption tplSizeOpt("template-size","With --render-template: scale the picture to WIDTHxHEIGHT first (default: the size of the picture), as the transmit mode would.","WxH");
   QCommandLineOption tplVarOpt("template-var","With --render-template: the value of a text macro, for example c=W1AW for %c (repeatable). Unknown macros expand to nothing.","x=value");
   QCommandLineOption tplReplayOpt("template-replay","With --render-template: the picture shown in the template's replay slot.","image");

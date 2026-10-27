@@ -1,7 +1,7 @@
 /***************************************************************************
  *   See templaterender.h                                                  *
  *                                                                         *
- *   The painting code is a behaviour-for-behaviour port of the legacy     *
+ *   The painting code is a behavior-for-behavior port of the legacy     *
  *   graphItemBase::paint()/drawItem() so that existing templates render   *
  *   the same (tests/template compares against the old renderer's output). *
  *   Where the legacy code did something odd on purpose-built numbers      *
@@ -61,7 +61,7 @@ QPainterPath textPath(const FontSpec &spec, const QString &text)
 }
 
 // --- text in a box --------------------------------------------------------------------------------------------------
-// Laid out in "font space" (the font's own pixels, before the 96 dpi normalisation of textDpiScale()), then scaled.
+// Laid out in "font space" (the font's own pixels, before the 96 dpi normalization of textDpiScale()), then scaled.
 
 struct BlockLayout
 {
@@ -250,7 +250,7 @@ namespace
 {
 
 /*! Draws the item in the coordinate system the caller has set up (origin, item transform, opacity). With `flat` the item
-    is drawn as a one-colour silhouette instead (a shadow): no gradient, no borders, pictures as their rectangle. */
+    is drawn as a one-color silhouette instead (a shadow): no gradient, no borders, pictures as their rectangle. */
 void paintBody(QPainter &p, const Element &e, const RenderOptions &opt, const QColor *flat)
 {
   QPen pen = e.outline.toPen();

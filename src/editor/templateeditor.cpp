@@ -245,10 +245,10 @@ void TemplateEditor::createActions()
 
   const struct { const char *text; const char *icon; EditorCanvas::AlignMode mode; const char *tip; } aligns[] = {
     {QT_TR_NOOP("Align &Left"), "align-left", EditorCanvas::AlignLeft, QT_TR_NOOP("Align the left edges (of the selection, or of the canvas for a single item)")},
-    {QT_TR_NOOP("Align Horizontal &Centre"), "align-hcenter", EditorCanvas::AlignHCenter, QT_TR_NOOP("Centre horizontally")},
+    {QT_TR_NOOP("Align Horizontal &Center"), "align-hcenter", EditorCanvas::AlignHCenter, QT_TR_NOOP("Center horizontally")},
     {QT_TR_NOOP("Align &Right"), "align-right", EditorCanvas::AlignRight, QT_TR_NOOP("Align the right edges")},
     {QT_TR_NOOP("Align &Top"), "align-top", EditorCanvas::AlignTop, QT_TR_NOOP("Align the top edges")},
-    {QT_TR_NOOP("Align &Vertical Centre"), "align-vcenter", EditorCanvas::AlignVCenter, QT_TR_NOOP("Centre vertically")},
+    {QT_TR_NOOP("Align &Vertical Center"), "align-vcenter", EditorCanvas::AlignVCenter, QT_TR_NOOP("Center vertically")},
     {QT_TR_NOOP("Align &Bottom"), "align-bottom", EditorCanvas::AlignBottom, QT_TR_NOOP("Align the bottom edges")}};
   for (int i = 0; i < 6; i++)
     {
@@ -289,14 +289,14 @@ void TemplateEditor::createActions()
   };
   gridAct = toggle(tr("Show &Grid"), QStringLiteral("grid"), tr("Show a grid over the canvas"), false);
   snapGridAct = toggle(tr("Snap to Gri&d"), QStringLiteral("grid"), tr("Snap moving items and new shapes to the grid (hold Alt to switch snapping off while dragging)"), false);
-  snapObjectsAct = toggle(tr("Snap to &Objects"), QStringLiteral("snap"), tr("Snap moving items to the edges and centres of the canvas and of other items"), true);
+  snapObjectsAct = toggle(tr("Snap to &Objects"), QStringLiteral("snap"), tr("Snap moving items to the edges and centers of the canvas and of other items"), true);
   previewMacrosAct = toggle(tr("Preview &Macros"), QStringLiteral("macro"), tr("Show sample values instead of %c, %m and the other macros"), false);
   previewPictureAct = toggle(tr("Show Picture &Under Template"), QStringLiteral("eye"), tr("Show the current Transmit picture behind the template (only a guide, never saved)"), false);
   previewPictureAct->setEnabled(false);
-  guideCentreAct = toggle(tr("&Centre Lines"), QStringLiteral("guides"), tr("Show lines through the middle of the canvas"), false);
+  guideCenterAct = toggle(tr("&Center Lines"), QStringLiteral("guides"), tr("Show lines through the middle of the canvas"), false);
   guide5Act = toggle(tr("&5 % Margin"), QStringLiteral("guides"), tr("Show a frame 5 % in from each edge, a margin to keep text inside"), false);
   guide10Act = toggle(tr("&10 % Margin"), QStringLiteral("guides"), tr("Show a frame 10 % in from each edge"), false);
-  for (QAction *a : {guideCentreAct, guide5Act, guide10Act}) connect(a, &QAction::toggled, this, &TemplateEditor::applyGuides);
+  for (QAction *a : {guideCenterAct, guide5Act, guide10Act}) connect(a, &QAction::toggled, this, &TemplateEditor::applyGuides);
   connect(gridAct, &QAction::toggled, view, &EditorCanvas::setShowGrid);
   connect(snapGridAct, &QAction::toggled, view, &EditorCanvas::setSnapToGrid);
   connect(snapObjectsAct, &QAction::toggled, view, &EditorCanvas::setSnapToObjects);
@@ -353,7 +353,7 @@ void TemplateEditor::createMenus()
   insert->addAction(imageAct);
   insert->addAction(replayTool);
   insert->addSeparator();
-  QMenu *barsMenu = insert->addMenu(tr("Colour &Bar"));
+  QMenu *barsMenu = insert->addMenu(tr("Color &Bar"));
   barsMenu->setIcon(QIcon());
   const QStringList barStyles = templatePresets::barNames();
   for (bool bottom : {true, false})
@@ -388,7 +388,7 @@ void TemplateEditor::createMenus()
   viewMenu->addAction(snapGridAct);
   viewMenu->addAction(snapObjectsAct);
   QMenu *guidesMenu = viewMenu->addMenu(tr("G&uides"));
-  guidesMenu->addAction(guideCentreAct);
+  guidesMenu->addAction(guideCenterAct);
   guidesMenu->addAction(guide5Act);
   guidesMenu->addAction(guide10Act);
   viewMenu->addSeparator();
@@ -600,8 +600,8 @@ void TemplateEditor::setSampleValues(const QHash<QChar, QString> &values)
 void TemplateEditor::insertBar(int style, bool atBottom)
 {
   QUndoStack *stack = doc.undoStack();
-  stack->beginMacro(tr("Add colour bar"));
-  const QStringList added = doc.addItems(QVector<tpl::Element>() << templatePresets::makeBar(style, atBottom, doc.doc().canvas), tr("Add colour bar"));
+  stack->beginMacro(tr("Add color bar"));
+  const QStringList added = doc.addItems(QVector<tpl::Element>() << templatePresets::makeBar(style, atBottom, doc.doc().canvas), tr("Add color bar"));
   if (!added.isEmpty())
     {
       // a bar is a background: text and pictures stay in front of it
@@ -615,7 +615,7 @@ void TemplateEditor::insertBar(int style, bool atBottom)
 
 void TemplateEditor::applyGuides()
 {
-  view->setGuides(guideCentreAct->isChecked(), guide5Act->isChecked(), guide10Act->isChecked());
+  view->setGuides(guideCenterAct->isChecked(), guide5Act->isChecked(), guide10Act->isChecked());
 }
 
 void TemplateEditor::setPreviewPicture(const QImage &img)
@@ -874,7 +874,7 @@ void TemplateEditor::readSettings()
   gridAct->setChecked(s.value(QStringLiteral("grid"), false).toBool());
   snapGridAct->setChecked(s.value(QStringLiteral("snapGrid"), false).toBool());
   snapObjectsAct->setChecked(s.value(QStringLiteral("snapObjects"), true).toBool());
-  guideCentreAct->setChecked(s.value(QStringLiteral("guideCentre"), false).toBool());
+  guideCenterAct->setChecked(s.value(QStringLiteral("guideCenter"), false).toBool());
   guide5Act->setChecked(s.value(QStringLiteral("guide5"), false).toBool());
   guide10Act->setChecked(s.value(QStringLiteral("guide10"), false).toBool());
   view->setGridSize(s.value(QStringLiteral("gridSize"), 16).toInt());
@@ -891,7 +891,7 @@ void TemplateEditor::writeSettings()
   s.setValue(QStringLiteral("grid"), gridAct->isChecked());
   s.setValue(QStringLiteral("snapGrid"), snapGridAct->isChecked());
   s.setValue(QStringLiteral("snapObjects"), snapObjectsAct->isChecked());
-  s.setValue(QStringLiteral("guideCentre"), guideCentreAct->isChecked());
+  s.setValue(QStringLiteral("guideCenter"), guideCenterAct->isChecked());
   s.setValue(QStringLiteral("guide5"), guide5Act->isChecked());
   s.setValue(QStringLiteral("guide10"), guide10Act->isChecked());
   s.setValue(QStringLiteral("gridSize"), view->gridSize());

@@ -84,8 +84,8 @@ public:
   int gridSize() const { return gridPx; }
   void setExpandMacros(bool on);
   void setMacroVars(const QHash<QChar, QString> &vars);
-  /*! lines to place things by, drawn over the canvas and never exported: the centre lines, and a frame inset by 5 % / 10 % */
-  void setGuides(bool centre, bool margin5, bool margin10);
+  /*! lines to place things by, drawn over the canvas and never exported: the center lines, and a frame inset by 5 % / 10 % */
+  void setGuides(bool center, bool margin5, bool margin10);
   void setPreviewImage(const QImage &img);     //!< shown under the template, stretched over the canvas
   void setShowPreview(bool on);
   bool hasPreview() const { return !preview.isNull(); }
@@ -105,8 +105,8 @@ public:
   void sendBackward();
   void sendToBack();
   void toggleLock();
-  bool insertImageFile(const QString &fileName, const QPointF &centre = QPointF(qQNaN(), qQNaN()));
-  bool insertImage(const QImage &img, const QPointF &centre = QPointF(qQNaN(), qQNaN()));
+  bool insertImageFile(const QString &fileName, const QPointF &center = QPointF(qQNaN(), qQNaN()));
+  bool insertImage(const QImage &img, const QPointF &center = QPointF(qQNaN(), qQNaN()));
   QString addTextAt(const QPointF &pos, const QString &text);   //!< returns the new id
   void addMacro(const QString &macro);         //!< a new text item showing the macro
   void editText(const QString &id, bool isNew = false);   //!< inline text editing; a new item left empty is taken back
@@ -169,7 +169,7 @@ private:
   double zoomFactor = 1.0;
   bool autoFit = true;
 
-  bool guideCentre = false, guideMargin5 = false, guideMargin10 = false;
+  bool guideCenter = false, guideMargin5 = false, guideMargin10 = false;
   bool gridVisible = false, snapGrid = false, snapObjects = true;
   int gridPx = 16;
   QImage preview;

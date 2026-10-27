@@ -21,7 +21,7 @@ public:
   {
     setMinimumHeight(40);
     setFocusPolicy(Qt::StrongFocus);
-    setToolTip(tr("Click the bar to add a colour stop, drag a marker to move it, double-click it to change its colour"));
+    setToolTip(tr("Click the bar to add a color stop, drag a marker to move it, double-click it to change its color"));
   }
   QVector<tpl::GradientStop> stops;
   int selected = 0;
@@ -121,7 +121,7 @@ protected:
   {
     if (!dragging || selected < 0 || selected >= stops.size()) return;
     stops[selected].pos = posOf(e->position().x());
-    // keep the order while dragging past a neighbour
+    // keep the order while dragging past a neighbor
     const tpl::GradientStop moved = stops[selected];
     std::stable_sort(stops.begin(), stops.end(), [](const tpl::GradientStop &a, const tpl::GradientStop &b) { return a.pos < b.pos; });
     for (int i = 0; i < stops.size(); i++)
@@ -159,18 +159,18 @@ private:
 GradientEdit::GradientEdit(QWidget *parent) : QWidget(parent)
 {
   kind = new QComboBox(this);
-  kind->addItem(tr("Solid colour"), int(tpl::Gradient::None));
+  kind->addItem(tr("Solid color"), int(tpl::Gradient::None));
   kind->addItem(tr("Linear"), int(tpl::Gradient::Linear));
   kind->addItem(tr("Radial"), int(tpl::Gradient::Radial));
   kind->addItem(tr("Conical"), int(tpl::Gradient::Conical));
-  kind->setToolTip(tr("Fill with a single colour or a gradient"));
+  kind->setToolTip(tr("Fill with a single color or a gradient"));
   angle = new QSpinBox(this);
   angle->setRange(0, 359);
   angle->setWrapping(true);
   angle->setSuffix(QStringLiteral("°"));
   angle->setToolTip(tr("Direction of the gradient: 0° runs from left to right, 90° from bottom to top, 180° from right to left, 270° from top to bottom"));
   bar = new GradientStopBar(this);
-  colorButton = new QPushButton(tr("Stop colour…"), this);
+  colorButton = new QPushButton(tr("Stop color…"), this);
   removeButton = new QPushButton(tr("Remove stop"), this);
 
   QHBoxLayout *top = new QHBoxLayout;
@@ -255,7 +255,7 @@ void GradientEdit::barChanged()
 void GradientEdit::stopColor()
 {
   if (bar->selected < 0 || bar->selected >= bar->stops.size()) return;
-  const QColor c = QColorDialog::getColor(bar->stops[bar->selected].color, this, tr("Stop colour"), QColorDialog::ShowAlphaChannel);
+  const QColor c = QColorDialog::getColor(bar->stops[bar->selected].color, this, tr("Stop color"), QColorDialog::ShowAlphaChannel);
   if (!c.isValid()) return;
   bar->stops[bar->selected].color = c;
   barChanged();

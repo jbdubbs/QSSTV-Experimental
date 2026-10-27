@@ -74,7 +74,7 @@ struct LegacyReader
   }
 
   // stream version >= 9: quint16 style|cap|join, bool cosmetic, double width, then the pen's QBrush (style byte at
-  // offset 11, colour spec at offset 12), miter limit, dash pattern, dash offset
+  // offset 11, color spec at offset 12), miter limit, dash pattern, dash offset
   bool readPen(QPen &pen)
   {
     const QByteArray p = buf.peek(13);
@@ -238,9 +238,9 @@ LoadResult loadLegacy(const QByteArray &data)
       e.gradient = convertGradient(it.gradient);
       e.outline.color = it.pen.color();
       e.outline.width = it.pen.widthF();
-      // the legacy renderer drew rectangles and picture borders with mitred corners whatever the pen said
-      const bool mitred = e.type == ItemType::Rect || e.type == ItemType::Image || e.type == ItemType::Replay;
-      e.outline.join = mitred ? Qt::MiterJoin : it.pen.joinStyle();
+      // the legacy renderer drew rectangles and picture borders with mitered corners whatever the pen said
+      const bool mitered = e.type == ItemType::Rect || e.type == ItemType::Image || e.type == ItemType::Replay;
+      e.outline.join = mitered ? Qt::MiterJoin : it.pen.joinStyle();
       e.outline.cap = it.pen.capStyle();
       e.outline.miterLimit = it.pen.miterLimit();
       const Qt::PenStyle ps = it.pen.style();

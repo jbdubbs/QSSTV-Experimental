@@ -186,7 +186,7 @@ void PropertiesPanel::build()
   boxForm->setContentsMargins(0, 0, 0, 0);
   alignCombo = new QComboBox;
   alignCombo->addItem(tr("Left"), int(tpl::TextAlign::Left));
-  alignCombo->addItem(tr("Centre"), int(tpl::TextAlign::Center));
+  alignCombo->addItem(tr("Center"), int(tpl::TextAlign::Center));
   alignCombo->addItem(tr("Right"), int(tpl::TextAlign::Right));
   alignCombo->setToolTip(tr("Where the lines sit between the left and right edge of the box"));
   valignCombo = new QComboBox;
@@ -209,8 +209,8 @@ void PropertiesPanel::build()
   fillBox = new QGroupBox(tr("Fill"));
   QVBoxLayout *fl = new QVBoxLayout(fillBox);
   QHBoxLayout *fr = new QHBoxLayout;
-  fr->addWidget(new QLabel(tr("Colour")));
-  fillButton = swatch(tr("Fill colour (click to change)"));
+  fr->addWidget(new QLabel(tr("Color")));
+  fillButton = swatch(tr("Fill color (click to change)"));
   fr->addWidget(fillButton);
   fr->addStretch();
   fl->addLayout(fr);
@@ -229,7 +229,7 @@ void PropertiesPanel::build()
   // --- outline ---------------------------------------------------------------------------------------------
   outlineBox = new QGroupBox(tr("Outline"));
   QFormLayout *ol = new QFormLayout(outlineBox);
-  outlineColorButton = swatch(tr("Outline colour (click to change)"));
+  outlineColorButton = swatch(tr("Outline color (click to change)"));
   outlineWidthSpin = spin(0, 200, 0.5, 1, QStringLiteral(" px"));
   outlineStyleCombo = new QComboBox;
   outlineStyleCombo->addItem(tr("None"), int(Qt::NoPen));
@@ -239,11 +239,11 @@ void PropertiesPanel::build()
   outlineStyleCombo->addItem(tr("Dash-dot"), int(Qt::DashDotLine));
   outlineJoinCombo = new QComboBox;
   outlineJoinCombo->addItem(tr("Round"), int(Qt::RoundJoin));
-  outlineJoinCombo->addItem(tr("Mitre"), int(Qt::MiterJoin));
+  outlineJoinCombo->addItem(tr("Miter"), int(Qt::MiterJoin));
   outlineJoinCombo->addItem(tr("Bevel"), int(Qt::BevelJoin));
   outlineJoinCombo->setToolTip(tr("Shape of the outer corners of the outline"));
   outlineJoinLabel = new QLabel(tr("Corners"));
-  ol->addRow(tr("Colour"), outlineColorButton);
+  ol->addRow(tr("Color"), outlineColorButton);
   ol->addRow(tr("Width"), outlineWidthSpin);
   ol->addRow(tr("Style"), outlineStyleCombo);
   ol->addRow(outlineJoinLabel, outlineJoinCombo);
@@ -253,8 +253,8 @@ void PropertiesPanel::build()
   shadowBox = new QGroupBox(tr("Shadow"));
   QGridLayout *sg = new QGridLayout(shadowBox);
   shadowCheck = new QCheckBox(tr("Drop shadow"));
-  shadowCheck->setToolTip(tr("Draw the item once more behind itself, shifted, in the shadow colour"));
-  shadowColorButton = swatch(tr("Shadow colour (click to change); a transparent colour gives a lighter shadow"));
+  shadowCheck->setToolTip(tr("Draw the item once more behind itself, shifted, in the shadow color"));
+  shadowColorButton = swatch(tr("Shadow color (click to change); a transparent color gives a lighter shadow"));
   shadowXSpin = spin(-200, 200, 1, 1, QStringLiteral(" px"));
   shadowYSpin = spin(-200, 200, 1, 1, QStringLiteral(" px"));
   shadowBlurSpin = spin(0, 100, 1, 1, QStringLiteral(" px"));
@@ -262,7 +262,7 @@ void PropertiesPanel::build()
   shadowYSpin->setToolTip(tr("Shift down (negative: up)"));
   shadowBlurSpin->setToolTip(tr("Softness of the edge (0 = sharp)"));
   sg->addWidget(shadowCheck, 0, 0, 1, 2);
-  sg->addWidget(new QLabel(tr("Colour")), 1, 0);
+  sg->addWidget(new QLabel(tr("Color")), 1, 0);
   sg->addWidget(shadowColorButton, 1, 1, 1, 3);
   sg->addWidget(new QLabel(tr("X")), 2, 0);
   sg->addWidget(shadowXSpin, 2, 1);
@@ -289,7 +289,7 @@ void PropertiesPanel::build()
   QFormLayout *af = new QFormLayout(anchorBox);
   anchorHCombo = new QComboBox;
   anchorHCombo->addItem(tr("Left"), int(tpl::AnchorH::Left));
-  anchorHCombo->addItem(tr("Centre"), int(tpl::AnchorH::Center));
+  anchorHCombo->addItem(tr("Center"), int(tpl::AnchorH::Center));
   anchorHCombo->addItem(tr("Right"), int(tpl::AnchorH::Right));
   anchorHCombo->addItem(tr("Left and right"), int(tpl::AnchorH::Span));
   anchorHCombo->addItem(tr("Scale with picture"), int(tpl::AnchorH::Scale));
@@ -299,7 +299,7 @@ void PropertiesPanel::build()
   anchorVCombo->addItem(tr("Bottom"), int(tpl::AnchorV::Bottom));
   anchorVCombo->addItem(tr("Top and bottom"), int(tpl::AnchorV::Span));
   anchorVCombo->addItem(tr("Scale with picture"), int(tpl::AnchorV::Scale));
-  anchorHCombo->setToolTip(tr("How the item follows the sides when the picture is wider or narrower than this canvas. Left, Centre and Right keep its distance to that side; Left and right also stretches it (a bar across the picture)."));
+  anchorHCombo->setToolTip(tr("How the item follows the sides when the picture is wider or narrower than this canvas. Left, Center and Right keep its distance to that side; Left and right also stretches it (a bar across the picture)."));
   anchorVCombo->setToolTip(tr("How the item follows the top and bottom when the picture is taller or shorter than this canvas"));
   anchorHint = new QLabel(tr("Text without a box, and items that are turned, are moved but not stretched."));
   anchorHint->setWordWrap(true);
@@ -324,7 +324,7 @@ void PropertiesPanel::build()
   ySpin->setToolTip(tr("Distance of the top edge from the top of the picture, in picture pixels"));
   wSpin->setToolTip(tr("Width (text items are sized by their font size)"));
   hSpin->setToolTip(tr("Height (text items are sized by their font size; a line's thickness is its outline width)"));
-  rotSpin->setToolTip(tr("Rotation about the centre of the item. Shift while dragging the rotate handle snaps to 15°"));
+  rotSpin->setToolTip(tr("Rotation about the center of the item. Shift while dragging the rotate handle snaps to 15°"));
   shearHSpin->setToolTip(tr("Horizontal skew"));
   shearVSpin->setToolTip(tr("Vertical skew"));
   g->addWidget(new QLabel(tr("X")), 0, 0);
@@ -399,7 +399,7 @@ void PropertiesPanel::build()
   connect(fillButton, &QPushButton::clicked, this, [this]() {
     const QVector<tpl::Element> sel = canvas->selectedElements();
     if (sel.isEmpty()) return;
-    const QColor c = pickColor(sel.first().fill, tr("Fill colour"));
+    const QColor c = pickColor(sel.first().fill, tr("Fill color"));
     if (!c.isValid()) return;
     apply([c](tpl::Element &e) { e.fill = c; }, tr("Change fill"), QString());
   });
@@ -410,7 +410,7 @@ void PropertiesPanel::build()
   connect(outlineColorButton, &QPushButton::clicked, this, [this]() {
     const QVector<tpl::Element> sel = canvas->selectedElements();
     if (sel.isEmpty()) return;
-    const QColor c = pickColor(sel.first().outline.color, tr("Outline colour"));
+    const QColor c = pickColor(sel.first().outline.color, tr("Outline color"));
     if (!c.isValid()) return;
     apply([c](tpl::Element &e) { e.outline.color = c; }, tr("Change outline"), QString());
   });
@@ -481,7 +481,7 @@ void PropertiesPanel::build()
   connect(shadowColorButton, &QPushButton::clicked, this, [this]() {
     const QVector<tpl::Element> sel = canvas->selectedElements();
     if (sel.isEmpty()) return;
-    const QColor c = pickColor(sel.first().shadow.color, tr("Shadow colour"));
+    const QColor c = pickColor(sel.first().shadow.color, tr("Shadow color"));
     if (!c.isValid()) return;
     apply([c](tpl::Element &e) { e.shadow.color = c; }, tr("Change shadow"), QString());
   });
@@ -581,9 +581,9 @@ void PropertiesPanel::refresh()
   const bool geo = !allLocked;
   xSpin->setEnabled(geo);
   ySpin->setEnabled(geo);
-  const bool sizeable = e.type != tpl::ItemType::Text || e.textBox;   // free text is sized by its font
-  wSpin->setEnabled(geo && single && sizeable);
-  hSpin->setEnabled(geo && single && sizeable && e.type != tpl::ItemType::Line);
+  const bool sizable = e.type != tpl::ItemType::Text || e.textBox;   // free text is sized by its font
+  wSpin->setEnabled(geo && single && sizable);
+  hSpin->setEnabled(geo && single && sizable && e.type != tpl::ItemType::Line);
   rotSpin->setEnabled(geo && single);
   shearHSpin->setEnabled(geo && single);
   shearVSpin->setEnabled(geo && single);

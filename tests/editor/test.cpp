@@ -306,7 +306,7 @@ static void testMergeAndClean()
   Q_UNUSED(base)
 }
 
-static void testTextRectNormalisation()
+static void testTextRectNormalization()
 {
   printf("== text items are re-fitted without changing what is drawn\n");
   QFontDatabase::addApplicationFont(fixtures + "/Montserrat-Bold.otf");
@@ -337,7 +337,7 @@ static void testTextRectNormalisation()
         const QRectF tb = tpl::textBounds(e, lit);
         rectsFit &= near(tb.x(), e.rect.x(), 0.001) && near(tb.width(), e.rect.width(), 0.001);
       }
-  check(rectsFit, "every text item's rect is its text bounds, so rotation turns it about its own centre");
+  check(rectsFit, "every text item's rect is its text bounds, so rotation turns it about its own center");
 }
 
 // --- canvas ----------------------------------------------------------------------------------------------------------
@@ -415,12 +415,12 @@ static void testSelectMoveResizeRotate()
 
   // rotate with the handle above the top edge
   const QRectF cur(get(*d, r).pos + get(*d, r).rect.topLeft(), get(*d, r).rect.size());
-  const QPointF centre = cur.center();
-  const QPoint handle = env.v->mapFromScene(QPointF(centre.x(), cur.top())) - QPoint(0, 26);
+  const QPointF center = cur.center();
+  const QPoint handle = env.v->mapFromScene(QPointF(center.x(), cur.top())) - QPoint(0, 26);
   QTest::mousePress(env.v->viewport(), Qt::LeftButton, Qt::NoModifier, handle);
-  for (int i = 1; i <= 5; i++) QTest::mouseMove(env.v->viewport(), env.vp(centre.x() + 10 * i, centre.y()));
-  QTest::mouseMove(env.v->viewport(), env.vp(centre.x() + 100, centre.y()));
-  QTest::mouseRelease(env.v->viewport(), Qt::LeftButton, Qt::NoModifier, env.vp(centre.x() + 100, centre.y()));
+  for (int i = 1; i <= 5; i++) QTest::mouseMove(env.v->viewport(), env.vp(center.x() + 10 * i, center.y()));
+  QTest::mouseMove(env.v->viewport(), env.vp(center.x() + 100, center.y()));
+  QTest::mouseRelease(env.v->viewport(), Qt::LeftButton, Qt::NoModifier, env.vp(center.x() + 100, center.y()));
   check(near(get(*d, r).rotation, 90, 1.0), QString("the rotate handle turns the item (%1 degrees)").arg(get(*d, r).rotation));
   check(env.undoCount() == base + 3, "a rotation is one undo step");
 
@@ -470,16 +470,16 @@ static void testRubberBandAndMultiSelect()
 
 static void testSnapping()
 {
-  printf("== canvas: snapping to the canvas centre and to other items\n");
+  printf("== canvas: snapping to the canvas center and to other items\n");
   Env env;
   EditorDocument *d = env.d;
   const QString r = add(*d, make(tpl::ItemType::Rect, QPointF(100, 100), QSizeF(100, 50)));
   env.v->setSelection(QStringList(r));
   env.v->setSnapToObjects(true);
-  // move so that the item's centre ends 3 px left of the canvas centre (x = 320): it should jump onto it
+  // move so that the item's center ends 3 px left of the canvas center (x = 320): it should jump onto it
   env.drag(150, 125, 150 + (320 - 3 - 150), 125);
   const QRectF b = env.v->sceneBounds(get(*d, r));
-  check(near(b.center().x(), 320, 0.05), QString("the centre snaps to the middle of the canvas (centre x = %1)").arg(b.center().x()));
+  check(near(b.center().x(), 320, 0.05), QString("the center snaps to the middle of the canvas (center x = %1)").arg(b.center().x()));
   // far from any line: no snapping
   env.drag(b.center().x(), 125, b.center().x() - 57, 125);
   const QRectF b2 = env.v->sceneBounds(get(*d, r));
@@ -851,7 +851,7 @@ static void testImages()
   const tpl::Element &e = d->doc().items[0];
   check(near(e.rect.width() / e.rect.height(), 2.0, 0.01), QString("the aspect ratio is kept (%1 x %2)").arg(e.rect.width()).arg(e.rect.height()));
   check(e.rect.width() <= 640 * 0.5 + 0.01 && e.rect.height() <= 496 * 0.5 + 0.01, "it fits within half the canvas");
-  check(near(env.v->sceneBounds(e).center().x(), 320, 0.5) && near(env.v->sceneBounds(e).center().y(), 248, 0.5), "and is centred");
+  check(near(env.v->sceneBounds(e).center().x(), 320, 0.5) && near(env.v->sceneBounds(e).center().y(), 248, 0.5), "and is centered");
   QImage big(5000, 4000, QImage::Format_RGB32);
   big.fill(Qt::red);
   env.v->insertImage(big);
@@ -1189,7 +1189,7 @@ static void testIconsAndActions()
       if (!a->isSeparator() && a->toolTip().isEmpty()) noTip++;
   check(withName > 30 && withoutIcon == 0, QString("%1 actions have icons, %2 are missing theirs").arg(withName).arg(withoutIcon));
   check(noTip == 0, "every toolbar button has a tooltip (the old editor had six without)");
-  // dark palette: icons use the text colour
+  // dark palette: icons use the text color
   QPalette dark = QApplication::palette();
   dark.setColor(QPalette::ButtonText, QColor(240, 240, 240));
   const QImage light = editorIcons::icon("text", dark).pixmap(24, 24).toImage();
@@ -1197,7 +1197,7 @@ static void testIconsAndActions()
   for (int y = 0; y < light.height() && !hasLight; y++)
     for (int x = 0; x < light.width(); x++)
       if (qAlpha(light.pixel(x, y)) > 200 && qRed(light.pixel(x, y)) > 200) hasLight = true;
-  check(hasLight, "icons are drawn in the palette's colour (light on a dark theme)");
+  check(hasLight, "icons are drawn in the palette's color (light on a dark theme)");
 }
 
 static void testExternalEditor()
@@ -1380,7 +1380,7 @@ static void testLayoutAndAnchors()
   }
 }
 
-// Issue #126: a picture is inserted at the centre (anchored Centre), then dragged to a side; it has to stick to that side
+// Issue #126: a picture is inserted at the center (anchored Center), then dragged to a side; it has to stick to that side
 // on a wider SSTV format, so its anchors have to follow it
 static void testAnchorsFollowMoves()
 {
@@ -1392,7 +1392,7 @@ static void testAnchorsFollowMoves()
   logo.fill(Qt::blue);
   env.v->insertImage(logo);
   const QString id = d->doc().items.last().id;
-  check(get(*d, id).anchorH == tpl::AnchorH::Center && get(*d, id).anchorV == tpl::AnchorV::Middle, "a picture inserted at the centre is anchored to the centre");
+  check(get(*d, id).anchorH == tpl::AnchorH::Center && get(*d, id).anchorV == tpl::AnchorV::Middle, "a picture inserted at the center is anchored to the center");
 
   env.v->setSelection(QStringList(id));
   env.drag(320, 248, 70, 248, Qt::AltModifier);
@@ -1429,7 +1429,7 @@ static void testAnchorsFollowMoves()
     tpl::autoAnchor(r, d->doc().canvas);
     const QString rid = add(*d, r);
     env.v->setSelection(QStringList(rid));
-    check(get(*d, rid).anchorH == tpl::AnchorH::Center, "(a shape in the middle is anchored to the centre)");
+    check(get(*d, rid).anchorH == tpl::AnchorH::Center, "(a shape in the middle is anchored to the center)");
     const int base = d->undoStack()->index();
     for (int i = 0; i < 11; i++) env.key(Qt::Key_Left, Qt::ShiftModifier);
     check(near(get(*d, rid).pos.x(), 160) && get(*d, rid).anchorH == tpl::AnchorH::Left, "nudging it across a third of the canvas changes the anchor");
@@ -1442,7 +1442,7 @@ static void testAnchorsFollowMoves()
     check(near(get(*d, rid).pos.x(), 500) && get(*d, rid).anchorH == tpl::AnchorH::Right, "so does typing a position in the Properties panel");
   }
 
-  // an item touching a side follows it even though its centre is in the middle third
+  // an item touching a side follows it even though its center is in the middle third
   {
     tpl::Element wide = EditorCanvas::defaultElement(tpl::ItemType::Rect);
     wide.rect = QRectF(0, 0, 460, 100);
@@ -1455,7 +1455,7 @@ static void testAnchorsFollowMoves()
     wide.rect = QRectF(0, 0, 320, 100);
     wide.pos = QPointF(160, 100);
     tpl::autoAnchor(wide, d->doc().canvas);
-    check(wide.anchorH == tpl::AnchorH::Center, "while a centred one stays centred");
+    check(wide.anchorH == tpl::AnchorH::Center, "while a centered one stays centered");
     wide.rect = QRectF(0, 0, 100, 340);
     wide.pos = QPointF(270, 156);
     tpl::autoAnchor(wide, d->doc().canvas);
@@ -1762,25 +1762,25 @@ static void testSizePreviewAndGuides()
   QApplication::processEvents();
   check(env.v->renderItems(1.0) == clean, "guides are not part of the picture the template makes");
   check(!(env.v->viewport()->grab().toImage() == viewBefore), "but they are drawn on the canvas");
-  QAction *centre = nullptr;
+  QAction *center = nullptr;
   for (QAction *act : env.ed.findChildren<QAction *>())
-    if (act->text().contains("Centre Lines")) centre = act;
-  check(centre && centre->isCheckable(), "View > Guides has the centre lines");
-  if (centre)
+    if (act->text().contains("Center Lines")) center = act;
+  check(center && center->isCheckable(), "View > Guides has the center lines");
+  if (center)
     {
-      centre->setChecked(true);
+      center->setChecked(true);
       env.ed.close();
       TemplateEditor again;
       QAction *c2 = nullptr;
       for (QAction *act : again.findChildren<QAction *>())
-        if (act->text().contains("Centre Lines")) c2 = act;
+        if (act->text().contains("Center Lines")) c2 = act;
       check(c2 && c2->isChecked(), "the choice of guides is remembered");
     }
 }
 
 static void testPresets()
 {
-  printf("== starter templates and colour bars\n");
+  printf("== starter templates and color bars\n");
   const QStringList names = templatePresets::starterNames();
   check(names.size() == 4, "four starting points: blank and three arrangements");
   bool valid = true, inside = true, anchoredOk = true, stable = true, drawn = true, unique = true;
@@ -1833,9 +1833,9 @@ static void testPresets()
   const double small = templatePresets::makeStarter(1, QSize(320, 256)).items.at(1).font.pointSize;
   check(std::abs(big / small - 496.0 / 256.0) < 0.01, "text sizes follow the height of the canvas");
 
-  // colour bars
+  // color bars
   const QStringList bars = templatePresets::barNames();
-  check(bars.size() == 6, "six colour bar styles");
+  check(bars.size() == 6, "six color bar styles");
   bool barsOk = true;
   const QRectF canvas(0, 0, 320, 256);
   for (int i = 0; i < bars.size(); i++)
@@ -1867,8 +1867,8 @@ static void testPresets()
   QMenu *barMenu = nullptr;
   if (insert)
     for (QAction *a : insert->actions())
-      if (a->menu() && a->text().contains("Colour")) barMenu = a->menu();
-  check(barMenu && barMenu->actions().size() == 2 && barMenu->actions().at(0)->menu()->actions().size() == 6, "Insert > Colour Bar offers bottom and top, six styles each");
+      if (a->menu() && a->text().contains("Color")) barMenu = a->menu();
+  check(barMenu && barMenu->actions().size() == 2 && barMenu->actions().at(0)->menu()->actions().size() == 6, "Insert > Color Bar offers bottom and top, six styles each");
   if (barMenu)
     {
       add(*env.d, make(tpl::ItemType::Rect, QPointF(10, 10), QSizeF(50, 50)));
@@ -1947,7 +1947,7 @@ static void testGroupTransformAndSnapping()
   // rotating: the rotate handle is 26 pixels above the middle of the top edge
   env.v->setSelection(QStringList(a) << b);
   QApplication::processEvents();
-  env.drag(225, 74, 351, 200, alt);   // from straight above the centre (225,200) to straight right of it: a quarter turn
+  env.drag(225, 74, 351, 200, alt);   // from straight above the center (225,200) to straight right of it: a quarter turn
   check(near(get(*d, a).rotation, 90, 0.5) && near(get(*d, b).rotation, 90, 0.5), "the rotate handle turns every item by the same angle");
   const QPointF ca = get(*d, a).pos + get(*d, a).rect.center();
   const QPointF cb = get(*d, b).pos + get(*d, b).rect.center();
@@ -1999,7 +1999,7 @@ static void testGroupTransformAndSnapping()
   env.drag(200, 425, 200, 453);   // the bottom edge to the canvas bottom (496)? no: 453 is far from everything
   check(near(get(*d, r).rect.height(), 50, 0.01) || near(get(*d, r).rect.height(), 78, 0.01), "(a vertical drag that is nowhere near anything)");
   d->undoStack()->undo();
-  // the canvas edge and centre
+  // the canvas edge and center
   env.v->setSelection(QStringList(r));
   QApplication::processEvents();
   env.drag(200, 425, 317, 425);
@@ -2087,17 +2087,17 @@ static void testReviewFixesPhase3()
     QApplication::processEvents();
     QRectF frame = env.v->sceneBounds(get(*d, tid)).united(env.v->sceneBounds(get(*d, rid)));
     const QPointF c = frame.center();
-    const QPointF centreBefore = tpl::sceneTransform(get(*d, tid)).map(tpl::localBounds(get(*d, tid)).center());
+    const QPointF centerBefore = tpl::sceneTransform(get(*d, tid)).map(tpl::localBounds(get(*d, tid)).center());
     env.drag(frame.center().x(), frame.top() - 26, c.x() + 200, c.y(), Qt::AltModifier);   // a quarter turn
     const tpl::Element turned = get(*d, tid);
-    const QPointF centreAfter = tpl::sceneTransform(turned).map(tpl::localBounds(turned).center());
+    const QPointF centerAfter = tpl::sceneTransform(turned).map(tpl::localBounds(turned).center());
     QTransform quarter;
     quarter.translate(c.x(), c.y());
     quarter.rotate(turned.rotation);
     quarter.translate(-c.x(), -c.y());
-    const QPointF expected = quarter.map(centreBefore);
-    check(near(turned.rotation, 90, 1.5) && near(centreAfter.x(), expected.x(), 1.0) && near(centreAfter.y(), expected.y(), 1.0),
-          QString("the text's middle swings with the group (%1,%2 expected %3,%4, turned %5 degrees)").arg(centreAfter.x()).arg(centreAfter.y()).arg(expected.x()).arg(expected.y()).arg(turned.rotation));
+    const QPointF expected = quarter.map(centerBefore);
+    check(near(turned.rotation, 90, 1.5) && near(centerAfter.x(), expected.x(), 1.0) && near(centerAfter.y(), expected.y(), 1.0),
+          QString("the text's middle swings with the group (%1,%2 expected %3,%4, turned %5 degrees)").arg(centerAfter.x()).arg(centerAfter.y()).arg(expected.x()).arg(expected.y()).arg(turned.rotation));
   }
 }
 
@@ -2387,11 +2387,11 @@ static void testReviewFixes()
     tpl::Element r = make(tpl::ItemType::Rect, QPointF(100, 100), QSizeF(100, 50));
     r.rotation = 45;
     const QString id = add(*env.d, r);
-    const QPointF centre0 = get(*env.d, id).pos + get(*env.d, id).rect.center();
+    const QPointF center0 = get(*env.d, id).pos + get(*env.d, id).rect.center();
     env.ed.applyCanvasSize(QSize(1280, 496), true);
     const tpl::Element &e = get(*env.d, id);
     check(near(e.rect.width() / e.rect.height(), 2.0, 0.01), QString("a rotated rectangle keeps its aspect when the canvas is stretched (%1 x %2)").arg(e.rect.width()).arg(e.rect.height()));
-    check(near((e.pos + e.rect.center()).x(), centre0.x() * 2) && near((e.pos + e.rect.center()).y(), centre0.y()), "and its centre moves with the canvas");
+    check(near((e.pos + e.rect.center()).x(), center0.x() * 2) && near((e.pos + e.rect.center()).y(), center0.y()), "and its center moves with the canvas");
   }
 
   {   // the inline editor survives a context menu and a window switch, but not a click elsewhere
@@ -2552,7 +2552,7 @@ int main(int argc, char **argv)
   testUndoRedoInvariants();
   testRandomOperations();
   testMergeAndClean();
-  testTextRectNormalisation();
+  testTextRectNormalization();
   testCanvasMatchesRenderer();
   testSelectMoveResizeRotate();
   testRubberBandAndMultiSelect();

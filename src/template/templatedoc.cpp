@@ -140,7 +140,7 @@ bool TemplateDocument::hasReplay() const
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// sanitising
+// sanitizing
 // ---------------------------------------------------------------------------------------------------------------
 
 static double clampd(double v, double lo, double hi, double fallback = 0)
@@ -230,7 +230,7 @@ void autoAnchor(Element &e, const QRectF &canvas)
   e.anchorH = cx < 1.0 / 3 ? AnchorH::Left : (cx > 2.0 / 3 ? AnchorH::Right : AnchorH::Center);
   e.anchorV = cy < 1.0 / 3 ? AnchorV::Top : (cy > 2.0 / 3 ? AnchorV::Bottom : AnchorV::Middle);
   if (freeText || turned) return;
-  // an item that touches one side follows that side, whichever third its centre is in (a wide picture against the right edge)
+  // an item that touches one side follows that side, whichever third its center is in (a wide picture against the right edge)
   const double nearX = 0.05 * canvas.width(), nearY = 0.05 * canvas.height();
   const double gapL = frame.left() - canvas.left(), gapR = canvas.right() - frame.right();
   const double gapT = frame.top() - canvas.top(), gapB = canvas.bottom() - frame.bottom();
@@ -263,7 +263,7 @@ void sanitize(TemplateDocument &d)
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// colours
+// colors
 // ---------------------------------------------------------------------------------------------------------------
 
 QString colorToString(const QColor &c)

@@ -115,10 +115,10 @@ void EditorDocument::scaleElement(tpl::Element &e, const QPointF &origin, double
   const bool rigidRect = e.type != tpl::ItemType::Text || e.textBox;
   if (rigidRect && (e.rotation != 0 || e.skewH != 0 || e.skewV != 0))
     {
-      // stretching the rectangle along its own axes would shear a turned item: move its centre with everything else and
+      // stretching the rectangle along its own axes would shear a turned item: move its center with everything else and
       // give it the mean scale instead
-      const QPointF centre = e.pos + e.rect.center();
-      const QPointF moved(origin.x() + (centre.x() - origin.x()) * sx, origin.y() + (centre.y() - origin.y()) * sy);
+      const QPointF center = e.pos + e.rect.center();
+      const QPointF moved(origin.x() + (center.x() - origin.x()) * sx, origin.y() + (center.y() - origin.y()) * sy);
       const QPointF c = e.rect.center();
       e.rect = QRectF(c.x() - e.rect.width() * s / 2, c.y() - e.rect.height() * s / 2, e.rect.width() * s, e.rect.height() * s);
       e.pos = moved - c;

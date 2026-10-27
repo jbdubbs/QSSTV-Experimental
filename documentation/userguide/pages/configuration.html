@@ -52,7 +52,7 @@ program's data folder, for example <code class="wrap"><span class="nb">~/.local/
 </dl>
 
 <h2 id="gui">Gui</h2>
-<figure><img src="../images/cfg-gui.png" alt="The Gui configuration page with colour buttons, gallery rows and columns, performance and confirmation options" loading="lazy"><figcaption>Gui page.</figcaption></figure>
+<figure><img src="../images/cfg-gui.png" alt="The Gui configuration page with color buttons, gallery rows and columns, performance and confirmation options" loading="lazy"><figcaption>Gui page.</figcaption></figure>
 
 <dl>
 <dt>Images: Background Color, Image Background color, Stretch</dt><dd>Colors used behind pictures in the viewers, and whether pictures are stretched to
@@ -79,7 +79,7 @@ program's data folder, for example <code class="wrap"><span class="nb">~/.local/
 <dt>Swap left and right channel</dt><dd>Swaps the stereo channels of the transmit audio.</dd>
 <dt>Send audio to both channels</dt><dd>Sends the transmit audio to both left and right channels. This is useful when the interface sums the two channels (for example CM108-based
  rig interfaces), which gives about 3 dB more output; you may need to lower the TX drive level. While it is ticked, <em>Swap left and right channel</em> and
- <em>PTT tone on other audio channel</em> are greyed out. It is ticked by default.</dd>
+ <em>PTT tone on other audio channel</em> are grayed out. It is ticked by default.</dd>
 <dt>PTT tone on other audio channel</dt><dd>Puts a PTT tone on the channel that does not carry the picture audio, for interfaces that derive PTT from audio.</dd>
 <dt>Maximum recording size (in MB)</dt><dd>Limit for recordings made with the record options.</dd>
 </dl>
@@ -122,7 +122,7 @@ On Linux the list holds the names under <code>/dev/serial/by-id</code>, for exam
 <strong>Read the GPS before each WA8LMF beacon transmission</strong> makes <a href="transmit.html#beacon">WA8LMF Beacon Mode</a> read a fresh position for every picture.</p>
 <p><strong>Look up the city and state on the internet</strong> is off until you tick it, because the position leaves your computer: it is sent to the Nominatim service of
 <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, which answers with the city and state for the <em>Place</em> box and the <code>%g</code> template macro. A position within about a
-kilometre of the last one is not asked again, so a station that stays put makes one request. The connection is secure (https): Windows uses its own TLS, and on Linux the OpenSSL libraries have to be installed, as they normally are.
+kilometer of the last one is not asked again, so a station that stays put makes one request. The connection is secure (https): Windows uses its own TLS, and on Linux the OpenSSL libraries have to be installed, as they normally are.
 With no connection the <em>Place</em> box keeps its text.</p>
 <p><strong>Test</strong> reads the position now, with the port and baud rate shown on the page (they do not need to be saved first), and shows the result or the reason it failed. With the lookup ticked it also shows the place. A receiver that sends data
 but has no fix yet, for example indoors, is reported as such. On Linux your user must be allowed to read the serial port (usually the <code>dialout</code> group).</p>

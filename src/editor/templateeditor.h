@@ -48,7 +48,7 @@ public:
   void setPreviewPicture(const QImage &img);
 
   // --- files; all of them ask about unsaved changes first --------------------------------------------------
-  bool openFile(const QString &fileName);      //!< false if cancelled or unreadable (the user is told why)
+  bool openFile(const QString &fileName);      //!< false if canceled or unreadable (the user is told why)
   /*! a new template of the given size; `starter` is an index into templatePresets::starterNames() (0 = blank) */
   bool newTemplate(const QSize &size, tpl::TemplateDocument::Layout layout = tpl::TemplateDocument::Anchored, int starter = 0);
   bool newTemplateDialog();                    //!< asks for the size and layout
@@ -128,7 +128,7 @@ private:
   QAction *frontAct, *forwardAct, *backwardAct, *backAct, *lockAct;
   QAction *zoomInAct, *zoomOutAct, *zoomFitAct, *zoom100Act;
   QAction *gridAct, *snapGridAct, *snapObjectsAct, *previewMacrosAct, *previewPictureAct, *canvasSizeAct, *helpAct;
-  QAction *guideCentreAct, *guide5Act, *guide10Act;
+  QAction *guideCenterAct, *guide5Act, *guide10Act;
   QList<QAction *> recentActs;
 
   QString templatesDir;

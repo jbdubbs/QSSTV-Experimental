@@ -1,6 +1,6 @@
 /***************************************************************************
  *   Editor for a template gradient: kind, angle and a bar with draggable   *
- *   colour stops.                                                          *
+ *   color stops.                                                          *
  *                                                                          *
  *   This program is free software; you can redistribute it and/or modify   *
  *   it under the terms of the GNU General Public License as published by   *
@@ -23,7 +23,7 @@ class GradientEdit : public QWidget
   Q_OBJECT
 public:
   explicit GradientEdit(QWidget *parent = nullptr);
-  /*! shows `g` (does not emit changed()); `base` is the item's fill colour, used for the stops of a new gradient */
+  /*! shows `g` (does not emit changed()); `base` is the item's fill color, used for the stops of a new gradient */
   void setGradient(const tpl::Gradient &g, const QColor &base);
   tpl::Gradient gradient() const { return grad; }
 

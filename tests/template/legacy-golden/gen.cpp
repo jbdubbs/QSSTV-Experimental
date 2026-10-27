@@ -103,7 +103,7 @@ static void buildSynthetic(const QString &path, const QString &fam)
   editorScene sc(nullptr);
   sc.addBorder(640, 496);
 
-  // gradient bar across the top (the classic colour bar)
+  // gradient bar across the top (the classic color bar)
   auto *bar = mk<itemRectangle>();
   bar->setRect(QRectF(0, 0, 640, 48)); bar->setPen(pen(Qt::black, 2)); bar->setBrush(QColor(200, 0, 0));
   bar->setGradient(grad(sgradientParam::LINEAR, 0, QColor(220, 0, 0), 0, QColor(0, 200, 0), 100));
