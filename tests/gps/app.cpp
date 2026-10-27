@@ -400,6 +400,152 @@ int main(int argc, char **argv)
     check(tx->place == "Missoula, MT" && txw->findChild<QLineEdit *>("placeLineEdit")->text() == "Missoula, MT", "also the place");
   }
 
+  printf("\n== position format: degrees and decimal minutes (issue #133)\n");
+  {
+    QLineEdit *place = txw->findChild<QLineEdit *>("placeLineEdit");
+    check(place != nullptr, "(the Place box)");
+    if (!place) return 1;
+    gpsPlaceLookup = false;
+    gpsCoordFormat = COORDDECIMAL;
+    txw->positionFormat = COORDDECIMAL;
+    auto edit = [&](const QString &la, const QString &lo) {
+      lat->setText(la);
+      lon->setText(lo);
+      emit lat->editingFinished();
+    };
+    const QString degree = QString::fromUtf8("\xC2\xB0");
+
+    // decimal degrees, the default: what is typed is printed as typed
+    edit("47" + degree + "36'N", "122.3321 W");
+    check(lat->text() == "47" + degree + "36'N" && lon->text() == "122.3321 W" && tx->latitude == lat->text(), "in decimal degrees a position typed in another notation stays as typed");
+
+    // switching converts the boxes, both ways
+    edit("-33.85000", "151.20000");
+    gpsCoordFormat = COORDDEGMIN;
+    txw->positionFormatChanged();
+    check(lat->text() == "33 51.00S" && lon->text() == "151 12.00E", "Configuration > GPS set to degrees and minutes: the boxes follow (" + lat->text() + ", " + lon->text() + ")");
+    check(tx->latitude == "33 51.00S" && tx->longitude == "151 12.00E", "and so do the template values");
+    check(editorMacroValues().value('a') == "33 51.00S" && editorMacroValues().value('b') == "151 12.00E", "and the template editor preview");
+    gpsCoordFormat = COORDDECIMAL;
+    txw->positionFormatChanged();
+    check(lat->text() == "-33.85000" && lon->text() == "151.20000" && tx->latitude == "-33.85000", "and back to decimal degrees");
+    txw->positionFormatChanged();
+    check(lat->text() == "-33.85000", "(a format that did not change touches nothing)");
+
+    // typed or pasted in any notation: converted when the box is left
+    gpsCoordFormat = COORDDEGMIN;
+    txw->positionFormatChanged();
+    edit("47.6062", "-122.3321");
+    check(lat->text() == "47 36.37N" && lon->text() == "122 19.93W", "decimal degrees from a map become degrees and minutes (" + lat->text() + ", " + lon->text() + ")");
+    check(tx->latitude == "47 36.37N" && tx->longitude == "122 19.93W", "and reach the template values");
+    edit("42 44.54N", "84 23.82 w");
+    check(lat->text() == "42 44.54N" && lon->text() == "084 23.82W", "the example of the issue: 42 44.54N 084 23.82W, the longitude padded to three digits (" + lon->text() + ")");
+    edit("47" + degree + "36'22\"N", "122" + degree + "19.93'W");
+    check(lat->text() == "47 36.37N" && lon->text() == "122 19.93W", "degrees, minutes, seconds and the degree marks are understood (" + lat->text() + ", " + lon->text() + ")");
+    edit("S 33.85", "E 151.2");
+    check(lat->text() == "33 51.00S" && lon->text() == "151 12.00E", "so are letters in front (" + lat->text() + ", " + lon->text() + ")");
+    edit("somewhere", "123 45.6E 7");
+    check(lat->text() == "somewhere" && lon->text() == "123 45.6E 7", "text that is no coordinate is left alone");
+    edit("47.6062", "E 200");
+    check(lat->text() == "47 36.37N" && lon->text() == "E 200", "and so is a longitude out of range, while the other box is converted");
+
+    // a new position asks for the place once (not the one the beacon test cached: the lookup remembers positions within 0.01 degree)
+    gpsPlaceLookup = true;
+    place->setText("My Town, XX");
+    emit place->editingFinished();
+    fake.body = seattle;
+    const int hitsBefore = fake.hits;
+    edit("42 44.54N", "084 23.82W");
+    checkWait([&] {return place->text() == "Seattle, WA";}, [&] {return "a position typed in asks for the place (" + place->text() + ")";});
+    check(fake.hits == hitsBefore + 1 && lat->text() == "42 44.54N" && lon->text() == "084 23.82W", "once, and the boxes stay as they are (" + lon->text() + ")");
+    check(fake.lastRequest.contains("lat=42.74233") && fake.lastRequest.contains("lon=-84.39700"), "the lookup works from the degrees and minutes of the boxes");
+
+    // a box that is left again does not change, and does not ask for a place
+    place->setText("My Town, XX");
+    emit place->editingFinished();
+    emit lat->editingFinished();
+    emit lon->editingFinished();
+    QTest::qWait(300);
+    check(fake.hits == hitsBefore + 1 && place->text() == "My Town, XX", "leaving the boxes unchanged looks nothing up and keeps a typed place");
+    gpsCoordFormat = COORDDECIMAL;
+    txw->positionFormatChanged();
+    emit lat->editingFinished();
+    QTest::qWait(300);
+    check(lat->text() == "42.74233" && lon->text() == "-84.39700" && fake.hits == hitsBefore + 1 && place->text() == "My Town, XX",
+          "converting the format keeps the place of the same position (" + lat->text() + ", " + lon->text() + ")");
+    gpsCoordFormat = COORDDEGMIN;
+    txw->positionFormatChanged();
+    check(lat->text() == "42 44.54N" && lon->text() == "084 23.82W", "(and back)");
+    gpsPlaceLookup = false;
+
+    // the GPS button
+    feeding = true;
+    sentence = nmea("GPGGA,123519,4736.372,N,12219.926,W,1,08,0.9,545.4,M,46.9,M,,");
+    QTest::mouseClick(gpsButton, Qt::LeftButton);
+    checkWait([&] {return lat->text() == "47 36.37N" && lon->text() == "122 19.93W" && gpsButton->isEnabled();}, [&] {return "the GPS button writes degrees and minutes (" + lat->text() + ", " + lon->text() + ")";});
+    sentence = nmea("GPGGA,123519,3351.000,S,00712.000,W,1,08,0.9,545.4,M,46.9,M,,");
+    QTest::mouseClick(gpsButton, Qt::LeftButton);
+    checkWait([&] {return lat->text() == "33 51.00S" && lon->text() == "007 12.00W" && gpsButton->isEnabled();}, [&] {return "with the hemisphere letters and the longitude padded (" + lat->text() + ", " + lon->text() + ")";});
+    feeding = false;
+
+    // the macros print it
+    {
+      tpl::TemplateDocument d;
+      d.canvas = QRectF(0, 0, 320, 256);
+      tpl::Element e;
+      e.type = tpl::ItemType::Text;
+      e.text = "%a %b";
+      e.pos = QPointF(10, 120);
+      e.font.pointSize = 36;
+      e.fill = Qt::white;
+      d.items << e;
+      QString err;
+      check(tpl::saveFile(templatesPath + "/gpsformat.qtempl", d, &err), "(template with %a %b saved)");
+      galleryWidgetPtr->changedMatrix(imageViewer::TEMPLATETHUMB);
+      txw->setupTemplatesComboBox();
+      QTest::qWait(200);
+      QComboBox *combo = txw->findChild<QComboBox *>("templatesComboBox");
+      check(combo && combo->findText("gpsformat") >= 0, "(the template is in the TX list)");
+      if (!combo) return 1;
+      combo->setCurrentIndex(combo->findText("gpsformat"));
+      lat->setText("");
+      lon->setText("");
+      txw->slotGetParams();
+      const QImage empty = tx->getDisplayedImage()->copy();
+      edit("47.6062", "-122.3321");
+      check(*tx->getDisplayedImage() != empty, "and the template shows the position (the picture changed)");
+      check(tx->latitude == "47 36.37N" && tx->longitude == "122 19.93W", "from the values that the macros expand (" + tx->latitude + ", " + tx->longitude + ")");
+    }
+
+    // remembered, in the format of the day it is read
+    txw->writeSettings();
+    {
+      QSettings qs;
+      check(qs.value("TX/latitude").toString() == "47 36.37N" && qs.value("TX/longitude").toString() == "122 19.93W", "saved with the TX settings as shown");
+      txw->readSettings();
+      check(lat->text() == "47 36.37N" && lon->text() == "122 19.93W", "and restored as shown");
+      qs.setValue("TX/latitude", "47.6062");   // a position saved while the format was decimal degrees
+      qs.setValue("TX/longitude", "-122.3321");
+      txw->readSettings();
+      check(lat->text() == "47 36.37N" && lon->text() == "122 19.93W" && tx->latitude == "47 36.37N", "a position saved in decimal degrees is shown in degrees and minutes");
+      gpsCoordFormat = COORDDECIMAL;
+      qs.setValue("TX/latitude", "47 36.37N");
+      qs.setValue("TX/longitude", "122 19.93W");
+      txw->readSettings();
+      check(lat->text() == "47 36.37N" && lon->text() == "122 19.93W", "while in decimal degrees a saved position is shown as it was typed");
+    }
+    gpsCoordFormat = COORDDEGMIN;
+    txw->positionFormatChanged();
+    check(lat->text() == "47 36.37N", "(back in degrees and minutes)");
+    gpsCoordFormat = COORDDECIMAL;
+    txw->positionFormatChanged();
+    check(lat->text() == "47.60617" && lon->text() == "-122.33217", "(and decimal degrees: " + lat->text() + ", " + lon->text() + ")");
+    lat->setText("");
+    lon->setText("");
+    place->setText("");
+    txw->slotGetParams();
+  }
+
   printf("\n== Configuration > GPS\n");
   {
     QWidget *page = configDialogPtr->findChild<QWidget *>("gpsWidget");
@@ -413,9 +559,19 @@ int main(int argc, char **argv)
         QCheckBox *placeBox = page->findChild<QCheckBox *>("placeCheckBox");
         QPushButton *testButton = page->findChild<QPushButton *>("testPushButton");
         QLabel *result = page->findChild<QLabel *>("resultLabel");
-        check(portBox && baudBox && enableBox && refreshBox && placeBox && testButton && result, "with port, baud, enable, beacon option, place lookup, Test button and result");
-        if (portBox && baudBox && enableBox && refreshBox && placeBox && testButton && result)
+        QComboBox *formatBox = page->findChild<QComboBox *>("formatComboBox");
+        check(portBox && baudBox && enableBox && refreshBox && placeBox && testButton && result && formatBox, "with port, baud, position format, enable, beacon option, place lookup, Test button and result");
+        if (portBox && baudBox && enableBox && refreshBox && placeBox && testButton && result && formatBox)
           {
+            check(formatBox->count() == 2 && formatBox->currentIndex() == COORDDECIMAL, "the position format offers two formats and starts with decimal degrees");
+            {
+              // the page must not get wider for the long names in the list (measured by hiding the row, not by eye)
+              const int with = page->minimumSizeHint().width();
+              for (const char *name : {"formatLabel", "formatComboBox"}) page->findChild<QWidget *>(name)->hide();
+              const int without = page->minimumSizeHint().width();
+              for (const char *name : {"formatLabel", "formatComboBox"}) page->findChild<QWidget *>(name)->show();
+              check(with == without && formatBox->minimumSizeHint().width() < 300, QString("the position format row does not make the page wider (%1 px with, %2 px without)").arg(with).arg(without));
+            }
             // settings round trip: the page holds the values, writeSettings() saves them, readSettings() loads them
             QSettings qs;
             enableBox->setChecked(true);
@@ -423,18 +579,25 @@ int main(int argc, char **argv)
             baudBox->setCurrentText("9600");
             refreshBox->setChecked(false);
             placeBox->setChecked(true);
+            formatBox->setCurrentIndex(COORDDEGMIN);
             configDialogPtr->writeSettings();
             check(qs.value("GPS/enabled").toBool() && qs.value("GPS/port").toString() == slave && qs.value("GPS/baud").toInt() == 9600
-                  && qs.value("GPS/beaconRefresh").toBool() == false && qs.value("GPS/placeLookup").toBool() == true, "the settings are written");
-            check(gpsEnabled && gpsPort == slave && gpsBaud == 9600 && !gpsBeaconRefresh && gpsPlaceLookup, "and are what the program uses");
+                  && qs.value("GPS/beaconRefresh").toBool() == false && qs.value("GPS/placeLookup").toBool() == true
+                  && qs.value("GPS/coordinateFormat").toInt() == COORDDEGMIN, "the settings are written");
+            check(gpsEnabled && gpsPort == slave && gpsBaud == 9600 && !gpsBeaconRefresh && gpsPlaceLookup && gpsCoordFormat == COORDDEGMIN, "and are what the program uses");
             gpsEnabled = false;
             gpsPort.clear();
             gpsBaud = 0;
             gpsBeaconRefresh = true;
             gpsPlaceLookup = false;
+            gpsCoordFormat = COORDDECIMAL;
             configDialogPtr->readSettings();
-            check(gpsEnabled && gpsPort == slave && gpsBaud == 9600 && !gpsBeaconRefresh && gpsPlaceLookup, "and read back");
-            check(portBox->currentText() == slave && baudBox->currentText() == "9600" && enableBox->isChecked() && !refreshBox->isChecked() && placeBox->isChecked(), "and shown on the page");
+            check(gpsEnabled && gpsPort == slave && gpsBaud == 9600 && !gpsBeaconRefresh && gpsPlaceLookup && gpsCoordFormat == COORDDEGMIN, "and read back");
+            check(portBox->currentText() == slave && baudBox->currentText() == "9600" && enableBox->isChecked() && !refreshBox->isChecked() && placeBox->isChecked()
+                  && formatBox->currentIndex() == COORDDEGMIN, "and shown on the page");
+            qs.setValue("GPS/coordinateFormat", 7);   // not a format of this program
+            configDialogPtr->readSettings();
+            check(gpsCoordFormat == COORDDECIMAL && formatBox->currentIndex() == COORDDECIMAL, "a format that does not exist is read as decimal degrees");
             gpsBeaconRefresh = true;
 
             // Test uses the values on the page, leaves the TX tab alone
@@ -451,6 +614,13 @@ int main(int argc, char **argv)
             check(lat->text() == "1.0" && tx->latitude == "1.0", "and does not touch the Lat and Long of the TX tab");
             check(testButton->isEnabled(), "the Test button is usable again");
             check(fake.hits == hitsBefore, "(no place was asked for: the lookup was not on when the position came)");
+
+            // the format chosen on the page is the one Test shows, whether or not it is saved
+            formatBox->setCurrentIndex(COORDDEGMIN);
+            QTest::mouseClick(testButton, Qt::LeftButton);
+            checkWait([&] {return result->text().startsWith("Position:") && result->text().contains("N");}, [&] {return "Test shows degrees and minutes: " + result->text();});
+            check(result->text().contains("47 36.37N") && result->text().contains("122 19.93W") && gpsCoordFormat == COORDDECIMAL, "with the position in them, and nothing is saved by it");
+            formatBox->setCurrentIndex(COORDDECIMAL);
 
             // with the lookup checked on the page the Test button also shows the place, whatever is saved
             placeBox->setChecked(true);

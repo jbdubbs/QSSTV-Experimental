@@ -151,6 +151,52 @@
     </layout>
    </item>
    <item>
+    <layout class="QHBoxLayout" name="formatLayout">
+     <item>
+      <widget class="QLabel" name="formatLabel">
+       <property name="minimumSize">
+        <size>
+         <width>130</width>
+         <height>25</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Position format</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="formatComboBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="toolTip">
+        <string>How the Lat and Long boxes and the %a and %b macros show the position. In the minutes format a position typed in any notation is converted when you leave the box.</string>
+       </property>
+       <property name="sizeAdjustPolicy">
+        <enum>QComboBox::AdjustToMinimumContentsLengthWithIcon</enum>
+       </property>
+       <property name="minimumContentsLength">
+        <number>16</number>
+       </property>
+       <item>
+        <property name="text">
+         <string>Decimal degrees (47.60620, -122.33210)</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Degrees and decimal minutes, APRS / NMEA (47 36.37N, 122 19.93W)</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
     <widget class="QCheckBox" name="beaconRefreshCheckBox">
      <property name="toolTip">
       <string>Keeps Lat and Long current in every beacon picture</string>

@@ -99,6 +99,94 @@ static void testParser()
   CHECK(formatCoordinate(0)=="0.00000");
 }
 
+// ---- the coordinate formats of Configuration > GPS ----
+
+static bool parses(const char *text,bool latitude,double expected)
+{
+  double d=12345;
+  return parseCoordinateText(QString::fromUtf8(text),latitude,d) && near(d,expected);
+}
+
+static bool rejects(const char *text,bool latitude)
+{
+  double d=12345;
+  return !parseCoordinateText(QString::fromUtf8(text),latitude,d) && d==12345;   // and the output is left alone
+}
+
+static void testCoordinates()
+{
+  // the examples of issue #133: "42 44.54N  084 23.82W", the longitude padded to three digits
+  CHECK(formatCoordinate(42.0+44.54/60.0,true,COORDDEGMIN)=="42 44.54N");
+  CHECK(formatCoordinate(-(84.0+23.82/60.0),false,COORDDEGMIN)=="084 23.82W");
+  CHECK(formatCoordinate(47.6062,true,COORDDEGMIN)=="47 36.37N");
+  CHECK(formatCoordinate(-122.3321,false,COORDDEGMIN)=="122 19.93W");
+  CHECK(formatCoordinate(-33.85,true,COORDDEGMIN)=="33 51.00S");
+  CHECK(formatCoordinate(151.2,false,COORDDEGMIN)=="151 12.00E");
+  CHECK(formatCoordinate(7.5,true,COORDDEGMIN)=="07 30.00N");           // the latitude is padded to two digits
+  CHECK(formatCoordinate(-7.5,false,COORDDEGMIN)=="007 30.00W");        // and the longitude to three
+  CHECK(formatCoordinate(0.0,true,COORDDEGMIN)=="00 00.00N");
+  CHECK(formatCoordinate(0.0,false,COORDDEGMIN)=="000 00.00E");
+  CHECK(formatCoordinate(-0.000001,true,COORDDEGMIN)=="00 00.00N");     // rounds to zero: no hemisphere flip
+  CHECK(formatCoordinate(-0.01,true,COORDDEGMIN)=="00 00.60S");
+  CHECK(formatCoordinate(90.0,true,COORDDEGMIN)=="90 00.00N");
+  CHECK(formatCoordinate(-90.0,true,COORDDEGMIN)=="90 00.00S");
+  CHECK(formatCoordinate(180.0,false,COORDDEGMIN)=="180 00.00E");
+  CHECK(formatCoordinate(-180.0,false,COORDDEGMIN)=="180 00.00W");
+  // minutes that round up to 60 carry into the degrees
+  CHECK(formatCoordinate(47.99999,true,COORDDEGMIN)=="48 00.00N");
+  CHECK(formatCoordinate(-122.99999,false,COORDDEGMIN)=="123 00.00W");
+  CHECK(formatCoordinate(47.0+59.996/60.0,true,COORDDEGMIN)=="48 00.00N");
+  CHECK(formatCoordinate(47.0+59.994/60.0,true,COORDDEGMIN)=="47 59.99N");
+  // the decimal format is the old one, whatever the axis
+  CHECK(formatCoordinate(47.6062,true,COORDDECIMAL)=="47.60620");
+  CHECK(formatCoordinate(-122.3321,false,COORDDECIMAL)=="-122.33210");
+  CHECK(formatCoordinate(-122.3321,false,COORDDECIMAL)==formatCoordinate(-122.3321));
+
+  // typed in, in any of the three notations
+  CHECK(parses("47.6062",true,47.6062) && parses("-122.3321",false,-122.3321) && parses("+47.6062",true,47.6062));
+  CHECK(parses("47.6062N",true,47.6062) && parses("N47.6062",true,47.6062) && parses("47.6062 S",true,-47.6062));
+  CHECK(parses("122.3321W",false,-122.3321) && parses("w 122.3321",false,-122.3321) && parses("122.3321 E",false,122.3321));
+  CHECK(parses("47 36.37N",true,47.6062) && parses("47 36.37",true,47.6062) && parses("47 36.37 n",true,47.6062));
+  CHECK(parses("122 19.93W",false,-122.3321) && parses("-122 19.93",false,-122.3321) && parses("084 23.82W",false,-(84.0+23.82/60.0)));
+  CHECK(parses("47\xC2\xB0" "36.37'N",true,47.6062));                              // 47°36.37'N
+  CHECK(parses("47\xC2\xB0" "36'22\"N",true,47.0+36.0/60.0+22.0/3600.0));          // 47°36'22"N
+  CHECK(parses("47 36 22.5N",true,47.0+36.0/60.0+22.5/3600.0) && parses("122 19 55.6W",false,-(122.0+19.0/60.0+55.6/3600.0)));
+  CHECK(parses("47 36\xE2\x80\xB2" "22\xE2\x80\xB3N",true,47.0+36.0/60.0+22.0/3600.0));          // typographic prime and double prime
+  CHECK(parses("47, 36.37, N",true,47.6062));
+  CHECK(parses("  47   36.37N  ",true,47.6062));
+  CHECK(parses("0",true,0.0) && parses("-0 30",true,-0.5) && parses("0 30S",true,-0.5));
+  CHECK(parses("90",true,90.0) && parses("90 00.00N",true,90.0) && parses("-90",true,-90.0) && parses("180",false,180.0) && parses("180 0 0W",false,-180.0));
+  CHECK(parses("59",true,59.0) && parses("47 59.99",true,47.0+59.99/60.0) && parses("47 59 59.9",true,47.0+59.0/60.0+59.9/3600.0));
+  CHECK(parses(".5",true,0.5) && parses("47.",true,47.0));
+
+  // not a coordinate
+  CHECK(rejects("",true) && rejects("   ",true) && rejects("abc",true) && rejects("N",true) && rejects("47 N S",true));
+  CHECK(rejects("122.3321E",true) && rejects("47.6062N",false));                       // a longitude letter in the latitude and the other way round
+  CHECK(rejects("47.6062X",true) && rejects("X47.6062",true) && rejects("N47.6062S",true) && rejects("N 47 36.37N",true));
+  CHECK(rejects("-47 36.37S",true) && rejects("-47.6062N",true) && rejects("-122.3321W",false));   // a sign and a letter say it twice
+  CHECK(rejects("91",true) && rejects("90 00.01N",true) && rejects("181",false) && rejects("-91",true) && rejects("180 01W",false));
+  CHECK(rejects("47 60",true) && rejects("47 60.00N",true) && rejects("47 36 60",true) && rejects("47 61",true));
+  CHECK(rejects("47.5 36",true) && rejects("47 36.5 22",true));                        // only the last number may have decimals
+  CHECK(rejects("47 36 22 10",true) && rejects("47 -36",true) && rejects("47-36",true));
+  CHECK(parses("4 7",true,4.0+7.0/60.0));                                               // two numbers are always degrees and minutes
+  CHECK(rejects("1e2",true) && rejects("47,6062",true) && rejects("47..6",true) && rejects("--47",true) && rejects("+-47",true));
+  CHECK(rejects("47.6062 W",true));
+
+  // format -> parse comes back to within the rounding of 0.01 minute
+  for(int i=0;i<2000;i++)
+    {
+      const double lat=-90.0+180.0*i/1999.0;
+      const double lon=-180.0+360.0*i/1999.0;
+      double a=0,b=0;
+      const bool la=parseCoordinateText(formatCoordinate(lat,true,COORDDEGMIN),true,a);
+      const bool lo=parseCoordinateText(formatCoordinate(lon,false,COORDDEGMIN),false,b);
+      CHECK(la && lo && std::fabs(a-lat)<=0.01/60.0/2.0+1e-9 && std::fabs(b-lon)<=0.01/60.0/2.0+1e-9);
+      double c=0,d=0;
+      CHECK(parseCoordinateText(formatCoordinate(lat,true,COORDDECIMAL),true,c) && parseCoordinateText(formatCoordinate(lon,false,COORDDECIMAL),false,d)
+            && std::fabs(c-lat)<=0.5e-5+1e-9 && std::fabs(d-lon)<=0.5e-5+1e-9);
+    }
+}
+
 // ---- the reader on a pseudo terminal ----
 
 static int openPty(QString &slavePath)
@@ -397,6 +485,7 @@ int main(int argc,char **argv)
 {
   QCoreApplication app(argc,argv);
   testParser();
+  testCoordinates();
   std::printf("parser done\n");
   std::fflush(stdout);
   testPlaceParser();

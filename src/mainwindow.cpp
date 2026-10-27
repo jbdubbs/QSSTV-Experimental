@@ -737,6 +737,7 @@ void mainWindow::slotConfigure()
           restartSound(false);
         }
       dispatcherPtr->init();
+      txWidgetPtr->positionFormatChanged();
     }
 }
 

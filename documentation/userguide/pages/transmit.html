@@ -69,11 +69,14 @@ picture is sent.</p>
 identify as required (use a template with your call sign).</p></div>
 
 <h2 id="gps">GPS position</h2>
-<p>The <strong>Lat</strong> and <strong>Long</strong> boxes under <em>To</em>, <em>Op</em> and <em>RSV</em> hold the latitude and longitude of the station in decimal degrees (north and east positive, for example
+<p>The <strong>Lat</strong> and <strong>Long</strong> boxes under <em>To</em>, <em>Op</em> and <em>RSV</em> hold the latitude and longitude of the station, by default in decimal degrees (north and east positive, for example
 <code>47.60620</code> and <code>-122.33210</code>). A template shows them with the <code>%a</code> (latitude) and <code>%b</code> (longitude) <a href="template-editor.html#macros">macros</a>. Type the position in, or press
 the <strong>GPS</strong> button next to the boxes to read it from a GPS receiver, once it is set up in <a href="configuration.html#gps">Configuration &gt; GPS</a>. If the GPS cannot be read a message says why and
-the boxes keep their values. Unlike <em>To</em>, <em>Op</em> and <em>RSV</em>, the position is remembered when you close the program. What you type is printed as typed, so you can also use another notation, for example
+the boxes keep their values. Unlike <em>To</em>, <em>Op</em> and <em>RSV</em>, the position is remembered when you close the program. In decimal degrees what you type is printed as typed, so you can also use another notation, for example
 <code>47&deg;36'N</code>.</p>
+<p>Set <strong>Position format</strong> in <a href="configuration.html#gps">Configuration &gt; GPS</a> to <em>Degrees and decimal minutes</em> for the notation of GPS receivers and APRS, <code>47 36.37N</code> and <code>122 19.93W</code>
+(<code>084 23.82W</code>: the longitude has three degree digits). The boxes, the GPS button and the <code>%a</code> and <code>%b</code> macros then all use it, and a position typed or pasted in any notation, such as the decimal degrees of an online map, is
+converted when you leave the box.</p>
 <p>The <strong>Place</strong> box holds the city and state for the <code>%g</code> macro, for example <code>Seattle, WA</code>. Type it in, or let the program find it: with
 <em>Look up the city and state on the internet</em> ticked in <a href="configuration.html#gps">Configuration &gt; GPS</a>, a position read with the <strong>GPS</strong> button or typed into the
 <em>Lat</em> and <em>Long</em> boxes is sent to OpenStreetMap, which answers with the place. The state is the two or three letter code in the United States, Canada and Australia and the full name elsewhere.

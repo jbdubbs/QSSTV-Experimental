@@ -15,6 +15,7 @@ QString gpsPort;
 int     gpsBaud;
 bool    gpsBeaconRefresh;
 bool    gpsPlaceLookup;
+int     gpsCoordFormat;
 
 gpsConfig::gpsConfig(QWidget *parent) : baseConfig(parent), ui(new Ui::gpsConfig)
 {
@@ -46,6 +47,8 @@ void gpsConfig::readSettings()
   gpsBaud=qSettings.value("baud",4800).toInt();
   gpsBeaconRefresh=qSettings.value("beaconRefresh",true).toBool();
   gpsPlaceLookup=qSettings.value("placeLookup",false).toBool();   // off: the position leaves the computer
+  gpsCoordFormat=qSettings.value("coordinateFormat",COORDDECIMAL).toInt();
+  if(gpsCoordFormat!=COORDDEGMIN) gpsCoordFormat=COORDDECIMAL;
   qSettings.endGroup();
   setParams();
 }
@@ -81,6 +84,7 @@ void gpsConfig::writeSettings()
   qSettings.setValue("baud",gpsBaud);
   qSettings.setValue("beaconRefresh",gpsBeaconRefresh);
   qSettings.setValue("placeLookup",gpsPlaceLookup);
+  qSettings.setValue("coordinateFormat",gpsCoordFormat);
   qSettings.endGroup();
 }
 
@@ -91,14 +95,17 @@ void gpsConfig::getParams()
   const int baudCopy=gpsBaud;
   const bool refreshCopy=gpsBeaconRefresh;
   const bool placeCopy=gpsPlaceLookup;
+  const int formatCopy=gpsCoordFormat;
 
   getValue(gpsEnabled,ui->enableCheckBox);
   gpsPort=ui->portComboBox->currentText().trimmed();
   getValue(gpsBaud,ui->baudComboBox);
   getValue(gpsBeaconRefresh,ui->beaconRefreshCheckBox);
   getValue(gpsPlaceLookup,ui->placeCheckBox);
+  getIndex(gpsCoordFormat,ui->formatComboBox);
 
-  changed=(enabledCopy!=gpsEnabled || portCopy!=gpsPort || baudCopy!=gpsBaud || refreshCopy!=gpsBeaconRefresh || placeCopy!=gpsPlaceLookup);
+  changed=(enabledCopy!=gpsEnabled || portCopy!=gpsPort || baudCopy!=gpsBaud || refreshCopy!=gpsBeaconRefresh || placeCopy!=gpsPlaceLookup ||
+           formatCopy!=gpsCoordFormat);
 }
 
 void gpsConfig::setParams()
@@ -108,6 +115,7 @@ void gpsConfig::setParams()
   setValue(gpsBaud,ui->baudComboBox);
   setValue(gpsBeaconRefresh,ui->beaconRefreshCheckBox);
   setValue(gpsPlaceLookup,ui->placeCheckBox);
+  setIndex(gpsCoordFormat,ui->formatComboBox);
   ui->resultLabel->clear();
 }
 
@@ -147,6 +155,8 @@ void gpsConfig::slotTest()
   int baud;
   getValue(baud,ui->baudComboBox);
   const bool lookup=ui->placeCheckBox->isChecked();
+  int format;
+  getIndex(format,ui->formatComboBox);
   if(gpsReaderPtr==nullptr || port.isEmpty()) return;
   const QString conflict=portConflict(port);
   if(!conflict.isEmpty())
@@ -163,7 +173,7 @@ void gpsConfig::slotTest()
       ui->testPushButton->setEnabled(true);
       return;
     }
-  connect(gpsReaderPtr,&gpsReader::fixReady,this,[this,lookup](bool ok,double lat,double lon,const QString &reason)
+  connect(gpsReaderPtr,&gpsReader::fixReady,this,[this,lookup,format](bool ok,double lat,double lon,const QString &reason)
     {
       if(!ok)
         {
@@ -171,7 +181,7 @@ void gpsConfig::slotTest()
           ui->resultLabel->setText(reason);
           return;
         }
-      const QString position=tr("Position: %1, %2").arg(formatCoordinate(lat),formatCoordinate(lon));
+      const QString position=tr("Position: %1, %2").arg(formatCoordinate(lat,true,format),formatCoordinate(lon,false,format));
       if(!lookup || placeLookupPtr==nullptr)
         {
           ui->testPushButton->setEnabled(true);

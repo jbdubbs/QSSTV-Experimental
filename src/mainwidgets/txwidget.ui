@@ -1173,10 +1173,10 @@
           </size>
          </property>
          <property name="toolTip">
-          <string>Latitude, decimal degrees, north positive (%a)</string>
+          <string>Latitude (%a): decimal degrees, north positive, or degrees and decimal minutes, as set in Configuration &gt; GPS</string>
          </property>
          <property name="statusTip">
-          <string>Latitude, decimal degrees, north positive (%a)</string>
+          <string>Latitude (%a): decimal degrees, north positive, or degrees and decimal minutes, as set in Configuration &gt; GPS</string>
          </property>
         </widget>
          </item>
@@ -1205,10 +1205,10 @@
           </size>
          </property>
          <property name="toolTip">
-          <string>Longitude, decimal degrees, east positive (%b)</string>
+          <string>Longitude (%b): decimal degrees, east positive, or degrees and decimal minutes, as set in Configuration &gt; GPS</string>
          </property>
          <property name="statusTip">
-          <string>Longitude, decimal degrees, east positive (%b)</string>
+          <string>Longitude (%b): decimal degrees, east positive, or degrees and decimal minutes, as set in Configuration &gt; GPS</string>
          </property>
         </widget>
          </item>

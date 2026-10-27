@@ -111,7 +111,7 @@ With CAT working, the status bar shows the rig frequency.</p>
 <p>The time in seconds between keying the transmitter and starting the audio, for radios that need a moment to switch.</p>
 
 <h2 id="gps">GPS</h2>
-<figure><img src="../images/cfg-gps.png" alt="The GPS configuration page with enable checkbox, serial port, baud rate, beacon option, city and state lookup option and a Test button" loading="lazy"><figcaption>GPS page.</figcaption></figure>
+<figure><img src="../images/cfg-gps.png" alt="The GPS configuration page with enable checkbox, serial port, baud rate, position format, beacon option, city and state lookup option and a Test button" loading="lazy"><figcaption>GPS page.</figcaption></figure>
 
 <p>Reads the position of the station from a GPS receiver that sends NMEA sentences over a serial port (most USB GPS receivers do). The position goes into the <em>Lat</em> and
 <em>Long</em> boxes on the Transmit tab and from there into the <code>%a</code> and <code>%b</code> template macros; see <a href="transmit.html#gps">GPS position</a>.</p>
@@ -120,6 +120,11 @@ With CAT working, the status bar shows the rig frequency.</p>
 On Linux the list holds the names under <code>/dev/serial/by-id</code>, for example <code>usb-Silicon_Labs_CP2105_...-if00-port0</code>: they name the adapter, so they keep working when you plug it into another socket
 (<code>/dev/ttyUSB0</code> may become <code>/dev/ttyUSB1</code>). A serial port that has no such name, such as the built-in <code>/dev/ttyS0</code>, can be typed in.
 <strong>Read the GPS before each WA8LMF beacon transmission</strong> makes <a href="transmit.html#beacon">WA8LMF Beacon Mode</a> read a fresh position for every picture.</p>
+<p><strong>Position format</strong> chooses how the <em>Lat</em> and <em>Long</em> boxes, the GPS button and the <code>%a</code> and <code>%b</code> macros write a position, and it applies to a position you type as well as to one read from the GPS.
+<em>Decimal degrees</em> (the default) is the notation of online maps, for example <code>47.60620</code> and <code>-122.33210</code>, and what you type is printed as typed.
+<em>Degrees and decimal minutes</em> is the native notation of GPS receivers and APRS: <code>47 36.37N</code> and <code>122 19.93W</code>, with minutes to two decimals, N, S, E or W instead of a minus sign, and the longitude always padded to three digits
+(<code>084 23.82W</code>). In this format whatever you type or paste into the boxes is converted when you leave the box, so you can paste decimal degrees from a map (<code>47.6062</code>, <code>-122.3321</code>) or write minutes and seconds
+(<code>47&deg;36'22"N</code>) and get <code>47 36.37N</code> back. Text that is not a position is left alone. Changing the format converts the boxes. The Test button shows the position in the format chosen on the page.</p>
 <p><strong>Look up the city and state on the internet</strong> is off until you tick it, because the position leaves your computer: it is sent to the Nominatim service of
 <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, which answers with the city and state for the <em>Place</em> box and the <code>%g</code> template macro. A position within about a
 kilometer of the last one is not asked again, so a station that stays put makes one request. The connection is secure (https): Windows uses its own TLS, and on Linux the OpenSSL libraries have to be installed, as they normally are.

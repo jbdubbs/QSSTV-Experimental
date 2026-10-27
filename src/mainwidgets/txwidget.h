@@ -46,6 +46,8 @@ public:
   void prepareTxComplete(bool ok);
   void writeSettings();
   void readSettings();
+  //! Configuration > GPS may have another position format now: the Lat and Long boxes are converted to it (in both directions)
+  void positionFormatChanged();
   //  void repeat(QImage *im,esstvMode sm);
   void sendRepeaterImage(esstvMode rxMode=NOTVALID);
   void setImage(QImage *ima);
@@ -147,6 +149,7 @@ signals:
   void beaconCountdownChanged(const QString &text,bool error); //!< status bar text for the running webcam beacon (countdown, or the reason it is not transmitting); empty: not running
 
 private:
+  void convertPosition(int format);
   void initView();
   void setParams();
   void applyTemplate();
@@ -194,6 +197,7 @@ private:
   bool placeAwaiting=false;     // a place lookup of this widget is in flight (the Test button of Configuration > GPS does not count)
   bool placeManual=false;       // ... and the Get GPS button started it
   QString placeKey;             // the Lat and Long text that the last lookup was for: a box that is left unchanged asks nothing
+  int positionFormat=0;         // the format (coordinateFormat) that the Lat and Long boxes were last written in
   QTimer repeaterTxDelayTimer;
   int repeaterIndex;
   QImage resultImage;

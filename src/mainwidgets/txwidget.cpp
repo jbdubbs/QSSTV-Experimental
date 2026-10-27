@@ -236,6 +236,13 @@ void txWidget::readSettings()
   imageViewerPtr->latitude=qSettings.value("latitude",QString()).toString();
   imageViewerPtr->longitude=qSettings.value("longitude",QString()).toString();
   imageViewerPtr->place=qSettings.value("place",QString()).toString();
+  positionFormat=gpsCoordFormat;   // Configuration > GPS has been read by now
+  if(positionFormat==COORDDEGMIN)
+    {
+      double degrees;
+      if(parseCoordinateText(imageViewerPtr->latitude,true,degrees)) imageViewerPtr->latitude=formatCoordinate(degrees,true,positionFormat);
+      if(parseCoordinateText(imageViewerPtr->longitude,false,degrees)) imageViewerPtr->longitude=formatCoordinate(degrees,false,positionFormat);
+    }
   placeKey=imageViewerPtr->latitude+"|"+imageViewerPtr->longitude;   // the saved place belongs to the saved position
   qSettings.endGroup();
   setParams();
@@ -1658,8 +1665,8 @@ void txWidget::slotGpsFix(bool ok,double lat,double lon,const QString &reason)
   ui->gpsToolButton->setEnabled(true);
   if(ok)
     {
-      setValue(formatCoordinate(lat),ui->latLineEdit);
-      setValue(formatCoordinate(lon),ui->lonLineEdit);
+      setValue(formatCoordinate(lat,true,gpsCoordFormat),ui->latLineEdit);
+      setValue(formatCoordinate(lon,false,gpsCoordFormat),ui->lonLineEdit);
       slotGetParams();   // takes the values over and renders the template again
       requestPlace(manual);
     }
@@ -1678,10 +1685,8 @@ void txWidget::slotGpsFix(bool ok,double lat,double lon,const QString &reason)
 bool txWidget::requestPlace(bool manual)
 {
   if(!gpsPlaceLookup || placeAwaiting) return false;
-  bool latOk,lonOk;
-  const double lat=imageViewerPtr->latitude.toDouble(&latOk);
-  const double lon=imageViewerPtr->longitude.toDouble(&lonOk);
-  if(!latOk || !lonOk || lat<-90 || lat>90 || lon<-180 || lon>180) return false;
+  double lat,lon;   // whatever the notation, as long as it is one (range included)
+  if(!parseCoordinateText(imageViewerPtr->latitude,true,lat) || !parseCoordinateText(imageViewerPtr->longitude,false,lon)) return false;
   if(!placeLookupPtr->requestPlace(lat,lon)) return false;
   placeKey=imageViewerPtr->latitude+"|"+imageViewerPtr->longitude;
   placeAwaiting=true;
@@ -1713,9 +1718,30 @@ void txWidget::slotPlaceReady(bool ok,const QString &place,const QString &reason
   if(!ok && manual) QMessageBox::warning(this,"Place",reason);
 }
 
+// Writes both boxes in the given format. Text that is no coordinate (free text such as 47°N or a name) stays as it is.
+void txWidget::convertPosition(int format)
+{
+  double degrees;
+  if(parseCoordinateText(ui->latLineEdit->text(),true,degrees)) setValue(formatCoordinate(degrees,true,format),ui->latLineEdit);
+  if(parseCoordinateText(ui->lonLineEdit->text(),false,degrees)) setValue(formatCoordinate(degrees,false,format),ui->lonLineEdit);
+}
+
+// Another position format in Configuration > GPS: the boxes follow. The place stays, it belongs to the same position.
+void txWidget::positionFormatChanged()
+{
+  if(gpsCoordFormat==positionFormat) return;
+  positionFormat=gpsCoordFormat;
+  const bool sameKey=(ui->latLineEdit->text()+"|"+ui->lonLineEdit->text()==placeKey);
+  convertPosition(positionFormat);
+  slotGetParams();   // takes the values over and renders the template again
+  if(sameKey) placeKey=imageViewerPtr->latitude+"|"+imageViewerPtr->longitude;
+}
+
 // typed-in coordinates: the place follows them, but only when they changed (a box that is just left must not replace a place typed in)
 void txWidget::slotPositionEdited()
 {
+  // in decimal degrees the text is printed as typed; in degrees and minutes whatever was typed or pasted is converted
+  if(gpsCoordFormat==COORDDEGMIN) convertPosition(COORDDEGMIN);
   slotGetParams();
   if(imageViewerPtr->latitude+"|"+imageViewerPtr->longitude==placeKey) return;
   requestPlace(false);
