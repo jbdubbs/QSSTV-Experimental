@@ -62,7 +62,7 @@ takes its Wayland app ID from `$FLATPAK_ID`.
 ## Linux AppImage
 
 `packaging/appimage/build.sh` builds the self-contained AppImage inside an Ubuntu 24.04 container (glibc 2.39
-floor) with the official Qt 6.11 binaries. It needs Docker and a Hamlib checkout at `../hamlib-upstream-sstv`
+floor, which is why the README asks for Ubuntu 24.04 or Fedora 40 and later) with the official Qt 6.11 binaries. It needs Docker and a Hamlib checkout at `../hamlib-upstream-sstv`
 (a sibling of this repository), which it builds inside the container.
 
 ```
