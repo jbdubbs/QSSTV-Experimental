@@ -25,7 +25,9 @@ quint32 get32(const QByteArray &bytes,int at){return qFromLittleEndian<quint32>(
 QString temporaryName(const QString &path){return QDir(QFileInfo(path).absolutePath()).filePath(".kgstv-offline-XXXXXX");}
 void publish(QTemporaryFile &file,const QString &path) {
   require(file.flush(),"Could not flush output: "+path);file.close();
-  require(QFile::rename(file.fileName(),path),"Could not publish output without replacing an existing file: "+path);
+  // QTemporaryFile retains its native handle on close(); its own rename closes/reopens
+  // that handle correctly on Windows. A static QFile::rename can fail with sharing denied.
+  require(file.rename(path),"Could not publish output without replacing an existing file: "+path+": "+file.errorString());
   file.setAutoRemove(false);
 }
 void writeWave(const QString &path,const QVector<Packet> &packets,bool fourLevel) {

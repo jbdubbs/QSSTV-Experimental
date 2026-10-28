@@ -2,20 +2,21 @@
 # AVIF/HEIC plugins and the existing NSIS installer (not a portable SFX).
 name: KG-STV Windows installer
 on:
-  push:
-    branches: ['feature/kgstv-integration']
-    paths:
-      - '.github/workflows/kgstv-windows.yml'
-      - 'tools/package-win64.sh'
-      - 'tests/kgstv/test_windows_package.py'
   workflow_dispatch:
+    inputs:
+      installer_run:
+        description: 'Optional: verify an existing installer run using a freshly compiled test helper'
+        required: false
+        default: ''
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: kgstv-windows-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   cross-build:
+    if: inputs.installer_run == ''
     runs-on: ubuntu-24.04
     container: fedora:44
     timeout-minutes: 90
@@ -102,8 +103,30 @@ jobs:
           path: build-mingw64/kgstv/kgstv-offline.exe
           if-no-files-found: error
           retention-days: 7
+  helper-build:
+    if: inputs.installer_run != ''
+    runs-on: ubuntu-24.04
+    container: fedora:44
+    timeout-minutes: 15
+    steps:
+      - name: Install the same Fedora MinGW Qt toolchain for the test helper
+        run: dnf install -y git cmake make gcc-c++ mingw64-gcc-c++ mingw64-qt6-qtbase
+      - uses: actions/checkout@v4
+      - name: Compile only the independent offline test helper
+        run: |
+          cmake -S tools/kgstv -B build-windows-helper \
+            -DCMAKE_TOOLCHAIN_FILE=/usr/share/mingw/toolchain-mingw64.cmake \
+            -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+          cmake --build build-windows-helper --target kgstv-offline -j2
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KGSTV-Windows-test-helper
+          path: build-windows-helper/kgstv-offline.exe
+          if-no-files-found: error
+          retention-days: 7
   windows-check:
-    needs: cross-build
+    needs: [cross-build, helper-build]
+    if: ${{ !cancelled() && (needs.cross-build.result == 'success' || needs.helper-build.result == 'success') }}
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
@@ -112,6 +135,8 @@ jobs:
         with:
           name: QSSTV-Experimental-KGSTV-Windows-x86_64
           path: windows-artifact
+          run-id: ${{ inputs.installer_run || github.run_id }}
+          github-token: ${{ github.token }}
       - uses: actions/download-artifact@v4
         with:
           name: KGSTV-Windows-test-helper

@@ -191,7 +191,7 @@ The Windows build is a MinGW cross-compile.
 
 `.github/workflows/kgstv-windows.yml` applies the same Fedora MinGW / static vendored Hamlib / AVIF+HEIC / NSIS process to `feature/kgstv-integration`. It produces an x86_64 **installer**, matching main's packaging rather than a portable self-extracting application. The source commit, pinned Hamlib commit and Fedora package versions accompany the installer and SHA-256 file in the Actions artifact.
 
-A Windows runner extracts the actual installer and tests its application with compiler/Qt directories removed from PATH: packaged startup, both KG-STV modulation modes through production WAV TX/RX, native-codec image comparison and standalone text. These checks do not initialize audio or CAT/PTT, and do not establish real-device or original KG-STV outbound/BSR interoperability. The Windows test helper is a separate temporary CI artifact, not part of the installer.
+A Windows runner extracts the actual installer and tests its application with compiler/Qt directories removed from PATH: packaged startup, both KG-STV modulation modes through production WAV TX/RX, native-codec image comparison and standalone text. These checks do not initialize audio or CAT/PTT, and do not establish real-device or original KG-STV outbound/BSR interoperability. The Windows test helper is a separate temporary CI artifact, not part of the installer. The workflow is started manually on the branch. Leave `installer_run` empty for a complete build, or supply a previous run ID to recheck its unchanged installer with a freshly compiled helper after test-tool fixes.
 
 Supported systems: 64-bit Windows 10 version 1809 or newer, and Windows 11 (Qt 6's own minimum). Run `winver` to
 check your version.
