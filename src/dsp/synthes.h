@@ -22,6 +22,7 @@
 #define SYNTHES_H
 
 #include <math.h>
+#include <atomic>
 #include "filterparam.h"
 #include "waterfalltext.h"
 
@@ -52,6 +53,7 @@ public:
 	void setFilter(efilterType txFilterType);
   void sendWFText();
   void writeBuffer(quint32 *buffer,int len);
+  bool writePcm(const double *samples,int count,const std::atomic_bool &cancel);
 private:
 	double txSamplingClock;
 	double oldAngle;

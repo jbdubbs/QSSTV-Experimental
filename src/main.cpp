@@ -1,3 +1,4 @@
+#include "kgstvcontroller.h"
 /**************************************************************************
 *   Copyright (C) 2000-2019 by Johan Maes                                 *
 *   on4qz@telenet.be                                                      *
@@ -371,6 +372,8 @@ int main( int argc, char ** argv )
   QCommandLineOption tplReplayOpt("template-replay","With --render-template: the picture shown in the template's replay slot.","image");
   QCommandLineOption installOpt("install","AppImage only: add QSSTV-Experimental (menu entry, icons) to your desktop and exit.");
   QCommandLineOption uninstallOpt("uninstall","AppImage only: remove the menu entry and icons added by --install and exit.");
+  QCommandLineOption kgstvOpt("kgstv","With --batch, --decode or --listen: receive experimental KG-STV image/text instead of SSTV. With --encode: write a KG-STV image WAV.");
+  QCommandLineOption kgstvFourOpt("kgstv-four-level","With --kgstv: use 4L-FSK framing (default MSK).");
   QCommandLineOption drmOpt("drm","With --batch or --listen: receive DRM (digital SSTV) instead of analog SSTV; the received file is saved as <file>_<n>_drm.<ext> (--listen: drm_<date>_<time>.<ext>) and with --batch a "
                             "'drm-stats:' line (sync / FAC / MSC percentages, MSC flaps, FAC and MSC MER) is printed per file. With --encode: transmit the picture as DRM.");
   QCommandLineOption drmModeOpt("drm-mode","With --encode --drm: robustness mode A, B or E (default: your TX setting).","mode");
@@ -383,13 +386,16 @@ int main( int argc, char ** argv )
   QCommandLineOption drmEncOpt("drm-encoding","With --encode --drm: picture codec jpeg2000 or avif (default: your TX setting).","codec");
   QCommandLineOption rxGainOpt("rx-gain","With --batch: test aid, amplify the recording by <dB> (negative to attenuate) before the receiver.","dB");
   QCommandLineOption rxNoiseOpt("rx-noise","With --batch: test aid, add white noise of this RMS level in dB full scale (e.g. -40) to the recording.","dBFS");
-  parser.addOptions(QList<QCommandLineOption>() << drmOpt << drmModeOpt << drmBwOpt << drmQamOpt << drmProtOpt << drmIlvOpt << drmRsOpt << drmSizeOpt << drmEncOpt << rxGainOpt << rxNoiseOpt << helpOpt << versionOpt << decodeOpt << batchOpt << outDirOpt << modeOpt << timeoutOpt << listenOpt << deviceOpt << listDevicesOpt << minCompleteOpt << encodeOpt << wavOutOpt << listOpt << renderTplOpt << convertTplOpt << tplOutOpt << tplBaseOpt << tplSizeOpt << tplVarOpt << tplReplayOpt << installOpt << uninstallOpt);
+  parser.addOptions(QList<QCommandLineOption>() << kgstvOpt << kgstvFourOpt << drmOpt << drmModeOpt << drmBwOpt << drmQamOpt << drmProtOpt << drmIlvOpt << drmRsOpt << drmSizeOpt << drmEncOpt << rxGainOpt << rxNoiseOpt << helpOpt << versionOpt << decodeOpt << batchOpt << outDirOpt << modeOpt << timeoutOpt << listenOpt << deviceOpt << listDevicesOpt << minCompleteOpt << encodeOpt << wavOutOpt << listOpt << renderTplOpt << convertTplOpt << tplOutOpt << tplBaseOpt << tplSizeOpt << tplVarOpt << tplReplayOpt << installOpt << uninstallOpt);
   parser.addPositionalArgument("file","SSTV recordings to decode (same as --decode).","[file ...]");
   if(!parser.parse(app.arguments()))
     {
       fprintf(stderr,"%s\nTry --help.\n",parser.errorText().toLocal8Bit().constData());
       return fileDecoder::EXIT_BADFILE;
     }
+  if((parser.isSet(kgstvOpt) && parser.isSet(drmOpt)) || (parser.isSet(kgstvFourOpt) && !parser.isSet(kgstvOpt))) {
+    fprintf(stderr,"--kgstv cannot be combined with --drm; --kgstv-four-level requires --kgstv.\n");return fileDecoder::EXIT_BADFILE;
+  }
   if(parser.isSet(helpOpt))
     {
       fputs(parser.helpText().toLocal8Bit().constData(),stdout);
@@ -541,8 +547,10 @@ int main( int argc, char ** argv )
   splashTime.start();
   splashMessage("Version "+MAJORVERSION+MINORVERSION);
   tm.start(100);
+  soundBase::fileOnly=parser.isSet(kgstvOpt) && ((batch && !listen) || encode);
   globalInit();
   mainWindowPtr=new mainWindow;
+  if(soundBase::fileOnly){rxClock=BASESAMPLERATE;txClock=BASESAMPLERATE;} // files have a nominal clock, not a sound-card calibration
   mainWindowPtr->setWindowIcon(QPixmap(":/icons/qsstv.png"));
   if(listen)
     {
@@ -559,6 +567,10 @@ int main( int argc, char ** argv )
   if(!encode)
     {
       fileDecoderPtr->setDrm(parser.isSet(drmOpt));
+      fileDecoderPtr->setKgstv(parser.isSet(kgstvOpt));
+      if(parser.isSet(kgstvOpt) && kgstvControllerPtr) {
+        auto options=kgstvControllerPtr->options();options.fourLevel=parser.isSet(kgstvFourOpt);kgstvControllerPtr->configure(options);
+      }
       fileDecoderPtr->setVerbose(!files.isEmpty());
     }
   while(1)
@@ -607,6 +619,23 @@ int main( int argc, char ** argv )
       mainWindowPtr->shutdown(false);
       globalEnd();
       return fileDecoder::EXIT_BADFILE;
+    }
+  if(encode && parser.isSet(kgstvOpt))
+    {
+      QImage image;loadImageAutoRotate(image,parser.value(encodeOpt));
+      if(image.isNull()){fprintf(stderr,"--encode: cannot read KG-STV image\n");mainWindowPtr->shutdown(false);globalEnd();return fileDecoder::EXIT_BADFILE;}
+      mainWindowPtr->switchMode(TRXKGSTV);
+      auto options=kgstvControllerPtr->options();options.fourLevel=parser.isSet(kgstvFourOpt);kgstvControllerPtr->configure(options);
+      QString error;
+      if(!kgstvControllerPtr->prepareImageJob(image.scaled(320,240,Qt::IgnoreAspectRatio,Qt::SmoothTransformation),myCallsign,&error)) {
+        fprintf(stderr,"%s\n",qPrintable(error));mainWindowPtr->shutdown(false);globalEnd();return fileDecoder::EXIT_BADFILE;
+      }
+      soundBase::txFileName=parser.isSet(wavOutOpt)?parser.value(wavOutOpt):parser.value(encodeOpt)+".wav";
+      QObject::connect(kgstvControllerPtr,&Kgstv::Controller::transmitFinished,&app,[&app](bool success){app.exit(success?0:2);},Qt::QueuedConnection);
+      QTimer::singleShot(1800000,&app,[&app](){fprintf(stderr,"KG-STV encode timed out\n");app.exit(3);});
+      mainWindowPtr->startRunning(false);
+      if(!dispatcherPtr->startTX(txFunctions::TXSENDKGSTV)){mainWindowPtr->shutdown(false);globalEnd();return fileDecoder::EXIT_BADFILE;}
+      result=app.exec();mainWindowPtr->shutdown(false);globalEnd();return result;
     }
   if(encode && parser.isSet(drmOpt))
     {

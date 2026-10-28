@@ -63,9 +63,11 @@ soundConfig::soundConfig(QWidget *parent) :  baseConfig(parent), ui(new Ui::soun
   ui->pulseRadioButton->hide();
   // Devices come and go (USB, Bluetooth, PipeWire restarts); keep the lists current so a
   // newly available device can be picked without restarting the app (issue #73).
-  static QMediaDevices mediaDevices;
-  connect(&mediaDevices,&QMediaDevices::audioInputsChanged,this,&soundConfig::refreshDeviceLists);
-  connect(&mediaDevices,&QMediaDevices::audioOutputsChanged,this,&soundConfig::refreshDeviceLists);
+  if(!soundBase::fileOnly) {
+    static QMediaDevices mediaDevices;
+    connect(&mediaDevices,&QMediaDevices::audioInputsChanged,this,&soundConfig::refreshDeviceLists);
+    connect(&mediaDevices,&QMediaDevices::audioOutputsChanged,this,&soundConfig::refreshDeviceLists);
+  }
   connect(ui->duplicateChannelCheckBox,&QCheckBox::toggled,this,&soundConfig::updateChannelEnables);
 }
 

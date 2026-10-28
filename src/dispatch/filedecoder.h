@@ -13,6 +13,7 @@
 
 #include <QElapsedTimer>
 #include <QObject>
+#include <QImage>
 #include <QStringList>
 #include <QTimer>
 #include "sstvparam.h"
@@ -44,6 +45,9 @@ public:
   void soundRestarting(bool on) {restarting=on;}
   //! batch: receive DRM (digital) instead of SSTV; the picture file goes to outDir as <input>_<n>_drm.<ext>
   void setDrm(bool on) {drm=on;}
+  void setKgstv(bool on) {kgstv=on;}
+  void kgstvImageDecoded(const QImage &image);
+  void kgstvTextDecoded(const QString &sender,const QString &text);
   //! GUI: also print the drm-stats line on stdout (command line --decode --drm)
   void setVerbose(bool on) {verbose=on;}
   bool isActive() const {return running;}
@@ -87,6 +91,8 @@ private:
   QElapsedTimer inputCheck;   //!< listen: when the list of sound inputs was last looked at
   QMediaDevices *mediaDevices=nullptr;
   bool drm=false;
+  bool kgstv=false;
+  int messagesInFile=0,messagesTotal=0;
   bool verbose=false;
   QString outDir;
   int timeoutSeconds;      //!< 0 = duration of the file + 30 s

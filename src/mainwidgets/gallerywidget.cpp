@@ -185,7 +185,10 @@ const QStringList &galleryWidget::getFilenames()
 
 void galleryWidget::putRxImage ( QString fn )
 {
-  if(transmissionModeIndex==TRXSSTV)
+  if(transmissionModeIndex==TRXKGSTV) {
+    statusBarPtr->showMessage("Saved KG-STV: "+fn);ui->rxDRMMatrix->changed();
+  }
+  else if(transmissionModeIndex==TRXSSTV)
     {
       statusBarPtr->showMessage ( "Saved: "+fn );
       ui->rxSSTVMatrix->changed();

@@ -361,7 +361,22 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   )
 endif()
 
+include(CTest)
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../tools/kgstv" "${CMAKE_CURRENT_BINARY_DIR}/kgstv")
+
 add_executable(qsstv ${QSSTV_SOURCES} ${QSSTV_FORMS} qsstv.qrc editor/editor.qrc)
+
+# The real application's device-free file pipeline, isolated via Linux HOME/XDG.
+# Native registry/plist settings require a separate isolation strategy on Windows/macOS.
+if(BUILD_TESTING AND UNIX AND NOT APPLE)
+  find_package(Python3 QUIET COMPONENTS Interpreter)
+  if(Python3_FOUND)
+    add_test(NAME kgstv_application COMMAND ${Python3_EXECUTABLE}
+      "${CMAKE_CURRENT_SOURCE_DIR}/../tests/kgstv/test_application.py"
+      $<TARGET_FILE:qsstv> $<TARGET_FILE:kgstv-offline>)
+  endif()
+endif()
+
 
 if(WIN32)
   # GUI subsystem, not console -- double-clicking qsstv-experimental.exe shouldn't flash a console
@@ -389,7 +404,7 @@ if(WIN32 OR APPLE)
 endif()
 
 target_include_directories(qsstv PRIVATE
-    config dispatch drmrx drmtx dsp editor gps logbook mainwidgets
+    kgstv config dispatch drmrx drmtx dsp editor gps logbook mainwidgets
     rig scope sound sstv template utils widgets xmlrpc videocapt
 )
 
@@ -430,6 +445,7 @@ if(UNIX AND NOT APPLE)
 endif()
 
 target_link_libraries(qsstv PRIVATE
+    kgstv_core
     Qt6::Core Qt6::Widgets Qt6::Network Qt6::Xml Qt6::SerialPort Qt6::Multimedia Qt6::Svg
     PkgConfig::FFTW3
     PkgConfig::OPENJP2

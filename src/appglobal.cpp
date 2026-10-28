@@ -1,3 +1,5 @@
+#include "filedecoder.h"
+#include "kgstvcontroller.h"
 #include "appglobal.h"
 #include "logging.h"
 #include "soundbase.h"
@@ -46,6 +48,7 @@ void splashMessage(const QString &msg)
   splashPtr->setPixmap(pm);
 }
 
+Kgstv::Controller *kgstvControllerPtr=nullptr;
 mainWindow *mainWindowPtr;
 soundBase *soundIOPtr;
 logFile *logFilePtr;
@@ -105,11 +108,25 @@ void globalInit()
   redPXMPtr=new QPixmap(16,16);
   redPXMPtr->fill(Qt::red);
   qSettings.endGroup();
+  kgstvControllerPtr=new Kgstv::Controller;
+  qSettings.beginGroup("KGSTV");
+  Kgstv::Options options;
+  options.quality=qBound(0,qSettings.value("quality",8).toInt(),15);
+  options.fec=qSettings.value("fec",true).toBool();options.fourLevel=qSettings.value("fourLevel",false).toBool();
+  kgstvControllerPtr->configure(options);
+  qSettings.endGroup();
 }
 
 void globalEnd(void)
 {
-  logFilePtr->writeSettings();
+  if(kgstvControllerPtr) {
+    if(!soundBase::fileOnly && (!fileDecoderPtr || !fileDecoderPtr->isBatch())) {
+      QSettings settings;settings.beginGroup("KGSTV");const auto options=kgstvControllerPtr->options();
+      settings.setValue("quality",options.quality);settings.setValue("fec",options.fec);settings.setValue("fourLevel",options.fourLevel);settings.endGroup();
+    }
+    delete kgstvControllerPtr;kgstvControllerPtr=nullptr;
+  }
+  if(!soundBase::fileOnly)logFilePtr->writeSettings();
   logFilePtr->close();
 }
 

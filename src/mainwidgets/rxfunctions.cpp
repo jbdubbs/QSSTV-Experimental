@@ -1,4 +1,5 @@
 #include "rxfunctions.h"
+#include "kgstvcontroller.h"
 #include "appglobal.h"
 #include "configparams.h"
 #include "drmrx.h"
@@ -85,6 +86,9 @@ void rxFunctions::run()
                 case TRXSSTV:
                   sstvRxPtr->run(tempBuf,volBuf);
                   break;
+                case TRXKGSTV:
+                  if(kgstvControllerPtr)kgstvControllerPtr->receive(tempBuf,RXSTRIPE);
+                  break;
                 case TRXNOMODE:
                   switchRxState(RXIDLE);
                   break;
@@ -114,7 +118,7 @@ void rxFunctions::stopThread()
   if(!isRunning()) return;
   while(abort)
     {
-      qApp->processEvents();
+      qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
     }
 }
 
@@ -126,7 +130,10 @@ void rxFunctions::init()
 void rxFunctions::forceInit()
 {
 
-  if(transmissionModeIndex==TRXDRM)
+  if(transmissionModeIndex==TRXKGSTV) {
+    if(kgstvControllerPtr){QString error;if(!kgstvControllerPtr->resetDemodulator(rxClock,&error))emit kgstvControllerPtr->statusChanged(error);}
+  }
+  else if(transmissionModeIndex==TRXDRM)
     {
 
       drmRxPtr->init();
@@ -147,6 +154,8 @@ bool rxFunctions::rxBusy()
     case TRXSSTV:
       return sstvRxPtr->isBusy();
       break;
+    case TRXKGSTV:
+       return kgstvControllerPtr && kgstvControllerPtr->receiving();
     case TRXNOMODE:
        return false;
       break;
@@ -165,7 +174,7 @@ void rxFunctions::stopAndWait()
     }
   while((rxState!=RXIDLE) && (isRunning()))
     {
-      qApp->processEvents();
+      qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
     }
 }
 
@@ -183,7 +192,10 @@ void rxFunctions::eraseImage()
 {
   if(isRunning())
     {
-      if(transmissionModeIndex==TRXDRM)
+      if(transmissionModeIndex==TRXKGSTV) {
+        if(kgstvControllerPtr)kgstvControllerPtr->clearReceive();
+      }
+      else if(transmissionModeIndex==TRXDRM)
         {
           drmRxPtr->eraseImage();
         }

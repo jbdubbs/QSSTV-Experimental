@@ -68,3 +68,7 @@ tests/jb60_loopback/loopback
 # AppImage build output (packaging/appimage/build.sh)
 *.AppImage*
 tests/template/legacy-golden/gen
+
+# Local Python test caches
+__pycache__/
+*.py[cod]

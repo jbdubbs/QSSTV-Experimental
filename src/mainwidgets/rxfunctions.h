@@ -2,6 +2,7 @@
 #define RXFUNCTIONS_H
 
 #include <QThread>
+#include <atomic>
 #include "appdefs.h"
 #include "sstv/syncprocessor.h"
 #include "buffermanag.h"
@@ -40,8 +41,8 @@ public:
 private:
 
   drmRx *drmRxPtr;
-  bool abort;
-  erxState rxState;
+  std::atomic_bool abort{false};
+  std::atomic<erxState> rxState;
   void switchRxState(erxState newState);
   uint rxBytes;
   void forceInit();

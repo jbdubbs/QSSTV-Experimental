@@ -20,6 +20,8 @@
  ***************************************************************************/
 
 #include "txfunctions.h"
+#include "kgstvcontroller.h"
+#include <QElapsedTimer>
 #include "appglobal.h"
 #include "sstv/sstvtx.h"
 #include "cw.h"
@@ -71,6 +73,8 @@ const QString txStateStr[txFunctions::TXTEST+1]=
   "PREPARESSTV",
   "PREPAREDRMPIC",
   "PREPAREDRMBINARY",
+  "PREPAREKGSTV",
+  "SENDKGSTV",
   "TXTEST"
 };
 
@@ -293,6 +297,22 @@ void txFunctions::run()
         case TXRESTART:
           switchTxState(TXIDLE);
           break;
+        case TXPREPAREKGSTV:
+          {
+            kgstvWorking.store(true);QImage image;quint64 ticket;
+            {QMutexLocker lock(&txMutex);image=kgstvImage;ticket=kgstvTicket;}
+            QString error;
+            const bool ok=!kgstvAbort.load() && kgstvControllerPtr && kgstvControllerPtr->prepareImageJob(image,myCallsign,&error);
+            if(!ok && kgstvControllerPtr && !error.isEmpty())emit kgstvControllerPtr->statusChanged(error);
+            const bool ready=ok && !kgstvAbort.load();
+            if(!ready && kgstvControllerPtr)kgstvControllerPtr->cancelTransmit();
+            kgstvWorking.store(false);switchTxState(TXIDLE);
+            QApplication::postEvent(dispatcherPtr,new txPrepareCompleteEvent(ready,ticket));
+          }
+          break;
+        case TXSENDKGSTV:
+          kgstvWorking.store(true);sendKgstv();kgstvWorking.store(false);switchTxState(TXIDLE);
+          break;
         case TXTEST:
           sendTestPattern();
           break;
@@ -309,6 +329,7 @@ int txFunctions::calcTxTime(bool binary, int overhead)
 {
   bool ok=false;
   int txTime=0;
+  if(transmissionModeIndex==TRXKGSTV)return kgstvControllerPtr?int(std::ceil(kgstvControllerPtr->duration())):0;
   if(transmissionModeIndex==TRXSSTV)
     {
       txTime=sstvTxPtr->calcTxTime(0);
@@ -342,11 +363,12 @@ void txFunctions::startProgress(double duration)
 
 void txFunctions::stopThread()
 {
+  kgstvAbort.store(true);
   abort=true;
   if(!isRunning()) return;
   while(abort && isRunning())
     {
-      qApp->processEvents();
+      qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
     }
 }
 
@@ -361,6 +383,8 @@ bool txFunctions::txBusy()
 
 void txFunctions::startTX(etxState state)
 {
+  kgstvRunToken.fetch_add(1);
+  if(state==TXSENDKGSTV)kgstvAbort.store(false);
   switchTxState(state);
 }
 
@@ -381,6 +405,9 @@ void txFunctions::prepareTX(etxState state)
 
   switch (state)
     {
+    case TXPREPAREKGSTV:
+      kgstvAbort.store(false);switchTxState(TXPREPAREKGSTV);
+      break;
     case TXPREPARESSTV:
     case TXSSTVIMAGE:
       switchTxState(TXPREPARESSTV);
@@ -447,6 +474,15 @@ void txFunctions::waitEnd()
 
 void txFunctions::stopAndWait()
 {
+  kgstvRunToken.fetch_add(1);
+  if(txState==TXSENDKGSTV || txState==TXPREPAREKGSTV || kgstvWorking.load()) {
+    kgstvAbort.store(true);
+    if(soundIOPtr)soundIOPtr->idleTX();
+    if(kgstvControllerPtr)kgstvControllerPtr->cancelTransmit();
+    while(kgstvWorking.load()) {qApp->processEvents(QEventLoop::ExcludeUserInputEvents);QThread::msleep(1);}
+    switchTxState(TXIDLE);
+  }
+
   stopDRM=true;
   if(txState==TXSENDTONE) synthesPtr->abortTone=true;
   // abort based on what is actually running, not on the (possibly already changed) mode index
@@ -456,14 +492,14 @@ void txFunctions::stopAndWait()
       switchTxState(TXRESTART);
       while(txState!=TXIDLE)
         {
-          qApp->processEvents();
+          qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
         }
     }
   addToLog("txFunc: stop initiated",LOGTXFUNC);
   switchTxState(TXIDLE);
   while(txState!=TXIDLE)
     {
-      qApp->processEvents();
+      qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
     }
   synthesPtr->abortTone=false;
   if(soundIOPtr) soundIOPtr->idleTX();
@@ -625,6 +661,7 @@ bool txFunctions::prepareBinary(QString fileName)
 
 void txFunctions::applyTemplate(imageViewer *ivPtr,QString templateFilename)
 {
+  if(transmissionModeIndex==TRXKGSTV) {ivPtr->setGrid(1,1);ivPtr->setParam(templateFilename,useTemplate,320,240);return;}
   if(transmissionModeIndex==TRXSSTV)
     {
       sstvTxPtr->applyTemplate(templateFilename,useTemplate,ivPtr);
@@ -649,4 +686,62 @@ void txFunctions::switchTxState(etxState newState)
 void txFunctions::txTestPattern(imageViewer *ivPtr,etpSelect sel)
 {
   sstvTxPtr->createTestPattern(ivPtr,sel);
+}
+
+
+QImage txFunctions::kgstvPreparedImage(){QMutexLocker lock(&txMutex);return kgstvImage;}
+
+void txFunctions::setKgstvImage(const QImage &image,quint64 ticket)
+{
+  QMutexLocker lock(&txMutex);kgstvImage=image;kgstvTicket=ticket;
+}
+
+void txFunctions::sendKgstv()
+{
+  const quint64 token=kgstvRunToken.load();
+  const double clock=txClock;
+  QString error;
+  bool ok=!kgstvAbort.load() && kgstvControllerPtr && kgstvControllerPtr->beginTransmit(&error,clock);
+  if(!ok) {
+    if(soundIOPtr)soundIOPtr->idleTX();
+    if(kgstvControllerPtr){kgstvControllerPtr->completeTransmit(false);if(!error.isEmpty())emit kgstvControllerPtr->statusChanged(error);}
+    QApplication::postEvent(dispatcherPtr,new endImageTXEvent(token));return;
+  }
+  double samples[TXSTRIPE]={};
+  if(ok)QApplication::postEvent(dispatcherPtr,new progressTXEvent(kgstvControllerPtr->duration()+rigControllerPtr->getTxDelay()+SILENCEDELAY+(useVOX?1.0:0.0),token));
+  int delay=int(rigControllerPtr->getTxDelay()*clock);
+  while(ok && delay>0 && !kgstvAbort.load()) {
+    const int count=qMin(delay,TXSTRIPE);ok=synthesPtr->writePcm(samples,count,kgstvAbort);delay-=count;
+  }
+  int vox=useVOX?int(clock):0;double phase=0;
+  while(ok && vox>0 && !kgstvAbort.load()) {
+    const int count=qMin(vox,TXSTRIPE);
+    for(int i=0;i<count;++i){phase+=2*M_PI*1700/clock;if(phase>=2*M_PI)phase-=2*M_PI;samples[i]=0.7*std::sin(phase);}
+    ok=synthesPtr->writePcm(samples,count,kgstvAbort);vox-=count;
+  }
+  while(ok && !kgstvAbort.load()) {
+    const int count=kgstvControllerPtr->render(samples,TXSTRIPE,&error);
+    if(!error.isEmpty()){ok=false;break;}
+    if(count==0)break;
+    ok=synthesPtr->writePcm(samples,count,kgstvAbort);
+  }
+  std::fill(samples,samples+TXSTRIPE,0.0);
+  int silence=int(SILENCEDELAY*clock);
+  while(ok && silence>0 && !kgstvAbort.load()) {
+    const int count=qMin(silence,TXSTRIPE);ok=synthesPtr->writePcm(samples,count,kgstvAbort);silence-=count;
+  }
+  soundBase::txFileDone=true; // file output must know no further PCM is coming
+  QElapsedTimer deadline;deadline.start();
+  while(ok && soundIOPtr->isPlaying() && !kgstvAbort.load()) {
+    if(deadline.elapsed()>10000){ok=false;error="KG-STV audio drain timed out.";break;}
+    QThread::msleep(2);
+  }
+  if(ok && !kgstvAbort.load() && soundIOPtr->txBuffer.count()!=0){ok=false;error="KG-STV playback ended before the output buffer drained.";}
+  ok=ok && !kgstvAbort.load();
+  if(!ok && soundIOPtr)soundIOPtr->idleTX();
+  if(kgstvControllerPtr) {
+    kgstvControllerPtr->completeTransmit(ok);
+    if(!error.isEmpty())emit kgstvControllerPtr->statusChanged(error);
+  }
+  QApplication::postEvent(dispatcherPtr,new endImageTXEvent(token));
 }

@@ -1,4 +1,4 @@
-#ifndef DISPATCHEVENT_H
+﻿#ifndef DISPATCHEVENT_H
 #define DISPATCHEVENT_H
 #include <QEvent>
 #include "imageviewer.h"
@@ -170,14 +170,16 @@ class txPrepareCompleteEvent : public baseEvent
 {
 public:
   /** create event */
-  txPrepareCompleteEvent(bool tok):baseEvent( (QEvent::Type)txPrepareComplete ), _ok(tok)
+  txPrepareCompleteEvent(bool tok,quint64 ticket=0):baseEvent( (QEvent::Type)txPrepareComplete ), _ok(tok),_ticket(ticket)
   {
     description="txPrepareCompleteEvent";
   }
   /** returns info string from the event */
   bool ok() const { return _ok; }
+  quint64 ticket() const {return _ticket;}
 private:
   bool _ok;
+  quint64 _ticket;
 };
 
 class lineDisplayEvent : public baseEvent
@@ -299,10 +301,13 @@ class endImageTXEvent : public baseEvent
 {
 public:
   /** create event */
-  endImageTXEvent():baseEvent( (QEvent::Type)endImageTX )
+  endImageTXEvent(quint64 token=0):baseEvent( (QEvent::Type)endImageTX ),_kgstvToken(token)
   {
     description="endImageTXEvent";
   }
+  quint64 kgstvToken() const {return _kgstvToken;}
+private:
+  quint64 _kgstvToken;
 };
 
 
@@ -315,15 +320,17 @@ class progressTXEvent : public baseEvent
 {
 public:
   /** create event */
-  progressTXEvent(double tim):baseEvent( (QEvent::Type)progressTX ), txTime(tim)
+  progressTXEvent(double tim,quint64 token=0):baseEvent( (QEvent::Type)progressTX ), txTime(tim),_kgstvToken(token)
   {
     description="progressTXEvent";
   }
   /** returns length and pointer  from the event */
   double getInfo() { return txTime;}
+  quint64 kgstvToken() const {return _kgstvToken;}
 
 private:
   double txTime;
+  quint64 _kgstvToken;
 };
 
 
