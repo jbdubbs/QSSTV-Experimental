@@ -361,8 +361,35 @@ visDecoder::visDecoder()
 void visDecoder::reset()
 {
   avgCount=VISAVGCOUNT;
+  leaderTotal=leaderGap=0;
   switchState(VISINIT,0);
   init();
+}
+
+/**
+ * @brief visDecoder::leaderEnded the 1900 Hz tone just stopped
+ * @return true if enough leader has been seen to look for the start bit; if not, the tone is a short burst (or a dropout in a
+ * leader that is still building up) and the decoder waits for it to come back
+ */
+
+bool visDecoder::leaderEnded(unsigned int i)
+{
+  unsigned int run=sampleCounter+i-startSampleCounter;
+  if(run>=VISMINLEADERRUN) leaderTotal+=run;
+  if(leaderTotal>=VISMINLEADER) return true;
+  leaderDropout(i);
+  return false;
+}
+
+/**
+ * @brief visDecoder::leaderDropout the tone that follows the leader did not come: look for the leader again, keeping what has been seen
+ */
+
+void visDecoder::leaderDropout(unsigned int i)
+{
+  avgCounter=0;
+  leaderGap=0;
+  switchState(WAITSTART1900,i);
 }
 
 uint visDecoder::getCode()
@@ -402,6 +429,7 @@ void visDecoder::extractNarrow()
         case VISINIT:
           sampleCounter=0;
           avgCounter=0;
+          leaderTotal=0;
           switchState(WAITSTART1900,i);
           break;
 
@@ -411,17 +439,19 @@ void visDecoder::extractNarrow()
               switchState(WAITEND1900,i);
               startSampleCounter=sampleCounter+i;
             }
+          else if(leaderTotal && (++leaderGap>VISLEADERGAP))
+            {
+              switchState(VISINIT,i);   // gone for too long to be a dropout in the leader
+            }
           break;
         case WAITEND1900:
           {
             if(waitEndFreq(1800,2000))
               {
-
-                if(((sampleCounter+i-startSampleCounter)>=VISMIN1900) && ((sampleCounter+i-startSampleCounter)<2*VISMIN1900))
+                if(leaderEnded(i))
                   {
                     switchState(WAITSTART2100,i);
                   }
-                else switchState(VISINIT,i);
               }
           }
           break;
@@ -433,7 +463,7 @@ void visDecoder::extractNarrow()
             }
           else if(timeout)
             {
-              switchState(VISINIT,i);
+              leaderDropout(i);
             }
           break;
          case WAITEND2100:
@@ -525,6 +555,7 @@ void visDecoder::extractWide()
         case VISINIT:
           sampleCounter=0;
           avgCounter=0;
+          leaderTotal=0;
           switchState(WAITSTART1900,i);
           break;
 
@@ -534,19 +565,21 @@ void visDecoder::extractWide()
               switchState(WAITEND1900,i);
               startSampleCounter=sampleCounter+i;
             }
+          else if(leaderTotal && (++leaderGap>VISLEADERGAP))
+            {
+              switchState(VISINIT,i);   // gone for too long to be a dropout in the leader
+            }
           break;
         case WAITEND1900:
           {
             if(waitEndFreq(1800,2000))
               {
-
-                if(((sampleCounter+i-startSampleCounter)>=VISMIN1900) && ((sampleCounter+i-startSampleCounter)<2*VISMIN1900))
+                if(leaderEnded(i))
                   {
                     addToLog(QString("end1900 at %1").arg(syncSampleCounter+i),LOGVISCODE);
                     switchState(WAITSTART1200,i);
                     timeoutCounter=0;
                   }
-                else switchState(VISINIT,i);
               }
           }
           break;
@@ -560,7 +593,7 @@ void visDecoder::extractWide()
             }
           else if(timeout)
             {
-              switchState(VISINIT,i);
+              leaderDropout(i);
             }
           break;
         case WAITEND1200:

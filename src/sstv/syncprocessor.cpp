@@ -1,6 +1,8 @@
 #include "syncprocessor.h"
 #include "linematch.h"
 #include <QApplication>
+#include <algorithm>
+#include <cmath>
 #include "appglobal.h"
 #include "sstvparam.h"
 #include "configparams.h"
@@ -32,6 +34,13 @@
 #define PROVENPULSES 12       // near pulses after which a picture that did not start from a VIS code has proven itself
 #define RESYNCPULSES 3        // near pulses in a row that wake a frozen display
 #define VISFRESHSECONDS 10    // a VIS code at most this old started the picture
+
+// A VIS code says where the picture starts, even when the first lines are in the noise and the sync detector cannot follow them
+// yet (the lines before the first chain of pulses were cut off the top of the picture).
+#define VISBACKFILLSECONDS 30     // a VIS code at most this old still counts; an older one is forgotten
+#define VISTOSTARTMS 16           // the first line starts this long before the end of the code (the same in every mode, measured)
+#define VISBACKFILLTOLERANCE 0.25 // the chain's line grid may be this far from the one the code gives (a fraction of a line) ...
+#define VISBACKFILLMAXMS 50       // ... and this far (ms), whichever is less
 
 
 
@@ -92,6 +101,8 @@ syncProcessor::syncProcessor(bool narrow, QObject *parent) :  QObject(parent),st
   proven=false;
   trustedEnd=0;
   trViaVis=false;
+  visEndCounter=0;
+  visBackfillLines=0;
   trHits=trFarHits=trFreezes=trResyncs=trMaxGapLines=0;
   trStripes=trStarts=trAccepted=trRetrace=trVis=trGateOpen=0;
   trLevelSum=0;
@@ -317,6 +328,13 @@ void syncProcessor::extractSync()
     visMode=NOTVALID;
     switchProcessState(INSYNC);
   }
+  else if((visMode!=NOTVALID) && (syncProcesState==MODEDETECT) && ((int)sampleCounter-(int)visEndCounter)>VISBACKFILLSECONDS*SAMPLERATE)
+  {
+    // a VIS code that no picture followed (noise can make one): the receiver was held to its mode and to short chains, and
+    // would not hear a picture of another mode
+    if(rxTraceOn()) rxTrace("VISEXPIRE",QString("%1\tproc=%2\tmode=%3").arg(traceTime(sampleCounter)).arg(detectNarrow?"N":"W").arg(getSSTVModeNameShort(visMode)));
+    init();
+  }
 }
 
 /**
@@ -400,17 +418,21 @@ bool syncProcessor::validateSync()
           syncPosition=currentModePtr->adjustSyncPosition(syncCorrected,syncArray[0].retrace)+FILTERDELAYCORRECTION; // type 2 sync end
           tempOutOfSync=false;
           slantAdjustLine=6;
+          visBackfillLines=0;
           slantAdjust(true);
+          visBackfillLines=visBackfill();
+          if(visBackfillLines) syncPosition-=(quint32)round(visBackfillLines*samplesPerLine);
           switchProcessState(INSYNC);
           trDetectCounter=sampleCounter;
           trHits=trFarHits=trFreezes=trResyncs=trMaxGapLines=0;
           nearHits=nearRun=0;
           proven=trViaVis && ((int)sampleCounter-(int)visEndCounter)>=0 && ((int)sampleCounter-(int)visEndCounter)<=VISFRESHSECONDS*SAMPLERATE;
           trustedEnd=syncArray[activeChainPtr->last()->to].end;
-          if(rxTraceOn()) rxTrace("DETECT",QString("%1\tproc=%2\tmode=%3\tvia=%4\tvis_age_s=%5\tchain=%6\tfract=%7\tline_ms=%8\tsens=%9\tmin_volume=%10")
+          if(rxTraceOn()) rxTrace("DETECT",QString("%1\tproc=%2\tmode=%3\tvia=%4\tvis_age_s=%5\tchain=%6\tfract=%7\tline_ms=%8\tsens=%9\tmin_volume=%10\tvis_to_start_ms=%11\tbackfill_lines=%12")
                                   .arg(traceTime(sampleCounter)).arg(detectNarrow?"N":"W").arg(getSSTVModeNameShort(currentMode)).arg(trViaVis?"vis":"sync")
                                   .arg(trViaVis?QString::number(((int)sampleCounter-(int)visEndCounter)/(double)SAMPLERATE,'f',1):QString("-")).arg(activeChainPtr->count())
-                                  .arg(calcTotalFract(activeChainPtr),0,'f',4).arg(samplesPerLine*1000./SAMPLERATE,0,'f',1).arg(sensitivity).arg(sensitivityArray[sensitivity].minVolume));
+                                  .arg(calcTotalFract(activeChainPtr),0,'f',4).arg(samplesPerLine*1000./SAMPLERATE,0,'f',1).arg(sensitivity).arg(sensitivityArray[sensitivity].minVolume)
+                                  .arg(trViaVis?QString::number(((int)syncPosition+(int)round(visBackfillLines*samplesPerLine)-(int)visEndCounter)*1000./SAMPLERATE,'f',1):QString("-")).arg(visBackfillLines));
           addToLog(QString("Mode detected: %1, sync at %2").arg(getSSTVModeNameShort(currentMode)).arg(syncPosition),LOGSYNCEVAL);
         }
       }
@@ -658,6 +680,33 @@ QString syncProcessor::traceSummary()
   return QString("proc=%1\tvia=%2\tage_s=%3\thits=%4\tfar_hits=%5\tfreezes=%6\tresyncs=%7\tmax_gap_s=%8\thits_per_line=%9\tnear_hits=%10\tproven=%11")
       .arg(detectNarrow?"N":"W").arg(trViaVis?"vis":"sync").arg(age,0,'f',1).arg(trHits).arg(trFarHits).arg(trFreezes).arg(trResyncs)
       .arg(trMaxGapLines*samplesPerLine/SAMPLERATE,0,'f',1).arg(ageLines>0?trHits/ageLines:0.,0,'f',3).arg(nearHits).arg(proven);
+}
+
+/**
+ * @brief syncProcessor::visBackfill
+ * @return the number of sync intervals the picture starts before the first pulse of the chain that was just found (0: none)
+ *
+ * The chain starts at the first pulses the sync detector could follow. Lines before that, in the noise, were cut off the top of
+ * the picture and everything below moved up by as many rows. When a VIS code announced the mode, the picture starts a known
+ * time after its end, so it is started there: the whole number of intervals before the chain. The code is only believed if
+ * the chain's line grid falls where the code puts it (to a fraction of a line) and if it is not too old; the audio of those
+ * lines is still in the buffers.
+ */
+
+uint syncProcessor::visBackfill()
+{
+  if(!trViaVis || samplesPerLine<=0) return 0;
+  int age=(int)sampleCounter-(int)visEndCounter;
+  if(age<0 || age>VISBACKFILLSECONDS*SAMPLERATE) return 0;
+  double visStart=(double)visEndCounter-VISTOSTARTMS*SAMPLERATE/1000.;
+  double d=(double)syncPosition-visStart;
+  if(d<=0) return 0;
+  double n=round(d/samplesPerLine);
+  if(n<1) return 0;
+  double tolerance=std::min(VISBACKFILLTOLERANCE*samplesPerLine,(double)VISBACKFILLMAXMS*SAMPLERATE/1000.);
+  if(fabs(d-n*samplesPerLine)>tolerance) return 0;
+  if(n*samplesPerLine>=SSTVTable[currentMode].imageTime*modifiedClock) return 0;
+  return (uint)n;
 }
 
 /**
@@ -1280,6 +1329,7 @@ bool syncProcessor::slantAdjust(bool initial)
     }
 
     syncPosition=currentModePtr->adjustSyncPosition(syncCorrected,syncArray[0].retrace)+FILTERDELAYCORRECTION; // type 2 sync end
+    syncPosition-=(quint32)round(visBackfillLines*samplesPerLine);   // a picture that starts at its VIS code stays there
 
     recalculateMatchArray();
     addToLog(QString("slantAdjust: modified  syncpos:=%1").arg(syncPosition),LOGSLANT);
