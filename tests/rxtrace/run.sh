@@ -7,7 +7,11 @@
 #     not tied up by them for long (before the fix: 3 pictures kept, 245 s held, the longest 89 s)
 #   - a real Robot 36 transmission whose VIS code was missed (it can only be found by its sync pulses) that starts 15 s after
 #     the receiver started on noise is received completely (before the fix it was still waiting for sync from the noise)
-# With RXTRACE_WAV=<recording from capture.sh> a real recording is checked as well: nothing kept, held up for under 10%.
+#   - a picture is never lost in the instant it is detected (issue #137): once the sync-pulse table has filled, a chain that
+#     ended minutes ago could be picked as the start of a picture, which was dropped at once and reset the receiver's buffers
+#     (an hour of noise at 100 bursts a second, seed 1, does it once; before the fix, 1 of 4 pictures)
+# With RXTRACE_WAV=<recording from capture.sh> a real recording is checked as well: nothing kept, held up for under 10%,
+# none lost in the instant it is detected.
 #
 #   tests/rxtrace/run.sh                           # uses ../../build-cmake/qsstv-experimental
 #   QSSTV_BIN=/path/to/qsstv-experimental tests/rxtrace/run.sh
@@ -49,6 +53,14 @@ read -r started saved busy longest < <(brief "$T/n")
 le "$busy" 100 && ok "held up for $busy s in all" || bad "held up for $busy s in all (limit 100)"
 le "$longest" 30 && ok "the longest wait for sync is $longest s" || bad "the longest wait for sync is $longest s (limit 30)"
 
+echo "== a picture lost in the instant it is detected (an hour of denser noise)"
+py "$HERE/noisegen.py" "$T/dense.wav" --minutes 60 --rate 12000 --sigma 2400 --bursts-per-s 100 --burst-gain 2 --seed 1 || { echo "cannot make the noise"; exit 2; }
+dec "$T/dense.wav" "$T/d"
+read -r started saved busy longest < <(brief "$T/d")
+[ "$started" -ge 1 ] && ok "the noise starts pictures ($started)" || bad "the noise starts no picture, the check below proves nothing"
+instant=$(python3 -I "$HERE/summarize.py" "$T/d/trace.tsv" --instant)
+[ "$instant" = 0 ] && ok "none is lost in the instant it is detected" || bad "$instant pictures lost in the instant they were detected (a chain from before the sync-pulse table scrolled)"
+
 echo "== a real transmission without its VIS code, 15 s after the receiver started on noise"
 ffmpeg -loglevel error -y -i "$HERE/../jb60_loopback/images/card.png" -vf "scale=320:240:flags=lanczos" "$T/R36.png" || { echo "ffmpeg failed"; exit 2; }
 "$QSSTV" --encode "$T/R36.png" --mode R36 --wav-out "$T/R36.wav" >/dev/null 2>&1 || { echo "cannot transmit the test picture"; exit 2; }
@@ -80,6 +92,8 @@ if [ -n "$RXTRACE_WAV" ]; then
   secs=$(py -c "import sys; sys.dont_write_bytecode=True; sys.path.insert(0,'$HERE/../fade'); import wavtool; x,r=wavtool.read_wav('$RXTRACE_WAV'); print('%.0f' % (len(x)/float(r)))")
   [ "$saved" = 0 ] && ok "$started pictures started on it, none kept" || bad "$saved of $started pictures kept"
   awk -v b="$busy" -v s="$secs" 'BEGIN{exit !(b<=0.10*s)}' && ok "held up for $busy s of $secs s" || bad "held up for $busy s of $secs s (limit 10%)"
+  instant=$(python3 -I "$HERE/summarize.py" "$T/r/trace.tsv" --instant)
+  [ "$instant" = 0 ] && ok "none lost in the instant it was detected" || bad "$instant pictures lost in the instant they were detected"
 fi
 
 echo

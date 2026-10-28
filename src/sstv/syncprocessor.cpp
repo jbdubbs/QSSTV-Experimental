@@ -736,7 +736,9 @@ bool syncProcessor::findMatch()
       {
         for(j=0;j<matchArray[i].count();j++)
         {
-          if(matchArray[i][j]->count()>=(int)minMatchedLines)
+          // only a chain this pulse ended: chains left over from earlier pulses are not removed, and once the table
+          // scrolls their false-sync count can fall under the limit, so one that ends minutes ago would start the picture
+          if((matchArray[i][j]->count()>=(int)minMatchedLines) && (matchArray[i][j]->last()->to==syncArrayIndex))
           {
             fs=0;
             for(k=0;k<matchArray[i][j]->count()-1;k++)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Summarize a receiver trace (src/sstv/rxtrace.h, QSSTV_RX_TRACE) from tests/rxtrace/capture.sh (issue #135).
 
-  summarize.py trace.tsv [--pics DIR] [--min-hits N] [--brief | --windows SECONDS]
+  summarize.py trace.tsv [--pics DIR] [--min-hits N] [--brief | --instant | --windows SECONDS]
 
 One line per picture the receiver started (DETECT .. SAVE), how every display freeze ended, and the totals: pictures per
 mode, saved and discarded, the time the receiver spent on them, and the sync-like pulse rate and level per 10 minutes.
@@ -11,6 +11,8 @@ with --min-hits (default 20) or more of them. That is a rule of thumb for readin
 receiver uses; look at the saved pictures to be sure.
 
 --brief prints one line for scripts: pictures started, saved, seconds spent on them, the longest one in seconds.
+--instant prints the number of pictures that were lost in the instant they were detected (issue #137): lost for missing
+lines less than a second after the start, which only a chain that ended long before the detection can do.
 --windows SECONDS prints, for every picture, a time in the recording (SECONDS after it was detected) to mix a signal in at.
 
 Stdlib only.
@@ -81,6 +83,7 @@ def main():
     ap.add_argument('--pics', help='directory with the pictures the receiver saved (checked against the trace)')
     ap.add_argument('--min-hits', type=int, default=20)
     ap.add_argument('--brief', action='store_true')
+    ap.add_argument('--instant', action='store_true')
     ap.add_argument('--windows', type=float, metavar='SECONDS')
     a = ap.parse_args()
 
@@ -92,6 +95,9 @@ def main():
         done = [p for p in pics if p['save'] is not None]
         ages = [num(p['save'], 'age_s') for p in done]
         print('%d %d %.0f %.0f' % (len(pics), sum(1 for p in done if p['save'].get('result') == 'saved'), sum(ages), max(ages or [0])))
+        return
+    if a.instant:
+        print(sum(1 for p in pics if any(e == 'LOST' and d.get('reason') == 'missing' and num(d, 'age_s', 99) < 1 for _, e, d in p['events'])))
         return
     if a.windows is not None:
         # the receiver's clock starts again after every sync lost (it resets and discards what it had buffered), so the
