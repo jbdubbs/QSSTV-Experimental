@@ -97,7 +97,7 @@ static void chooseHeadlessPlatform(int argc,char **argv)
   for(int i=1;i<argc;i++)
     {
       QString a=QString::fromLocal8Bit(argv[i]);
-      if(a=="-b" || a=="--batch" || a=="-h" || a=="--help" || a=="-v" || a=="--version" || a=="--list-modes" || a=="--listen" || a=="--list-devices" || a=="--install" || a=="--uninstall" || a=="--encode" || a.startsWith("--encode=")
+      if(a=="-b" || a=="--batch" || a=="-h" || a=="--help" || a=="-v" || a=="--version" || a=="--list-modes" || a=="--listen" || a=="--list-devices" || a=="--audio-info" || a=="--install" || a=="--uninstall" || a=="--encode" || a.startsWith("--encode=")
          || a=="--render-template" || a.startsWith("--render-template=") || a=="--convert-template" || a.startsWith("--convert-template="))
         {
           qputenv("QT_QPA_PLATFORM","offscreen");
@@ -357,6 +357,7 @@ int main( int argc, char ** argv )
                                     "setting of the Receive tab (default 25). Applies to interrupted and poorly received pictures alike; DRM files are not affected.","percent");
   QCommandLineOption deviceOpt("device","With --listen: the sound input to receive from (default: the one in Configure > Sound). Part of the name is enough if it is unique; see --list-devices.","name");
   QCommandLineOption listDevicesOpt("list-devices","Print the sound inputs that --device accepts and exit.");
+  QCommandLineOption audioInfoOpt("audio-info","Print every sound input and output Qt reports, with its backend id, default marker and channel and sample-rate range, and exit. For reporting a device that is missing from Configure > Sound.");
   QCommandLineOption encodeOpt("encode","Headless: transmit the picture <image> through the normal SSTV TX path into a wav file (see --wav-out, --mode) and exit. "
                                "Your settings are read but never written.","image");
   QCommandLineOption wavOutOpt("wav-out","With --encode: the wav file to write (default: <image>.wav).","file");
@@ -383,7 +384,7 @@ int main( int argc, char ** argv )
   QCommandLineOption drmEncOpt("drm-encoding","With --encode --drm: picture codec jpeg2000 or avif (default: your TX setting).","codec");
   QCommandLineOption rxGainOpt("rx-gain","With --batch: test aid, amplify the recording by <dB> (negative to attenuate) before the receiver.","dB");
   QCommandLineOption rxNoiseOpt("rx-noise","With --batch: test aid, add white noise of this RMS level in dB full scale (e.g. -40) to the recording.","dBFS");
-  parser.addOptions(QList<QCommandLineOption>() << drmOpt << drmModeOpt << drmBwOpt << drmQamOpt << drmProtOpt << drmIlvOpt << drmRsOpt << drmSizeOpt << drmEncOpt << rxGainOpt << rxNoiseOpt << helpOpt << versionOpt << decodeOpt << batchOpt << outDirOpt << modeOpt << timeoutOpt << listenOpt << deviceOpt << listDevicesOpt << minCompleteOpt << encodeOpt << wavOutOpt << listOpt << renderTplOpt << convertTplOpt << tplOutOpt << tplBaseOpt << tplSizeOpt << tplVarOpt << tplReplayOpt << installOpt << uninstallOpt);
+  parser.addOptions(QList<QCommandLineOption>() << drmOpt << drmModeOpt << drmBwOpt << drmQamOpt << drmProtOpt << drmIlvOpt << drmRsOpt << drmSizeOpt << drmEncOpt << rxGainOpt << rxNoiseOpt << helpOpt << versionOpt << decodeOpt << batchOpt << outDirOpt << modeOpt << timeoutOpt << listenOpt << deviceOpt << listDevicesOpt << audioInfoOpt << minCompleteOpt << encodeOpt << wavOutOpt << listOpt << renderTplOpt << convertTplOpt << tplOutOpt << tplBaseOpt << tplSizeOpt << tplVarOpt << tplReplayOpt << installOpt << uninstallOpt);
   parser.addPositionalArgument("file","SSTV recordings to decode (same as --decode).","[file ...]");
   if(!parser.parse(app.arguments()))
     {
@@ -420,6 +421,12 @@ int main( int argc, char ** argv )
   if(parser.isSet(listDevicesOpt))
     {
       printInputDevices(stdout);
+      return 0;
+    }
+  if(parser.isSet(audioInfoOpt))
+    {
+      printf("Qt %s, QT_AUDIO_BACKEND=%s\n",qVersion(),qEnvironmentVariable("QT_AUDIO_BACKEND","(not set)").toLocal8Bit().constData());
+      for(const QString &line:describeAudioDevices()) printf("%s\n",line.toLocal8Bit().constData());
       return 0;
     }
   if(parser.isSet(renderTplOpt) || parser.isSet(convertTplOpt))

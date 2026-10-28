@@ -19,6 +19,10 @@
 // findAudioDevice() for how a saved description is matched back to a QAudioDevice.
 void getCardList(QStringList &inputList, QStringList &outputList);
 
+// Every input and output Qt Multimedia reports, one device per line with its backend id,
+// default marker, channel and sample-rate range. For --audio-info (issue #141).
+QStringList describeAudioDevices();
+
 class soundQtMultimedia : public soundBase
 {
 public:

@@ -14,11 +14,13 @@
 // fall back to the platform default, which is a strictly better failure mode than the
 // old ALSA backend's hard failure on an invalid saved device name.
 static QAudioDevice findAudioDevice(const QString &saved, const QList<QAudioDevice> &devices,
-                                     const QAudioDevice &fallback)
+                                     const QAudioDevice &fallback, const QString &kind)
 {
   if(saved.isEmpty() || saved=="default") return fallback;
   for(const QAudioDevice &d : devices)
     if(d.description()==saved) return d;
+  addToLog(QString("The saved sound %1 \"%2\" is not in the device list; using the default \"%3\"")
+           .arg(kind,saved,fallback.description()),LOGSOUND);
   return fallback;
 }
 
@@ -46,6 +48,32 @@ void getCardList(QStringList &inputList, QStringList &outputList)
   for(const QAudioDevice &d : outputs) outputList.append(d.description());
 }
 
+// One line per device. id() is whatever the Qt backend uses to name it (an ALSA PCM name, a
+// PulseAudio or PipeWire node name, a WASAPI endpoint id), so its shape shows which backend
+// produced the list. A description can hold a newline (ALSA's two-line hints); show it
+// escaped to keep one device on one line.
+static QString describeAudioDevice(const QAudioDevice &d)
+{
+  QString description=d.description();
+  description.replace('\n',"\\n");
+  return QString("  %1 [id %2]%3, %4-%5 channels, %6-%7 Hz")
+         .arg(description,QString::fromUtf8(d.id()),d.isDefault() ? QString(" (default)") : QString())
+         .arg(d.minimumChannelCount()).arg(d.maximumChannelCount())
+         .arg(d.minimumSampleRate()).arg(d.maximumSampleRate());
+}
+
+QStringList describeAudioDevices()
+{
+  QStringList lines;
+  lines.append("Sound inputs:");
+  const auto inputs=QMediaDevices::audioInputs();
+  for(const QAudioDevice &d : inputs) lines.append(describeAudioDevice(d));
+  lines.append("Sound outputs:");
+  const auto outputs=QMediaDevices::audioOutputs();
+  for(const QAudioDevice &d : outputs) lines.append(describeAudioDevice(d));
+  return lines;
+}
+
 soundQtMultimedia::soundQtMultimedia()
 {
   audioSourcePtr=nullptr;
@@ -65,9 +93,9 @@ bool soundQtMultimedia::init(int samplerate)
   sampleRate=samplerate;
 
   QAudioDevice inDev=findAudioDevice(inputAudioDevice,QMediaDevices::audioInputs(),
-                                      QMediaDevices::defaultAudioInput());
+                                      QMediaDevices::defaultAudioInput(),"input");
   QAudioDevice outDev=findAudioDevice(outputAudioDevice,QMediaDevices::audioOutputs(),
-                                       QMediaDevices::defaultAudioOutput());
+                                       QMediaDevices::defaultAudioOutput(),"output");
 
   // Capture mono, same as soundPulse (PulseAudio does the downmix if the hardware is
   // stereo) rather than soundAlsa's "open stereo and downmix ourselves" fallback -- one

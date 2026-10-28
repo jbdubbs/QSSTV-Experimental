@@ -95,6 +95,7 @@ never crashes the program.</p>
 <dt><code>--install</code> / <code>--uninstall</code></dt><dd>AppImage only: add or remove the desktop menu entry and icons, then exit. See <a href="help-updates.html">Help menu, updates and desktop integration</a>.</dd>
 <dt><code>--min-complete &lt;percent&gt;</code></dt><dd>With <code>--batch</code> or <code>--listen</code>: keep an analog picture only if at least this percentage of its lines was received, instead of the <span class="ui">Save if Complete (%)</span> setting (25 by default). Use it to keep fragments of weak signals out of the output directory.</dd>
 <dt><code>--list-devices</code></dt><dd>Prints the sound card inputs that <code>--device</code> accepts, one per line (the default input is marked), and exits.</dd>
+<dt><code>--audio-info</code></dt><dd>Prints every sound input and output the audio system offers the program, each with its id, a default marker and its channel and sample-rate range, and exits. Use it, and send its output, when a device is missing from <span class="ui">Options &gt; Configuration &gt; Sound</span>.</dd>
 <dt><code>-h, --help</code> and <code>-v, --version</code></dt><dd>Print the help or the version and exit.</dd>
 <dt><code>--rx-gain &lt;dB&gt;</code>, <code>--rx-noise &lt;dBFS&gt;</code></dt><dd>Test aids for <code>--batch</code>: amplify or attenuate the recording, or add white noise of a given level (for example <code>-40</code>), before the receiver.</dd>
 </dl>
@@ -106,6 +107,7 @@ never crashes the program.</p>
 <tr><td><code>--listen</code></td><td>Headless: receive from the sound card, save the pictures, until Ctrl+C or <code>--timeout</code>.</td></tr>
 <tr><td><code class="wrap"><span class="nb">--device</span> <span class="nb">&lt;name&gt;</span></code></td><td>With <code>--listen</code>: the sound input to use (part of its name is enough if unique).</td></tr>
 <tr><td><code>--list-devices</code></td><td>Print the sound inputs and exit.</td></tr>
+<tr><td><code>--audio-info</code></td><td>Print all sound inputs and outputs with their ids and exit.</td></tr>
 <tr><td><code class="wrap"><span class="nb">--min-complete</span> <span class="nb">&lt;percent&gt;</span></code></td><td>With <code>--batch</code> or <code>--listen</code>: keep a picture only if at least this percentage of its lines was received (default: the <span class="ui">Save if Complete (%)</span> setting).</td></tr>
 <tr><td><code class="wrap"><span class="nb">-o,</span> <span class="nb">--out-dir</span> <span class="nb">&lt;dir&gt;</span></code></td><td>With <code>--batch</code> or <code>--listen</code>: directory for the pictures.</td></tr>
 <tr><td><code>-m, --mode &lt;mode&gt;</code></td><td>Receive only this mode (short name, e.g. PD120, JB60).</td></tr>
