@@ -90,6 +90,20 @@ else
   bad "the listener did not start: $(tail -3 "$T/stderr")"
 fi
 
+echo "== a serial PTT port that cannot be opened does not hold the receiver up (issue #136)"
+# a window that holds the PTT port makes opening it fail just like a port that is not there; the receiver must not touch it
+mkdir -p "$HOME/.config/qsstv-experimental"
+printf '[radio1]\nenableSerialPTT=true\npttSerialPort=/dev/qsstv-no-such-port\n' > "$HOME/.config/qsstv-experimental/qsstv-experimental.conf"
+if listener_start "$T/o_ptt" --timeout 4; then
+  ok "the listener starts"
+  wait $LPID; rc=$?
+  expect_exit "--timeout with an unusable PTT port" 1 $rc
+else
+  bad "the listener did not start with an unusable PTT port: $(tail -3 "$T/stderr")"
+  listener_stop KILL   # it sits behind a message box that nobody can answer, and ignores SIGINT
+fi
+rm -f "$HOME/.config/qsstv-experimental/qsstv-experimental.conf"
+
 echo "== a picture through the virtual cable, stopped with SIGINT"
 if listener_start "$T/o_full"; then
   paplay --device=$SINK "$T/jb.wav" &

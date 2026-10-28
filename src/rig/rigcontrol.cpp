@@ -26,6 +26,7 @@
 #include "sound/soundbase.h"
 #include "configparams.h"
 #include "dispatcher.h"
+#include "dispatch/filedecoder.h"
 
 
 #include <QSplashScreen>
@@ -399,6 +400,9 @@ void rigControl::setSerialPTTLines(bool b)
 void rigControl::activatePTT(bool b)
 {
   if(!soundBase::txFileName.isEmpty()) return;   // --encode writes a wav file: never key a radio
+  // --batch / --listen only receive: nothing was keyed, so there is nothing to release, and a port that cannot be opened
+  // (it is in use by a window, say) would stop behind a message box that nobody can answer (issue #136)
+  if(fileDecoderPtr->isBatch()) return;
   if(catParams.enableSerialPTT)
     {
       if (catParams.pttSerialPort.isEmpty()) return;

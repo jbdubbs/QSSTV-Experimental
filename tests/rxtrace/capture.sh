@@ -7,8 +7,8 @@
 # receiver's events, see src/sstv/rxtrace.h), pics/ (the pictures the receiver saves), receiver.log and session.txt.
 #
 # The receiver runs with a throw-away HOME that holds a COPY of your configuration (sensitivity, Save if Complete, mode, ...),
-# with the serial PTT, CAT and XML-RPC switched off: a receiver never keys a radio, and a running QSSTV that holds the PTT
-# port would make a second one stop behind an invisible "Unable to open serial port" box (--listen has no window).
+# with the serial PTT, CAT and XML-RPC switched off: a receiver never keys a radio, so it stays off the radio and its ports,
+# which a running QSSTV may hold (--listen itself no longer touches the PTT port, issue #136, but CAT still opens its own).
 #
 # Defaults: one hour from "USB Audio Device Mono". QSSTV_BIN selects the binary (default ../../build-cmake/qsstv-experimental).
 # Needs pw-record (or parecord) and a running PipeWire/PulseAudio server. Stop early with Ctrl+C / SIGTERM: the recording

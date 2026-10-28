@@ -55,7 +55,8 @@ the name can be shortened as long as it stays unique. A name that matches nothin
 messages go to the standard error.</p>
 <p>The run goes on until you press <kbd>Ctrl</kbd>+<kbd>C</kbd> or send SIGTERM (or SIGHUP), or until <code>--timeout</code> seconds have passed. A picture that is still being received when it stops is saved too, if it passes the limit described below (analog SSTV; a second
 <kbd>Ctrl</kbd>+<kbd>C</kbd> ends the program at once). If the sound input cannot be opened, or disappears while running (a USB sound card is unplugged, for example), the program says so and exits with code 2,
-so a service manager can start it again.</p>
+so a service manager can start it again. A receiver never keys the radio: it leaves the PTT alone, so the serial port you set for PTT may be in use by a running QSSTV window, or not be there, without
+holding <code>--listen</code> (or <code>--batch</code>) up.</p>
 <p>As in the window, an interrupted or poorly received analog picture is only kept if at least <span class="ui">Save if Complete (%)</span> of its lines arrived (25 by default; see <a href="receive.html">Receiving</a>), so a noisy
 channel does not fill the disk with fragments. <code>--listen</code> and <code>--batch</code> read this setting, like the others, from the settings you saved in the window, and <code>--min-complete &lt;percent&gt;</code> overrides it for one run (0 to 100; 100 keeps only
 pictures that arrived in full). It applies to the picture that is cut off when you stop as well, and never changes the saved setting. DRM files are not affected: they are saved only when complete.</p>
