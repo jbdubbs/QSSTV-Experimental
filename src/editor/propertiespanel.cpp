@@ -403,10 +403,10 @@ void PropertiesPanel::build()
     if (sel.isEmpty()) return;
     const QColor c = pickColor(sel.first().fill, tr("Fill color"));
     if (!c.isValid()) return;
-    apply([c](tpl::Element &e) { e.fill = c; }, tr("Change fill"), QString());
+    apply([c](tpl::Element &e) { e.fill = c; if (e.type == tpl::ItemType::Text) e.image = QImage(); }, tr("Change fill"), QString());
   });
   connect(gradientEdit, &GradientEdit::changed, this, [this](const tpl::Gradient &gr) {
-    apply([gr](tpl::Element &e) { e.gradient = gr; }, tr("Change gradient"), QStringLiteral("gradient"));
+    apply([gr](tpl::Element &e) { e.gradient = gr; if (e.type == tpl::ItemType::Text) e.image = QImage(); }, tr("Change gradient"), QStringLiteral("gradient"));
   });
 
   connect(outlineBox, &QGroupBox::toggled, this, [this](bool on) {

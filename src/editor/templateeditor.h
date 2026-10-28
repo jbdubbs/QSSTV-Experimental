@@ -52,6 +52,8 @@ public:
   /*! a new template of the given size; `starter` is an index into templatePresets::starterNames() (0 = blank) */
   bool newTemplate(const QSize &size, tpl::TemplateDocument::Layout layout = tpl::TemplateDocument::Anchored, int starter = 0);
   bool newTemplateDialog();                    //!< asks for the size and layout
+  bool importMmsstvFile(const QString &fileName); //!< preview, then replace as an unsaved native document
+  void importMmsstvBatch();
   bool save();
   bool saveAs();
   bool maybeSave();                            //!< true when it is safe to discard the document
@@ -121,6 +123,7 @@ private:
   QMenu *recentMenu, *contextMenu;
   QActionGroup *toolGroup;
 
+  QAction *importMmsstvAct, *importMmsstvBatchAct;
   QAction *newAct, *openAct, *saveAct, *saveAsAct, *revertAct, *closeAct;
   QAction *undoAct, *redoAct, *cutAct, *copyAct, *pasteAct, *deleteAct, *duplicateAct, *selectAllAct, *clearAllAct;
   QAction *selectTool, *textTool, *rectTool, *ellipseTool, *lineTool, *replayTool, *imageAct;

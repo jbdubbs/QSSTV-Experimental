@@ -26,6 +26,13 @@ templates in the template editor, and the Transmit tab and the Gallery use them.
 <p>Only one editor is open at a time; opening another template while it is open puts the template in the same window (you are asked first if there are unsaved changes).
 Press <kbd>F1</kbd> in the editor to open this page.</p>
 
+<h2 id="mmsstv">Importing MMSSTV templates</h2>
+<p>Use <span class="ui">File &gt; Import MMSSTV template…</span> to select an <code>.mtm</code> file. Review the preview and warnings, then accept and save as a new <code>.qtempl</code>. Text, supported shapes and images remain editable. Cancel leaves the current template untouched; replacing unsaved work uses the usual save prompt. The source file is preserved.</p>
+<p><span class="ui">File &gt; Import MMSSTV templates (batch)…</span> converts several selected files into a destination folder. Choose your configured templates folder to use them in TX. Existing filenames get numeric suffixes; the final report lists successes, warnings and failures. Batch import preserves the open editor document and its unsaved changes.</p>
+<p>MMSSTV background and sampled transparency are retained. The main canvas shows the objects against that background; the import preview, Size preview, thumbnails and TX overlay remove the sampled color after composing the whole template. Check Size preview at your transmission size. Missing fonts, simplified effects and rasterized masks are reported. Unsupported/OLE/custom objects are rejected.</p>
+<p>Supported macros are translated by meaning, including contact operator, UTC/local dates and times, lowercase callsign and report prefix/suffix. Unsupported fields remain visible literal text with a warning. A short report is never replaced with an invented default.</p>
+<p>Sampled transparency and tiled text textures use <code>.qtempl</code> format version 2, which older builds cannot open. Other templates keep version 1. Import the original <code>.mtm</code> rather than a QSSTV 9.6 conversion to retain MMSSTV transparency. Visual equivalence to Windows MMSSTV is not guaranteed; inspect each imported layout before transmission.</p>
+
 <h2 id="canvas">The canvas</h2>
 <p>The canvas is the picture area of one SSTV mode. Make the template at the size of the mode you send most (for example 640 x 496 for PD120, 320 x 256 for Martin 1).
 A new template starts with the size of the mode currently selected on the Transmit tab; <span class="ui">Arrange &gt; Canvas Size...</span> changes it later, and can scale the items along.</p>

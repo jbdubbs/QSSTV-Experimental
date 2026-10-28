@@ -16,6 +16,7 @@
 #include <QMutexLocker>
 #include <QPainterPath>
 #include <cmath>
+#include <QtMath>
 #include <vector>
 #include "macroexpansion.h"
 
@@ -319,7 +320,8 @@ void paintBody(QPainter &p, const Element &e, const RenderOptions &opt, const QC
       {
         const QString text = opt.expandMacros ? expandMacros(e.text, opt.vars) : e.text;
         const QPainterPath path = textOf(e, text);
-        if (!flat && e.gradient.isActive()) p.setBrush(QBrush(e.gradient.build(e.textBox ? e.rect : path.boundingRect())));
+        if (!flat && !e.image.isNull()) p.setBrush(QBrush(e.image));
+        else if (!flat && e.gradient.isActive()) p.setBrush(QBrush(e.gradient.build(e.textBox ? e.rect : path.boundingRect())));
         p.setPen(pen);
         p.drawPath(path);
         break;
@@ -586,6 +588,34 @@ void paintDocument(QPainter &p, const TemplateDocument &doc, const QRectF &targe
 {
   const QRectF src = doc.canvas;
   if (src.width() <= 0 || src.height() <= 0 || target.isEmpty()) return;
+  if (doc.sampledTransparency)
+    {
+      // Compose before removing the key: per-object removal would reveal lower objects.
+      QSize size(qMax(1, qRound(target.width())), qMax(1, qRound(target.height())));
+      if (size.width() > 4096 || size.height() > 4096) size.scale(4096, 4096, Qt::KeepAspectRatio);
+      QImage layer(size, QImage::Format_ARGB32);
+      if (layer.isNull()) return;
+      layer.fill(doc.background);
+      TemplateDocument plain = doc;
+      plain.sampledTransparency = false;
+      { QPainter lp(&layer); lp.setRenderHints(p.renderHints());
+        paintDocument(lp, plain, QRectF(QPointF(), QSizeF(size)), opt, keepAspect); }
+      double sx = size.width() / src.width(), sy = size.height() / src.height();
+      if (keepAspect) sx = sy = qMin(sx, sy);
+      if (doc.layout == TemplateDocument::Anchored && !keepAspect)
+        sx = sy = anchoredScale(src, size);
+      const int x = qBound(0, qFloor((doc.transparencyPoint.x() - src.x()) * sx), size.width() - 1);
+      const int y = qBound(0, qFloor((doc.transparencyPoint.y() - src.y()) * sy), size.height() - 1);
+      const QRgb key = layer.pixel(x, y) & 0xffffff;
+      for (int row = 0; row < layer.height(); ++row)
+        {
+          QRgb *line = reinterpret_cast<QRgb *>(layer.scanLine(row));
+          for (int col = 0; col < layer.width(); ++col)
+            if ((line[col] & 0xffffff) == key) line[col] = 0;
+        }
+      p.save(); p.setClipRect(target, Qt::IntersectClip); p.drawImage(target, layer); p.restore();
+      return;
+    }
   const bool anchored = doc.layout == TemplateDocument::Anchored && !keepAspect;
   qreal xr = target.width() / src.width();
   qreal yr = target.height() / src.height();

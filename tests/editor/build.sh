@@ -21,7 +21,7 @@ done
 "$RCC" --name editor "$SRC/editor/editor.qrc" -o "$OUT/qrc_editor.cpp"
 
 # objects are rebuilt only when a source is newer
-SOURCES="template/templatedoc template/templatelegacy template/templaterender template/templatevars utils/macroexpansion utils/externaleditor
+SOURCES="template/templatedoc template/templatelegacy template/mmsstvtemplate template/mmsstvimport template/templaterender template/templatevars utils/macroexpansion utils/externaleditor
 editor/editordocument editor/editorcommands editor/editorcanvas editor/editoricons editor/gradientedit editor/propertiespanel
 editor/layerspanel editor/macropalette editor/canvassizedialog editor/sizepreviewpanel editor/templatepresets editor/templateeditor"
 OBJS=""

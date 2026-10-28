@@ -510,6 +510,7 @@ void EditorCanvas::drawBackground(QPainter *p, const QRectF &rect)
       b.setTransform(QTransform::fromScale(px, px));
       p->fillRect(c, b);
     }
+  if (doc->doc().sampledTransparency) p->fillRect(c, doc->doc().background);
   if (gridVisible && gridPx * zoomFactor >= 4)
     {
       p->save();

@@ -321,6 +321,10 @@ void EditorDocument::setOrderRaw(const QStringList &order)
 
 void EditorDocument::setCanvasRaw(const QRectF &canvas, tpl::TemplateDocument::Layout layout)
 {
+  if (d.sampledTransparency && d.canvas.width() > 0 && d.canvas.height() > 0)
+    d.transparencyPoint = canvas.topLeft() + QPointF(
+      (d.transparencyPoint.x() - d.canvas.x()) * canvas.width() / d.canvas.width(),
+      (d.transparencyPoint.y() - d.canvas.y()) * canvas.height() / d.canvas.height());
   d.canvas = canvas;
   d.layout = layout;
   emit canvasChanged();

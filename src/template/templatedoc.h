@@ -149,6 +149,9 @@ struct TemplateDocument
   QRectF canvas = QRectF(0, 0, 320, 256);  //!< the area that is mapped onto the target picture
   Layout layout = Stretch;                 //!< Stretch: canvas stretched over the target (legacy behavior)
   QVector<Element> items;                  //!< paint order, first = bottom
+  bool sampledTransparency = false;         //!< remove the sampled color after composing the complete overlay
+  QColor background = QColor(248, 248, 248);
+  QPointF transparencyPoint;
   bool fromLegacy = false;                 //!< imported from the binary .templ format
   bool hasReplay() const;
 };

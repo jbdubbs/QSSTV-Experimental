@@ -4,6 +4,11 @@
 #include <QActionGroup>
 #include <QApplication>
 #include <QClipboard>
+#include <QDialogButtonBox>
+#include <QPlainTextEdit>
+#include <QPainter>
+#include "mmsstvimport.h"
+#include "templaterender.h"
 #include <QCloseEvent>
 #include <QDir>
 #include <QDockWidget>
@@ -181,6 +186,15 @@ void TemplateEditor::createActions()
 {
   newAct = makeAction(tr("&New…"), QStringLiteral("new"), QKeySequence::New, tr("Start a new template"));
   openAct = makeAction(tr("&Open…"), QStringLiteral("open"), QKeySequence::Open, tr("Open a template (.qtempl, or an old .templ file)"));
+  importMmsstvAct = makeAction(tr("Import MMSSTV template…"), QString(), QKeySequence(), tr("Convert an MMSSTV .mtm template into editable native objects"));
+  importMmsstvAct->setObjectName(QStringLiteral("importMmsstvAct"));
+  importMmsstvBatchAct = makeAction(tr("Import MMSSTV templates (batch)…"), QString(), QKeySequence(), tr("Convert several .mtm files into the templates folder"));
+  importMmsstvBatchAct->setObjectName(QStringLiteral("importMmsstvBatchAct"));
+  connect(importMmsstvAct, &QAction::triggered, this, [this]() {
+    const QString file = QFileDialog::getOpenFileName(this, tr("Import MMSSTV template"), templatesDir, tr("MMSSTV templates (*.mtm *.MTM);;All files (*)"));
+    if (!file.isEmpty()) importMmsstvFile(file);
+  });
+  connect(importMmsstvBatchAct, &QAction::triggered, this, &TemplateEditor::importMmsstvBatch);
   saveAct = makeAction(tr("&Save"), QStringLiteral("save"), QKeySequence::Save, tr("Save the template"));
   saveAsAct = makeAction(tr("Save &As…"), QStringLiteral("saveas"), QKeySequence::SaveAs, tr("Save the template under a new name"));
   revertAct = makeAction(tr("&Revert"), QStringLiteral("revert"), QKeySequence(), tr("Throw away the changes and load the saved file again"));
@@ -316,6 +330,8 @@ void TemplateEditor::createMenus()
   QMenu *file = menuBar()->addMenu(tr("&File"));
   file->addAction(newAct);
   file->addAction(openAct);
+  file->addAction(importMmsstvAct);
+  file->addAction(importMmsstvBatchAct);
   recentMenu = file->addMenu(tr("Open &Recent"));
   for (int i = 0; i < maxRecent; i++)
     {
@@ -675,6 +691,68 @@ bool TemplateEditor::openFile(const QString &fileName)
   addRecent(fileName);
   view->zoomFit();
   return true;
+}
+
+bool TemplateEditor::importMmsstvFile(const QString &fileName)
+{
+  const tpl::LoadResult r = Mmsstv::loadTemplate(fileName);
+  if (!r.ok) { problem(tr("Import MMSSTV template"), r.error); return false; }
+  QDialog preview(this);
+  preview.setObjectName(QStringLiteral("mmsstvImportPreview"));
+  preview.setWindowTitle(tr("Preview MMSSTV import — %1").arg(QFileInfo(fileName).fileName()));
+  QVBoxLayout *layout = new QVBoxLayout(&preview);
+  QLabel *image = new QLabel;
+  const QImage rendered = tpl::renderThumbnail(r.doc);
+  image->setPixmap(QPixmap::fromImage(rendered.scaled(640, 512, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
+  QPixmap checker(16, 16); checker.fill(QColor(244,244,244));
+  { QPainter p(&checker); p.fillRect(0,0,8,8,QColor(220,220,220)); p.fillRect(8,8,8,8,QColor(220,220,220)); }
+  QPalette palette = image->palette(); palette.setBrush(QPalette::Window, QBrush(checker));
+  image->setPalette(palette); image->setAutoFillBackground(true);
+  layout->addWidget(image, 0, Qt::AlignCenter);
+  layout->addWidget(new QLabel(tr("%1 × %2 pixels; %3 objects. Save creates a new .qtempl file.")
+    .arg(r.doc.canvas.width()).arg(r.doc.canvas.height()).arg(r.doc.items.size())));
+  QPlainTextEdit *warnings = new QPlainTextEdit;
+  warnings->setReadOnly(true);
+  warnings->setPlainText(r.warnings.join(QLatin1Char('\n')));
+  warnings->setVisible(!r.warnings.isEmpty());
+  layout->addWidget(warnings);
+  QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+  connect(buttons, &QDialogButtonBox::accepted, &preview, &QDialog::accept);
+  connect(buttons, &QDialogButtonBox::rejected, &preview, &QDialog::reject);
+  layout->addWidget(buttons);
+  if (preview.exec() != QDialog::Accepted || !maybeSave()) return false;
+  doc.load(r.doc, QString());
+  doc.undoStack()->resetClean(); // imported content has not been saved, even before the first edit
+  view->zoomFit();
+  return true;
+}
+
+void TemplateEditor::importMmsstvBatch()
+{
+  const QStringList sources = QFileDialog::getOpenFileNames(this, tr("Import MMSSTV templates"), templatesDir,
+    tr("MMSSTV templates (*.mtm *.MTM);;All files (*)"));
+  if (sources.isEmpty()) return;
+  const QString destination = QFileDialog::getExistingDirectory(this, tr("Destination for converted templates"), templatesDir);
+  if (destination.isEmpty()) return;
+  if (QMessageBox::question(this, tr("Import MMSSTV templates"),
+      tr("Convert %1 files to .qtempl in %2? Existing files are preserved. Conversion warnings will be listed afterwards; check the imported layouts before transmission.")
+      .arg(sources.size()).arg(QDir::toNativeSeparators(destination))) != QMessageBox::Yes) return;
+  QStringList report;
+  int succeeded = 0;
+  for (const auto &r : Mmsstv::importTemplates(sources, destination)) {
+    if (r.target.isEmpty()) report << tr("%1: FAILED — %2").arg(r.source, r.error);
+    else { ++succeeded; report << tr("%1 → %2").arg(r.source, r.target); emit templateSaved(r.target); }
+    report << r.warnings;
+    report << QString();
+  }
+  QDialog summary(this);
+  summary.setWindowTitle(tr("MMSSTV import: %1 of %2 converted").arg(succeeded).arg(sources.size()));
+  QVBoxLayout *layout = new QVBoxLayout(&summary);
+  QPlainTextEdit *text = new QPlainTextEdit(report.join(QLatin1Char('\n')));
+  text->setReadOnly(true); layout->addWidget(text);
+  QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Close);
+  connect(buttons, &QDialogButtonBox::rejected, &summary, &QDialog::reject);
+  layout->addWidget(buttons); summary.resize(760, 480); summary.exec();
 }
 
 bool TemplateEditor::newTemplate(const QSize &size, tpl::TemplateDocument::Layout layout, int starter)

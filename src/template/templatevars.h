@@ -14,11 +14,15 @@
 
 #include <QChar>
 #include <QHash>
+#include <QDateTime>
 #include <QString>
 #include <QVector>
 
 namespace tpl
 {
+/*! Compatible MMSSTV fields, captured at one instant for UTC and local dates/times. */
+void addMmsstvVars(QHash<QChar, QString> &vars, const QString &call, const QString &report, const QDateTime &instant);
+
 
 struct MacroInfo
 {
