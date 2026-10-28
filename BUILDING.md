@@ -74,6 +74,8 @@ ARCH=aarch64 packaging/appimage/build.sh     # arm64, built under QEMU emulation
 The result is `QSSTV-Experimental-<version>-<arch>.AppImage` in the repository root (override with `OUT_DIR`).
 The AppImage also bundles `kimageformats` and the libheif codec plugins, which provide the AVIF and HEIC formats.
 
+For a feature-branch test artifact, set `QSSTV_APPIMAGE_NO_UPDATE=1` to omit the upstream update link (and optional delta-update metadata). The KG-STV AppImage workflow uses this setting and names its artifact with the source commit.
+
 Next to the AppImage the build writes `<name>.AppImage.zsync` (delta-update data) and `<name>.AppImage.sha256`.
 Upload all three to the GitHub release. The AppImage embeds the update information
 `gh-releases-zsync|jbdubbs|QSSTV-Experimental|latest|QSSTV-Experimental-*-<arch>.AppImage.zsync`, so

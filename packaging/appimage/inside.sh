@@ -56,7 +56,11 @@ export EXTRA_PLATFORM_PLUGINS="libqoffscreen.so;libqwayland.so"
 # Embedded update information (AppImageUpdate / appimageupdatetool, AppImageLauncher, Gear Lever): delta updates via
 # the .zsync file attached to each GitHub release. Release must not be flagged "pre-release" for `latest` to find it.
 case "$(uname -m)" in x86_64) UARCH=x86_64;; *) UARCH=$(uname -m);; esac
-export LDAI_UPDATE_INFORMATION="gh-releases-zsync|jbdubbs|QSSTV-Experimental|latest|QSSTV-Experimental-*-$UARCH.AppImage.zsync"
+if [ "${QSSTV_APPIMAGE_NO_UPDATE:-0}" = 1 ]; then
+  unset LDAI_UPDATE_INFORMATION # branch artifacts must not replace themselves with upstream releases
+else
+  export LDAI_UPDATE_INFORMATION="gh-releases-zsync|jbdubbs|QSSTV-Experimental|latest|QSSTV-Experimental-*-$UARCH.AppImage.zsync"
+fi
 linuxdeploy --appdir $APPDIR "${FORCE[@]}" \
   --executable $APPDIR/usr/bin/qsstv-experimental \
   --desktop-file $APPDIR/usr/share/applications/qsstv-experimental.desktop \
