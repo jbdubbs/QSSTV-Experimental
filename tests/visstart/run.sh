@@ -20,7 +20,7 @@
 #   VISSTART_CASES="M1:8" tests/visstart/run.sh    # only these MODE:lines-in-noise cases
 #
 # The test transmissions start with a calibration header, so the first line starts 1.715 s into the file (1.955 s with an
-# extended VIS code: MP, MR and ML modes).
+# extended VIS code: MP, MR and ML modes; 2.365 s with a narrow VIS code: the -N modes, MC110-N here).
 #
 # Needs: the built qsstv-experimental, ffmpeg (scales the test picture), python3 with numpy and Pillow. About 5 minutes.
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -49,9 +49,9 @@ pass=0; fail=0
 ok()  { echo "  ok   $1"; pass=$((pass+1)); }
 bad() { echo "  FAIL $1"; fail=$((fail+1)); }
 
-declare -A SIZE=([M1]=320x256 [R36]=320x240 [PD120]=640x496 [S1]=320x256 [MP73]=320x256)
-declare -A LINEMS=([M1]=446.446 [R36]=150 [PD120]=508.48 [S1]=428.38 [MP73]=570)
-declare -A START=([M1]=1.715 [R36]=1.715 [PD120]=1.715 [S1]=1.715 [MP73]=1.955)
+declare -A SIZE=([M1]=320x256 [R36]=320x240 [PD120]=640x496 [S1]=320x256 [MP73]=320x256 [MC110-N]=320x256)
+declare -A LINEMS=([M1]=446.446 [R36]=150 [PD120]=508.48 [S1]=428.38 [MP73]=570 [MC110-N]=428.53)
+declare -A START=([M1]=1.715 [R36]=1.715 [PD120]=1.715 [S1]=1.715 [MP73]=1.955 [MC110-N]=2.365)
 prepare() {      # encode the picture once per mode, decode it clean
   local m=$1 size=${SIZE[$1]}
   [ -f "$T/$m.wav" ] && return 0
@@ -62,7 +62,7 @@ prepare() {      # encode the picture once per mode, decode it clean
 }
 
 echo "== lines of a picture in the noise right after its VIS code"
-for spec in ${VISSTART_CASES:-M1:8 M1:16 R36:30 PD120:10 S1:12 MP73:10}; do
+for spec in ${VISSTART_CASES:-M1:8 M1:16 R36:30 PD120:10 S1:12 MP73:10 MC110-N:8}; do
   IFS=: read -r m n <<< "$spec"
   prepare $m || { bad "$spec: could not prepare"; continue; }
   hold=$(python3 -c "print(round($n*${LINEMS[$m]}/1000-0.1,3))")

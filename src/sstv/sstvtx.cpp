@@ -126,10 +126,12 @@ bool sstvTx::create(esstvMode m,DSPFLOAT clock)
   case P3:
   case P5:
   case P7:
+    currentMode=new modeRGB(m,TXSTRIPE,true,false);
+    break;
   case MC110N:
   case MC140N:
   case MC180N:
-    currentMode=new modeRGB(m,TXSTRIPE,true,false);
+    currentMode=new modeRGB(m,TXSTRIPE,true,true);   // narrow: 1900 Hz sync, 2044-2300 Hz video, 24 bit VIS code (#145)
     break;
   case FAX480:
   case BW8:
@@ -196,7 +198,8 @@ double sstvTx::calcTxTime(int overheadTime)
   initializeSSTVParametersIndex(sstvModeIndexTx,true);
   int t=txSSTVParam.VISCode;
   tim+=1.41; //preamble;
-  if ((t&0xFF)==0x23) tim+=18.*0.03;
+  if((txSSTVParam.mode>=STARTNARROW) && (txSSTVParam.mode<=ENDNARROW)) tim+=0.3+0.1+25*0.022; // leader, break, start bit and 24 bits (sendVIS)
+  else if ((t&0xFF)==0x23) tim+=18.*0.03;
   else tim+=10.*0.03;
   tim+=txSSTVParam.imageTime;
 

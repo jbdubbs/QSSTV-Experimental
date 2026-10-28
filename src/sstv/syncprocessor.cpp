@@ -1177,10 +1177,12 @@ bool  syncProcessor::createModeBase()
   case P3:
   case P5:
   case P7:
+    currentModePtr=new modeRGB(currentMode,RXSTRIPE,false,false);
+    break;
   case MC110N:
   case MC140N:
   case MC180N:
-    currentModePtr=new modeRGB(currentMode,RXSTRIPE,false,false);
+    currentModePtr=new modeRGB(currentMode,RXSTRIPE,false,true);
     break;
   case FAX480:
   case BW8:

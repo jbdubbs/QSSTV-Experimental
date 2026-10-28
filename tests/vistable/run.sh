@@ -25,9 +25,6 @@ command -v python3 >/dev/null || { echo "python3 is needed"; exit 2; }
 
 declare -A EXCEPTIONS=(
   [FAX480]="no VIS code"
-  [MC110-N]="its VIS code is never decoded (#145)"
-  [MC140-N]="its VIS code is never decoded (#145)"
-  [MC180-N]="its VIS code is never decoded (#145)"
 )
 
 T=$(mktemp -d)
