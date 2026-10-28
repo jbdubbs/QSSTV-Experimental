@@ -13,6 +13,10 @@ class rxFunctions;
 class imageViewer;
 class spectrumWidget;
 class vuMeter;
+class QComboBox;
+class QPlainTextEdit;
+class QLabel;
+class QCheckBox;
 
 
 namespace Ui {
@@ -53,6 +57,7 @@ public:
   void setSettingsTab();
   void changeTransmissionMode(int rxtxMode);
   bool rxBusy();
+  void setKgstvBusy(bool busy);
   //! only the tab of mode "busy" stays selectable (-1: all tabs)
   void setModeLock(int busy);
   //! put the tab bar back on mode m without triggering a mode change
@@ -61,6 +66,10 @@ public:
   //! same as the Clear toolbar button
   void clearImage() {slotErase();}
 private slots:
+  void slotKgstvImage(QImage image,int received,bool complete,quint64 epoch);
+  void slotKgstvText(QString sender,QString text);
+  void slotKgstvStatus(QString status);
+  void slotKgstvLocalText(QString text,bool sent);
   void slotStart();
   void slotStop();
   void slotResync();
@@ -94,6 +103,11 @@ private:
   void rebuildModeComboBox();
   ftpFunctions ff;
   bool doRemove;
+  QComboBox *kgstvModulation;
+  QCheckBox *kgstvAutoSave;
+  QPlainTextEdit *kgstvHistory;
+  QLabel *kgstvStatus;
+  bool kgstvSaved=false;
   // Index -> esstvMode map for sstvModeComboBox; index 0 is always the
   // "Auto" sentinel (NOTVALID). See rebuildModeComboBox()'s comment for
   // why a direct index<->enum conversion isn't used.

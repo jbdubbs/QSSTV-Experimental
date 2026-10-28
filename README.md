@@ -34,6 +34,8 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 ### What's New?
 #### Features
 
+- **Experimental KG-STV** — native image/ASCII text RX/TX and manual BSR repair, with MSK/4L-FSK tabs and audio-file decoding. See [KG-STV implementation and validation](docs/KGSTV.md); original outbound/BSR and physical-device interoperability remain unverified.
+
 - **Sample-rate calibration** - from WWV time ticks, NTP, or the slant of a received SSTV picture
 - **Decode SSTV from audio files** - (WAV, MP3, FLAC, OGG, AAC), from the GUI (*File > Decode SSTV From File...*) at about 10x real time, or from the command line with `qsstv-experimental --batch`, headless, with scriptable exit codes. `qsstv-experimental --listen` is the live counterpart: a headless receiver that saves the pictures from a sound card input (`--device`, `--list-devices`)
 - **New SSTV modes:** - *JB60*, a ~61 s 640*496 color mode, and *PD120W*, a 16:9 widescreen PD120

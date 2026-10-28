@@ -74,6 +74,8 @@ ARCH=aarch64 packaging/appimage/build.sh     # arm64, built under QEMU emulation
 The result is `QSSTV-Experimental-<version>-<arch>.AppImage` in the repository root (override with `OUT_DIR`).
 The AppImage also bundles `kimageformats` and the libheif codec plugins, which provide the AVIF and HEIC formats.
 
+For a feature-branch test artifact, set `QSSTV_APPIMAGE_NO_UPDATE=1` to omit the upstream update link (and optional delta-update metadata). The KG-STV AppImage workflow uses this setting and names its artifact with the source commit.
+
 Next to the AppImage the build writes `<name>.AppImage.zsync` (delta-update data) and `<name>.AppImage.sha256`.
 Upload all three to the GitHub release. The AppImage embeds the update information
 `gh-releases-zsync|jbdubbs|QSSTV-Experimental|latest|QSSTV-Experimental-*-<arch>.AppImage.zsync`, so
@@ -184,6 +186,12 @@ The Windows build is a MinGW cross-compile.
    ```
    tools/check-win-deps.py build-mingw64/qsstv-experimental.exe
    ```
+
+### KG-STV branch CI
+
+`.github/workflows/kgstv-windows.yml` applies the same Fedora MinGW / static vendored Hamlib / AVIF+HEIC / NSIS process to `feature/kgstv-integration`. It produces an x86_64 **installer**, matching main's packaging rather than a portable self-extracting application. The source commit, pinned Hamlib commit and Fedora package versions accompany the installer and SHA-256 file in the Actions artifact.
+
+A Windows runner extracts the actual installer and tests its application with compiler/Qt directories removed from PATH: packaged startup, both KG-STV modulation modes through production WAV TX/RX, native-codec image comparison and standalone text. These checks do not initialize audio or CAT/PTT, and do not establish real-device or original KG-STV outbound/BSR interoperability. The Windows test helper is a separate temporary CI artifact, not part of the installer.
 
 Supported systems: 64-bit Windows 10 version 1809 or newer, and Windows 11 (Qt 6's own minimum). Run `winver` to
 check your version.

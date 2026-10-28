@@ -1,10 +1,19 @@
+#include "kgstvcontroller.h"
+#include <QVBoxLayout>
+#include <QFormLayout>
+#include <QLabel>
+#include <QSpinBox>
+#include <QPlainTextEdit>
+#include <QPushButton>
+#include <QSignalBlocker>
+#include <QTemporaryFile>
 #include "txwidget.h"
 #include "appglobal.h"
-#include <QTimeZone>
 #include "drmparams.h"
 #include "rxwidget.h"
 #include "rxfunctions.h"
 #include "ui_txwidget.h"
+#include <QTimeZone>
 #include <QTimer>
 #include <QStandardItemModel>
 #include "avifenc.h"
@@ -41,6 +50,32 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   styleToolButtons(this);
   ui->previewWidget->setType(imageViewer::PREVIEW);
   txFunctionsPtr=new txFunctions(this);
+  QWidget *kgstvTab=new QWidget(this);QVBoxLayout *kgstvLayout=new QVBoxLayout(kgstvTab);
+  QLabel *notice=new QLabel(tr("Experimental KG-STV; original interoperability is unverified. Images use 320x240 pixels."),kgstvTab);notice->setWordWrap(true);kgstvLayout->addWidget(notice);
+  QFormLayout *form=new QFormLayout;
+  kgstvModulation=new QComboBox(kgstvTab);kgstvModulation->setObjectName("kgstvTxModulation");kgstvModulation->addItems({"MSK","4L-FSK"});form->addRow(tr("Modulation"),kgstvModulation);
+  kgstvQuality=new QSpinBox(kgstvTab);kgstvQuality->setObjectName("kgstvQuality");kgstvQuality->setRange(0,15);kgstvQuality->setToolTip(tr("Higher levels reduce block size and image quality."));form->addRow(tr("Compression (0..15)"),kgstvQuality);
+  kgstvFec=new QCheckBox(tr("Payload error correction"),kgstvTab);kgstvFec->setObjectName("kgstvFec");form->addRow(kgstvFec);kgstvLayout->addLayout(form);
+  kgstvText=new QPlainTextEdit(kgstvTab);kgstvText->setObjectName("kgstvTextInput");kgstvText->setPlaceholderText(tr("Standalone text: 1..200 ASCII bytes"));kgstvText->setMaximumHeight(80);kgstvLayout->addWidget(kgstvText);
+  kgstvSendText=new QPushButton(tr("Send Text"),kgstvTab);kgstvSendText->setObjectName("kgstvSendText");kgstvLayout->addWidget(kgstvSendText);
+  kgstvRequest=new QPushButton(tr("Request missing blocks (BSR)"),kgstvTab);kgstvRequest->setObjectName("kgstvRequestBlocks");kgstvLayout->addWidget(kgstvRequest);
+  kgstvRepair=new QPushButton(tr("Send requested blocks from cached image"),kgstvTab);kgstvRepair->setObjectName("kgstvSendRepairs");kgstvLayout->addWidget(kgstvRepair);
+  QLabel *cacheNotice=new QLabel(tr("Repairs use the last completed KG-STV image, even if another image is now loaded. Replies are sent manually."),kgstvTab);cacheNotice->setWordWrap(true);kgstvLayout->addWidget(cacheNotice);
+  ui->settingsTableWidget->addTab(kgstvTab,tr("KG-STV (experimental)"));
+  if(kgstvControllerPtr) {
+    auto sync=[this](){const auto options=kgstvControllerPtr->options();QSignalBlocker a(kgstvModulation),b(kgstvQuality),c(kgstvFec);kgstvModulation->setCurrentIndex(options.fourLevel?1:0);kgstvQuality->setValue(options.quality);kgstvFec->setChecked(options.fec);};sync();
+    connect(kgstvControllerPtr,&Kgstv::Controller::optionsChanged,this,sync,Qt::QueuedConnection);
+    auto update=[this,sync](){Kgstv::Options options;options.quality=kgstvQuality->value();options.fec=kgstvFec->isChecked();options.fourLevel=kgstvModulation->currentIndex()==1;QString error;
+      if(!kgstvControllerPtr->configure(options,&error)){sync();QMessageBox::warning(this,tr("KG-STV"),error);}
+    };
+    connect(kgstvModulation,QOverload<int>::of(&QComboBox::activated),this,[update](int){update();});
+    connect(kgstvQuality,QOverload<int>::of(&QSpinBox::valueChanged),this,[update](int){update();});
+    connect(kgstvFec,&QCheckBox::toggled,this,[update](bool){update();});
+  }
+  connect(kgstvSendText,&QPushButton::clicked,this,[this](){kgstvAction(0);});
+  connect(kgstvRequest,&QPushButton::clicked,this,[this](){kgstvAction(1);});
+  connect(kgstvRepair,&QPushButton::clicked,this,[this](){kgstvAction(2);});
+
   imageViewerPtr=ui->imageFrame;
 
   imageViewerPtr->displayImage();
@@ -311,7 +346,7 @@ void txWidget::slotGetParams()
   getValue(imageViewerPtr->comment3,ui->zPlainTextEdit);
   slotGetTXParams();
   getValue(compressedSize,ui->sizeSlider);
-  ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex!=TRXSSTV));
+  ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex==TRXDRM));
   if(txFunctionsPtr->getTXState()==txFunctions::TXIDLE)
     {
       applyTemplate();
@@ -349,7 +384,7 @@ void txWidget::setParams()
   if(compressedSize<MINDRMSIZE) compressedSize=MINDRMSIZE;
   if(compressedSize>MAXDRMSIZE) compressedSize=MAXDRMSIZE;
   setValue(compressedSize,ui->sizeSlider);
-  ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex!=TRXSSTV));
+  ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex==TRXDRM));
   ui->sstvGridComboBox->setCurrentIndex(qBound(0,gridLayout,3));
   ui->drmGridComboBox->setCurrentIndex(qBound(0,gridLayout,3));
   updateGridControl();
@@ -550,6 +585,11 @@ void txWidget::prepareTx()
     {
     case TRXSSTV: txFunctionsPtr->prepareTX(txFunctions::TXPREPARESSTV);
       break;
+    case TRXKGSTV:
+      ++kgstvTicket;
+      txFunctionsPtr->setKgstvImage(imageViewerPtr->getDisplayedImage()->copy(),kgstvTicket);
+      txFunctionsPtr->prepareTX(txFunctions::TXPREPAREKGSTV);
+      break;
     case TRXDRM:  txFunctionsPtr->prepareTX(txFunctions::TXPREPAREDRMPIC);
       break;
     case TRXNOMODE:
@@ -557,8 +597,12 @@ void txWidget::prepareTx()
     }
 }
 
-void txWidget::prepareTxComplete(bool ok)
+void txWidget::prepareTxComplete(bool ok,quint64 ticket)
 {
+  if(transmissionModeIndex==TRXKGSTV && !ticket)return;
+  if(ticket && (ticket!=kgstvTicket || transmissionModeIndex!=TRXKGSTV))return;
+  if(transmissionModeIndex==TRXKGSTV && (!ok || !kgstvControllerPtr || !kgstvControllerPtr->prepared())){enableButtons(true);return;}
+  if(transmissionModeIndex==TRXKGSTV)updateTxTime();
   addToLog(QString("ok=%1, doTx=%2").arg(ok).arg(doTx),LOGTXMAIN);
   if (!ok)
     {
@@ -570,7 +614,7 @@ void txWidget::prepareTxComplete(bool ok)
         }
       if(calTxActive) restoreAfterCalibrationTx();
       enableButtons(true);   // prepareTx() locked the controls
-      ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex!=TRXSSTV));
+      ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex==TRXDRM));
     }
   ui->startToolButton->setEnabled(true);
   if (ok && doTx!=TXUPLOAD)
@@ -647,6 +691,15 @@ void txWidget::startTxImage()
       break;
       //    case FAX:
       //    break;
+    case TRXKGSTV:
+      if(saveTXimages) {
+        QTemporaryFile archived(QDir(txDRMImagesPath).filePath("KGSTV_"+dt.toString("yyyyMMdd_HHmmss_")+"XXXXXX.png"));
+        if(archived.open() && txFunctionsPtr->kgstvPreparedImage().save(&archived,"PNG") && archived.flush()) {
+          archived.setAutoRemove(false);archived.close();galleryWidgetPtr->txImageChanged();
+        } else QMessageBox::warning(this,tr("KG-STV"),tr("Could not archive the prepared TX image."));
+      }
+      if(kgstvControllerPtr && kgstvControllerPtr->prepared())started=dispatcherPtr->startTX(txFunctions::TXSENDKGSTV);
+      break;
     case TRXNOMODE:
       break;
     }
@@ -668,6 +721,7 @@ void txWidget::startTxImage()
 
 void txWidget::sendBSR()
 {
+  if(transmissionModeIndex==TRXKGSTV){kgstvAction(1);return;}
   if(mainWindowPtr->busyMode()>=0) return;
   QByteArray *p;
   bsrForm::eResult res;
@@ -717,6 +771,8 @@ void txWidget::sendWfText()
 
 void txWidget::slotStop()
 {
+  ++kgstvTicket;
+  if(kgstvControllerPtr)kgstvControllerPtr->cancelTransmit();
   if(calTxActive) restoreAfterCalibrationTx();
   if(replayStale) refreshReplay();
   ui->startToolButton->setEnabled(true);
@@ -728,8 +784,8 @@ void txWidget::slotStop()
 
 void txWidget::enableButtons(bool enable)
 {
-  ui->uploadToolButton->setEnabled(enable && useHybrid && (transmissionModeIndex!=TRXSSTV));
-  ui->hybridCheckBox->setEnabled(enable);
+  ui->uploadToolButton->setEnabled(enable && useHybrid && (transmissionModeIndex==TRXDRM));
+  ui->hybridCheckBox->setEnabled(enable && transmissionModeIndex==TRXDRM);
   ui->startToolButton->setEnabled(enable);
   ui->sstvModeComboBox->setEnabled(enable);
   bool drmSingleImage=(transmissionModeIndex==TRXDRM && ui->sstvGridComboBox->currentIndex()==0);
@@ -737,7 +793,7 @@ void txWidget::enableButtons(bool enable)
   ui->drmResizeComboBox->setEnabled(enable && !drmSingleImage);
   ui->drmGridComboBox->setEnabled(enable);
   ui->voxCheckBox->setEnabled(enable);
-  ui->cwCheckBox->setEnabled(enable);
+  ui->cwCheckBox->setEnabled(enable && transmissionModeIndex!=TRXKGSTV);
   ui->templateCheckBox->setEnabled(enable);
   ui->templatesComboBox->setEnabled(enable);
   ui->refreshPushButton->setEnabled(enable);
@@ -748,6 +804,10 @@ void txWidget::enableButtons(bool enable)
   ui->sizeLabel->setEnabled(drmSize);
   ui->sizeKbLabel->setEnabled(drmSize);
   ui->sizeDurationLabel->setEnabled(drmSize);
+  ui->settingsTableWidget->setEnabled(enable);
+  kgstvModulation->setEnabled(enable);kgstvQuality->setEnabled(enable);kgstvFec->setEnabled(enable);
+  kgstvText->setEnabled(enable);kgstvSendText->setEnabled(enable);kgstvRequest->setEnabled(enable);kgstvRepair->setEnabled(enable);
+  if(rxWidgetPtr)rxWidgetPtr->setKgstvBusy(!enable);
 }
 
 
@@ -911,7 +971,7 @@ void txWidget::applyTemplate()
   else
     {
       txFunctionsPtr->applyTemplate(imageViewerPtr,galleryWidgetPtr->getTemplateFileName(ui->templatesComboBox->currentIndex()));
-      ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex!=TRXSSTV));
+      ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex==TRXDRM));
     }
 
   updateTxTime();
@@ -920,6 +980,12 @@ void txWidget::applyTemplate()
 
 void txWidget::updateTxTime()
 {
+  if(transmissionModeIndex==TRXKGSTV){
+    ui->sizeKbLabel->clear();
+    const int seconds=kgstvControllerPtr?int(std::ceil(kgstvControllerPtr->duration())):0;
+    ui->sizeDurationLabel->setText(seconds>0?tr("%1 s").arg(seconds):QString("-"));
+    ui->sizeDurationLabel->setToolTip(tr("Duration of the prepared KG-STV packets."));return;
+  }
   int sizeKb,seconds,minutes;
   if(!imageViewerPtr->hasValidImage()) return;
   seconds=txFunctionsPtr->calcTxTime(false,0);
@@ -987,8 +1053,8 @@ void txWidget::slotModeChanged(int m)
 // A single DRM image is always zoom/pan, so it has no Stretch/Crop/Fit choice
 void txWidget::updateGridControl()
 {
-  bool allowed=(transmissionModeIndex==TRXDRM) ||
-      (SSTVTable[(int)sstvModeIndexTx].numberOfPixels>512 || SSTVTable[(int)sstvModeIndexTx].numberOfDisplayLines>400);
+  bool allowed=transmissionModeIndex!=TRXKGSTV && ((transmissionModeIndex==TRXDRM) ||
+      (SSTVTable[(int)sstvModeIndexTx].numberOfPixels>512 || SSTVTable[(int)sstvModeIndexTx].numberOfDisplayLines>400));
   ui->sstvGridComboBox->setEnabled(allowed);
   ui->drmGridComboBox->setEnabled(allowed);
   int idx=allowed ? ui->sstvGridComboBox->currentIndex() : 0;
@@ -1091,7 +1157,7 @@ void txWidget::setSettingsTab()
     if(transmissionModeIndex==TRXDRM)
       {
         ui->hybridCheckBox->setEnabled(true);
-        ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex!=TRXSSTV));
+        ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex==TRXDRM));
         ui->binaryToolButton->setEnabled(true);
         ui->sizeLabel->setEnabled(true);
         ui->sizeSlider->setEnabled(true);
@@ -1109,7 +1175,7 @@ void txWidget::setSettingsTab()
         ui->sizeKbLabel->setEnabled(false);
         ui->sizeDurationLabel->setEnabled(false);
         ui->sizeDurationLabel->setText("-");
-        mainWindowPtr->setSSTVDRMPushButton(false);
+        if(mainWindowPtr)mainWindowPtr->setSSTVDRMPushButton(false);
       }
   }
   applyTemplate();
@@ -1178,8 +1244,10 @@ void txWidget::slotTransmissionMode(int rxtxMode)
 
 void txWidget::changeTransmissionMode(int rxtxMode)
 {
+  ++kgstvTicket;
   int i;
   transmissionModeIndex=(etransmissionMode)rxtxMode;
+  enableButtons(true);
   if((transmissionModeIndex>=0)&&(transmissionModeIndex<TRXNOMODE))
     {
       for(i=0;i<TRXNOMODE;i++)
@@ -1273,7 +1341,7 @@ void txWidget::slotImageChanged()
     {
       slotSizeApply();
     }
-  ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex!=TRXSSTV));
+  ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex==TRXDRM));
   updateTxTime();
 }
 
@@ -1288,7 +1356,7 @@ void txWidget::slotBinary()
 void txWidget::slotHybridToggled()
 {
   getValue(useHybrid,ui->hybridCheckBox);
-  ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex!=TRXSSTV));
+  ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex==TRXDRM));
   updateTxTime();
 }
 
@@ -1358,6 +1426,7 @@ void txWidget::slotListingDone(bool err)
 
 void txWidget::sendRepeaterImage(esstvMode rxMode)
 {
+  if(transmissionModeIndex==TRXKGSTV)return;
   useHybrid=0;
   setValue(useHybrid,ui->hybridCheckBox);
   rxWidgetPtr->getImageViewerPtr()->slotToTX();
@@ -1374,6 +1443,7 @@ void txWidget::sendRepeaterImage(esstvMode rxMode)
 
 void txWidget::slotRepaterDelay()
 {
+  if(transmissionModeIndex==TRXKGSTV)return;
   addToLog("repeater send image",LOGTXMAIN);
 //  qDebug() << "starting repeater tx";
   repeaterIdleImage=false;
@@ -1391,6 +1461,7 @@ void txWidget::slotRepaterDelay()
 
 void txWidget::slotRepeaterTimer()
 {
+  if(transmissionModeIndex==TRXKGSTV)return;
   QString fn;
   QFile fi;
   repeaterTimer->start(60000*repeaterImageInterval); //retrigger repeater timer
@@ -1490,6 +1561,7 @@ void txWidget::updateBeaconUi()
 
 void txWidget::startBeacon(int minutes)
 {
+  if(transmissionModeIndex==TRXKGSTV)return;
   beaconMinutes=minutes;
   beaconRunning=true;
   beaconPending=false;
@@ -1563,7 +1635,7 @@ void txWidget::slotBeaconTimer()
       beaconSkipped("a calibration transmission is running");
       return;
     }
-  if(transmissionModeIndex!=TRXSSTV && transmissionModeIndex!=TRXDRM)
+  if(transmissionModeIndex==TRXDRM && transmissionModeIndex!=TRXDRM)
     {
       beaconSkipped("no SSTV or DRM transmit mode is selected");
       return;
@@ -1745,4 +1817,16 @@ void txWidget::slotPositionEdited()
   slotGetParams();
   if(imageViewerPtr->latitude+"|"+imageViewerPtr->longitude==placeKey) return;
   requestPlace(false);
+}
+
+void txWidget::kgstvAction(int action)
+{
+  if(transmissionModeIndex!=TRXKGSTV || !kgstvControllerPtr)return;
+  if(txFunctionsPtr->txBusy() || (mainWindowPtr && mainWindowPtr->busyMode()>=0)){QMessageBox::warning(this,tr("KG-STV"),tr("Transmission is busy."));return;}
+  QString error;bool ok=false;
+  if(action==0)ok=kgstvControllerPtr->prepareTextJob(kgstvText->toPlainText(),myCallsign,&error);
+  else if(action==1)ok=kgstvControllerPtr->prepareRequestJob(myCallsign,&error);
+  else ok=kgstvControllerPtr->prepareRepairJob(myCallsign,&error);
+  if(!ok){QMessageBox::warning(this,tr("KG-STV"),error);return;}
+  updateTxTime();enableButtons(false);if(!dispatcherPtr->startTX(txFunctions::TXSENDKGSTV))slotStop();
 }

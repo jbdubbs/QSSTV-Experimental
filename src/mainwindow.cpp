@@ -1,3 +1,4 @@
+#include "kgstvcontroller.h"
 /**************************************************************************
 *   Copyright (C) 2000-2019 by Johan Maes                                 *
 *   on4qz@telenet.be                                                      *
@@ -267,7 +268,7 @@ void mainWindow::init()
   galleryWidgetPtr->init();
   txWidgetPtr->init();
   waterfallPtr->init();
-  rigControllerPtr->init();
+  if(!soundBase::fileOnly)rigControllerPtr->init();
   rxWidgetPtr->init();
   if(!rigControllerPtr->initError.isEmpty())
     {
@@ -599,7 +600,8 @@ void mainWindow::readSettings()
     {
       move( windowX, windowY );
     }
-  transmissionModeIndex=static_cast<etransmissionMode>(qSettings.value("transmissionModeIndex",0).toInt());
+  const int storedMode=qSettings.value("transmissionModeIndex",0).toInt();
+  transmissionModeIndex=storedMode>=TRXSSTV && storedMode<TRXNOMODE?static_cast<etransmissionMode>(storedMode):TRXSSTV;
   qSettings.endGroup();
   ui->spectrumFrame->readSettings();
   //  configDialogPtr->readSettings();
@@ -836,7 +838,8 @@ void mainWindow::setSSTVDRMPushButton(bool inDRM)
   QString modeStr;
   if(rxWidgetPtr) rxWidgetPtr->setFixFileEnabled(inDRM);
   freqComboBox->clear();
-  if(inDRM) modeStr="DRM";
+  if(transmissionModeIndex==TRXKGSTV) modeStr="KG-STV";
+  else if(inDRM) modeStr="DRM";
   else modeStr="SSTV";
   modModeList.clear();
   modPassBandList.clear();
@@ -893,6 +896,7 @@ void mainWindow::updateBeaconCountdownVisibility()
 
 void mainWindow::slotModeChange(int rxtxMode)
 {
+  if(rxtxMode<TRXSSTV || rxtxMode>=TRXNOMODE || rxtxMode==transmissionModeIndex)return;
   int busy=busyMode();
   if((busy>=0) && (rxtxMode!=busy))
     {
@@ -902,6 +906,8 @@ void mainWindow::slotModeChange(int rxtxMode)
       updateModeLock();
       return;
     }
+  dispatcherPtr->idleAll();
+  if(kgstvControllerPtr){kgstvControllerPtr->leaveMode();if(rxtxMode==TRXKGSTV)kgstvControllerPtr->clearReceive();}
   txWidgetPtr->changeTransmissionMode(rxtxMode);
   rxWidgetPtr->changeTransmissionMode(rxtxMode);
   lastReceivedCall.clear();

@@ -1,3 +1,4 @@
+#include "kgstvcontroller.h"
 /***************************************************************************
  *   QSSTV-Experimental: decode SSTV from audio files                       *
  *   See filedecoder.h for what this is and why.                           *
@@ -54,9 +55,9 @@ fileDecoder::fileDecoder(QObject *parent) : QObject(parent)
   running=false;
   index=-1;
   currentSeconds=0;
-  imagesInFile=0;
+  imagesInFile=0;messagesInFile=0;
   filesDone=0;
-  imagesTotal=0;
+  imagesTotal=0;messagesTotal=0;
   exitCode=EXIT_OK;
   connect(&timer,SIGNAL(timeout()),SLOT(poll()));
 }
@@ -90,8 +91,8 @@ void fileDecoder::startListening()
   stopping=false;
   timedOut=false;
   exitCode=EXIT_OK;
-  imagesTotal=0;
-  const etransmissionMode wanted=drm ? TRXDRM : TRXSSTV;
+  imagesTotal=0;messagesTotal=0;
+  const etransmissionMode wanted=kgstv ? TRXKGSTV : (drm ? TRXDRM : TRXSSTV);
   if(transmissionModeIndex!=wanted) mainWindowPtr->switchMode(wanted);
   dispatcherPtr->startRX();
   fileTimer.start();
@@ -131,7 +132,8 @@ void fileDecoder::pollListen()
         {
           // the RX thread posts its "picture done" event before it goes idle: handle it now
           QCoreApplication::sendPostedEvents(dispatcherPtr,0);
-          if(timedOut && imagesTotal==0) note(EXIT_NOIMAGE);
+      QCoreApplication::sendPostedEvents(rxWidgetPtr,0);
+          if(timedOut && imagesTotal==0 && messagesTotal==0) note(EXIT_NOIMAGE);
           finishAll(false);
         }
       return;
@@ -156,6 +158,7 @@ void fileDecoder::pollListen()
       fprintf(stderr,"the audio input stopped\n");
       note(EXIT_BADFILE);
       QCoreApplication::sendPostedEvents(dispatcherPtr,0);
+      QCoreApplication::sendPostedEvents(rxWidgetPtr,0);
       finishAll(false);
       return;
     }
@@ -187,16 +190,16 @@ void fileDecoder::chooseAndDecode(QWidget *parent)
       QMessageBox::information(parent,tr("Decode from file"),tr("Stop the transmission first."));
       return;
     }
-  if(transmissionModeIndex!=TRXSSTV && transmissionModeIndex!=TRXDRM)
+  if(transmissionModeIndex<TRXSSTV || transmissionModeIndex>=TRXNOMODE)
     {
-      QMessageBox::information(parent,tr("Decode from file"),tr("Decoding from a file works in SSTV or DRM mode. Switch to the SSTV or DRM tab first."));
+      QMessageBox::information(parent,tr("Decode from file"),tr("Choose an SSTV, DRM or KG-STV receive tab first."));
       return;
     }
   QSettings qSettings;
   qSettings.beginGroup("RX");
   QString dir=qSettings.value("lastDecodeDir",audioPath).toString();
   qSettings.endGroup();
-  QStringList files=QFileDialog::getOpenFileNames(parent,transmissionModeIndex==TRXDRM ? tr("Decode DRM from audio file") : tr("Decode SSTV from audio file"),dir,
+  QStringList files=QFileDialog::getOpenFileNames(parent,transmissionModeIndex==TRXKGSTV ? tr("Decode KG-STV from audio file") : (transmissionModeIndex==TRXDRM ? tr("Decode DRM from audio file") : tr("Decode SSTV from audio file")),dir,
                                                   tr("Audio files (*.wav *.mp3 *.flac *.ogg *.oga *.opus *.aac *.m4a);;WAV audio (*.wav *.WAV);;All files (*)"));
   if(files.isEmpty()) return;
   qSettings.beginGroup("RX");
@@ -216,15 +219,15 @@ void fileDecoder::decodeFiles(const QStringList &files)
   queue=files;
   index=-1;
   filesDone=0;
-  imagesTotal=0;
+  imagesTotal=0;messagesTotal=0;
   exitCode=EXIT_OK;
   running=true;
-  if(batch || drm)
+  if(batch || drm || kgstv)
     {
       // through the window's own mode switch, so the tabs follow; assigning the global alone would let the mode lock
       // switch the tab later, which stops the receiver (and so the file) in the middle of the decode.
       // Without --batch and --drm (menu, RX button, plain --decode) the mode of the tab you are on is kept.
-      const etransmissionMode wanted=drm ? TRXDRM : TRXSSTV;
+      const etransmissionMode wanted=kgstv ? TRXKGSTV : (drm ? TRXDRM : TRXSSTV);
       if(transmissionModeIndex!=wanted) mainWindowPtr->switchMode(wanted);
     }
   timer.start(100);
@@ -248,7 +251,7 @@ bool fileDecoder::startNext()
   index++;
   if(index>=queue.size()) return false;
   currentFile=queue.at(index);
-  imagesInFile=0;
+  imagesInFile=0;messagesInFile=0;
   QString error;
   double seconds=0;
   QString description;
@@ -260,6 +263,7 @@ bool fileDecoder::startNext()
       return false;
     }
   currentSeconds=seconds;
+  if(transmissionModeIndex==TRXKGSTV && kgstvControllerPtr)kgstvControllerPtr->clearReceive();
   drmStats.reset();
   dispatcherPtr->idleAll();
   if(!soundIOPtr->startFileCapture(currentFile,!batch,error))
@@ -268,6 +272,7 @@ bool fileDecoder::startNext()
       fprintf(stderr,"%s: %s\n",currentFile.toLocal8Bit().constData(),error.toLocal8Bit().constData());
       return false;
     }
+  if(transmissionModeIndex==TRXKGSTV && kgstvControllerPtr)kgstvControllerPtr->resetDemodulator(BASESAMPLERATE);
   rxWidgetPtr->functionsPtr()->startRX();
   fileTimer.start();
   if(batch) fprintf(stderr,"decoding %s (%s, %.1f s)\n",currentFile.toLocal8Bit().constData(),description.toLocal8Bit().constData(),seconds);
@@ -307,6 +312,7 @@ void fileDecoder::poll()
     {
       // the RX thread posts its "picture done" events before it goes idle: handle them now
       QCoreApplication::sendPostedEvents(dispatcherPtr,0);
+      QCoreApplication::sendPostedEvents(rxWidgetPtr,0);
       finishFile();
     }
 }
@@ -315,10 +321,10 @@ void fileDecoder::finishFile()
 {
   filesDone++;
   imagesTotal+=imagesInFile;
-  if(imagesInFile==0)
+  if(imagesInFile==0 && messagesInFile==0)
     {
       note(EXIT_NOIMAGE);
-      if(batch) fprintf(stderr,"%s: no image decoded\n",currentFile.toLocal8Bit().constData());
+      if(batch) fprintf(stderr,"%s: no image or text decoded\n",currentFile.toLocal8Bit().constData());
     }
   if(transmissionModeIndex==TRXDRM && (batch || verbose)) printDrmStats();
   soundIOPtr->clearFileSource();
@@ -435,4 +441,28 @@ void fileDecoder::printDrmStats()
          currentFile.toLocal8Bit().constData(),s.stripes,100*s.timeSync/n,100*s.frameSync/n,100*s.facValid/n,100*s.mscValid/n,s.mscFlaps,
          s.merCount>0 ? s.merSum/s.merCount : 0.0,s.merMscCount>0 ? s.merMscSum/s.merMscCount : 0.0,s.mode,s.occupancy,imagesInFile,s.ampDeviation(),s.mscBlocks,s.pktCrcOk,s.pktCrcBad,s.pktBad,s.hdrSeg,s.dataSeg);
   fflush(stdout);
+}
+
+void fileDecoder::kgstvImageDecoded(const QImage &image)
+{
+  if(!running)return;
+  ++imagesInFile;QDir().mkpath(outDir);
+  if(batch) {
+    const QString name=outputName("kgstv","png");
+    if(!image.save(name,"PNG")){--imagesInFile;note(EXIT_BADFILE);return;}
+    printf("%s -> %s (KG-STV, 320x240, 300/300 blocks)\n",qPrintable(sourceName()),qPrintable(name));fflush(stdout);
+  }
+  if(listening)++imagesTotal;
+}
+void fileDecoder::kgstvTextDecoded(const QString &sender,const QString &text)
+{
+  if(!running)return;
+  ++messagesInFile;++messagesTotal;
+  if(batch) {
+    QDir().mkpath(outDir);
+    const QString name=outputName(QString("kgstv-text-%1").arg(messagesInFile),"txt");
+    QFile file(name);const QByteArray bytes=(text+"\n").toUtf8();
+    if(!file.open(QIODevice::WriteOnly|QIODevice::NewOnly) || file.write(bytes)!=bytes.size()){note(EXIT_BADFILE);return;}
+    printf("%s -> %s (KG-STV text, sender=%s)\n",qPrintable(sourceName()),qPrintable(name),qPrintable(sender));fflush(stdout);
+  }
 }

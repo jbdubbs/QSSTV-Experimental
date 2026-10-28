@@ -1,0 +1,58 @@
+name: KG-STV branch AppImage
+on:
+  push:
+    branches: ['feature/kgstv-integration']
+    paths:
+      - '.github/workflows/kgstv-appimage.yml'
+      - 'packaging/appimage/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: kgstv-appimage-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  appimage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      HAMLIB_COMMIT: 22406fa71f5b138d7efa21f6404f82d277d60693
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout the validated Hamlib source
+        uses: actions/checkout@v4
+        with:
+          repository: Hamlib/Hamlib
+          ref: ${{ env.HAMLIB_COMMIT }}
+          path: hamlib-source
+          persist-credentials: false
+      - name: Prepare source and output paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          mv hamlib-source "$GITHUB_WORKSPACE/../hamlib-upstream-sstv"
+          mkdir -p "$RUNNER_TEMP/kgstv-appimage"
+          echo "OUT_DIR=$RUNNER_TEMP/kgstv-appimage" >> "$GITHUB_ENV"
+          echo "VERSION=10.1-kgstv-$(git rev-parse --short=8 HEAD)" >> "$GITHUB_ENV"
+      - name: Build with Ubuntu 24.04 and the existing Qt6 AppImage recipe
+        env:
+          QSSTV_APPIMAGE_NO_UPDATE: '1'
+        run: bash packaging/appimage/build.sh
+      - name: Verify packaged startup without the builder's Qt installation
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="$OUT_DIR/QSSTV-Experimental-$VERSION-x86_64.AppImage"
+          test -s "$image"
+          (cd "$OUT_DIR" && sha256sum --check "$(basename "$image").sha256")
+          chmod +x "$image"
+          env -u LD_LIBRARY_PATH -u QT_PLUGIN_PATH -u QML2_IMPORT_PATH APPIMAGE_EXTRACT_AND_RUN=1 QT_QPA_PLATFORM=offscreen "$image" --version
+          env -u LD_LIBRARY_PATH -u QT_PLUGIN_PATH -u QML2_IMPORT_PATH APPIMAGE_EXTRACT_AND_RUN=1 QT_QPA_PLATFORM=offscreen "$image" --help > "$RUNNER_TEMP/kgstv-help.txt"
+          grep -- '--kgstv-four-level' "$RUNNER_TEMP/kgstv-help.txt"
+          printf 'Source commit: %s\nHamlib commit: %s\nBuild base: Ubuntu 24.04 / glibc 2.39\nEmbedded upstream update link: disabled\n' "$GITHUB_SHA" "$HAMLIB_COMMIT" > "$OUT_DIR/BUILDINFO.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: QSSTV-Experimental-KGSTV-AppImage-x86_64
+          path: ${{ env.OUT_DIR }}/
+          if-no-files-found: error
+          retention-days: 30

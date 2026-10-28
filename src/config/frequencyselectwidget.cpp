@@ -253,6 +253,7 @@ void frequencySelectWidget::createEntry(int row)
   cb=new QComboBox(this);
   cb->addItem("SSTV");
   cb->addItem("DRM");
+  cb->addItem("KG-STV");
 //  cb->setCurrentText(modeList.at(row));
   setValue(modeList.at(row),cb);
 

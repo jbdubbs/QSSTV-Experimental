@@ -2,6 +2,8 @@
 #define TXFUNCTIONS_H
 
 #include <QThread>
+#include <QImage>
+#include <atomic>
 #include "appdefs.h"
 #include "drmparams.h"
 #include "testpatternselection.h"
@@ -42,6 +44,8 @@ public:
     TXPREPARESSTV,
     TXPREPAREDRMPIC,
     TXPREPAREDRMBINARY,
+    TXPREPAREKGSTV,
+    TXSENDKGSTV,
     TXTEST
 
   };
@@ -52,6 +56,9 @@ public:
   void stopThread();
   void startTX(etxState state);
   void prepareTX(etxState state);
+  void setKgstvImage(const QImage &image,quint64 ticket);
+  QImage kgstvPreparedImage();
+  quint64 kgstvCompletionToken() const {return kgstvRunToken.load();}
   void stopAndWait();
   void setToneParam(double duration,double lowerFreq,double upperFreq=0)
   {
@@ -83,9 +90,14 @@ private:
   void switchTxState(etxState newState);
   void startProgress(double duration);
   void prepareTXComplete(bool ok);
-  etxState txState;
+  std::atomic<etxState> txState;
+  std::atomic_bool kgstvAbort{false},kgstvWorking{false};
+  std::atomic<quint64> kgstvRunToken{1};
+  QImage kgstvImage;
+  quint64 kgstvTicket=0;
+  void sendKgstv();
   bool started;
-  bool abort;
+  std::atomic_bool abort{false};
   double toneDuration;
   double toneLowerFrequency;
   double toneUpperFrequency;

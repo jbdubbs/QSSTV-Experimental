@@ -21,6 +21,7 @@ docker run --rm --platform "$PLATFORM" \
   -v "$HERE":/src/qsstv-experimental:ro \
   -v "$PARENT/hamlib-upstream-sstv":/src/hamlib-upstream-sstv:ro \
   -v "$OUT_DIR":/out \
+  -e QSSTV_APPIMAGE_NO_UPDATE="${QSSTV_APPIMAGE_NO_UPDATE:-0}" \
   -e VERSION="$VERSION" -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
   "$IMAGE" bash /src/qsstv-experimental/packaging/appimage/inside.sh
 echo "Built: $OUT_DIR/QSSTV-Experimental-$VERSION-$ARCH.AppImage (+ .zsync, .sha256)"

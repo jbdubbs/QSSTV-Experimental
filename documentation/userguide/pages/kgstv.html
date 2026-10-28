@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>KG-STV (experimental) - QSSTV-Experimental User&#x27;s Guide</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html">Install and first run</a></li><li><a href="main-window.html">Main window tour</a></li><li><a href="receive.html">Receiving</a></li><li><a href="transmit.html">Transmitting</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="template-editor.html">Template editor</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="sstv-modes.html">SSTV modes</a></li><li><a href="drm.html">Digital SSTV (DRM)</a></li><li><a href="kgstv.html" aria-current="page">KG-STV (experimental)</a></li><li><a href="calibration.html">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
+<main>
+<h1>KG-STV (experimental)</h1>
+<p>Choose the <strong>KG-STV (experimental)</strong> tab on Receive and Transmit. This is a separate digital mode alongside SSTV and HAMDRM, using 320×240 images, standalone ASCII text and manual block repair.</p>
+<h2>Receive and send</h2>
+<p>Select MSK or 4L-FSK to match the peer; the RX/TX choices are synchronized. The receiver shows how many of the 300 image blocks have arrived. Incoming text appears as plain text with UTC time.</p>
+<p>Use the normal Start button for the current image and template. The normal template editor is retained; KG-STV uses a single 320×240 frame. Compression 0..15 (higher means smaller blocks) and payload error correction are set on the TX tab. Stitched grids, repeater and camera-beacon transmission are disabled for this experimental mode.</p>
+<p>For text, enter 1..200 ASCII bytes and press <strong>Send Text</strong>. No image is needed. A local send completion does not acknowledge reception by the peer. Unsupported characters are rejected rather than silently changed.</p>
+<h2>Missing blocks and BSR</h2>
+<p>After an incomplete image pass finishes, use <strong>Request missing blocks (BSR)</strong>. The sender manually replies with <strong>Send requested blocks from cached image</strong>. That cache is the last completed image transmission, even if a different picture has since been loaded. There are no automatic replies.</p>
+<p>Stop cancels transmission. The application's busy-mode lock applies. You may save partial images manually; complete images can be saved automatically in the digital RX directory with the <code>KGSTV_</code> prefix.</p>
+<h2>Audio files and headless use</h2>
+<p>The audio-file picker works on the KG-STV tab. The command line can receive recordings, listen live, or encode an image into a WAV file:</p>
+<pre><code>qsstv-experimental --batch --kgstv --kgstv-four-level --out-dir received recording.mp3
+qsstv-experimental --listen --kgstv --kgstv-four-level --out-dir received
+qsstv-experimental --encode image.png --kgstv --kgstv-four-level --wav-out image.wav</code></pre>
+<p>Omit <code>--kgstv-four-level</code> for MSK. KG-STV cannot be combined with <code>--drm</code>. Headless KG-STV file reception and encoding do not open audio cards or operate CAT/PTT, and do not write settings. Live listening uses the normal selected input. Batch reception saves complete PNG images and received text files in the output directory.</p>
+<h2>Validation limits</h2>
+<p>External reference recordings decode successfully: a complete 300-block image and an unchanged ASCII text message. Synthetic loss/repair tests and file TX/RX loopbacks also pass. These results do not prove original-application reception of our transmissions or original BSR interoperability. Non-ASCII encoding, exact rendering, noisy channels and real audio/CAT/PTT operation still need independent validation. Treat KG-STV as experimental.</p>
+<p><a href="../index.html">Back to contents</a></p>
+</main>
+</body>
+</html>

@@ -39,6 +39,7 @@ public:
   enum ecaptureState{CPINIT,CPSTARTING,CPRUNNING,CPLISTENSTART,CPLISTEN,CPEND};
 
   // Command line --encode: when set, transmit audio goes to this wav file (no dialog, no sound card, not paced to real time)
+  static bool fileOnly; //!< KG-STV headless files: no card enumeration/open or CAT/PTT
   static QString txFileName;
   static double fileGainDb;          //!< file source only (test harness): gain applied to the recording
   static double fileNoiseDbfs;       //!< file source only: white noise added, RMS in dB full scale; >=0 = none
@@ -124,8 +125,8 @@ protected:
   qint16 tempRXBuffer[DOWNSAMPLESIZE*2*2]; // in some cases the hardware interface is stereo (can be S16_LE or S32_LE)
   quint32 tempTXBuffer[DOWNSAMPLESIZE*2];
   std::atomic<bool> stopThread; // set from the GUI thread, polled by run()
-  eplaybackState playbackState;
-  ecaptureState  captureState;
+  std::atomic<eplaybackState> playbackState;
+  std::atomic<ecaptureState> captureState;
 
 
   wavIO waveIn;

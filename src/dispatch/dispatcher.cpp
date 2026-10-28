@@ -1,3 +1,5 @@
+#include "kgstvcontroller.h"
+#include <QScopedValueRollback>
 /***************************************************************************
  *   Copyright (C) 2000-2019 by Johan Maes                                 *
  *   on4qz@telenet.be                                                      *
@@ -188,7 +190,8 @@ void dispatcher::customEvent( QEvent * e )
       txWidgetPtr->appendDRMNotifyText(((txDRMNotifyAppendEvent*)e)->getStr());
       break;
     case txPrepareComplete:
-      txWidgetPtr->prepareTxComplete(((txPrepareCompleteEvent *)e)->ok());
+      if(radioTransition)break;
+      txWidgetPtr->prepareTxComplete(((txPrepareCompleteEvent *)e)->ok(),((txPrepareCompleteEvent *)e)->ticket());
       break;
 
     case templatesChanged:
@@ -197,12 +200,16 @@ void dispatcher::customEvent( QEvent * e )
       break;
 
     case progressTX:
+      if(radioTransition)break;
+      if(((progressTXEvent *)e)->kgstvToken() && ((progressTXEvent *)e)->kgstvToken()!=txWidgetPtr->functionsPtr()->kgstvCompletionToken())break;
       txTimeCounter=0;
       addToLog(QString("dispatcher: progress duration=%1").arg(((progressTXEvent*)e)->getInfo()),LOGDISPATCH);
       prTimerIndex=startTimer(((progressTXEvent*)e)->getInfo()*10); // time in seconds -> times 1000 for msec,divide by 100 for progress
       break;
 
     case endImageTX:
+      if(radioTransition)break;
+      if(((endImageTXEvent *)e)->kgstvToken() && ((endImageTXEvent *)e)->kgstvToken()!=txWidgetPtr->functionsPtr()->kgstvCompletionToken())break;
       //addToLog("dispatcher: endTXImage",LOGDISPATCH);
       while(soundIOPtr->isPlaying())
         {
@@ -334,6 +341,8 @@ void dispatcher::customEvent( QEvent * e )
 
 void dispatcher::idleAll()
 {
+  if(radioTransition)return;
+  QScopedValueRollback<bool> transition(radioTransition,true);
   if(prTimerIndex>=0)
     {
       killTimer(prTimerIndex);
@@ -348,6 +357,7 @@ void dispatcher::idleAll()
 
 void dispatcher::startRX()
 {
+  if(radioTransition)return;
   idleAll();
   if(!soundIOPtr->startCapture()) return; // no working capture device (issue #73)
   rxWidgetPtr->functionsPtr()->startRX();
@@ -355,11 +365,15 @@ void dispatcher::startRX()
 
 bool dispatcher::startTX(txFunctions::etxState state)
 {
+  if(radioTransition)return false;
   idleAll();
+  if(state==txFunctions::TXSENDKGSTV && (transmissionModeIndex!=TRXKGSTV || !kgstvControllerPtr || !kgstvControllerPtr->prepared()))return false;
   if(!soundIOPtr->startPlayback())
     {
       // e.g. the wav save dialog was cancelled: nothing would drain the TX buffer
       // and the TX thread would block forever, so do not start the transmission
+      rigControllerPtr->activatePTT(false);
+      if(state==txFunctions::TXSENDKGSTV && kgstvControllerPtr)kgstvControllerPtr->completeTransmit(false);
       startRX();
       return false;
     }

@@ -40,6 +40,7 @@ void getCardList(QStringList &inputList, QStringList &outputList)
 {
   inputList.clear();
   outputList.clear();
+  if(soundBase::fileOnly)return;
   const auto inputs=QMediaDevices::audioInputs();
   for(const QAudioDevice &d : inputs) inputList.append(d.description());
   const auto outputs=QMediaDevices::audioOutputs();
@@ -63,6 +64,7 @@ bool soundQtMultimedia::init(int samplerate)
 {
   soundDriverOK=false;
   sampleRate=samplerate;
+  if(fileOnly){soundDriverOK=true;return true;}
 
   QAudioDevice inDev=findAudioDevice(inputAudioDevice,QMediaDevices::audioInputs(),
                                       QMediaDevices::defaultAudioInput());

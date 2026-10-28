@@ -24,6 +24,7 @@
 #include "soundconfig.h"
 
 #include "supportfunctions.h"
+#include <QElapsedTimer>
 #include <unistd.h>
 
 /*
@@ -220,6 +221,28 @@ void synthesizer::writeBuffer(quint32 *buffer, int len)
 
 
 
+
+bool synthesizer::writePcm(const double *samples,int count,const std::atomic_bool &cancel)
+{
+  if(!samples || count<=0 || count>TXSTRIPE || !soundIOPtr)return false;
+  SOUNDFRAME frames[TXSTRIPE];
+  for(int i=0;i<count;++i) {
+    if(!std::isfinite(samples[i]))return false;
+    const qint16 sample=qint16(std::lround(qBound(-1.0,samples[i],1.0)*(8000.0/0.7)));
+    quint32 frame=quint16(sample);
+    if(duplicateChannel)frame|=quint32(quint16(sample))<<16;
+    else if(pttToneOtherChannel)frame|=quint32(quint16(qint16(toneBuffer[(pttToneCounter++)%TONEBUFLEN])))<<16;
+    if(swapChannel)frame=(frame>>16)|(frame<<16);
+    frames[i]=frame;
+  }
+  QElapsedTimer deadline;deadline.start();
+  while(!cancel.load() && soundIOPtr->isPlaying()) {
+    if(soundIOPtr->txBuffer.put(frames,count))return true;
+    if(deadline.elapsed()>5000)return false;
+    usleep(2000);
+  }
+  return false;
+}
 
 void synthesizer::setFilter(efilterType txFilterType)
 {
