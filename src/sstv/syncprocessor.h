@@ -119,7 +119,7 @@ public:
   void process();
   esyncProcessState getSyncState(quint32  &syncPos) {syncPos=syncPosition; return syncProcesState; }
   esstvMode getMode() {return currentMode;}
-  void resetRetraceFlag();
+  void resetRetraceFlag(uint rewound=0);
   bool hasNewClock()
   {
     bool nc=newClock;
@@ -141,6 +141,7 @@ public:
   modeBase *currentModePtr;
 
   quint16      *freqPtr;
+  const float  *audioPtr;          // what the receiver hears (the VIS tone detector)
   DSPFLOAT     *syncVolumePtr;
   DSPFLOAT     *inputVolumePtr;
   videoFilter  *videoFilterPtr;
@@ -166,6 +167,10 @@ private:
   ssyncEntry syncArray[MAXSYNCENTRIES];
   modeMatchChain matchArray[NOTVALID];
   quint16 slantAdjustLine;
+  bool clockAdjusted;        // a clock correction has been accepted for the picture being received
+  uint slantPoints;          // pulses the last regression used, and the lines they span
+  double slantSpanLines;
+  double slantOffset0;
   esstvMode currentMode;
   esyncState syncState;
   esyncProcessState syncProcesState;
@@ -206,6 +211,9 @@ private:
   void calcSyncQuality();
   uint maxOutOfSyncLines();
   uint visBackfill();
+  void startFromVis();
+  bool adoptChain();
+  void dropChains();
   void calculateLineNumber(uint fromIdx, uint toIdx);
   void regression(DSPFLOAT &a, DSPFLOAT &b, bool initial);
   bool slantAdjust(bool initial);
@@ -223,6 +231,9 @@ private:
   bool proven;               // started by a fresh VIS code, or enough near pulses
   int trustedEnd;            // end of the last pulse that restarts the wait for sync
   uint visBackfillLines;     // sync intervals the picture was started before its first pulse, at its VIS code (0: at the pulse)
+  bool visAnchored;          // the picture was started by its VIS code and runs by the clock: it never gives up, pulses only refine its position
+  bool pendingVisStart;      // a VIS code was received: start the picture as soon as the stripe with its first line has been processed
+  struct svisRestart {bool valid; esstvMode mode; uint counter;} visRestart;   // a VIS code that arrived during a picture: starts the next one
 
   // receiver trace (rxtrace.h, QSSTV_RX_TRACE): only written, never read by the receiver
   void traceStats();

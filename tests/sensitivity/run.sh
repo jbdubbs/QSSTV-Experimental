@@ -15,10 +15,15 @@
 #      least half of the picture's lines in one received picture (the "Save if Complete" 50% test), and how many of them are
 #      still recognizable (hfnoise.py corr: at least 30% of the detailed rows correlate with the transmitted picture). The
 #      receiver is set to --min-complete 0 so the fragments can be counted.
-#   3. With RXTRACE_WAV=<recording from tests/rxtrace/capture.sh>: band noise must not contain a VIS code.
+#   3. Frequency offset: M2 and S2, 3 seeds each, at 0 dB with the whole signal 75, 50 Hz below and 50, 75 Hz above its frequency:
+#      how many of the 6 runs decode the VIS code (a transmitter or a dial that is not on frequency; MMSSTV: the same, ~+-50 Hz).
+#   4. With RXTRACE_WAV=<recording from tests/rxtrace/capture.sh>: band noise must not contain a VIS code.
 # The pass marks are the lowest figures worth keeping: they are the measured baseline of 2026-10-28 (commit 8571de1, Sensitivity
 # High) and are raised as the receiver improves. Baseline: VIS decoded of 8 at 24/20/16/12 dB: 8/7/3/0, none below; pictures
 # with half their lines of 9 at 3/0/-2/-4/-6 dB: 8/6/3/0/0, recognizable 8/6/2/0/0, none started by the VIS code.
+# After stages 2 and 3 (2026-10-29: the wide VIS code is read from the strength of its tones, three resonator banks 45 Hz apart; a
+# picture whose VIS code was read starts at once and runs by the clock): VIS decoded of 8 at 24 ... -3 dB: all 8, 7 at -4, 6 at -5;
+# pictures with half their lines of 9 at 3/0/-2/-4/-6 dB: 9/9/9/9/0, recognizable 9/9/9/9/0, all started by the VIS code to -4 dB.
 # After stage 1 of the sensitivity work (2026-10-29; new ratios and line tolerance, false syncs counted by width, chain re-anchoring):
 # pictures with half their lines 9/8/8/4/0, recognizable 9/7/7/1/0; the hour of band noise at High and Save if Complete 25: 16 pictures
 # started, none kept, receiver busy 66 s of 3600 (before: 15, 0, 154 s). The MMSSTV figures (not part of the repo, they come from its demodulator built standalone,
@@ -27,7 +32,8 @@
 #   tests/sensitivity/run.sh                       # uses ../../build-cmake/qsstv-experimental, Sensitivity High
 #   QSSTV_BIN=/path/to/qsstv-experimental tests/sensitivity/run.sh
 #   SENS=1 tests/sensitivity/run.sh                # Sensitivity 0 Low, 1 Normal, 2 High (default), 3 DX
-#   SENS_PART=vis|pics tests/sensitivity/run.sh    # only part 1 or part 2
+#   SENS_PART=vis|pics|shift tests/sensitivity/run.sh    # only part 1, 2 or 3
+#   SENS_VIS_SNRS="-3 -4 -5 -6" SENS_PART=vis tests/sensitivity/run.sh   # other SNRs for part 1 (pass marks only for the default ones)
 #   RXTRACE_WAV=~/projects/qsstv-captures/2026-10-27-hf/hour1/hf.wav tests/sensitivity/run.sh
 #
 # Needs: the built qsstv-experimental, ffmpeg (scales the test picture), python3 with numpy and Pillow. About 5 minutes.
@@ -65,15 +71,17 @@ prepare() {      # encode the picture once per mode
 }
 
 # pass marks: SNR (dB) -> least number of runs
-declare -A MINVIS=([24]=8 [20]=7 [16]=3 [12]=0 [8]=0 [4]=0 [0]=0 [-3]=0)
-declare -A MINHALF=([3]=9 [0]=8 [-2]=8 [-4]=3 [-6]=0)
+declare -A MINVIS=([24]=8 [20]=8 [16]=8 [12]=8 [8]=8 [4]=8 [0]=8 [-3]=8 [-5]=4)
+declare -A MINHALF=([3]=9 [0]=9 [-2]=9 [-4]=8 [-6]=0)
+declare -A MINSHIFT=([-75]=5 [-50]=5 [50]=5 [75]=2)
 
 if [ "$PART" = all ] || [ "$PART" = vis ]; then
   echo "== VIS code decoded (M2 and S1, 4 seeds each; MMSSTV: all 8 down to -3 dB)"
   for m in M2 S1; do prepare $m || { bad "could not prepare $m"; }; done
-  printf '  %-8s' "SNR dB"; for snr in 24 20 16 12 8 4 0 -3; do printf '%5s' $snr; done; echo
+  VISSNRS=${SENS_VIS_SNRS:-24 20 16 12 8 4 0 -3 -5}
+  printf '  %-8s' "SNR dB"; for snr in $VISSNRS; do printf '%5s' $snr; done; echo
   declare -A VISCOUNT
-  for snr in 24 20 16 12 8 4 0 -3; do
+  for snr in $VISSNRS; do
     n=0
     for m in M2 S1; do
       for seed in 1 2 3 4; do
@@ -85,10 +93,10 @@ if [ "$PART" = all ] || [ "$PART" = vis ]; then
     done
     VISCOUNT[$snr]=$n
   done
-  printf '  %-8s' "decoded"; for snr in 24 20 16 12 8 4 0 -3; do printf '%5s' "${VISCOUNT[$snr]}/8"; done; echo
+  printf '  %-8s' "decoded"; for snr in $VISSNRS; do printf '%5s' "${VISCOUNT[$snr]}/8"; done; echo
   f0=$fail
-  for snr in 24 20 16 12 8 4 0 -3; do
-    if ge "${VISCOUNT[$snr]}" "${MINVIS[$snr]}"; then :; else bad "VIS at $snr dB: ${VISCOUNT[$snr]}/8 decoded, want at least ${MINVIS[$snr]}"; fi
+  for snr in $VISSNRS; do
+    if ge "${VISCOUNT[$snr]}" "${MINVIS[$snr]:-0}"; then :; else bad "VIS at $snr dB: ${VISCOUNT[$snr]}/8 decoded, want at least ${MINVIS[$snr]}"; fi
   done
   [ $fail = $f0 ] && ok "VIS decode rates at or above the pass marks"
 fi
@@ -135,6 +143,31 @@ if [ "$PART" = all ] || [ "$PART" = pics ]; then
     if ge "${HALF[$snr]}" "${MINHALF[$snr]}"; then :; else bad "pictures at $snr dB: ${HALF[$snr]}/9 with half their lines, want at least ${MINHALF[$snr]}"; fi
   done
   [ $fail = $f0 ] && ok "picture rates at or above the pass marks"
+fi
+
+if [ "$PART" = all ] || [ "$PART" = shift ]; then
+  echo "== VIS code decoded with the signal off frequency (M2 and S2, 3 seeds each, 0 dB)"
+  for m in M2 S2; do prepare $m || { bad "could not prepare $m"; }; done
+  printf '  %-8s' "shift Hz"; for sh in -75 -50 50 75; do printf '%5s' $sh; done; echo
+  declare -A SHIFTCOUNT
+  for sh in -75 -50 50 75; do
+    n=0
+    for m in M2 S2; do
+      for seed in 1 2 3; do
+        py noise "$T/$m.wav" "$T/v.wav" --snr 0 --seed $seed --lead $LEAD --length 12 --shift $sh
+        ov="$T/os_${sh}_${m}_${seed}"
+        dec "$T/v.wav" "$ov"
+        grep -a -q -P "\tVIS\t[^\n]*proc=W\tmode=$m\taccepted=1" "$ov/trace.tsv" && n=$((n+1))
+      done
+    done
+    SHIFTCOUNT[$sh]=$n
+  done
+  printf '  %-8s' "decoded"; for sh in -75 -50 50 75; do printf '%5s' "${SHIFTCOUNT[$sh]}/6"; done; echo
+  f0=$fail
+  for sh in -75 -50 50 75; do
+    if ge "${SHIFTCOUNT[$sh]}" "${MINSHIFT[$sh]}"; then :; else bad "VIS at $sh Hz: ${SHIFTCOUNT[$sh]}/6 decoded, want at least ${MINSHIFT[$sh]}"; fi
+  done
+  [ $fail = $f0 ] && ok "VIS decode rates off frequency at or above the pass marks"
 fi
 
 if [ -n "$RXTRACE_WAV" ]; then

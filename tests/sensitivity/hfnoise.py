@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Weak-signal helpers for the sensitivity test. Needs python3, numpy and Pillow.
 
-  hfnoise.py noise in.wav out.wav --snr dB [--seed N] [--lead S] [--tail S] [--length S] [--qsb PERIOD DEPTH_DB]
+  hfnoise.py noise in.wav out.wav --snr dB [--seed N] [--lead S] [--tail S] [--length S] [--qsb PERIOD DEPTH_DB] [--shift HZ]
       Adds noise like the audio of an SSB receiver: white Gaussian noise limited to 300-2700 Hz. --snr is the signal power
       (the transmission has a constant envelope) over the noise power in 2.4 kHz, the way HF signal reports are given, so
       the same dB figure holds for every mode. --lead S puts S seconds of noise in front of the signal and --tail S behind
       it (a receiver that hunts before the picture comes). --length S cuts the result to S seconds. --qsb fades the signal
-      (not the noise) slowly: raised cosine of PERIOD seconds, DEPTH_DB deep.
+      (not the noise) slowly: raised cosine of PERIOD seconds, DEPTH_DB deep. --shift HZ moves the whole signal up (or down) by
+      HZ, as a transmitter or a receiver that is not on frequency does (single sideband: every tone moves by the same amount).
 
   hfnoise.py corr clean.png decoded.png [--px N] [--rows N]
       How much of a received picture can be recognized: the share of the rows (those with some detail in the clean picture)
@@ -35,8 +36,23 @@ def band_noise(n, rate, lo, hi, rng):
     return y / np.sqrt(np.mean(y ** 2))          # unit power in the 2.4 kHz band
 
 
+def freq_shift(x, rate, hz):
+    n = len(x)
+    spec = np.fft.fft(x)
+    f = np.fft.fftfreq(n, 1.0 / rate)
+    h = np.zeros(n)
+    h[0] = 1
+    h[1:(n + 1) // 2] = 2
+    if n % 2 == 0:
+        h[n // 2] = 1
+    analytic = np.fft.ifft(spec * h)
+    return np.real(analytic * np.exp(2j * np.pi * hz * np.arange(n) / rate))
+
+
 def cmd_noise(a):
     x, rate = read_wav(a.infile)
+    if a.shift:
+        x = freq_shift(x, rate, a.shift)
     rms = signal_rms(x)
     if a.qsb:
         period, depth = a.qsb
@@ -109,6 +125,7 @@ def main():
     n.add_argument('--tail', type=float, default=0.0)
     n.add_argument('--length', type=float, default=0.0)
     n.add_argument('--qsb', type=float, nargs=2, metavar=('PERIOD', 'DEPTH_DB'), default=None)
+    n.add_argument('--shift', type=float, default=0.0, help='move the signal by this many Hz')
     n.set_defaults(fn=cmd_noise)
     c = sub.add_parser('corr')
     c.add_argument('clean')

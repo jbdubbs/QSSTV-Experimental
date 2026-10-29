@@ -67,6 +67,7 @@ private:
   buffer<DSPFLOAT,22> bufferSync1200Vol;  // 2^22= 4194304, divided by samplingrate 12000 gives 349 seconds buffering
   buffer<DSPFLOAT,22> bufferSync1900Vol;  // 2^22= 4194304, divided by samplingrate 12000 gives 349 seconds buffering
   buffer<DSPFLOAT,22> bufferInputVol;  // 2^22= 4194304, divided by samplingrate 12000 gives 349 seconds buffering
+  buffer<float,22> bufferInputAudio;   // the audio as received, for the VIS tone detector
 //  buffer<unsigned int,22> bufferInputVol;  // 2^22= 4194304, divided by samplingrate 12000 gives 349 seconds buffering
   //  buffer<quint16,22> bufferInputVolume;
 

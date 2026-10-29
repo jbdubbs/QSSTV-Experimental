@@ -58,9 +58,13 @@
  or end up as a picture. <strong>DX</strong> never gives up a picture it has started: it follows it to the end of its time, however weak the signal
  gets, so on a poor band it can be kept busy by noise and leave pictures of noise.</dd>
 <dt>Mode</dt><dd><strong>Auto</strong> detects the mode from the transmission header. You can instead force one mode from the list
- (all the modes in <a href="sstv-modes.html">SSTV modes</a>). When the VIS code in the header is received, the picture starts where the code says,
- even if the first lines are lost in the noise: they show as noise at the top and the rest of the picture stays in its place. A picture whose VIS
- code was missed can only be started once the receiver has followed several sync pulses in a row, and the lines before that are not in the picture.</dd>
+ (all the modes in <a href="sstv-modes.html">SSTV modes</a>). The VIS code in the header is read from the strength of its tones, which works on much
+ weaker signals than reading their frequency (down to about -3 dB signal to noise in 2.4 kHz, and with the signal as much as 75 Hz off frequency).
+ When it is received, the picture starts right there and runs by the clock to its last line, whatever the sync pulses do: the lines that are lost in the noise
+ show as noise and the rest of the picture stays in its place. The sync pulses that are found after that only refine its position and timing, and
+ a second VIS code ends the picture and starts the next one. So a very weak transmission can leave a picture of mostly noise (it is saved like any other
+ picture; <strong>Save if Complete</strong> only judges pictures that were cut short). A picture whose VIS code was missed can only be started once the receiver
+ has followed several sync pulses in a row, and the lines before that are not in the picture.</dd>
 <dt>Default Image format</dt><dd>The file format used for saved pictures (the common formats the build can write, such as png and jpg).</dd>
 <dt>Save if Complete (%)</dt><dd>Interrupted pictures are only kept if at least this percentage of the picture's lines was received. The default is 25. Headless runs can override it with <code>--min-complete</code> (see <a href="command-line.html#listen">Decode from file and command line</a>).</dd>
 <dt>Call and LOG QSO</dt><dd>When the sender includes an FSK ID, the callsign is filled in here and logged automatically. You can type a
