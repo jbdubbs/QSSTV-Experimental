@@ -15,8 +15,6 @@
 #include "scope/scopeview.h"
 #endif
 
-#define LINETOLERANCEMODEDETECT 0.008
-#define LINETOLERANCEINSYNC 0.008
 #define FILTERDELAYCORRECTION  +9
 //#define MINVOLUME 80
 #define MINSYNCWIDTHRATIO 0.8
@@ -34,6 +32,7 @@
 #define PROVENPULSES 12       // near pulses after which a picture that did not start from a VIS code has proven itself
 #define RESYNCPULSES 3        // near pulses in a row that wake a frozen display
 #define VISFRESHSECONDS 10    // a VIS code at most this old started the picture
+#define REANCHORENTRIES 4     // a pulse that does not fit the last pulse of the chain is tried against this many of the ones before it
 
 // A VIS code says where the picture starts, even when the first lines are in the noise and the sync detector cannot follow them
 // yet (the lines before the first chain of pulses were cut off the top of the picture).
@@ -44,13 +43,18 @@
 
 
 
+// onRatio/offRatio: a sync pulse starts when the 1200 Hz energy exceeds onRatio times the input level and ends when it falls under
+// offRatio times it. In noise the pulse sinks in and out of the level, so lower ratios and a wider line tolerance find it more often.
+// Measured on pictures at 3 to -6 dB SNR and on an hour of real band noise (tests/sensitivity, 2026-10-29): High finds the pulses of a
+// -2 dB picture on 7 of 9 runs where 0.5/0.3 and 0.008 found 3, and noise kept the receiver busy for 80 s of the hour where it took
+// 203 s (an off ratio of 0.2 or a wider pulse width window lost pictures or started many more on noise). Low keeps the old values.
 ssenitivity sensitivityArray[NUMBEROFSENSITIVITIES]=
 {
-  // minMatchedLines maxLineDistanceModeDetect onRatio offRatio minVolume maxTempOutOfSyncLines maxOutOfSyncLines minOutOfSyncSeconds;
-  {         4,                2,                0.5,    0.3,   2000,        10, 15, 10},
-  {         4,                2,                0.5  ,  0.3,   1000,        10, 20, 20},
-  {         4,                2,                0.5,    0.3,   100,         15, 30, 30},
-  {         4,                2,                0.5,    0.3,   500,         15, 30,  0}
+  // minMatchedLines maxLineDistanceModeDetect onRatio offRatio minVolume maxTempOutOfSyncLines maxOutOfSyncLines minOutOfSyncSeconds lineTolerance;
+  {         4,                2,                0.5,    0.3,   2000,        10, 15, 10, 0.008},
+  {         4,                2,                0.45,   0.3,   1000,        10, 20, 20, 0.008},
+  {         4,                2,                0.38,   0.25,  100,         15, 30, 30, 0.0095},
+  {         4,                2,                0.38,   0.25,  500,         15, 30,  0, 0.0095}
 };
 
 
@@ -198,7 +202,7 @@ void syncProcessor::init()
   addToLog("init called",LOGSYNCSTATE);
   clearMatchArray();
   currentMode=NOTVALID;
-  lineTolerance=LINETOLERANCEMODEDETECT;
+  lineTolerance=sensitivityArray[sensitivity].lineTolerance;
   minMatchedLines=sensitivityArray[sensitivity].minMatchedLines;
 }
 
@@ -400,7 +404,7 @@ bool syncProcessor::validateSync()
         else
         {
           falseSyncs=0;
-          lineTolerance=LINETOLERANCEINSYNC;
+          lineTolerance=sensitivityArray[sensitivity].lineTolerance;
           // when we have S1,S2 or SDX then we have to set the syncposition at the beginning of the green line
           //          syncPosition=currentModePtr->adjustSyncPosition(syncArray[0].end)- FILTERDELAYCORRECTION; // type 1 sync end
           unsigned int syncCorrected;;
@@ -457,6 +461,37 @@ bool syncProcessor::validateSync()
 }
 
 
+/**
+ * @brief syncProcessor::reanchorChain the new pulse does not follow the last pulse of the chain: try the ones before it
+ * @return true if the new pulse was appended to the chain, after the entries behind the pulse it fits were dropped
+ *
+ * Every pulse is only compared with the one before it, so a pulse that falls on the line grid by chance (or whose edge noise pushed
+ * late) is accepted, and then the real pulses, which are on the grid, no longer fit it: nothing is added to the chain until the picture
+ * is given up. The wider line tolerances of the sensitivity table make that happen more often. Such a pulse is the last entry, or one of
+ * the last few: the new pulse is tried against the pulses before it and the entries after the one it fits are taken off the chain.
+ */
+
+bool syncProcessor::reanchorChain()
+{
+  for(int back=1;back<=REANCHORENTRIES && activeChainPtr->count()>back;back++)
+  {
+    int keep=activeChainPtr->count()-back;                 // entries that stay; the new pulse follows the last of them
+    quint16 lines;
+    double fraction;
+    if(!lineCompare(samplesPerLine,activeChainPtr->at(keep-1)->to,syncArrayIndex,lines,fraction)) continue;
+    QList<smatchEntry *> removed;
+    while(activeChainPtr->count()>keep) removed.prepend(activeChainPtr->takeLast());
+    if(addToChain(currentMode,activeChainPtr->last()->to))
+    {
+      if(rxTraceOn()) rxTrace("REANCHOR",QString("%1\tproc=%2\tmode=%3\tdropped=%4").arg(traceTime(sampleCounter)).arg(detectNarrow?"N":"W").arg(getSSTVModeNameShort(currentMode)).arg(removed.count()));
+      qDeleteAll(removed);
+      return true;
+    }
+    for(smatchEntry *e:removed) activeChainPtr->append(e);    // the width test failed: nothing changes
+  }
+  return false;
+}
+
 void  syncProcessor::trackSyncs()
 {
   if(activeChainPtr==NULL)
@@ -467,7 +502,9 @@ void  syncProcessor::trackSyncs()
   {
     return;
   }
-  if(addToChain(currentMode,activeChainPtr->last()->to))
+  bool added=addToChain(currentMode,activeChainPtr->last()->to);
+  if(!added && proven) added=reanchorChain();      // only a picture that has proven itself: a chain of noise must not live on by it
+  if(added)
   {
     uint spacing=activeChainPtr->last()->lineSpacing;
     uint missedBefore=missingLines;
@@ -533,6 +570,7 @@ void  syncProcessor::trackSyncs()
 
 void syncProcessor::slotNewCall(QString call)
 {
+  if(rxTraceOn()) rxTrace("FSKID",QString("%1\tproc=%2\tcall=%3\tstate=%4").arg(traceTime(sampleCounter)).arg(detectNarrow?"N":"W").arg(call).arg(stateStr[syncProcesState]));
   emit callReceived(call);
   // the ID follows the picture: only a picture that is still being tracked is told to stop tracking; once it has ended
   // the flag would stay set and switch off sync tracking for the next picture
@@ -573,7 +611,15 @@ void  syncProcessor::calcSyncQuality()
   {
     for(k=activeChainPtr->count()-10;k<activeChainPtr->count()-1;k++)
     {
-      tmp=activeChainPtr->at(k)->to-activeChainPtr->at(k)->from-1;
+      // a false sync is a pulse that looks like a sync pulse of this mode (its width) but is not on the line grid: with the lower
+      // ratios of the sensitivity table the noise puts many more pulses in the table, and those of any other width say nothing
+      // about the picture
+      tmp=0;
+      for(uint idx=activeChainPtr->at(k)->from+1;idx<activeChainPtr->at(k)->to;idx++)
+      {
+        DSPFLOAT w=syncArray[idx].diffStartEnd();
+        if(w>=syncWidth*MINSYNCWIDTHRATIO && w<=syncWidth*MAXSYNCWIDTHRATIO) tmp++;
+      }
       if(activeChainPtr->at(k)->lineSpacing>0) tmp/=activeChainPtr->at(k)->lineSpacing; // this gives us the number of false syncs per line
       fs+=tmp;
     }

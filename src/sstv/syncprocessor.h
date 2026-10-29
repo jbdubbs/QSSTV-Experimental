@@ -25,6 +25,7 @@ struct ssenitivity
   int maxTempOutOfSyncLines;
   int maxOutOfSyncLines;
   DSPFLOAT minOutOfSyncSeconds;   // a fade this long does not end the picture (as long as the picture is still running)
+  DSPFLOAT lineTolerance;         // how far (fraction of a line) a pulse may be from the line grid of the picture and still count
 };
 
 struct ssyncEntry
@@ -201,6 +202,7 @@ private:
   bool createModeBase();
   void checkSyncArray();
   void trackSyncs();
+  bool reanchorChain();
   void calcSyncQuality();
   uint maxOutOfSyncLines();
   uint visBackfill();

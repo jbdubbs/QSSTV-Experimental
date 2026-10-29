@@ -18,7 +18,10 @@
 #   3. With RXTRACE_WAV=<recording from tests/rxtrace/capture.sh>: band noise must not contain a VIS code.
 # The pass marks are the lowest figures worth keeping: they are the measured baseline of 2026-10-28 (commit 8571de1, Sensitivity
 # High) and are raised as the receiver improves. Baseline: VIS decoded of 8 at 24/20/16/12 dB: 8/7/3/0, none below; pictures
-# with half their lines of 9 at 3/0/-2/-4/-6 dB: 8/6/3/0/0, recognizable 8/6/2/0/0, none started by the VIS code. The MMSSTV figures (not part of the repo, they come from its demodulator built standalone,
+# with half their lines of 9 at 3/0/-2/-4/-6 dB: 8/6/3/0/0, recognizable 8/6/2/0/0, none started by the VIS code.
+# After stage 1 of the sensitivity work (2026-10-29; new ratios and line tolerance, false syncs counted by width, chain re-anchoring):
+# pictures with half their lines 9/8/8/4/0, recognizable 9/7/7/1/0; the hour of band noise at High and Save if Complete 25: 16 pictures
+# started, none kept, receiver busy 66 s of 3600 (before: 15, 0, 154 s). The MMSSTV figures (not part of the repo, they come from its demodulator built standalone,
 # README in ~/projects/qsstv-captures/2026-10-28-mmsstv-sensitivity) are printed in the table for comparison.
 #
 #   tests/sensitivity/run.sh                       # uses ../../build-cmake/qsstv-experimental, Sensitivity High
@@ -63,7 +66,7 @@ prepare() {      # encode the picture once per mode
 
 # pass marks: SNR (dB) -> least number of runs
 declare -A MINVIS=([24]=8 [20]=7 [16]=3 [12]=0 [8]=0 [4]=0 [0]=0 [-3]=0)
-declare -A MINHALF=([3]=8 [0]=6 [-2]=3 [-4]=0 [-6]=0)
+declare -A MINHALF=([3]=9 [0]=8 [-2]=8 [-4]=3 [-6]=0)
 
 if [ "$PART" = all ] || [ "$PART" = vis ]; then
   echo "== VIS code decoded (M2 and S1, 4 seeds each; MMSSTV: all 8 down to -3 dB)"
