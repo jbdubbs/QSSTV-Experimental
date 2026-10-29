@@ -128,7 +128,7 @@ Whether the position is read before every transmission is decided on the Transmi
 <p><strong>Look up the city and state on the internet</strong> is off until you tick it, because the position leaves your computer: it is sent to the Nominatim service of
 <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, which answers with the city and state for the <em>Place</em> box and the <code>%g</code> template macro. A position within about a
 kilometer of the last one is not asked again, so a station that stays put makes one request. The connection is secure (https): Windows uses its own TLS, and on Linux the OpenSSL libraries have to be installed, as they normally are.
-With no connection the <em>Place</em> box keeps its text.</p>
+With no connection the <em>Place</em> box keeps its text. A place longer than 25 characters is shortened, see <a href="transmit.html#gps">GPS position</a>.</p>
 <p><strong>Test</strong> reads the position now, with the port and baud rate shown on the page (they do not need to be saved first), and shows the result or the reason it failed. With the lookup ticked it also shows the place. A receiver that sends data
 but has no fix yet, for example indoors, is reported as such. On Linux your user must be allowed to read the serial port (usually the <code>dialout</code> group).</p>
 
