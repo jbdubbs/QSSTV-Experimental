@@ -144,6 +144,7 @@ private slots:
   void slotRepaterDelay();
     void slotImageChanged();
     void slotEncodingChanged(int enc);
+    void slotSaveSettings();
 
 signals:
   void modeSwitch(int);
@@ -154,6 +155,10 @@ signals:
 
 private:
   void convertPosition(int format);
+  //! writes the Transmit tab choices as they are (writeSettings() first reads the boxes and re-applies the template)
+  void saveSettings();
+  //! a choice on the tab changed: it is written a moment later, so it survives a shutdown, kill or crash as well as a quit
+  void scheduleSettingsSave();
   void initView();
   void setParams();
   void applyTemplate();
@@ -235,6 +240,11 @@ private:
   // works once the list can be filtered.
   QVector<esstvMode> txModeList;
   int gridLayout=0;
+  int framing=0;                 // Stretch, Crop, Fit or Free: the default for every picture and grid cell (saved as TX/framing)
+  int drmProfileIndex=0;         // the DRM profile that was selected last (saved as TX/drmProfile)
+  bool drmParamsSaved=false;     // the settings file has DRM options: they are not replaced by profile 0
+  QTimer settingsSaveTimer;      // single shot: writes the settings a moment after the last change
+  bool settingsReady=false;      // init() is done: control changes before that are the program setting up, not the user
 
 };
 

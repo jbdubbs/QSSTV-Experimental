@@ -1307,6 +1307,12 @@ void imageViewer::setFitMode(int mode)
   resetFraming(slot);
 }
 
+void imageViewer::setDefaultFit(int mode)
+{
+  segFit.fill(qBound((int)FITSTRETCH,mode,(int)FITFREE),MAXSEGMENTS);
+  emit fitModeChanged(segFit.value(curSlot()));
+}
+
 // a single DRM image keeps its own dimensions, so zoom/pan is its only framing
 bool imageViewer::drmSingle() const
 {

@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <QFrame>
 #include <QVector>
+#include <QTimer>
 #include "spectrumwidget.h"
 #include "sstvparam.h"
 #include "ui_rxwidget.h"
@@ -75,6 +76,7 @@ private slots:
   void slotSave();
   void slotWho();
   void slotWhoResult(bool err);
+  void slotSaveSettings();
 
 signals:
   void modeSwitch(int);
@@ -87,6 +89,10 @@ private:
   imageViewer *imageViewerPtr;
   void getParams();
   void setParams();
+  //! a choice on the tab changed: it is written a moment later, so it survives a shutdown, kill or crash as well as a quit
+  void scheduleSettingsSave();
+  QTimer settingsSaveTimer;      // single shot: writes the settings a moment after the last change
+  bool settingsReady=false;      // init() is done: control changes before that are the program setting up, not the user
   // Repopulates sstvModeComboBox ("Auto" always first) with every mode,
   // rebuilds rxModeList in step, and re-selects whichever mode
   // sstvModeIndexRx previously pointed to if it's still present (else

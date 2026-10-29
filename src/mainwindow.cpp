@@ -906,6 +906,12 @@ void mainWindow::slotModeChange(int rxtxMode)
   txWidgetPtr->changeTransmissionMode(rxtxMode);
   rxWidgetPtr->changeTransmissionMode(rxtxMode);
   lastReceivedCall.clear();
+  if(!fileDecoderPtr->isBatch())
+    {
+      // the SSTV / DRM tab is remembered at once, not only when the program quits cleanly
+      QSettings qSettings;
+      qSettings.setValue("MAIN/transmissionModeIndex",static_cast<int>(transmissionModeIndex));
+    }
 }
 
 void mainWindow::slotSendBSR()

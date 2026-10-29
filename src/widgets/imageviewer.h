@@ -101,6 +101,7 @@ public:
   bool encodePending() const {return encodeJob!=nullptr;}
   enum fitModeType {FITSTRETCH,FITCROP,FITFIT,FITFREE};
   void setFitMode(int mode);   // framing of the active image / grid cell: Stretch, Crop, Fit or Free (zoom/pan)
+  void setDefaultFit(int mode);   // the framing of every grid cell, before any picture is loaded (the saved setting)
   int fitMode() const {return segFit.value(curSlot());}
   int getFileSize(){return fileSize;}
   QString toCall;

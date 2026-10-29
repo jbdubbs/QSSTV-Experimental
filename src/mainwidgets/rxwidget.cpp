@@ -44,6 +44,9 @@ rxWidget::rxWidget(QWidget *parent):QWidget(parent),ui(new Ui::rxWidget)
   connect(rxFunctionsPtr->sstvRxPtr,SIGNAL(resetCall()),SLOT(slotResetCall()));
   connect(ui->logPushButton,SIGNAL(clicked()),SLOT(slotLogCall()));
   connect(ui->whoPushButton,SIGNAL(clicked()),SLOT(slotWho()));
+  settingsSaveTimer.setSingleShot(true);
+  settingsSaveTimer.setInterval(1000);
+  connect(&settingsSaveTimer,SIGNAL(timeout()),SLOT(slotSaveSettings()));
   connect(ui->fixFilePushButton,SIGNAL(clicked()),SIGNAL(fixFileRequested()));
   connect(&ff,SIGNAL(listingDone(bool)),SLOT(slotWhoResult(bool)));
   doRemove=false;
@@ -103,6 +106,7 @@ void rxWidget::init()
       //      ui->whoSpacer->hide();
     }
   setOnlineStatus(true, onlineStatusText);
+  settingsReady=true;
 }
 
 void rxWidget::readSettings()
@@ -224,6 +228,18 @@ void rxWidget::setMinCompletion(int percent)
 void rxWidget::slotGetParams()
 {
   getParams();
+  scheduleSettingsSave();
+}
+
+void rxWidget::scheduleSettingsSave()
+{
+  if(settingsReady) settingsSaveTimer.start();
+}
+
+void rxWidget::slotSaveSettings()
+{
+  if(fileDecoderPtr && fileDecoderPtr->isBatch()) return;   // a headless run never writes the settings
+  writeSettings();
 }
 
 
@@ -247,6 +263,7 @@ void rxWidget::slotDecodeFile()
 void rxWidget::slotSyncSettingChanged()
 {
   getParams();
+  scheduleSettingsSave();
   // the sync processors cache the mode filter and sensitivity (minMatchedLines) at init, so re-init a running receiver
   if(!rxFunctionsPtr->isIdle()) rxFunctionsPtr->restartRX();
 }

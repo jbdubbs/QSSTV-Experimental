@@ -648,20 +648,26 @@ int main(int argc, char **argv)
     tx->setValidImage(false);
   }
 
-  printf("\n== the position is remembered\n");
+  printf("\n== the position is not remembered (issue #149)\n");
   {
-    txw->writeSettings();
+    QLineEdit *place = txw->findChild<QLineEdit *>("placeLineEdit");
+    check(lat->text() == "-33.85000" && place->text() == "Missoula, MT", "(a position and a place are in the boxes)");
     QSettings qs;
-    check(qs.value("TX/latitude").toString() == "-33.85000" && qs.value("TX/longitude").toString() == "151.20000", "saved with the TX settings");
-    check(qs.value("TX/place").toString() == "Missoula, MT", "with the place");
+    qs.setValue("TX/latitude", "12.34567");   // what an older version left in the file
+    qs.setValue("TX/longitude", "76.54321");
+    qs.setValue("TX/place", "Elsewhere");
+    txw->writeSettings();
+    check(!qs.contains("TX/latitude") && !qs.contains("TX/longitude") && !qs.contains("TX/place"), "neither is saved with the TX settings, and an older version's are removed");
+    qs.setValue("TX/latitude", "12.34567");
+    qs.setValue("TX/place", "Elsewhere");
     lat->setText("");
     lon->setText("");
-    txw->findChild<QLineEdit *>("placeLineEdit")->setText("");
+    place->setText("");
     txw->slotGetParams();
-    check(tx->latitude.isEmpty() && tx->place.isEmpty(), "(cleared)");
     txw->readSettings();
-    check(lat->text() == "-33.85000" && lon->text() == "151.20000" && tx->latitude == "-33.85000", "and restored at the next start");
-    check(tx->place == "Missoula, MT" && txw->findChild<QLineEdit *>("placeLineEdit")->text() == "Missoula, MT", "also the place");
+    check(lat->text().isEmpty() && lon->text().isEmpty() && place->text().isEmpty() && tx->latitude.isEmpty() && tx->place.isEmpty(), "nor read at the next start");
+    qs.remove("TX/latitude");
+    qs.remove("TX/place");
   }
 
   printf("\n== position format: degrees and decimal minutes (issue #133)\n");
@@ -781,22 +787,11 @@ int main(int argc, char **argv)
       check(tx->latitude == "47 36.37N" && tx->longitude == "122 19.93W", "from the values that the macros expand (" + tx->latitude + ", " + tx->longitude + ")");
     }
 
-    // remembered, in the format of the day it is read
+    // not remembered: the boxes start empty at the next start (issue #149)
     txw->writeSettings();
     {
       QSettings qs;
-      check(qs.value("TX/latitude").toString() == "47 36.37N" && qs.value("TX/longitude").toString() == "122 19.93W", "saved with the TX settings as shown");
-      txw->readSettings();
-      check(lat->text() == "47 36.37N" && lon->text() == "122 19.93W", "and restored as shown");
-      qs.setValue("TX/latitude", "47.6062");   // a position saved while the format was decimal degrees
-      qs.setValue("TX/longitude", "-122.3321");
-      txw->readSettings();
-      check(lat->text() == "47 36.37N" && lon->text() == "122 19.93W" && tx->latitude == "47 36.37N", "a position saved in decimal degrees is shown in degrees and minutes");
-      gpsCoordFormat = COORDDECIMAL;
-      qs.setValue("TX/latitude", "47 36.37N");
-      qs.setValue("TX/longitude", "122 19.93W");
-      txw->readSettings();
-      check(lat->text() == "47 36.37N" && lon->text() == "122 19.93W", "while in decimal degrees a saved position is shown as it was typed");
+      check(!qs.contains("TX/latitude") && !qs.contains("TX/longitude") && !qs.contains("TX/place"), "the position is not saved with the TX settings");
     }
     gpsCoordFormat = COORDDEGMIN;
     txw->positionFormatChanged();

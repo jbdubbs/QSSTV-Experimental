@@ -11,6 +11,7 @@
 #include <QPainter>
 #include "configparams.h"
 #include "dispatcher.h"
+#include "dispatch/filedecoder.h"
 #include "supportfunctions.h"
 #include "gallerywidget.h"
 #include "waterfalltext.h"
@@ -149,6 +150,9 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   sizeApplyTimer.setSingleShot(true);
   sizeApplyTimer.setInterval(100);
   connect(&sizeApplyTimer,SIGNAL(timeout()),SLOT(slotSizeApply()));
+  settingsSaveTimer.setSingleShot(true);
+  settingsSaveTimer.setInterval(1000);
+  connect(&settingsSaveTimer,SIGNAL(timeout()),SLOT(slotSaveSettings()));
   connect(ui->settingsTableWidget,SIGNAL(currentChanged(int)),this, SLOT(slotTransmissionMode(int)));
   connect(imageViewerPtr,SIGNAL(imageChanged()),SLOT(slotImageChanged()));
   connect(imageViewerPtr,SIGNAL(compressionReady()),SLOT(slotCompressionReady()));
@@ -209,13 +213,20 @@ void txWidget::init()
   slotModeChanged(sstvModeIndexTx);
   changeTransmissionMode(transmissionModeIndex);
   //  setSettingsTab();
-  slotProfileChanged(0);
+  if(drmParamsSaved)
+    {
+      // the DRM options of the last session stay; the profile box only shows the profile they were last taken from
+      ui->drmProfileComboBox->setCurrentIndex(qBound(0,drmProfileIndex,qMax(0,ui->drmProfileComboBox->count()-1)));
+      setParams();
+    }
+  else slotProfileChanged(0);
   if(lowRes)
     {
       ui->txNotificationList->hide();
       ui->refreshPushButton->hide();
       ui->previewWidget->hide();
     }
+  settingsReady=true;
 }
 
 void txWidget::readSettings()
@@ -236,6 +247,9 @@ void txWidget::readSettings()
   useHybrid=qSettings.value("useHybrid",false).toBool();
   compressedSize=qSettings.value("compressedSize",5000).toUInt();
   gridLayout=qSettings.value("gridLayout",0).toInt();
+  framing=qBound(0,qSettings.value("framing",0).toInt(),3);
+  drmProfileIndex=qSettings.value("drmProfile",0).toInt();
+  drmParamsSaved=qSettings.contains("drmProfile");   // written by this version only: an older file starts on profile 0, as it always did
   drmParams.bandwith=qSettings.value("drmBandWith",0).toInt();
   drmParams.interleaver=qSettings.value("drmInterLeaver",0).toInt();
   drmParams.protection=qSettings.value("drmProtection",0).toInt();
@@ -245,27 +259,25 @@ void txWidget::readSettings()
   int enc=qSettings.value("drmImageEncoding",imageViewer::ENCJPEG2000).toInt();
   if(enc!=imageViewer::ENCAVIF || !avifWriteSupported()) enc=imageViewer::ENCJPEG2000;
   imageViewerPtr->setEncoding(enc);
-  imageViewerPtr->latitude=qSettings.value("latitude",QString()).toString();
-  imageViewerPtr->longitude=qSettings.value("longitude",QString()).toString();
-  imageViewerPtr->place=qSettings.value("place",QString()).toString();
+  // the position, the place, To, Op, RSV and the comments belong to one QSO: the boxes start empty
   positionFormat=gpsCoordFormat;   // Configuration > GPS has been read by now
-  if(positionFormat==COORDDEGMIN)
-    {
-      double degrees;
-      if(parseCoordinateText(imageViewerPtr->latitude,true,degrees)) imageViewerPtr->latitude=formatCoordinate(degrees,true,positionFormat);
-      if(parseCoordinateText(imageViewerPtr->longitude,false,degrees)) imageViewerPtr->longitude=formatCoordinate(degrees,false,positionFormat);
-    }
-  placeKey=imageViewerPtr->latitude+"|"+imageViewerPtr->longitude;   // the saved place belongs to the saved position
+  placeKey=imageViewerPtr->latitude+"|"+imageViewerPtr->longitude;
   gpsAutoRead=qSettings.value("gpsAutoRead",false).toBool();   // off: a typed position is never replaced unless the GPS button is switched to green
   qSettings.endGroup();
   setParams();
+  imageViewerPtr->setDefaultFit(framing);   // also shows it in both Framing boxes
   updateGpsButton();
 }
 
 void txWidget::writeSettings()
 {
-  QSettings qSettings;
   slotGetParams();
+  saveSettings();
+}
+
+void txWidget::saveSettings()
+{
+  QSettings qSettings;
   qSettings.beginGroup("TX");
   qSettings.setValue( "sstvModeIndexTx", sstvModeIndexTx);
   qSettings.setValue( "templateIndex", templateIndex);
@@ -282,11 +294,27 @@ void txWidget::writeSettings()
   qSettings.setValue("compressedSize",compressedSize);
   qSettings.setValue("drmImageEncoding",imageViewerPtr->encoding());
   qSettings.setValue("gridLayout",gridLayout);
-  qSettings.setValue("latitude",imageViewerPtr->latitude);     // the position belongs to the station, not to one QSO
-  qSettings.setValue("longitude",imageViewerPtr->longitude);
-  qSettings.setValue("place",imageViewerPtr->place);
+  qSettings.setValue("framing",framing);
+  qSettings.setValue("drmProfile",drmProfileIndex);
   qSettings.setValue("gpsAutoRead",gpsAutoRead);
+  // older versions kept the position of the last session
+  qSettings.remove("latitude");
+  qSettings.remove("longitude");
+  qSettings.remove("place");
   qSettings.endGroup();
+}
+
+void txWidget::scheduleSettingsSave()
+{
+  // a change before init() is done is the program setting up; a calibration transmission borrows the mode and the options
+  if(!settingsReady || calTxActive) return;
+  settingsSaveTimer.start();
+}
+
+void txWidget::slotSaveSettings()
+{
+  if(calTxActive || (fileDecoderPtr && fileDecoderPtr->isBatch())) return;   // a headless run never writes the settings
+  saveSettings();
 }
 
 void txWidget::slotGetTXParams()
@@ -307,6 +335,7 @@ void txWidget::slotGetTXParams()
   drmParams.callsign=myCallsign;
   updateTxTime();
   txFunctionsPtr->forgetTxFileName();
+  scheduleSettingsSave();
 }
 
 
@@ -331,6 +360,7 @@ void txWidget::slotGetParams()
     {
       applyTemplate();
     }
+  scheduleSettingsSave();
 }
 
 void txWidget::setParams()
@@ -348,8 +378,13 @@ void txWidget::setParams()
   setValue(useTemplate,ui->templateCheckBox);
   ui->templateCheckBox->blockSignals(false);
   ui->templatesComboBox->blockSignals(false);
-  setValue(useVOX,ui->voxCheckBox);
-  setValue(useCW,ui->cwCheckBox);
+  {
+    // a box that toggles reads all the others back (slotGetTXParams): CW and the DRM options, not shown yet, would be lost
+    QSignalBlocker voxBlocker(ui->voxCheckBox);
+    QSignalBlocker cwBlocker(ui->cwCheckBox);
+    setValue(useVOX,ui->voxCheckBox);
+    setValue(useCW,ui->cwCheckBox);
+  }
   setValue(useHybrid,ui->hybridCheckBox);
   setValue(imageViewerPtr->latitude,ui->latLineEdit);
   setValue(imageViewerPtr->longitude,ui->lonLineEdit);
@@ -1010,6 +1045,7 @@ void txWidget::slotModeChanged(int m)
       updateGridControl();
       applyTemplate();
     }
+  scheduleSettingsSave();
 }
 
 // SSTV: stitched grids only make sense for modes larger than 512x400 (the size of PD160); DRM has no mode size
@@ -1035,6 +1071,7 @@ void txWidget::slotGridChanged(int i)
   ui->drmGridComboBox->setCurrentIndex(i);
   updateGridControl();
   applyTemplate();
+  scheduleSettingsSave();
 }
 
 // Repopulates sstvModeComboBox from scratch with every mode and rebuilds
@@ -1061,6 +1098,8 @@ void txWidget::slotResizeChanged(int i)
   ui->drmResizeComboBox->setCurrentIndex(i);
   imageViewerPtr->setFitMode(i);
   applyTemplate();
+  framing=qBound(0,i,3);
+  scheduleSettingsSave();
 }
 
 
@@ -1152,6 +1191,7 @@ void txWidget::slotSize(int fsize)
     {
       sizeChanged=true;
       compressedSize=fsize;
+      scheduleSettingsSave();
       if(ui->sizeSlider->isSliderDown())
         {
           // live update while dragging; coalesce the expensive re-encode
@@ -1241,12 +1281,15 @@ void txWidget::slotEncodingChanged(int enc)
 {
   imageViewerPtr->setEncoding(enc);
   slotImageChanged();   // size range, re-encode and TX time follow the codec
+  scheduleSettingsSave();
 }
 
 void txWidget::slotProfileChanged(int i)
 {
   drmProfileConfigPtr->getDRMParams(i,drmParams);
+  drmProfileIndex=i;
   setParams();
+  scheduleSettingsSave();
 }
 
 void txWidget::reloadProfiles()
@@ -1319,6 +1362,7 @@ void txWidget::slotHybridToggled()
   getValue(useHybrid,ui->hybridCheckBox);
   ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex!=TRXSSTV));
   updateTxTime();
+  scheduleSettingsSave();
 }
 
 
@@ -1700,6 +1744,7 @@ void txWidget::slotGpsToggle()
   if(gpsUsable()) gpsAutoRead=!gpsAutoRead;
   else QMessageBox::information(this,"GPS","The GPS is not enabled.\nSet it up in Options > Configuration > GPS.");
   updateGpsButton();
+  scheduleSettingsSave();
 }
 
 bool txWidget::requestGps(bool manual)
