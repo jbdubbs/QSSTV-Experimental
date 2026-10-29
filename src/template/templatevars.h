@@ -20,8 +20,8 @@
 
 namespace tpl
 {
-/*! Compatible MMSSTV fields, captured at one instant for UTC and local dates/times. */
-void addMmsstvVars(QHash<QChar, QString> &vars, const QString &call, const QString &report, const QDateTime &instant);
+/*! UTC and computer-local date/time fields captured at one instant. */
+void addDateTimeVars(QHash<QChar, QString> &vars, const QDateTime &instant);
 
 
 struct MacroInfo

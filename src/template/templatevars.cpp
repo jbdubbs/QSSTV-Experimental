@@ -13,13 +13,13 @@ QString tr(const char *s)
 }
 }  // namespace
 
-void addMmsstvVars(QHash<QChar, QString> &vars, const QString &call, const QString &report, const QDateTime &instant)
+void addDateTimeVars(QHash<QChar, QString> &vars, const QDateTime &instant)
 {
   const QDateTime utc = instant.toUTC(), local = instant.toLocalTime();
-  vars.insert('t', utc.toString("hh:mm")); vars.insert('T', utc.toString("hhmm"));
-  vars.insert('d', utc.toString("yyyy/MM/dd")); vars.insert('D', local.toString("yyyy/MM/dd"));
-  vars.insert('U', local.toString("hh:mm")); vars.insert('u', local.toString("hhmm"));
-  vars.insert('C', call.toLower()); vars.insert('R', report.left(3)); vars.insert('N', report.mid(3));
+  vars.insert('t', utc.toString("hh:mm"));
+  vars.insert('d', utc.toString("yyyy/MM/dd"));
+  vars.insert('D', local.toString("yyyy/MM/dd"));
+  vars.insert('U', local.toString("hh:mm"));
 }
 
 const QVector<MacroInfo> &macroTable()
@@ -36,13 +36,8 @@ const QVector<MacroInfo> &macroTable()
     {'l', tr("Locator"), tr("Your grid locator (Settings)"), QStringLiteral("FN31pr")},
     {'t', tr("Time"), tr("Current UTC time, hh:mm"), QStringLiteral("12:34")},
     {'d', tr("Date"), tr("Current UTC date, yyyy/MM/dd"), QStringLiteral("2026/10/22")},
-    {'T', tr("Compact UTC time"), tr("UTC time, hhmm"), QStringLiteral("1234")},
-    {'D', tr("Local date"), tr("Local date, yyyy/MM/dd"), QStringLiteral("2026/10/22")},
-    {'U', tr("Local time"), tr("Local time, hh:mm"), QStringLiteral("14:34")},
-    {'u', tr("Compact local time"), tr("Local time, hhmm"), QStringLiteral("1434")},
-    {'C', tr("To call (lowercase)"), tr("Contact callsign in lowercase"), QStringLiteral("w1aw")},
-    {'R', tr("Report prefix"), tr("First three characters of the TX report"), QStringLiteral("595")},
-    {'N', tr("Report suffix"), tr("TX report after its first three characters"), QStringLiteral("#007")},
+    {'D', tr("Local date"), tr("Local date, yyyy/MM/dd (computer time zone)"), QStringLiteral("2026/10/22")},
+    {'U', tr("Local time"), tr("Local time, hh:mm (computer time zone)"), QStringLiteral("14:34")},
     {'v', tr("Version"), tr("QSSTV version"), QStringLiteral("10.1")},
     {'x', tr("Comment 1"), tr("First comment line (TX tab)"), QStringLiteral("Comment 1")},
     {'y', tr("Comment 2"), tr("Second comment line (TX tab)"), QStringLiteral("Comment 2")},

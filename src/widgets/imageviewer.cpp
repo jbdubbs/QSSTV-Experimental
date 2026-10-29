@@ -1592,7 +1592,7 @@ int imageViewer::applyTemplate()
           opt.vars.insert('c',toCall);
           opt.vars.insert('r',rsv);
           opt.vars.insert('o',toOperator);
-          tpl::addMmsstvVars(opt.vars, toCall, rsv, QDateTime::currentDateTime());
+          tpl::addDateTimeVars(opt.vars, QDateTime::currentDateTime());
           opt.vars.insert('m',myCallsign);
           opt.vars.insert('q',myQth);
           opt.vars.insert('l',myLocator);

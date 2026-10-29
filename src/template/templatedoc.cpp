@@ -23,7 +23,7 @@ namespace tpl
 const char *const nativeExtension = "qtempl";
 
 static const char formatName[] = "qsstv-template";
-static const int currentVersion = 2;
+static const int currentVersion = 1;
 
 // ---------------------------------------------------------------------------------------------------------------
 // value types
@@ -266,12 +266,6 @@ void sanitize(TemplateDocument &d)
   d.canvas = clampRect(d.canvas);
   if (d.canvas.width() < 1 || d.canvas.height() < 1) d.canvas = QRectF(0, 0, 320, 256);
   if (d.items.size() > limits::maxItems) d.items.resize(limits::maxItems);
-  if (!d.background.isValid()) d.background = QColor(248, 248, 248);
-  d.background.setAlpha(255);
-  if (!std::isfinite(d.transparencyPoint.x()) || !std::isfinite(d.transparencyPoint.y()))
-    d.transparencyPoint = d.canvas.topLeft();
-  d.transparencyPoint.setX(qBound(d.canvas.left(), d.transparencyPoint.x(), std::nextafter(d.canvas.right(), d.canvas.left())));
-  d.transparencyPoint.setY(qBound(d.canvas.top(), d.transparencyPoint.y(), std::nextafter(d.canvas.bottom(), d.canvas.top())));
   for (Element &e : d.items) sanitize(e);
 }
 
@@ -561,13 +555,8 @@ QByteArray toJson(const TemplateDocument &doc)
   QJsonObject canvas{{"w", doc.canvas.width()}, {"h", doc.canvas.height()}};
   if (doc.canvas.x() != 0) canvas["x"] = doc.canvas.x();
   if (doc.canvas.y() != 0) canvas["y"] = doc.canvas.y();
-  bool needsV2 = doc.sampledTransparency;
-  for (const Element &e : doc.items) needsV2 |= e.type == ItemType::Text && !e.image.isNull();
-  QJsonObject root{{"format", formatName}, {"version", needsV2 ? currentVersion : 1}, {"canvas", canvas},
+  QJsonObject root{{"format", formatName}, {"version", currentVersion}, {"canvas", canvas},
                    {"layout", doc.layout == TemplateDocument::Anchored ? "anchored" : "stretch"}, {"items", items}};
-  if (doc.sampledTransparency)
-    root["sampledTransparency"] = QJsonObject{{"background", colorToString(doc.background)},
-      {"x", doc.transparencyPoint.x()}, {"y", doc.transparencyPoint.y()}};
   return QJsonDocument(root).toJson(QJsonDocument::Indented);
 }
 
@@ -601,17 +590,6 @@ LoadResult loadJson(const QByteArray &data)
   const QJsonObject c = root.value(QLatin1String("canvas")).toObject();
   r.doc.canvas = QRectF(jnum(c, "x", 0), jnum(c, "y", 0), jnum(c, "w", 320), jnum(c, "h", 256));
   r.doc.layout = jstr(root, "layout") == QLatin1String("anchored") ? TemplateDocument::Anchored : TemplateDocument::Stretch;
-  if (root.contains("sampledTransparency"))
-    {
-      if (version < 2 || !root.value("sampledTransparency").isObject())
-        { r.error = QStringLiteral("invalid transparency metadata"); return r; }
-      const QJsonObject key = root.value("sampledTransparency").toObject();
-      r.doc.sampledTransparency = true;
-      r.doc.background = colorFromString(jstr(key, "background"), QColor(248, 248, 248));
-      r.doc.transparencyPoint = QPointF(jnum(key, "x", 0), jnum(key, "y", 0));
-      if (!r.doc.canvas.contains(r.doc.transparencyPoint))
-        { r.error = QStringLiteral("transparency point is outside the canvas"); return r; }
-    }
   const QJsonArray items = root.value(QLatin1String("items")).toArray();
   if (items.size() > limits::maxItems)
     {

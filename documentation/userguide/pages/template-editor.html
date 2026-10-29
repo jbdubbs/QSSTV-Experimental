@@ -137,6 +137,7 @@ selected text (or into a new text). <span class="ui">View &gt; Preview Macros</s
 <tr><td><code>%f</code>, <code>%n</code></td><td>Your first and last name</td></tr>
 <tr><td><code>%q</code>, <code>%l</code></td><td>Your location name and grid locator</td></tr>
 <tr><td><code>%t</code>, <code>%d</code></td><td>The UTC time (hh:mm) and date (yyyy/MM/dd)</td></tr>
+<tr><td><code>%D</code>, <code>%U</code></td><td>The local date (yyyy/MM/dd) and time (hh:mm), using the computer's time zone</td></tr>
 <tr><td><code>%v</code></td><td>The QSSTV version</td></tr>
 <tr><td><code>%x</code>, <code>%y</code>, <code>%z</code></td><td>The three large text boxes on the Transmit tab</td></tr>
 <tr><td><code>%a</code>, <code>%b</code></td><td>The latitude and longitude from the <em>Lat</em> and <em>Long</em> boxes on the Transmit tab, in decimal degrees (north and east positive, for example <code>47.60620</code> and <code>-122.33210</code>) or, with <em>Position format</em> in <a href="configuration.html#gps">Configuration &gt; GPS</a> set to degrees and decimal minutes, as <code>47 36.37N</code> and <code>122 19.93W</code>; see <a href="transmit.html#gps">GPS position</a></td></tr>
@@ -179,6 +180,36 @@ to pick one of the editors found (GIMP, Krita, KolourPaint, Pinta and others). L
 <code>qsstv-experimental --render-template my.qtempl --template-base picture.png</code> (see <a href="command-line.html">Decode from file and command line</a>).</p></div>
 <nav class="pager" aria-label="Previous and next page"><a class="prev" href="gallery.html" rel="prev">&larr; Gallery</a><a class="next" href="configuration.html" rel="next">Configuration &rarr;</a></nav>
 
+<h2 id="mmsstv-import">MMSSTV template import</h2>
+<p><strong>Experimental: not yet live-tested in a normal operator workflow or on air.</strong> Automated conversion and round-trip tests do not establish pixel equivalence with Windows MMSSTV. Check imported layouts and the Size preview before transmission.</p>
+<h3>Single import</h3>
+<p>Choose <span class="ui">File &gt; Import MMSSTV template…</span>, review the preview and warnings, then accept. Unsaved work uses the usual Save/Discard/Cancel prompt. The imported document is unsaved; Save As suggests the original <code>.mtm</code> base name and writes a native <code>.qtempl</code> file in format version 1. The original file stays untouched.</p>
+<h3>Batch import</h3>
+<p>Choose <span class="ui">File &gt; Import MMSSTV templates (batch)…</span>, select files, choose a destination and confirm. Occupied names receive suffixes such as <code>_2</code> and <code>_3</code>. Both <code>.qtempl</code> and <code>.templ</code> files, including symbolic links, reserve their base name. The report lists successes, failures and warnings. One failed file does not stop the others. The current editor document stays open with its unsaved changes; the gallery and TX list refresh after the batch.</p>
+<h3>Content and limitations</h3>
+<ul>
+<li>Lines, rectangles, ellipses, text, simple gradients and contours remain editable. Groups are flattened in paint order. Embedded BMPs and tiled text textures are retained. Text textures are raster images and scale like an Image element; solid or gradient fill controls replace the texture.</li>
+<li>The MMSSTV background becomes no background. A solid fill, outline or gradient stop equal to the color sampled at MMSSTV's transparency point becomes transparent. This reveals lower objects; version 1 cannot punch through them to the TX picture. Overlapping objects produce a warning. Check keyed text such as the “73” in <code>def5.mtm</code>.</li>
+<li>Picture masks and rounded frames are baked into pixels. Their geometry is not separately editable. Color bars may become raster images. Replay placeholders use the latest received image; their dynamic masks are not retained.</li>
+<li>Complex text effects, rotation placement, right adjustment, picture cropping and Windows system colors are simplified with warnings. Missing fonts are substituted. Rendering can differ from MMSSTV.</li>
+<li>Windows-1252 and Windows-1251 decoding is built in. Shift-JIS, GBK and Big5 require the named Qt decoder; unavailable decoders fail explicitly. Other character sets use Windows-1252 with a warning.</li>
+<li>Unknown/OLE/custom records and sound bars fail explicitly. File length, image dimensions and aggregate pixels, object counts, nesting, strings and polygon vertices have safety limits. Embedded content is never executed.</li>
+</ul>
+<h3>Imported macros</h3>
+<table>
+<thead><tr><th>MMSSTV</th><th>Native</th><th>Meaning or difference</th></tr></thead>
+<tbody>
+<tr><td><code>%m %c %r %v</code></td><td>unchanged</td><td>Own/contact callsign, report, version</td></tr>
+<tr><td><code>%n</code></td><td><code>%o</code></td><td>Contact operator</td></tr>
+<tr><td><code>%T %t</code></td><td><code>%t</code></td><td>UTC time; warns that hhmm is displayed as hh:mm</td></tr>
+<tr><td><code>%D %L</code></td><td><code>%d %D</code></td><td>UTC/local date, yyyy/MM/dd</td></tr>
+<tr><td><code>%U %u</code></td><td><code>%U</code></td><td>Local time, hh:mm</td></tr>
+<tr><td><code>%C</code></td><td><code>%c</code></td><td>Contact call; warns that lowercase is no longer forced</td></tr>
+<tr><td><code>%R%N</code></td><td><code>%r</code></td><td>Whole TX report</td></tr>
+<tr><td>A lone <code>%R</code> or <code>%N</code></td><td><code>%r</code></td><td>Warns that the whole report is used</td></tr>
+</tbody>
+</table>
+<p>Time fields capture one instant; local fields use the computer's time zone. Unsupported macros, including received-report <code>%s</code>/<code>%M</code> and contact-QTH <code>%q</code>, remain escaped visible literals and produce warnings. Edit these before sending.</p>
 </main>
 <footer class="site-footer"><p>QSSTV-Experimental is based on QSSTV by Johan Maes, ON4QZ, and is released under the GNU GPL v3.</p></footer>
 </body>

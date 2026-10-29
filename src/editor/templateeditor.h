@@ -135,6 +135,7 @@ private:
   QList<QAction *> recentActs;
 
   QString templatesDir;
+  QString importedBaseName;
   QVector<SizePreset> sizePresets;
   QSize defaultSize = QSize(320, 256);
   QImage previewPicture;
