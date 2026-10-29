@@ -168,7 +168,7 @@
        <item>
         <widget class="QComboBox" name="beaconComboBox">
          <property name="toolTip">
-          <string>On: periodically send a webcam picture using the current Transmit settings, until stopped from the camera button</string>
+          <string>On: send a webcam picture periodically. The camera stays on, shown live on the Transmit tab, until stopped from the camera button</string>
          </property>
          <item>
           <property name="text">

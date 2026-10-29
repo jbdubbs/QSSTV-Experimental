@@ -51,20 +51,26 @@ test pattern into a dummy load to adjust it.</p></div>
 <h2 id="beacon">WA8LMF Beacon Mode</h2>
 <p>WA8LMF Beacon Mode periodically grabs a picture from a webcam and transmits it, for example from a mobile station on the higher HF bands to
 attract a reply. Click the <strong>Camera</strong> button, choose the camera, pixel format and resolution (the dialog remembers these for next time), then set <strong>WA8LMF Beacon Mode</strong> to <strong>On</strong> and
-pick <strong>Beacon every</strong> 1 to 60 minutes. Press <strong>OK</strong>: the picture currently showing in the dialog becomes the transmit picture straight away and is sent 10 seconds later (time to adjust the SSTV or DRM settings), then one every N minutes,
+pick <strong>Beacon every</strong> 1 to 60 minutes. Press <strong>OK</strong>: the first picture is sent 10 seconds later (time to adjust the SSTV or DRM settings), then one every N minutes,
 until you stop it. While it runs, the camera button shows a green-tinted beacon icon, and a countdown to the next picture appears at the left of
 the status bar (when no other status message is showing).</p>
-<p>Click the green beacon icon to stop WA8LMF Beacon Mode. To start it again, open the camera dialog and press OK again (the WA8LMF Beacon Mode setting is Off
+<p>The camera stays on for as long as WA8LMF Beacon Mode runs, so its automatic exposure has settled long before a picture is taken (a webcam that starts up and is
+read at once often delivers a washed-out picture). The Transmit tab shows what the camera sees, live, framed to the transmit size with the selected
+template over it, exactly as the picture would go out. When a beacon picture is taken, the Transmit tab holds that picture while it is prepared and sent, and goes live again when the transmission is over.
+Press <strong>Start</strong> at any time to send what the Transmit tab shows right then. A picture you load yourself (from a gallery, <strong>Open</strong> or a paste) stays on the tab
+instead of the live picture until a transmission is over; the beacon still takes its next picture from the camera. The live picture is not shown with a grid (a beacon picture is still taken). The camera's LED stays on, which matters on a battery.</p>
+<p>Click the green beacon icon to stop WA8LMF Beacon Mode; the camera goes off and the last live picture stays on the Transmit tab. To start it again, open the camera dialog and press OK again (the WA8LMF Beacon Mode setting is Off
 every time the dialog opens).</p>
 <p>WA8LMF Beacon Mode has no transmit settings of its own. Each picture is sent exactly as if you had pressed Start: with the
 <strong>SSTV</strong> or <strong>DRM</strong> tab that is currently selected, its mode and options, the selected template (for example a call
-sign overlay) and the picture size. The camera is only switched on while each later picture is captured, using the format and resolution chosen in the dialog. It is always off when the program starts.</p>
+sign overlay) and the picture size. The camera uses the format and resolution chosen in the dialog. It is always off when the program starts.</p>
 <p>With <a href="configuration.html#gps">Configuration &gt; GPS</a> set up and the <a href="#gps">GPS button</a> green, each beacon picture is preceded by a fresh GPS reading, so a <code>%a</code>/<code>%b</code> position in the template follows a moving station.
-The reading runs while the camera starts, and the beacon waits for it for up to 10 seconds. If the GPS has no position the beacon is sent anyway, with the position that was last in the <em>Lat</em> and <em>Long</em> boxes.
+The beacon waits for the reading for up to 10 seconds. If the GPS has no position the beacon is sent anyway, with the position that was last in the <em>Lat</em> and <em>Long</em> boxes.
 With the <a href="configuration.html#gps">city and state lookup</a> on, the beacon also waits for the <code>%g</code> place of a new position (up to about 8 seconds more) and is sent without it when there is no answer.</p>
 <p>When a scheduled beacon picture cannot be transmitted, the countdown in the status bar is replaced by a red message, for example <em>WA8LMF Beacon Mode not sent 14:32: a picture is
-being received</em>, <em>no camera found</em>, or <em>the transmitter is busy</em>. The beacon tries again after 30 seconds and the countdown returns as soon as a
-picture is sent.</p>
+being received</em>, <em>the camera gave no picture</em>, or <em>the transmitter is busy</em>. The beacon tries again after 30 seconds and the countdown returns as soon as a
+picture is sent. If the camera is lost (unplugged, or it stops delivering pictures) the countdown is replaced by a red <em>camera problem</em> message; the beacon keeps its schedule, the program opens the camera again
+every few seconds, and the countdown returns when the pictures do.</p>
 <div class="warn"><p>An unattended WA8LMF Beacon Mode transmission is still your transmission: follow your license conditions on automatic and unattended operation, and
 identify as required (use a template with your call sign).</p></div>
 

@@ -119,6 +119,7 @@ public:
 
 
   int applyTemplate();
+  bool setLiveFrame(const QImage &frame);   // TXIMG only: show a camera picture with the template over it, without encoding or loading it
   void setGrid(int cols,int rows);   // TXIMG only: stitch cols x rows separately loaded segments
   int loadSegments(const QStringList &files);   // TXIMG grid: fill segments 0.. with the first files, returns how many were loaded
   void setSelected(bool sel);   // gallery thumbnails: multi-selection highlight
@@ -233,6 +234,8 @@ private:
   QPointF clampPan(int slot,const QSize &cell,const QPointF &pan) const;
   void drawCell(QPainter &painter,const QImage &img,const QRect &cell,int slot);
   QImage frameSingle(int tw,int th);
+  bool templateInUse() const;
+  QImage renderTemplated(int tWidth,int tHeight);
   bool freeSlotAt(const QPoint &pos,int &slot);
   bool drmSingle() const;
   int fitOf(int slot) const;

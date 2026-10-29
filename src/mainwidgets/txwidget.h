@@ -118,7 +118,9 @@ public slots:
   void slotBeaconTick();
   void slotBeaconTimer();
   void slotBeaconFrame(const QImage &image);
+  void slotBeaconLive(const QImage &image);
   void slotBeaconFailed(const QString &reason);
+  void slotBeaconRecovered();
   void slotGetGps();
   void slotGpsToggle();
   void slotGpsFix(bool ok,double lat,double lon,const QString &reason);
@@ -172,6 +174,10 @@ private:
   void beaconSkipped(const QString &reason);
   void beaconRestartInterval();
   void beaconTransmitLoaded();
+  //! the live camera picture may replace the Transmit picture now (no picture is on its way to the air or being waited for)
+  bool liveAllowed() const;
+  //! a transmission is over (or never started): the camera picture is shown live again
+  void resumeLive();
   //! the GPS is set up and the GPS button is green: every transmission (Start and the beacon) reads a fresh position first
   bool gpsAutoReads() const;
   //! the picture waited for the position (Start button): sends it now
@@ -195,13 +201,17 @@ private:
   txFunctions *txFunctionsPtr;
 
   QTimer *repeaterTimer;
-  QTimer beaconTimer;           // single shot: next capture (first one, interval, or 30 s retry)
+  QTimer beaconTimer;           // single shot: next picture (first one, interval, or 30 s retry)
   QTimer beaconTick;            // 1 s, drives the countdown
   int beaconMinutes=0;
   QString beaconError;          // why the last beacon attempt failed; shown instead of the countdown until an attempt succeeds
+  QString beaconCameraProblem;  // the camera is lost and being reopened; shown in place of the countdown, the schedule goes on
   bool beaconRunning=false;
-  bool beaconHold=false;        // a picture is loaded and waiting for the 10 s to pass
-  beaconCapture beaconCap;
+  bool beaconHold=false;        // the camera is on and the first picture waits for the 10 s to pass
+  beaconCapture beaconCap;      // on for as long as the beacon runs: the live picture on this tab, and the newest frame for each beacon picture
+  bool txLocked=false;          // prepareTx() locked the controls: a picture is being prepared or sent, so it must not change (the TX thread reads it)
+  bool livePaused=false;        // the user loaded a picture of their own: no live picture until the transmission is over
+  qint64 liveKey=0;             // cacheKey() of the TX picture the live picture last put there; another one means the user loaded a picture
   bool beaconPending=false;     // a beacon picture is on its way through prepareTx()/startTxImage()
   bool beaconWaitPosition=false;     // the beacon picture is ready, but the position (the GPS, then the place) is still coming: slotGpsFix() or slotPlaceReady() sends it
   bool startWaitPosition=false;      // the Start button was pressed, the position is still coming: slotGpsFix() or slotPlaceReady() starts the transmission

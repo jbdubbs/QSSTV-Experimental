@@ -142,8 +142,9 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   connect(&beaconTick,SIGNAL(timeout()),SLOT(slotBeaconTick()));
   beaconTimer.setSingleShot(true);
   beaconTick.setInterval(1000);
-  connect(&beaconCap,&beaconCapture::frameReady,this,&txWidget::slotBeaconFrame);
+  connect(&beaconCap,&beaconCapture::liveFrame,this,&txWidget::slotBeaconLive);
   connect(&beaconCap,&beaconCapture::failed,this,&txWidget::slotBeaconFailed);
+  connect(&beaconCap,&beaconCapture::recovered,this,&txWidget::slotBeaconRecovered);
   connect(ui->binaryToolButton,SIGNAL(clicked()),this,SLOT(slotBinary()));
   connect(ui->sizeSlider,SIGNAL(valueChanged(int)),SLOT(slotSize(int)));
   connect(ui->sizeSlider,SIGNAL(sliderReleased()),SLOT(slotSizeReleased()));
@@ -189,6 +190,7 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
 
 txWidget::~txWidget()
 {
+  beaconCap.stop();
   writeSettings();
   txFunctionsPtr->terminate();
   delete txFunctionsPtr;
@@ -671,6 +673,7 @@ void txWidget::startTxImage()
   if(!imageViewerPtr->hasValidImage())
     {
       addToLog("invalidImage",LOGTXMAIN);
+      enableButtons(true);   // prepareTx() locked the controls
       if(beaconPending)
         {
           beaconPending=false;
@@ -719,9 +722,10 @@ void txWidget::startTxImage()
     {
       ui->startToolButton->setEnabled(false);
     }
-  else if(calTxActive)
+  else
     {
-      restoreAfterCalibrationTx();
+      enableButtons(true);   // prepareTx() locked the controls
+      if(calTxActive) restoreAfterCalibrationTx();
     }
 }
 
@@ -792,6 +796,8 @@ void txWidget::slotStop()
 
 void txWidget::enableButtons(bool enable)
 {
+  txLocked=!enable;
+  if(enable) resumeLive();
   ui->uploadToolButton->setEnabled(enable && useHybrid && (transmissionModeIndex!=TRXSSTV));
   ui->hybridCheckBox->setEnabled(enable);
   ui->startToolButton->setEnabled(enable);
@@ -1116,39 +1122,44 @@ void txWidget::slotSnapshot()
       stopBeacon();   // the (green) beacon icon stops the beacon; the dialog is opened with the next click
       return;
     }
-  QImage *im;
-  cameraDialog camera;
-  if(camera.exec()==QDialog::Accepted)
+  QImage image;
+  bool beacon;
+  int minutes;
+  {
+    cameraDialog camera;
+    if(camera.exec()!=QDialog::Accepted) return;
+    QImage *im=camera.getImage();
+    if(!im)
+      {
+        QMessageBox::warning(this,"Snapshot","No usable frame was received from the camera.");
+        return;
+      }
+    image=*im;
+    beacon=camera.beaconEnabled();
+    minutes=camera.beaconMinutes();
+  }   // the dialog has released the camera: the beacon opens it for itself
+  if(beacon)
     {
-      im=camera.getImage();
-      if(!im)
+      // the dialog's last frame is on the Transmit tab until the beacon's own live picture replaces it
+      QString bfn=QDir::tempPath()+"/qsstv_beacon.jpg";
+      if(!image.save(bfn,"JPG",95))
         {
-          QMessageBox::warning(this,"Snapshot","No usable frame was received from the camera.");
+          QMessageBox::warning(this,"Beacon","Unable to save the camera image.");
           return;
         }
-      if(camera.beaconEnabled())
-        {
-          // the dialog's live frame is the first beacon picture: no need to reopen the camera yet
-          QString bfn=QDir::tempPath()+"/qsstv_beacon.jpg";
-          if(!im->save(bfn,"JPG",95))
-            {
-              QMessageBox::warning(this,"Beacon","Unable to save the camera image.");
-              return;
-            }
-          setImage(bfn);
-          startBeacon(camera.beaconMinutes());
-          return;
-        }
-      QTemporaryFile itmp(txStockImagesPath+"/snapshotXXXXXX.jpg");
-      itmp.setAutoRemove(false);
-      if(!itmp.open() || !im->save(itmp.fileName()))
-        {
-          QMessageBox::warning(this,"Snapshot","Unable to save the camera image.");
-          return;
-        }
-      setImage(itmp.fileName());
-      galleryWidgetPtr->txStockImageChanged();
+      setImage(bfn);
+      startBeacon(minutes);
+      return;
     }
+  QTemporaryFile itmp(txStockImagesPath+"/snapshotXXXXXX.jpg");
+  itmp.setAutoRemove(false);
+  if(!itmp.open() || !image.save(itmp.fileName()))
+    {
+      QMessageBox::warning(this,"Snapshot","Unable to save the camera image.");
+      return;
+    }
+  setImage(itmp.fileName());
+  galleryWidgetPtr->txStockImageChanged();
 }
 
 
@@ -1568,12 +1579,18 @@ void txWidget::startBeacon(int minutes)
   beaconPending=false;
   beaconWaitPosition=false;
   beaconError.clear();
+  beaconCameraProblem.clear();
+  livePaused=false;
+  liveKey=imageViewerPtr->getImagePtr()->cacheKey();   // the picture loaded from the camera dialog: another one means the user loaded their own
   updateBeaconUi();
   if(gpsAutoReads()) requestGps(false);   // the first picture is sent after 10 s, time enough for the position
-  // the first picture is already loaded (slotSnapshot); it is sent after 10 s, so the transmit settings can still be adjusted
+  // The camera stays on from here until the beacon is stopped and its live picture is shown on this tab. The first picture is the
+  // newest live frame after 10 s: time to adjust the transmit settings, and for the camera's exposure to settle.
   beaconHold=true;
   beaconTimer.start(10000);
   beaconTick.start();
+  beaconCap.start();
+  beaconCap.setPreviewWanted(liveAllowed());
   slotBeaconTick();
 }
 
@@ -1585,8 +1602,10 @@ void txWidget::stopBeacon()
   beaconWaitPosition=false;
   beaconTimer.stop();
   beaconTick.stop();
-  beaconCap.abort();
+  beaconCap.stop();
   beaconError.clear();
+  beaconCameraProblem.clear();
+  livePaused=false;
   updateBeaconUi();
   emit beaconCountdownChanged(QString(),false);
 }
@@ -1594,9 +1613,15 @@ void txWidget::stopBeacon()
 void txWidget::slotBeaconTick()
 {
   if(!beaconRunning) return;
+  beaconCap.setPreviewWanted(liveAllowed());   // once a second: off while the tab is hidden or a picture is on its way
   if(!beaconError.isEmpty())
     {
       emit beaconCountdownChanged(beaconError,true);
+      return;
+    }
+  if(!beaconCameraProblem.isEmpty())
+    {
+      emit beaconCountdownChanged(beaconCameraProblem,true);
       return;
     }
   QString txt;
@@ -1605,7 +1630,6 @@ void txWidget::slotBeaconTick()
       int sec=(beaconTimer.remainingTime()+999)/1000;
       txt=QString("WA8LMF Beacon Mode: next in %1:%2").arg(sec/60).arg(sec%60,2,10,QChar('0'));
     }
-  else if(beaconCap.isBusy()) txt="WA8LMF Beacon Mode: grabbing camera image";
   else if(beaconWaitPosition) txt=placeAwaiting?"WA8LMF Beacon Mode: looking up the place":"WA8LMF Beacon Mode: reading the GPS";
   else txt="WA8LMF Beacon Mode: preparing transmission";
   emit beaconCountdownChanged(txt,false);
@@ -1614,11 +1638,14 @@ void txWidget::slotBeaconTick()
 void txWidget::slotBeaconTimer()
 {
   if(!beaconRunning) return;
-  if(beaconCap.isBusy() || beaconPending) return;
+  if(beaconPending) return;
   if(beaconHold)
     {
       beaconHold=false;
-      beaconTransmitLoaded();
+      // the first picture: the newest live frame, or the one from the camera dialog when the camera has not delivered one yet
+      QImage first=beaconCap.grab();
+      if(first.isNull()) beaconTransmitLoaded();
+      else slotBeaconFrame(first);
       return;
     }
   if(rxWidgetPtr->rxBusy())
@@ -1641,13 +1668,53 @@ void txWidget::slotBeaconTimer()
       beaconSkipped("no SSTV or DRM transmit mode is selected");
       return;
     }
-  if(gpsAutoReads()) requestGps(false);   // reads the position while the camera warms up
-  beaconCap.start();
+  QImage image=beaconCap.grab();
+  if(image.isNull())
+    {
+      beaconSkipped(beaconCap.problemText().isEmpty() ? QString("the camera gave no picture") : beaconCap.problemText());
+      return;
+    }
+  if(gpsAutoReads()) requestGps(false);   // the picture waits for the position
+  slotBeaconFrame(image);
 }
 
+// the camera is lost: shown in place of the countdown, the beacon stays on its schedule and the camera is opened again by itself
 void txWidget::slotBeaconFailed(const QString &reason)
 {
-  beaconSkipped(reason);
+  if(!beaconRunning) return;
+  beaconCameraProblem=QString("WA8LMF Beacon Mode camera problem %1: %2").arg(QTime::currentTime().toString("HH:mm"),reason);
+  slotBeaconTick();
+}
+
+void txWidget::slotBeaconRecovered()
+{
+  beaconCameraProblem.clear();
+  slotBeaconTick();
+}
+
+// a live camera picture: shown on this tab under the template until a picture is on its way to the air
+void txWidget::slotBeaconLive(const QImage &image)
+{
+  if(!liveAllowed()) return;
+  if(liveKey!=0 && imageViewerPtr->getImagePtr()->cacheKey()!=liveKey)
+    {
+      livePaused=true;   // the user loaded a picture of their own: it stays until the next transmission is over
+      return;
+    }
+  if(imageViewerPtr->setLiveFrame(image)) liveKey=imageViewerPtr->getImagePtr()->cacheKey();
+}
+
+bool txWidget::liveAllowed() const
+{
+  return beaconRunning && !livePaused && !txLocked && !beaconPending && !beaconWaitPosition
+      && !startWaitPosition && !calTxActive && !txFunctionsPtr->txBusy() && isVisible() && !window()->isMinimized();
+}
+
+void txWidget::resumeLive()
+{
+  livePaused=false;
+  liveKey=beaconRunning ? imageViewerPtr->getImagePtr()->cacheKey() : 0;
+  beaconCap.setPreviewWanted(liveAllowed());
 }
 
 void txWidget::slotBeaconFrame(const QImage &image)
@@ -1665,6 +1732,7 @@ void txWidget::slotBeaconFrame(const QImage &image)
       beaconSkipped("the camera picture could not be loaded");
       return;
     }
+  liveKey=imageViewerPtr->getImagePtr()->cacheKey();   // if this one is not sent after all, the live picture goes on from here
   beaconTransmitLoaded();
 }
 
