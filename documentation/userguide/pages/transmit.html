@@ -59,7 +59,7 @@ every time the dialog opens).</p>
 <p>WA8LMF Beacon Mode has no transmit settings of its own. Each picture is sent exactly as if you had pressed Start: with the
 <strong>SSTV</strong> or <strong>DRM</strong> tab that is currently selected, its mode and options, the selected template (for example a call
 sign overlay) and the picture size. The camera is only switched on while each later picture is captured, using the format and resolution chosen in the dialog. It is always off when the program starts.</p>
-<p>With <a href="configuration.html#gps">Configuration &gt; GPS</a> set up, each beacon picture is preceded by a fresh GPS reading, so a <code>%a</code>/<code>%b</code> position in the template follows a moving station.
+<p>With <a href="configuration.html#gps">Configuration &gt; GPS</a> set up and the <a href="#gps">GPS button</a> green, each beacon picture is preceded by a fresh GPS reading, so a <code>%a</code>/<code>%b</code> position in the template follows a moving station.
 The reading runs while the camera starts, and the beacon waits for it for up to 10 seconds. If the GPS has no position the beacon is sent anyway, with the position that was last in the <em>Lat</em> and <em>Long</em> boxes.
 With the <a href="configuration.html#gps">city and state lookup</a> on, the beacon also waits for the <code>%g</code> place of a new position (up to about 8 seconds more) and is sent without it when there is no answer.</p>
 <p>When a scheduled beacon picture cannot be transmitted, the countdown in the status bar is replaced by a red message, for example <em>WA8LMF Beacon Mode not sent 14:32: a picture is
@@ -71,18 +71,24 @@ identify as required (use a template with your call sign).</p></div>
 <h2 id="gps">GPS position</h2>
 <p>The <strong>Lat</strong> and <strong>Long</strong> boxes under <em>To</em>, <em>Op</em> and <em>RSV</em> hold the latitude and longitude of the station, by default in decimal degrees (north and east positive, for example
 <code>47.60620</code> and <code>-122.33210</code>). A template shows them with the <code>%a</code> (latitude) and <code>%b</code> (longitude) <a href="template-editor.html#macros">macros</a>. Type the position in, or press
-the <strong>GPS</strong> button next to the boxes to read it from a GPS receiver, once it is set up in <a href="configuration.html#gps">Configuration &gt; GPS</a>. If the GPS cannot be read a message says why and
-the boxes keep their values. Unlike <em>To</em>, <em>Op</em> and <em>RSV</em>, the position is remembered when you close the program. In decimal degrees what you type is printed as typed, so you can also use another notation, for example
+the <strong>GPS</strong> button next to the boxes to read it from a GPS receiver, once it is set up in <a href="configuration.html#gps">Configuration &gt; GPS</a> (see below). Unlike <em>To</em>, <em>Op</em> and <em>RSV</em>, the position is remembered when you close the program. In decimal degrees what you type is printed as typed, so you can also use another notation, for example
 <code>47&deg;36'N</code>.</p>
+<figure><img src="../images/tx-gps-button.png" alt="The Lat and Long boxes and the GPS button, red in the upper row and green in the lower row" loading="lazy"><figcaption>The GPS button: red (read by hand) above, green (read before each transmission) below.</figcaption></figure>
+<p>Once the GPS is set up, the <strong>GPS</strong> button is colored. <strong>Red</strong> means the position is read only when you ask for it: right-click the button and choose
+<strong>Read the GPS now</strong>; if the GPS cannot be read a message says why and the boxes keep their values. <strong>Green</strong> means the GPS is read before every transmission, whether you press <strong>Start</strong>
+or <a href="#beacon">WA8LMF Beacon Mode</a> sends a picture, and the position it finds replaces what is in the boxes. Click the button to switch between red and green (the right-click menu has the same switch); the choice is
+remembered when you close the program. The button starts red, so a position that you typed is never replaced until you switch it to green, and it has no color while the GPS is off.
+With the button green, <strong>Start</strong> waits a moment for the receiver (up to 10 seconds), and the <strong>Stop</strong> button cancels the wait. If the GPS has no position the picture is sent with the position that is in the boxes,
+and the status bar says so.</p>
 <p>Set <strong>Position format</strong> in <a href="configuration.html#gps">Configuration &gt; GPS</a> to <em>Degrees and decimal minutes</em> for the notation of GPS receivers and APRS, <code>47 36.37N</code> and <code>122 19.93W</code>
 (<code>084 23.82W</code>: the longitude has three degree digits). The boxes, the GPS button and the <code>%a</code> and <code>%b</code> macros then all use it, and a position typed or pasted in any notation, such as the decimal degrees of an online map, is
 converted when you leave the box.</p>
 <p>The <strong>Place</strong> box holds the city and state for the <code>%g</code> macro, for example <code>Seattle, WA</code>. Type it in, or let the program find it: with
-<em>Look up the city and state on the internet</em> ticked in <a href="configuration.html#gps">Configuration &gt; GPS</a>, a position read with the <strong>GPS</strong> button or typed into the
+<em>Look up the city and state on the internet</em> ticked in <a href="configuration.html#gps">Configuration &gt; GPS</a>, a position read from the GPS (<strong>Read the GPS now</strong>, or before a transmission) or typed into the
 <em>Lat</em> and <em>Long</em> boxes is sent to OpenStreetMap, which answers with the place. The state is the two or three letter code in the United States, Canada and Australia and the full name elsewhere.
-Without an internet connection, or when the service knows no place there, the box keeps its text, and the GPS button shows a message that says why. Leaving the <em>Lat</em> or <em>Long</em> box without changing it looks nothing up, so a place you typed stays until the position changes or you press <strong>GPS</strong>.
+Without an internet connection, or when the service knows no place there, the box keeps its text, and <strong>Read the GPS now</strong> shows a message that says why. Leaving the <em>Lat</em> or <em>Long</em> box without changing it looks nothing up, so a place you typed stays until the position changes or you press <strong>GPS</strong>.
 The place is remembered when you close the program, like the position.</p>
-<p>A transmission uses the position that is in the boxes when you start it. <a href="#beacon">WA8LMF Beacon Mode</a> reads the GPS, and looks up the place, again for every picture.</p>
+<p>A transmission uses the position that is in the boxes when you start it. With the <strong>GPS</strong> button green, <strong>Start</strong> and <a href="#beacon">WA8LMF Beacon Mode</a> read the GPS, and look up the place, again for every picture.</p>
 
 <h2 id="sstv">SSTV settings</h2>
 <dl>

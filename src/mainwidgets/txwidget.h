@@ -27,6 +27,8 @@ enum etxMode {TXUPLOAD,TXBINARY,TXNORMAL};
 
 
 class drmTransmitter;
+class QAction;
+class QMenu;
 namespace Ui {
 class txWidget;
 }
@@ -48,6 +50,7 @@ public:
   void readSettings();
   //! Configuration > GPS may have another position format now: the Lat and Long boxes are converted to it (in both directions)
   void positionFormatChanged();
+  void updateGpsButton();   //!< colors the GPS button (green: read before each transmission, red: by hand); not colored while the GPS is off
   //  void repeat(QImage *im,esstvMode sm);
   void sendRepeaterImage(esstvMode rxMode=NOTVALID);
   void setImage(QImage *ima);
@@ -117,6 +120,7 @@ public slots:
   void slotBeaconFrame(const QImage &image);
   void slotBeaconFailed(const QString &reason);
   void slotGetGps();
+  void slotGpsToggle();
   void slotGpsFix(bool ok,double lat,double lon,const QString &reason);
   void slotPlaceReady(bool ok,const QString &place,const QString &reason);
   void slotPositionEdited();
@@ -163,7 +167,10 @@ private:
   void beaconSkipped(const QString &reason);
   void beaconRestartInterval();
   void beaconTransmitLoaded();
-  bool beaconUsesGps() const;
+  //! the GPS is set up and the GPS button is green: every transmission (Start and the beacon) reads a fresh position first
+  bool gpsAutoReads() const;
+  //! the picture waited for the position (Start button): sends it now
+  void startAfterPosition();
   //! asks the GPS for a position; the result comes back in slotGpsFix(). false: the GPS is busy with another request
   bool requestGps(bool manual);
   //! asks for the city and state of the position in the Lat and Long boxes, when that lookup is on; the result comes back in slotPlaceReady()
@@ -192,6 +199,11 @@ private:
   beaconCapture beaconCap;
   bool beaconPending=false;     // a beacon picture is on its way through prepareTx()/startTxImage()
   bool beaconWaitPosition=false;     // the beacon picture is ready, but the position (the GPS, then the place) is still coming: slotGpsFix() or slotPlaceReady() sends it
+  bool startWaitPosition=false;      // the Start button was pressed, the position is still coming: slotGpsFix() or slotPlaceReady() starts the transmission
+  bool gpsAutoRead=false;       // the GPS button is green: the GPS is read before each transmission (saved as TX/gpsAutoRead)
+  QMenu *gpsMenu=nullptr;               // right-click menu of the GPS button ...
+  QAction *gpsReadAction=nullptr;       // ... read the position now
+  QAction *gpsAutoAction=nullptr;       // ... and the switch between green and red
   bool gpsAwaiting=false;       // this widget has a GPS request in flight (the Test button of Configuration > GPS does not count)
   bool gpsManual=false;         // ... and the Get GPS button made it, so a failure is shown in a message box
   bool placeAwaiting=false;     // a place lookup of this widget is in flight (the Test button of Configuration > GPS does not count)

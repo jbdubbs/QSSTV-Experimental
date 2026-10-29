@@ -13,7 +13,6 @@
 bool    gpsEnabled;
 QString gpsPort;
 int     gpsBaud;
-bool    gpsBeaconRefresh;
 bool    gpsPlaceLookup;
 int     gpsCoordFormat;
 
@@ -45,7 +44,7 @@ void gpsConfig::readSettings()
   gpsEnabled=qSettings.value("enabled",false).toBool();
   gpsPort=qSettings.value("port",defaultPort).toString();
   gpsBaud=qSettings.value("baud",4800).toInt();
-  gpsBeaconRefresh=qSettings.value("beaconRefresh",true).toBool();
+  qSettings.remove("beaconRefresh");   // the beacon option is gone: the GPS button on the Transmit tab decides (#148)
   gpsPlaceLookup=qSettings.value("placeLookup",false).toBool();   // off: the position leaves the computer
   gpsCoordFormat=qSettings.value("coordinateFormat",COORDDECIMAL).toInt();
   if(gpsCoordFormat!=COORDDEGMIN) gpsCoordFormat=COORDDECIMAL;
@@ -82,7 +81,6 @@ void gpsConfig::writeSettings()
   qSettings.setValue("enabled",gpsEnabled);
   qSettings.setValue("port",gpsPort);
   qSettings.setValue("baud",gpsBaud);
-  qSettings.setValue("beaconRefresh",gpsBeaconRefresh);
   qSettings.setValue("placeLookup",gpsPlaceLookup);
   qSettings.setValue("coordinateFormat",gpsCoordFormat);
   qSettings.endGroup();
@@ -93,18 +91,16 @@ void gpsConfig::getParams()
   const bool enabledCopy=gpsEnabled;
   const QString portCopy=gpsPort;
   const int baudCopy=gpsBaud;
-  const bool refreshCopy=gpsBeaconRefresh;
   const bool placeCopy=gpsPlaceLookup;
   const int formatCopy=gpsCoordFormat;
 
   getValue(gpsEnabled,ui->enableCheckBox);
   gpsPort=ui->portComboBox->currentText().trimmed();
   getValue(gpsBaud,ui->baudComboBox);
-  getValue(gpsBeaconRefresh,ui->beaconRefreshCheckBox);
   getValue(gpsPlaceLookup,ui->placeCheckBox);
   getIndex(gpsCoordFormat,ui->formatComboBox);
 
-  changed=(enabledCopy!=gpsEnabled || portCopy!=gpsPort || baudCopy!=gpsBaud || refreshCopy!=gpsBeaconRefresh || placeCopy!=gpsPlaceLookup ||
+  changed=(enabledCopy!=gpsEnabled || portCopy!=gpsPort || baudCopy!=gpsBaud || placeCopy!=gpsPlaceLookup ||
            formatCopy!=gpsCoordFormat);
 }
 
@@ -113,7 +109,6 @@ void gpsConfig::setParams()
   setValue(gpsEnabled,ui->enableCheckBox);
   ui->portComboBox->setCurrentText(gpsPort);
   setValue(gpsBaud,ui->baudComboBox);
-  setValue(gpsBeaconRefresh,ui->beaconRefreshCheckBox);
   setValue(gpsPlaceLookup,ui->placeCheckBox);
   setIndex(gpsCoordFormat,ui->formatComboBox);
   ui->resultLabel->clear();

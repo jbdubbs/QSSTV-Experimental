@@ -738,6 +738,7 @@ void mainWindow::slotConfigure()
         }
       dispatcherPtr->init();
       txWidgetPtr->positionFormatChanged();
+      txWidgetPtr->updateGpsButton();   // the GPS may have been enabled or disabled
     }
 }
 

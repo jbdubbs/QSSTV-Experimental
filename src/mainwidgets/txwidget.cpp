@@ -33,6 +33,8 @@
 #include <QMenu>
 #include <QToolButton>
 
+static const QString gpsReadingMessage="Reading the GPS ...";   // status bar, while a Start waits for the position
+
 
 txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
 {
@@ -104,7 +106,17 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   connect(ui->latLineEdit,SIGNAL(editingFinished ()),SLOT(slotPositionEdited()));
   connect(ui->lonLineEdit,SIGNAL(editingFinished ()),SLOT(slotPositionEdited()));
   connect(ui->placeLineEdit,SIGNAL(editingFinished ()),SLOT(slotGetParams()));
-  connect(ui->gpsToolButton,SIGNAL(clicked()),SLOT(slotGetGps()));
+  ui->gpsToolButton->setFixedSize(ui->gpsToolButton->sizeHint());   // a style sheet changes the size hint with every change of color, which would resize the row and the window
+  connect(ui->gpsToolButton,SIGNAL(clicked()),SLOT(slotGpsToggle()));   // green / red; the right-click menu reads the position
+  // the menu belongs to the right button only: actions added to the button itself would give it a menu arrow and a different size
+  gpsMenu=new QMenu(this);
+  gpsReadAction=gpsMenu->addAction("Read the GPS now");
+  gpsAutoAction=gpsMenu->addAction("Read the GPS before each transmission");
+  gpsAutoAction->setCheckable(true);
+  ui->gpsToolButton->setContextMenuPolicy(Qt::CustomContextMenu);
+  connect(ui->gpsToolButton,&QToolButton::customContextMenuRequested,this,[this](const QPoint &pos){gpsMenu->exec(ui->gpsToolButton->mapToGlobal(pos));});
+  connect(gpsReadAction,&QAction::triggered,this,&txWidget::slotGetGps);
+  connect(gpsAutoAction,&QAction::triggered,this,&txWidget::slotGpsToggle);
   connect(gpsReaderPtr,&gpsReader::fixReady,this,&txWidget::slotGpsFix);
   connect(placeLookupPtr,&placeLookup::placeReady,this,&txWidget::slotPlaceReady);
   connect(ui->xPlainTextEdit,SIGNAL(editingFinished()),SLOT(slotGetParams()));
@@ -244,8 +256,10 @@ void txWidget::readSettings()
       if(parseCoordinateText(imageViewerPtr->longitude,false,degrees)) imageViewerPtr->longitude=formatCoordinate(degrees,false,positionFormat);
     }
   placeKey=imageViewerPtr->latitude+"|"+imageViewerPtr->longitude;   // the saved place belongs to the saved position
+  gpsAutoRead=qSettings.value("gpsAutoRead",false).toBool();   // off: a typed position is never replaced unless the GPS button is switched to green
   qSettings.endGroup();
   setParams();
+  updateGpsButton();
 }
 
 void txWidget::writeSettings()
@@ -271,6 +285,7 @@ void txWidget::writeSettings()
   qSettings.setValue("latitude",imageViewerPtr->latitude);     // the position belongs to the station, not to one QSO
   qSettings.setValue("longitude",imageViewerPtr->longitude);
   qSettings.setValue("place",imageViewerPtr->place);
+  qSettings.setValue("gpsAutoRead",gpsAutoRead);
   qSettings.endGroup();
 }
 
@@ -454,8 +469,17 @@ void txWidget::refreshReplay()
 void txWidget::slotStart()
 {
   if(mainWindowPtr->busyMode()>=0) return;
+  if(startWaitPosition) return;   // the position is still being read: that Start is on its way
   if(imageViewerPtr->hasValidImage())
     {
+      if(gpsAutoReads() && requestGps(false))
+        {
+          // the GPS button is green: the picture is rendered with a fresh position, so it waits for it (slotGpsFix() or slotPlaceReady() carries on)
+          startWaitPosition=true;
+          ui->startToolButton->setEnabled(false);
+          statusBarPtr->showMessage(gpsReadingMessage);
+          return;
+        }
       doTx=TXNORMAL;
       prepareTx();
     }
@@ -717,6 +741,11 @@ void txWidget::sendWfText()
 
 void txWidget::slotStop()
 {
+  if(startWaitPosition)
+    {
+      startWaitPosition=false;   // Stop cancels a Start that is waiting for the position
+      if(statusBarPtr->currentMessage()==gpsReadingMessage) statusBarPtr->clearMessage();
+    }
   if(calTxActive) restoreAfterCalibrationTx();
   if(replayStale) refreshReplay();
   ui->startToolButton->setEnabled(true);
@@ -1496,7 +1525,7 @@ void txWidget::startBeacon(int minutes)
   beaconWaitPosition=false;
   beaconError.clear();
   updateBeaconUi();
-  if(beaconUsesGps()) requestGps(false);   // the first picture is sent after 10 s, time enough for the position
+  if(gpsAutoReads()) requestGps(false);   // the first picture is sent after 10 s, time enough for the position
   // the first picture is already loaded (slotSnapshot); it is sent after 10 s, so the transmit settings can still be adjusted
   beaconHold=true;
   beaconTimer.start(10000);
@@ -1568,7 +1597,7 @@ void txWidget::slotBeaconTimer()
       beaconSkipped("no SSTV or DRM transmit mode is selected");
       return;
     }
-  if(beaconUsesGps()) requestGps(false);   // reads the position while the camera warms up
+  if(gpsAutoReads()) requestGps(false);   // reads the position while the camera warms up
   beaconCap.start();
 }
 
@@ -1626,10 +1655,51 @@ void txWidget::beaconTransmitLoaded()
   prepareTx();
 }
 
-// a GPS position is read for every beacon transmission when the GPS is set up and the option is on (Configuration > GPS)
-bool txWidget::beaconUsesGps() const
+// the GPS is set up and enabled in Configuration > GPS
+static bool gpsUsable()
 {
-  return gpsEnabled && gpsBeaconRefresh;
+  return gpsEnabled && !gpsPort.isEmpty();
+}
+
+// a GPS position is read for every transmission, Start button and WA8LMF beacon alike, when the GPS is set up and its button is green
+bool txWidget::gpsAutoReads() const
+{
+  return gpsUsable() && gpsAutoRead;
+}
+
+// green: the GPS is read before each transmission, red: by hand; no color while the GPS is not set up
+void txWidget::updateGpsButton()
+{
+  const bool usable=gpsUsable();
+  const bool autoRead=gpsAutoReads();
+  QString tip;
+  if(!usable)
+    {
+      ui->gpsToolButton->setStyleSheet(QString());
+      tip="GPS is off: set it up in Configuration";
+    }
+  else if(autoRead)
+    {
+      ui->gpsToolButton->setStyleSheet("QToolButton { background-color: rgba(0,200,0,90); border: 1px solid rgb(0,140,0); border-radius: 4px; padding: 1px 1px; }");
+      tip="Green: position read before each transmission. Click: by hand only";
+    }
+  else
+    {
+      ui->gpsToolButton->setStyleSheet("QToolButton { background-color: rgba(220,0,0,90); border: 1px solid rgb(160,0,0); border-radius: 4px; padding: 1px 1px; }");
+      tip="Red: position read by hand (right-click). Click: read before each transmission";
+    }
+  ui->gpsToolButton->setToolTip(tip);
+  ui->gpsToolButton->setStatusTip(tip);
+  gpsAutoAction->setEnabled(usable);
+  gpsAutoAction->setChecked(autoRead);
+}
+
+// a click on the GPS button switches between reading the GPS before each transmission (green) and by hand (red)
+void txWidget::slotGpsToggle()
+{
+  if(gpsUsable()) gpsAutoRead=!gpsAutoRead;
+  else QMessageBox::information(this,"GPS","The GPS is not enabled.\nSet it up in Options > Configuration > GPS.");
+  updateGpsButton();
 }
 
 bool txWidget::requestGps(bool manual)
@@ -1673,13 +1743,36 @@ void txWidget::slotGpsFix(bool ok,double lat,double lon,const QString &reason)
   else
     {
       addToLog(QString("GPS: %1, using the last position").arg(reason),LOGTXMAIN);
+      if(startWaitPosition) statusBarPtr->showMessage(QString("GPS: %1, using the last position").arg(reason),10000);
     }
   if(beaconWaitPosition && !placeAwaiting)
     {
       beaconWaitPosition=false;
       beaconTransmitLoaded();   // a missing position never stops the beacon
     }
+  if(startWaitPosition && !placeAwaiting) startAfterPosition();   // nor a Start
   if(!ok && manual) QMessageBox::warning(this,"GPS",reason);
+}
+
+// the position (and the place) a Start was waiting for has arrived, or failed to: the picture is rendered with what is in the boxes now
+void txWidget::startAfterPosition()
+{
+  startWaitPosition=false;
+  if(statusBarPtr->currentMessage()==gpsReadingMessage) statusBarPtr->clearMessage();
+  ui->startToolButton->setEnabled(true);
+  // the wait takes up to a few seconds: check that nothing started meanwhile
+  if(mainWindowPtr->busyMode()>=0 || txFunctionsPtr->txBusy() || beaconPending)
+    {
+      addToLog("Start: the transmitter became busy while the GPS was read",LOGTXMAIN);
+      return;
+    }
+  if(!imageViewerPtr->hasValidImage())
+    {
+      addToLog("Start: the picture is gone",LOGTXMAIN);
+      return;
+    }
+  doTx=TXNORMAL;
+  prepareTx();
 }
 
 bool txWidget::requestPlace(bool manual)
@@ -1709,12 +1802,14 @@ void txWidget::slotPlaceReady(bool ok,const QString &place,const QString &reason
     {
       placeKey.clear();   // the next time the position is left or read, the lookup is tried again
       addToLog(QString("Place lookup: %1, keeping the last place").arg(reason),LOGTXMAIN);
+      if(startWaitPosition) statusBarPtr->showMessage(QString("Place lookup: %1, keeping the last place").arg(reason),10000);
     }
   if(beaconWaitPosition && !gpsAwaiting)
     {
       beaconWaitPosition=false;
       beaconTransmitLoaded();   // a missing place never stops the beacon
     }
+  if(startWaitPosition && !gpsAwaiting) startAfterPosition();   // nor a Start
   if(!ok && manual) QMessageBox::warning(this,"Place",reason);
 }
 

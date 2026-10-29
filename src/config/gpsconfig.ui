@@ -197,16 +197,6 @@
     </layout>
    </item>
    <item>
-    <widget class="QCheckBox" name="beaconRefreshCheckBox">
-     <property name="toolTip">
-      <string>Keeps Lat and Long current in every beacon picture</string>
-     </property>
-     <property name="text">
-      <string>Read the GPS before each WA8LMF beacon transmission</string>
-     </property>
-    </widget>
-   </item>
-   <item>
     <widget class="QCheckBox" name="placeCheckBox">
      <property name="toolTip">
       <string>Fills the Place box (%g macro). Needs internet.</string>
