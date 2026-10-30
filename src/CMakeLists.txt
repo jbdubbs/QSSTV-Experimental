@@ -154,6 +154,8 @@ set(QSSTV_SOURCES
     widgets/imageviewer.cpp
     template/templatedoc.cpp
     template/templatelegacy.cpp
+    template/mmsstvtemplate.cpp
+    template/mmsstvimport.cpp
     template/templaterender.cpp
     template/templatevars.cpp
     gps/nmeaparser.cpp

@@ -491,7 +491,7 @@ static QJsonObject elementToJson(const Element &e)
           if (e.shrinkToFit) o["fit"] = "shrink";
         }
     }
-  if (e.type == ItemType::Image && !e.image.isNull()) o["image"] = imageToDataUri(e.image);
+  if ((e.type == ItemType::Image || e.type == ItemType::Text) && !e.image.isNull()) o["image"] = imageToDataUri(e.image);
   if (e.radius > 0) o["radius"] = e.radius;
   if (e.shadow.on)
     o["shadow"] = QJsonObject{{"color", colorToString(e.shadow.color)}, {"dx", e.shadow.dx}, {"dy", e.shadow.dy}, {"blur", e.shadow.blur}};
@@ -528,7 +528,7 @@ static bool elementFromJson(const QJsonObject &o, Element &e)
       e.wrap = jbool(o, "wrap", false);
       e.shrinkToFit = jstr(o, "fit") == QLatin1String("shrink");
     }
-  if (e.type == ItemType::Image) e.image = imageFromDataUri(jstr(o, "image"));
+  if (e.type == ItemType::Image || e.type == ItemType::Text) e.image = imageFromDataUri(jstr(o, "image"));
   e.radius = jnum(o, "radius", 0);
   if (o.value(QLatin1String("shadow")).isObject())
     {
@@ -679,7 +679,11 @@ bool saveFile(const QString &fileName, const TemplateDocument &doc, QString *err
       if (error) *error = f.errorString();
       return false;
     }
-  f.write(toJson(doc));
+  const QByteArray data = toJson(doc);
+  if (data.size() > limits::maxFileBytes)
+    { if (error) *error = QStringLiteral("template exceeds the native file size limit"); return false; }
+  if (f.write(data) != data.size())
+    { if (error) *error = f.errorString(); return false; }
   if (!f.commit())
     {
       if (error) *error = f.errorString();

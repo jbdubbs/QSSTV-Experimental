@@ -14,11 +14,15 @@
 
 #include <QChar>
 #include <QHash>
+#include <QDateTime>
 #include <QString>
 #include <QVector>
 
 namespace tpl
 {
+/*! UTC and computer-local date/time fields captured at one instant. */
+void addDateTimeVars(QHash<QChar, QString> &vars, const QDateTime &instant);
+
 
 struct MacroInfo
 {

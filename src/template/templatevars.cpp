@@ -13,6 +13,15 @@ QString tr(const char *s)
 }
 }  // namespace
 
+void addDateTimeVars(QHash<QChar, QString> &vars, const QDateTime &instant)
+{
+  const QDateTime utc = instant.toUTC(), local = instant.toLocalTime();
+  vars.insert('t', utc.toString("hh:mm"));
+  vars.insert('d', utc.toString("yyyy/MM/dd"));
+  vars.insert('D', local.toString("yyyy/MM/dd"));
+  vars.insert('U', local.toString("hh:mm"));
+}
+
 const QVector<MacroInfo> &macroTable()
 {
   // built on first use so the translations follow the application's language
@@ -27,6 +36,8 @@ const QVector<MacroInfo> &macroTable()
     {'l', tr("Locator"), tr("Your grid locator (Settings)"), QStringLiteral("FN31pr")},
     {'t', tr("Time"), tr("Current UTC time, hh:mm"), QStringLiteral("12:34")},
     {'d', tr("Date"), tr("Current UTC date, yyyy/MM/dd"), QStringLiteral("2026/10/22")},
+    {'D', tr("Local date"), tr("Local date, yyyy/MM/dd (computer time zone)"), QStringLiteral("2026/10/22")},
+    {'U', tr("Local time"), tr("Local time, hh:mm (computer time zone)"), QStringLiteral("14:34")},
     {'v', tr("Version"), tr("QSSTV version"), QStringLiteral("10.1")},
     {'x', tr("Comment 1"), tr("First comment line (TX tab)"), QStringLiteral("Comment 1")},
     {'y', tr("Comment 2"), tr("Second comment line (TX tab)"), QStringLiteral("Comment 2")},

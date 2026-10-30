@@ -35,6 +35,7 @@
 #include "rxwidget.h"
 #include "gallerywidget.h"
 #include "templaterender.h"
+#include "templatevars.h"
 #include "externaleditor.h"
 
 
@@ -1529,8 +1530,7 @@ QImage imageViewer::renderTemplated(int tWidth,int tHeight)
   opt.vars.insert('c',toCall);
   opt.vars.insert('r',rsv);
   opt.vars.insert('o',toOperator);
-  opt.vars.insert('t',QDateTime::currentDateTime().toUTC().toString("hh:mm"));
-  opt.vars.insert('d',QDateTime::currentDateTime().toUTC().toString("yyyy/MM/dd"));
+  tpl::addDateTimeVars(opt.vars,QDateTime::currentDateTime());
   opt.vars.insert('m',myCallsign);
   opt.vars.insert('q',myQth);
   opt.vars.insert('l',myLocator);

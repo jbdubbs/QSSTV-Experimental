@@ -16,6 +16,7 @@
 #include <QMutexLocker>
 #include <QPainterPath>
 #include <cmath>
+#include <QtMath>
 #include <vector>
 #include "macroexpansion.h"
 
@@ -319,7 +320,8 @@ void paintBody(QPainter &p, const Element &e, const RenderOptions &opt, const QC
       {
         const QString text = opt.expandMacros ? expandMacros(e.text, opt.vars) : e.text;
         const QPainterPath path = textOf(e, text);
-        if (!flat && e.gradient.isActive()) p.setBrush(QBrush(e.gradient.build(e.textBox ? e.rect : path.boundingRect())));
+        if (!flat && !e.image.isNull()) p.setBrush(QBrush(e.image));
+        else if (!flat && e.gradient.isActive()) p.setBrush(QBrush(e.gradient.build(e.textBox ? e.rect : path.boundingRect())));
         p.setPen(pen);
         p.drawPath(path);
         break;
