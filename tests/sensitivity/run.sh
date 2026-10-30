@@ -26,7 +26,9 @@
 # pictures with half their lines of 9 at 3/0/-2/-4/-6 dB: 9/9/9/9/0, recognizable 9/9/9/9/0, all started by the VIS code to -4 dB.
 # After stage 1 of the sensitivity work (2026-10-29; new ratios and line tolerance, false syncs counted by width, chain re-anchoring):
 # pictures with half their lines 9/8/8/4/0, recognizable 9/7/7/1/0; the hour of band noise at High and Save if Complete 25: 16 pictures
-# started, none kept, receiver busy 66 s of 3600 (before: 15, 0, 154 s). The MMSSTV figures (not part of the repo, they come from its demodulator built standalone,
+# started, none kept, receiver busy 66 s of 3600 (before: 15, 0, 154 s).
+# After the sync train detector (2026-10-30; pictures whose VIS code is unreadable are found by the rhythm of their sync pulses, tests/synctrain):
+# pictures with half their lines 9/9/9/9/6 (recognizable at -6 dB: only 1, the picture starts late and its rows are moved up), none started by the VIS code at -6. The MMSSTV figures (not part of the repo, they come from its demodulator built standalone,
 # README in ~/projects/qsstv-captures/2026-10-28-mmsstv-sensitivity) are printed in the table for comparison.
 #
 #   tests/sensitivity/run.sh                       # uses ../../build-cmake/qsstv-experimental, Sensitivity High
@@ -72,7 +74,7 @@ prepare() {      # encode the picture once per mode
 
 # pass marks: SNR (dB) -> least number of runs
 declare -A MINVIS=([24]=8 [20]=8 [16]=8 [12]=8 [8]=8 [4]=8 [0]=8 [-3]=8 [-5]=4)
-declare -A MINHALF=([3]=9 [0]=9 [-2]=9 [-4]=8 [-6]=0)
+declare -A MINHALF=([3]=9 [0]=9 [-2]=9 [-4]=8 [-6]=5)
 declare -A MINSHIFT=([-75]=5 [-50]=5 [50]=5 [75]=2)
 
 if [ "$PART" = all ] || [ "$PART" = vis ]; then

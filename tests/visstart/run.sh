@@ -130,8 +130,8 @@ prepare M1 && {
   py fade "$T/c1.wav" "$T/c2.wav" --start 1.715 --ramp 0.05 --hold 3.5 --floor-db 60 --snr 25 --seed 4
   dec "$T/c2.wav" "$T/oc"
   tr="$T/oc/trace.tsv"
-  if [ "$(npng "$T/oc")" = 1 ] && [ "$(count "$tr" VIS)" = 0 ] && [ "$(fld "$tr" DETECT via)" = sync ] && [ "$(fld "$tr" DETECT backfill_lines)" = 0 ]; then
-    ok "no VIS code: found by its sync pulses, not moved back"
+  if [ "$(npng "$T/oc")" = 1 ] && [ "$(count "$tr" VIS)" = 0 ] && { [ "$(fld "$tr" DETECT via)" = sync ] || [ "$(fld "$tr" DETECT via)" = train ]; } && [ "$(fld "$tr" DETECT backfill_lines)" = 0 ]; then
+    ok "no VIS code: found by its sync pulses (chain or train), not moved back"
   else bad "no VIS code: $(npng "$T/oc") pictures, VIS codes $(count "$tr" VIS), via=$(fld "$tr" DETECT via), backfill_lines=$(fld "$tr" DETECT backfill_lines)"; fi
 }
 
