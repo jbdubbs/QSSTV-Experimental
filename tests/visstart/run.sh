@@ -12,6 +12,10 @@
 #   - a dip in the 1900 Hz leader of the VIS code (50 and 80 ms of the 300 ms) does not hide the code
 #   - a VIS code that no picture follows: the picture it started runs on, and the VIS code of a picture of another mode that
 #     comes 40 s later ends it and is received whole (before, the receiver stayed held to the first mode and lost most of it)
+#   - the same in noise (0 dB SNR) with the first lines of the second picture lost: the code of the second picture is accepted
+#     while the first picture runs (it was checked against the mode of the first picture and thrown away, 2026-10-29: a real
+#     Martin 1 that came after a Scottie 2 that was never sent was lost) and the picture starts at its code, not at its pulses,
+#     in the right place (the code was taken to be 0.68 s earlier than it was, by the amount the receiver takes its buffers back)
 #   - control: a VIS code destroyed by the noise gives a picture found by its sync pulses only, not moved back
 # With RXTRACE_WAV=<recording from tests/rxtrace/capture.sh> a real recording of band noise is checked as well: it must not
 # contain a single VIS code.
@@ -31,6 +35,7 @@ WAVTOOL=$HERE/../fade/wavtool.py
 command -v ffmpeg >/dev/null || { echo "ffmpeg is needed to scale the test picture"; exit 2; }
 REAL_HOME=$HOME
 py() { HOME=$REAL_HOME python3 "$WAVTOOL" "$@"; }     # the app below runs with a throw-away HOME; python keeps yours
+hfn() { HOME=$REAL_HOME python3 "$HERE/../sensitivity/hfnoise.py" "$@"; }
 python3 -c "import numpy, PIL" 2>/dev/null || { echo "python3 with numpy and Pillow is needed"; exit 2; }
 
 T=$(mktemp -d)
@@ -99,6 +104,24 @@ prepare M1 && prepare S1 && {
   [ "$(fld "$tr" DETECT via)" = vis-start ] && ok "the Martin 1 was started by its VIS code" || bad "the Martin 1 was not started by its VIS code"
   if [ "$last" = S1 ] && [ "$lines" = 256 ]; then ok "the Scottie 1 that follows is received whole ($lines lines)"
   else bad "the Scottie 1 that follows: last picture $last, $lines lines (want S1, 256 lines)"; fi
+}
+
+echo "== the same in noise: the code of the next picture is accepted while the first picture runs"
+prepare M1 && prepare S1 && {
+  py fade "$T/S1.wav" "$T/S1f.wav" --start 1.715 --ramp 0.002 --hold 3.5 --floor-db 60 --snr 25 --seed 3      # the first lines of the Scottie 1 are in the noise
+  py join "$T/ex2.wav" "$T/M1.wav" 0.0165 40 "$T/S1f.wav"
+  hfn noise "$T/ex2.wav" "$T/ex2n.wav" --snr 0 --seed 1 --lead 5
+  dec "$T/ex2n.wav" "$T/on"
+  tr="$T/on/trace.tsv"
+  lines=$(grep -a -P '\tSAVE\t' "$tr" | tail -1 | tr '\t' '\n' | sed -n 's/^lines=//p')
+  last=$(grep -a -P '\tSAVE\t' "$tr" | tail -1 | tr '\t' '\n' | sed -n 's/^mode=//p')
+  vis=$(grep -a -P '\tVIS\t' "$tr" | tail -1 | tr '\t' '\n' | sed -n 's/^accepted=//p')
+  via=$(grep -a -P '\tDETECT\t' "$tr" | tail -1 | tr '\t' '\n' | sed -n 's/^via=//p')
+  [ "$vis" = 1 ] && ok "the VIS code of the Scottie 1 is accepted while the Martin 1 runs" || bad "the VIS code of the Scottie 1 was thrown away (accepted=$vis)"
+  refused=$(grep -a -c -P '\tADOPT\t.*accepted=0' "$tr")
+  [ "$refused" = 0 ] && ok "the pulses of the Scottie 1 agree with the place its code puts it at" || bad "$refused chains of pulses of the Scottie 1 were refused: the picture started at the wrong place"
+  if [ "$last" = S1 ] && [ "$lines" = 256 ] && [ "$via" = vis-start ]; then ok "the Scottie 1 is started by its code and received whole ($lines lines)"
+  else bad "the Scottie 1 in noise: last picture $last, $lines lines, started via=$via (want S1, 256 lines, vis-start)"; fi
 }
 
 echo "== control: the VIS code destroyed"

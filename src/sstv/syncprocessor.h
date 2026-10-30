@@ -119,7 +119,7 @@ public:
   void process();
   esyncProcessState getSyncState(quint32  &syncPos) {syncPos=syncPosition; return syncProcesState; }
   esstvMode getMode() {return currentMode;}
-  void resetRetraceFlag(uint rewound=0);
+  void resetRetraceFlag();
   bool hasNewClock()
   {
     bool nc=newClock;
@@ -208,6 +208,7 @@ private:
   void checkSyncArray();
   void trackSyncs();
   bool reanchorChain();
+  void selectedModes(esstvMode &first,esstvMode &last) const;
   void calcSyncQuality();
   uint maxOutOfSyncLines();
   uint visBackfill();

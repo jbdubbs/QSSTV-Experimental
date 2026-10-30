@@ -36,6 +36,7 @@
 #define SLANTMINLINES 16      // ... that span at least this many lines (a few noisy pulses give a slope that is wrong by a good fraction of a percent)
 #define VISSTAYMS 3           // a picture that runs by its VIS code moves to the position of its pulses only if they are this far (ms) from it
 #define VISADOPTMS 12         // a chain of pulses is adopted by a picture that runs by its VIS code only if its line grid is this close (ms) to the one of the code
+#define VISSTOPBITMS 40       // a retrace pulse that ends this soon after the first line of a picture that a VIS code started is the stop bit of the code
 #define REANCHORENTRIES 4     // a pulse that does not fit the last pulse of the chain is tried against this many of the ones before it
 
 // A VIS code says where the picture starts, even when the first lines are in the noise and the sync detector cannot follow them
@@ -169,6 +170,30 @@ void syncProcessor::reset()
 }
 
 /**
+ * @brief syncProcessor::selectedModes the modes the receiver is set to: the narrow or the wide ones in Auto mode, else the selected mode
+ *
+ * idxStart and idxEnd narrow down to the mode of a VIS code while a picture runs, this is what a new code is checked against.
+ */
+
+void syncProcessor::selectedModes(esstvMode &first,esstvMode &last) const
+{
+  if(sstvModeIndexRx!=0)
+  {
+    first=last=(esstvMode)(sstvModeIndexRx-1);
+  }
+  else if(detectNarrow)
+  {
+    first=STARTNARROW;
+    last=ENDNARROW;
+  }
+  else
+  {
+    first=STARTWIDE;
+    last=ENDWIDE;
+  }
+}
+
+/**
  * @brief initialize sync processor
  * idxStart and idxEnd are set for narrow or wide modes in Auto mode, else idxStart=idxEnd= selected mode
  * enableSyncDetection is set to false for AVT modes.
@@ -179,27 +204,10 @@ void syncProcessor::init()
   enableSyncDetection=true;
   //  syncAvg=0;
 
-  if(detectNarrow)
+  selectedModes(idxStart,idxEnd);
+  if((sstvModeIndexRx!=0) && (idxStart>=AVT24)&&(idxStart<=AVT94))
   {
-    idxStart=STARTNARROW;
-    idxEnd=ENDNARROW;
-  }
-  else
-  {
-    idxStart=STARTWIDE;
-    idxEnd=ENDWIDE;
-  }
-
-  if(sstvModeIndexRx!=0)
-  {
-    //      if((sstvModeIndexRx>=idxStart) && (sstvModeIndexRx<=idxEnd))
-    {
-      idxEnd=idxStart=(esstvMode)(sstvModeIndexRx-1);
-      if((idxStart>=AVT24)&&(idxStart<=AVT94))
-      {
-        enableSyncDetection=false;
-      }
-    }
+    enableSyncDetection=false;
   }
   visMode=NOTVALID; // and reset the visMode
   syncProcesState=MODEDETECT;
@@ -616,8 +624,17 @@ void syncProcessor::slotNewCall(QString call)
 void syncProcessor::slotVisCodeDetected(int mode,uint visSampleCounter)
 {
   trVis++;
-  if(rxTraceOn()) rxTrace("VIS",QString("%1\tproc=%2\tmode=%3\taccepted=%4\tstate=%5\tend=%6").arg(traceTime(sampleCounter)).arg(detectNarrow?"N":"W").arg(getSSTVModeNameShort((esstvMode)mode)).arg((mode>=idxStart) && (mode<=idxEnd)).arg(stateStr[syncProcesState]).arg(visSampleCounter/(double)SAMPLERATE,0,'f',4));
-  if((mode>=idxStart) && (mode<=idxEnd))
+  esstvMode first=idxStart;
+  esstvMode last=idxEnd;
+  // A code that ends the picture that runs is the start of the next one. That is a picture that a VIS code started (it runs by the
+  // clock and never gives up), or one that has just seen the retrace pulse that comes before a VIS code (the code is read at its end,
+  // the picture is saved and the receiver started again before that). A picture that a VIS code started has narrowed the range to
+  // its own mode: the code that ends it is any mode the receiver is set to.
+  bool endsPicture=(visAnchored && syncProcesState==INSYNC) || (syncProcesState==RETRACEWAIT);
+  if(endsPicture) selectedModes(first,last);
+  bool allowed=(mode>=first) && (mode<=last);
+  if(rxTraceOn()) rxTrace("VIS",QString("%1\tproc=%2\tmode=%3\taccepted=%4\tstate=%5\tend=%6").arg(traceTime(sampleCounter)).arg(detectNarrow?"N":"W").arg(getSSTVModeNameShort((esstvMode)mode)).arg(allowed).arg(stateStr[syncProcesState]).arg(visSampleCounter/(double)SAMPLERATE,0,'f',4));
+  if(allowed)
   {
     visMode=(esstvMode)mode;
     if((visMode>=AVT24)&&(visMode<=AVT94))
@@ -625,7 +642,7 @@ void syncProcessor::slotVisCodeDetected(int mode,uint visSampleCounter)
       enableSyncDetection=false;
     }
     addToLog(QString("viscode %1 accepted").arg(visMode),LOGSYNCACCEPTED);
-    if(visAnchored && syncProcesState==INSYNC)
+    if(endsPicture)
     {
       // a picture that was started by a VIS code never gives up, so the next code is what ends it: the picture is saved as it is
       // and the receiver starts again with this code (MMSSTV does the same); a code that was noise costs the picture its last part
@@ -941,7 +958,10 @@ void  syncProcessor::calculateLineNumber(uint fromIdx,uint toIdx)
 void syncProcessor::checkSyncArray()
 {
 
-  if(syncArray[syncArrayIndex].retrace)
+  // The receiver takes the buffers back when a picture ends by a retrace, so a picture that starts at the VIS code of its successor reads the
+  // pulses of that code again: the last of them, the stop bit, is wide like a retrace pulse and ends where the first line starts. It is not
+  // the end of this picture (the limit is a stop bit's width after the start of the first line)
+  if(syncArray[syncArrayIndex].retrace && !(visAnchored && (int)syncArray[syncArrayIndex].end<(int)syncPosition+(int)(VISSTOPBITMS*SAMPLERATE/1000)))
   {
     trRetrace++;
     syncArray[0]=syncArray[syncArrayIndex];
@@ -1341,10 +1361,10 @@ bool syncProcessor::lineCompare(DSPFLOAT samPerLine, int srcIdx, int dstIdx, qui
   return match;
 }
 
-void syncProcessor::resetRetraceFlag(uint rewound)
+void syncProcessor::resetRetraceFlag()
 {
   retraceFlag=false;
-  if(visRestart.valid) visRestart.counter-=rewound;      // the receiver took the buffers back by that much: the code is that much earlier now
+  // (the receiver takes the buffers back, and sampleCounter with them: the counters stay positions in the signal, the code of visRestart is where it was)
   clearMatchArray();
 }
 

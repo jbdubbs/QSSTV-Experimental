@@ -322,7 +322,7 @@ void sstvRx::process()
           addToLog(QString("retrace detected"),LOGRXFUNC);
           saveImage("retrace");
           rewindBuffers(8*RXSTRIPE);
-          syncProcPtr->resetRetraceFlag(8*RXSTRIPE);
+          syncProcPtr->resetRetraceFlag();
           resetParams(false);
           break;
         }
@@ -364,7 +364,7 @@ void sstvRx::process()
             saveImage("retrace");
             //          addToLog(QString("before rewind readIndex:=%1 sampleCounter:=%2").arg(bufferVideoDemod.getReadIndex()).arg(syncProcPtr->sampleCounter),LOGRXFUNC);
             rewindBuffers(8*RXSTRIPE);
-            syncProcPtr->resetRetraceFlag(8*RXSTRIPE);
+            syncProcPtr->resetRetraceFlag();
             resetParams(false);
             //          addToLog(QString("after resetParms readIndex:=%1 sampleCounter:=%2").arg(bufferVideoDemod.getReadIndex()).arg(syncProcPtr->sampleCounter),LOGRXFUNC);
             break;
