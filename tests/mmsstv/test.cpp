@@ -342,6 +342,10 @@ int main(int argc, char **argv)
       warnings.clear();
       CHECK(Mmsstv::convertMacros("%R%N", &warnings) == "%r");
       CHECK(warnings.isEmpty());
+      CHECK(Mmsstv::convertMacros("%t", &warnings) == "%t");
+      CHECK(warnings.isEmpty());
+      CHECK(Mmsstv::convertMacros("%T %T", &warnings) == "%t %t");
+      CHECK(warnings == QStringList{"MMSSTV UTC time hhmm is shown as hh:mm."});
       // Synthetic text texture fixture persists in version 1 (the original def*.mtm files have none).
       const auto textured = Mmsstv::loadTemplate(store(root, group({textRecord(3)})));
       CHECK(textured.ok);

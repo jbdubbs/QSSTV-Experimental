@@ -480,7 +480,7 @@ QString convertMacros(const QString &text, QStringList *warnings)
         {
           out += "%t";
           const QString message = "MMSSTV UTC time hhmm is shown as hh:mm.";
-          if (warnings && !warnings->contains(message)) warnings->append(message);
+          if (tag == 'T' && warnings && !warnings->contains(message)) warnings->append(message);
         }
       else if (tag == 'C')
         {
