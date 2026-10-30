@@ -604,7 +604,7 @@ void  syncProcessor::trackSyncs()
     calculateLineNumber(activeChainPtr->last()->from,activeChainPtr->last()->to);
     lastSyncTest=activeChainPtr->last()->endTo;
     slantAdjust(false);
-    if(falseSlantSync>=10 && !visAnchored)
+    if(falseSlantSync>=10 && !visAnchored && !proven)
     {
       if(rxTraceOn()) traceLost("falseslant");
       switchProcessState(SYNCLOSTFALSESYNC);
@@ -689,7 +689,10 @@ void  syncProcessor::calcSyncQuality()
       fs+=tmp;
     }
   }
-  if(missingLines>5)
+  // False syncs and a clock that the pulses do not fit end a picture of noise early. A picture that has proven itself is waited for as long as
+  // maxOutOfSyncLines() says: with the pulses found at the High and DX levels there are always many false ones between the real ones, and
+  // a fade of six lines ended real pictures (2026-10-29, three Martin 1 on 20 m, MMSSTV received them whole)
+  if(missingLines>5 && !proven)
   {
     str=QString("FS: %1,%2 ").arg(fs).arg(((fs*3)/25));
     syncQuality-=((fs*3)/25);
@@ -699,7 +702,7 @@ void  syncProcessor::calcSyncQuality()
     str+=QString("missingLines: %1 ").arg(missingLines);
     syncQuality=-1;
   }
-  syncQuality-=(falseSlantSync*2);
+  if(!proven) syncQuality-=(falseSlantSync*2);
   str+=QString("falseSlantSync: %1").arg(falseSlantSync);
   if(syncQuality<0) syncQuality=0;
   if((syncQuality<=0) && (sensitivity!=(NUMBEROFSENSITIVITIES-1)))  // i.e DX Mode
