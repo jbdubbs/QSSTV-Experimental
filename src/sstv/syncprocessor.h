@@ -203,6 +203,7 @@ private:
   void trackSyncs();
   void calcSyncQuality();
   uint maxOutOfSyncLines();
+  uint visBackfill();
   void calculateLineNumber(uint fromIdx, uint toIdx);
   void regression(DSPFLOAT &a, DSPFLOAT &b, bool initial);
   bool slantAdjust(bool initial);
@@ -219,6 +220,7 @@ private:
   uint nearRun;              // ... in a row; starts again when the display freezes
   bool proven;               // started by a fresh VIS code, or enough near pulses
   int trustedEnd;            // end of the last pulse that restarts the wait for sync
+  uint visBackfillLines;     // sync intervals the picture was started before its first pulse, at its VIS code (0: at the pulse)
 
   // receiver trace (rxtrace.h, QSSTV_RX_TRACE): only written, never read by the receiver
   void traceStats();

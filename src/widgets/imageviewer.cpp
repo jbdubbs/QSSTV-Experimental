@@ -1308,6 +1308,12 @@ void imageViewer::setFitMode(int mode)
   resetFraming(slot);
 }
 
+void imageViewer::setDefaultFit(int mode)
+{
+  segFit.fill(qBound((int)FITSTRETCH,mode,(int)FITFREE),MAXSEGMENTS);
+  emit fitModeChanged(segFit.value(curSlot()));
+}
+
 // a single DRM image keeps its own dimensions, so zoom/pan is its only framing
 bool imageViewer::drmSingle() const
 {
@@ -1480,17 +1486,106 @@ static QImage replayPicture()
   if(txWidgetPtr==nullptr) return QImage();
   QString fn=txWidgetPtr->getPreviewFilename();
   if(fn.isEmpty()) return QImage();
+  // the same file is wanted again for every frame of a live camera picture: decoded again only when it changed
+  static QString cachedFn;
+  static QDateTime cachedTime;
+  static qint64 cachedSize=-1;
+  static QImage cachedImage;
+  QFileInfo info(fn);
+  if(fn==cachedFn && info.lastModified()==cachedTime && info.size()==cachedSize && !cachedImage.isNull()) return cachedImage;
   imageViewer imv;
-  if(imv.openImage(fn,false,false,false,false)) return *imv.getImagePtr();
-  return QImage();
+  if(!imv.openImage(fn,false,false,false,false)) return QImage();
+  cachedFn=fn;
+  cachedTime=info.lastModified();
+  cachedSize=info.size();
+  cachedImage=*imv.getImagePtr();
+  return cachedImage;
+}
+
+bool imageViewer::templateInUse() const
+{
+  return !templateFileName.isEmpty() && useTemplate;
+}
+
+/*! the picture framed to tWidth x tHeight (0 x 0: as it is) with the template over it, when one is in use:
+ *  what the picture on air looks like before the DRM encode. Shared by applyTemplate() and setLiveFrame(). */
+QImage imageViewer::renderTemplated(int tWidth,int tHeight)
+{
+  if(!templateInUse())
+    {
+      addToLog(QString("No Template, targetW,H=%1,%2").arg(targetWidth).arg(targetHeight), LOGIMAG);
+      if(tWidth!=0 && tHeight!=0) return frameSingle(tWidth,tHeight);
+      return sourceImage;
+    }
+  addToLog("apply template",LOGIMAG);
+
+  // a damaged or unreadable template leaves the picture as it is (the legacy code overlaid an empty scene)
+  tpl::LoadResult tl=tpl::loadFileCached(templateFileName);
+  if(!tl.ok)
+    {
+      addToLog(QString("template %1 not applied: %2").arg(templateFileName,tl.error),LOGIMAG);
+      return sourceImage;
+    }
+  tpl::RenderOptions opt;
+  opt.vars.insert('c',toCall);
+  opt.vars.insert('r',rsv);
+  opt.vars.insert('o',toOperator);
+  tpl::addDateTimeVars(opt.vars,QDateTime::currentDateTime());
+  opt.vars.insert('m',myCallsign);
+  opt.vars.insert('q',myQth);
+  opt.vars.insert('l',myLocator);
+  opt.vars.insert('n',myLastname);
+  opt.vars.insert('f',myFirstname);
+  opt.vars.insert('v',qsstvVersion);
+  opt.vars.insert('x',comment1);
+  opt.vars.insert('y',comment2);
+  opt.vars.insert('z',comment3);
+  opt.vars.insert('a',latitude);
+  opt.vars.insert('b',longitude);
+  opt.vars.insert('g',place);
+  opt.vars.insert('s',QString::number(lastAvgMER,'g',2));
+  if(tl.doc.hasReplay()) opt.replay=replayPicture();
+
+  addToLog(QString("Template size=%1,%2, SourceW,H=%3,%4 TargetW,H=%5,%6").
+           arg(tl.doc.canvas.width()).arg(tl.doc.canvas.height()).
+           arg(sourceImage.width()).arg(sourceImage.height()).
+           arg(tWidth).arg(tHeight),
+           LOGIMAG);
+  QImage templatedImage;
+  if(tWidth!=0 && tHeight!=0)
+    {
+      QImage overlayedImage=frameSingle(tWidth,tHeight).convertToFormat(QImage::Format_ARGB32);
+      templatedImage=tpl::overlay(tl.doc,overlayedImage,opt);
+    }
+  else
+    {
+      templatedImage=tpl::overlay(tl.doc,sourceImage,opt);
+    }
+  addToLog(QString("resultImageW,H=%1,%2").arg(templatedImage.width()).arg(templatedImage.height()), LOGIMAG);
+  return templatedImage;
+}
+
+/*! A live camera picture (WA8LMF Beacon Mode, #150) in place of the TX picture: shown framed with the template over it, the
+ *  way it would go out, but not encoded (a DRM encode takes too long for a live picture) and without the side effects of a
+ *  loaded picture (framing, file name, imageChanged()). The next applyTemplate() re-renders from the frame. */
+bool imageViewer::setLiveFrame(const QImage &frame)
+{
+  if(ttype!=TXIMG || frame.isNull() || gridActive()) return false;
+  cancelPendingEncode();
+  sourceImage=frame;
+  imageFileName.clear();   // the picture is no file any more: nothing may take an older file for it (a DRM picture sent as is, the name of the saved copy)
+  previewBase=QImage();
+  displayedImage=renderTemplated(targetWidth,targetHeight).convertToFormat(QImage::Format_ARGB32);
+  compressedImageData.clear();
+  validImage=true;
+  displayImage();
+  return true;
 }
 
 int imageViewer::applyTemplate()
 {
   //  qDebug() << "applyTemplate";
-  QImage *resultImage;
-  QImage overlayedImage;
-  QImage templatedImage;
+  QImage resultImage;
   int tWidth=targetWidth,tHeight=targetHeight;
   int compRatio;
   int byteCount;
@@ -1510,9 +1605,7 @@ int imageViewer::applyTemplate()
       sourceImage=composeGrid(tWidth,tHeight);
     }
   if(sourceImage.isNull()) return 0;
-  QFile fi(templateFileName);
   if(ttype!=TXIMG) return 0;
-  resultImage=&sourceImage;
   if(transmissionModeIndex==TRXDRM)
     {
       useCompression=true;
@@ -1563,76 +1656,15 @@ int imageViewer::applyTemplate()
       tHeight=sourceImage.height();
     }
 
-  if((fi.fileName().isEmpty())  || (!useTemplate))
-    {
-      addToLog(QString("No Template, targetW,H=%1,%2").arg(targetWidth).arg(targetHeight), LOGIMAG);
-      if(tWidth!=0 && tHeight!=0)
-        {
-          displayedImage=frameSingle(tWidth,tHeight);
-        }
-      else
-        {
-          displayedImage=sourceImage;
-        }
-      resultImage=&displayedImage;
-    }
-  else
-    {
-      addToLog("apply template",LOGIMAG);
-
-      // a damaged or unreadable template leaves the picture as it is (the legacy code overlaid an empty scene)
-      tpl::LoadResult tl=tpl::loadFileCached(fi.fileName());
-      if(!tl.ok)
-        {
-          addToLog(QString("template %1 not applied: %2").arg(fi.fileName(),tl.error),LOGIMAG);
-        }
-      else
-        {
-          tpl::RenderOptions opt;
-          opt.vars.insert('c',toCall);
-          opt.vars.insert('r',rsv);
-          opt.vars.insert('o',toOperator);
-          tpl::addDateTimeVars(opt.vars, QDateTime::currentDateTime());
-          opt.vars.insert('m',myCallsign);
-          opt.vars.insert('q',myQth);
-          opt.vars.insert('l',myLocator);
-          opt.vars.insert('n',myLastname);
-          opt.vars.insert('f',myFirstname);
-          opt.vars.insert('v',qsstvVersion);
-          opt.vars.insert('x',comment1);
-          opt.vars.insert('y',comment2);
-          opt.vars.insert('z',comment3);
-          opt.vars.insert('a',latitude);
-          opt.vars.insert('b',longitude);
-          opt.vars.insert('g',place);
-          opt.vars.insert('s',QString::number(lastAvgMER,'g',2));
-          if(tl.doc.hasReplay()) opt.replay=replayPicture();
-
-          addToLog(QString("Template size=%1,%2, SourceW,H=%3,%4 TargetW,H=%5,%6").
-                   arg(tl.doc.canvas.width()).arg(tl.doc.canvas.height()).
-                   arg(sourceImage.width()).arg(sourceImage.height()).
-                   arg(tWidth).arg(tHeight),
-                   LOGIMAG);
-          if(tWidth!=0 && tHeight!=0)
-            {
-              overlayedImage=frameSingle(tWidth,tHeight).convertToFormat(QImage::Format_ARGB32);
-              templatedImage=tpl::overlay(tl.doc,overlayedImage,opt);
-            }
-          else
-            {
-              templatedImage=tpl::overlay(tl.doc,sourceImage,opt);
-            }
-          resultImage=&templatedImage;
-          addToLog(QString("resultImageW,H=%1,%2").arg(resultImage->width()).arg(resultImage->height()), LOGIMAG);
-        }
-    }
+  resultImage=renderTemplated(tWidth,tHeight);
+  if(!templateInUse()) displayedImage=resultImage;
   if(useCompression)
     {
       int fileSize;
 #if (QT_VERSION < QT_VERSION_CHECK(5,10,0))
-      byteCount=(resultImage->convertToFormat(QImage::Format_RGB32).byteCount()*3)/4;
+      byteCount=(resultImage.convertToFormat(QImage::Format_RGB32).byteCount()*3)/4;
 #else
-      byteCount=(resultImage->convertToFormat(QImage::Format_RGB32).sizeInBytes()*3)/4;
+      byteCount=(resultImage.convertToFormat(QImage::Format_RGB32).sizeInBytes()*3)/4;
 #endif
       compRatio=byteCount/compressSize;
 
@@ -1642,7 +1674,7 @@ int imageViewer::applyTemplate()
       // so the compression ratio is calculated for 3/4 of the image size
       // so its better to calculate the end result for 3/4 of the source imag
 
-      QImage rgb=resultImage->convertToFormat(QImage::Format_RGB32);
+      QImage rgb=resultImage.convertToFormat(QImage::Format_RGB32);
       if(asyncEncode && drmEncoding==ENCAVIF && avifWriteSupported())
         {
           startAsyncEncode(rgb,compRatio,framedSingle);   // slotEncodeDone() finishes the job
@@ -1657,7 +1689,7 @@ int imageViewer::applyTemplate()
     }
   else
     {
-      displayedImage=resultImage->convertToFormat(QImage::Format_ARGB32);
+      displayedImage=resultImage.convertToFormat(QImage::Format_ARGB32);
       compressedImageData.clear();
 #if (QT_VERSION < QT_VERSION_CHECK(5,10,0))
       return displayedImage.byteCount();

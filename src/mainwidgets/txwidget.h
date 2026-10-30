@@ -27,6 +27,8 @@ enum etxMode {TXUPLOAD,TXBINARY,TXNORMAL};
 
 
 class drmTransmitter;
+class QAction;
+class QMenu;
 namespace Ui {
 class txWidget;
 }
@@ -48,6 +50,7 @@ public:
   void readSettings();
   //! Configuration > GPS may have another position format now: the Lat and Long boxes are converted to it (in both directions)
   void positionFormatChanged();
+  void updateGpsButton();   //!< colors the GPS button (green: read before each transmission, red: by hand); not colored while the GPS is off
   //  void repeat(QImage *im,esstvMode sm);
   void sendRepeaterImage(esstvMode rxMode=NOTVALID);
   void setImage(QImage *ima);
@@ -115,8 +118,11 @@ public slots:
   void slotBeaconTick();
   void slotBeaconTimer();
   void slotBeaconFrame(const QImage &image);
+  void slotBeaconLive(const QImage &image);
   void slotBeaconFailed(const QString &reason);
+  void slotBeaconRecovered();
   void slotGetGps();
+  void slotGpsToggle();
   void slotGpsFix(bool ok,double lat,double lon,const QString &reason);
   void slotPlaceReady(bool ok,const QString &place,const QString &reason);
   void slotPositionEdited();
@@ -140,6 +146,7 @@ private slots:
   void slotRepaterDelay();
     void slotImageChanged();
     void slotEncodingChanged(int enc);
+    void slotSaveSettings();
 
 signals:
   void modeSwitch(int);
@@ -150,6 +157,10 @@ signals:
 
 private:
   void convertPosition(int format);
+  //! writes the Transmit tab choices as they are (writeSettings() first reads the boxes and re-applies the template)
+  void saveSettings();
+  //! a choice on the tab changed: it is written a moment later, so it survives a shutdown, kill or crash as well as a quit
+  void scheduleSettingsSave();
   void initView();
   void setParams();
   void applyTemplate();
@@ -163,7 +174,14 @@ private:
   void beaconSkipped(const QString &reason);
   void beaconRestartInterval();
   void beaconTransmitLoaded();
-  bool beaconUsesGps() const;
+  //! the live camera picture may replace the Transmit picture now (no picture is on its way to the air or being waited for)
+  bool liveAllowed() const;
+  //! a transmission is over (or never started): the camera picture is shown live again
+  void resumeLive();
+  //! the GPS is set up and the GPS button is green: every transmission (Start and the beacon) reads a fresh position first
+  bool gpsAutoReads() const;
+  //! the picture waited for the position (Start button): sends it now
+  void startAfterPosition();
   //! asks the GPS for a position; the result comes back in slotGpsFix(). false: the GPS is busy with another request
   bool requestGps(bool manual);
   //! asks for the city and state of the position in the Lat and Long boxes, when that lookup is on; the result comes back in slotPlaceReady()
@@ -183,15 +201,27 @@ private:
   txFunctions *txFunctionsPtr;
 
   QTimer *repeaterTimer;
-  QTimer beaconTimer;           // single shot: next capture (first one, interval, or 30 s retry)
+  QTimer beaconTimer;           // single shot: next picture (first one, interval, or 30 s retry)
   QTimer beaconTick;            // 1 s, drives the countdown
   int beaconMinutes=0;
   QString beaconError;          // why the last beacon attempt failed; shown instead of the countdown until an attempt succeeds
+  QString beaconCameraProblem;  // the camera is lost and being reopened; shown in place of the countdown, the schedule goes on
   bool beaconRunning=false;
-  bool beaconHold=false;        // a picture is loaded and waiting for the 10 s to pass
-  beaconCapture beaconCap;
+  bool beaconHold=false;        // the camera is on and the first picture waits for the 10 s to pass
+  beaconCapture beaconCap;      // on for as long as the beacon runs: the live picture on this tab, and the newest frame for each beacon picture
+  bool txLocked=false;          // prepareTx() locked the controls: a picture is being prepared or sent, so it must not change (the TX thread reads it)
+  bool livePaused=false;        // the user loaded a picture of their own: no live picture until the transmission is over
+  qint64 liveKey=0;             // cacheKey() of the TX picture the live picture last put there; another one means the user loaded a picture
   bool beaconPending=false;     // a beacon picture is on its way through prepareTx()/startTxImage()
   bool beaconWaitPosition=false;     // the beacon picture is ready, but the position (the GPS, then the place) is still coming: slotGpsFix() or slotPlaceReady() sends it
+  bool startWaitPosition=false;      // the Start button was pressed, the position is still coming: slotGpsFix() or slotPlaceReady() starts the transmission
+  bool gpsAutoRead=false;       // the GPS button is green: the GPS is read before each transmission (saved as TX/gpsAutoRead)
+  QFont gpsButtonFont;          // the font of the GPS button before it got a style sheet, kept in every sheet
+  QString gpsBaseSheet;         // the sheet styleToolButtons() gave the GPS button (empty except on Windows): the sheets of its colors come after it
+  QString snapshotBaseSheet;    // the same for the camera / beacon button
+  QMenu *gpsMenu=nullptr;               // right-click menu of the GPS button ...
+  QAction *gpsReadAction=nullptr;       // ... read the position now
+  QAction *gpsAutoAction=nullptr;       // ... and the switch between green and red
   bool gpsAwaiting=false;       // this widget has a GPS request in flight (the Test button of Configuration > GPS does not count)
   bool gpsManual=false;         // ... and the Get GPS button made it, so a failure is shown in a message box
   bool placeAwaiting=false;     // a place lookup of this widget is in flight (the Test button of Configuration > GPS does not count)
@@ -205,6 +235,8 @@ private:
   imageViewer *imageViewerPtr;
   uint maxSize;
   uint compressedSize;
+  uint sizeWanted=5000;          // the size the user chose (saved as TX/compressedSize): the slider shows it, held down by the picture
+  bool sizeFromRange=false;      // the size is being moved by the range of the slider (a new picture), not by the user
   bool sizeChanged;
   QTimer sizeApplyTimer;
   etxMode doTx;
@@ -223,6 +255,12 @@ private:
   // works once the list can be filtered.
   QVector<esstvMode> txModeList;
   int gridLayout=0;
+  int framing=0;                 // Stretch, Crop, Fit or Free: the default for every picture and grid cell (saved as TX/framing)
+  QString templateName;          // the template that was selected last (saved as TX/templateName): the list changes, an index would not follow
+  int drmProfileIndex=0;         // the DRM profile that was selected last (saved as TX/drmProfile)
+  bool drmParamsSaved=false;     // the settings file has DRM options: they are not replaced by profile 0
+  QTimer settingsSaveTimer;      // single shot: writes the settings a moment after the last change
+  bool settingsReady=false;      // init() is done: control changes before that are the program setting up, not the user
 
 };
 

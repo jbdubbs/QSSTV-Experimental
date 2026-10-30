@@ -13,7 +13,12 @@
 
 #define FREQAVG 0.05
 
-#define VISMIN1900  ((SAMPLERATE*200)/1000)
+// The 1900 Hz leader before the VIS code is 300 ms. A fade or a noise burst in it must not hide the code, so the leader does
+// not have to be one unbroken tone: runs of at least VISMINLEADERRUN count, dropouts of up to VISLEADERGAP are bridged, and
+// VISMINLEADER of leader in all is enough to go on to the start bit.
+#define VISMINLEADER     ((SAMPLERATE*100)/1000)
+#define VISMINLEADERRUN  ((SAMPLERATE*20)/1000)
+#define VISLEADERGAP     ((SAMPLERATE*100)/1000)
 #define VISBITWIDE      ((SAMPLERATE*30)/1000)
 
 #define VISBITNARROW      ((SAMPLERATE*22)/1000)
@@ -100,7 +105,11 @@ signals:
 
 private:
   void switchState(evisState   newState, unsigned int i);
+  bool leaderEnded(unsigned int i);
+  void leaderDropout(unsigned int i);
   evisState  visState;
+  unsigned int leaderTotal;   //!< samples of 1900 Hz leader seen so far (runs of at least VISMINLEADERRUN)
+  unsigned int leaderGap;     //!< samples since the leader was last seen, while waiting for it to come back
 };
 
 

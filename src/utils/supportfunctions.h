@@ -70,6 +70,7 @@ void setValue(int val, QSlider *input);
 bool browseGetFile(QLineEdit *le,QString deflt,const QString &filter="*");
 bool browseDir(QLineEdit *le, QString deflt);
 QStringList commonImageFormats();
+QString toolButtonSheet();   //!< the style sheet styleToolButtons() gives every tool button on Windows
 void styleToolButtons(QWidget *parent);
 QString imageNameFilter(const QString &extra=QString());
 /** load an image applying its EXIF/HEIF orientation (QImage::load() ignores it) */

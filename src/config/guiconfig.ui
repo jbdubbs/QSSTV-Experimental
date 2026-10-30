@@ -269,7 +269,7 @@
       <item row="0" column="0" colspan="3">
        <widget class="QLabel" name="externalEditorLabel">
         <property name="text">
-         <string>Edit on a picture opens a copy (name-edit.png) in this program and uses it again as soon as you save it; the original is never changed. Use %f for the file name. Leave empty to use the first picture editor found, or the system's default program.</string>
+         <string>Edit on a picture opens a copy (name-edit.png) in this program; the original is never changed. %f is the file name.</string>
         </property>
         <property name="wordWrap">
          <bool>true</bool>

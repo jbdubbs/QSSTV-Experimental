@@ -11,6 +11,7 @@
 #include <QPainter>
 #include "configparams.h"
 #include "dispatcher.h"
+#include "dispatch/filedecoder.h"
 #include "supportfunctions.h"
 #include "gallerywidget.h"
 #include "waterfalltext.h"
@@ -32,6 +33,24 @@
 #include <QMessageBox>
 #include <QMenu>
 #include <QToolButton>
+
+static const QString gpsReadingMessage="Reading the GPS ...";   // status bar, while a Start waits for the position
+
+static const QString gpsRedBox="background-color: rgba(220,0,0,90); border: 1px solid rgb(160,0,0); border-radius: 4px; padding: 1px 1px;";
+static const QString gpsGreenBox="background-color: rgba(0,200,0,90); border: 1px solid rgb(0,140,0); border-radius: 4px; padding: 1px 1px;";
+
+/*
+  The style sheet of the GPS button, with the font of the button in it. A style sheet without a font makes the button take the
+  application font (11 pt) instead of the 8 pt of this tab at its first repolish, the first click, and keep it when the sheet is
+  removed: the text grew inside the same box. The button therefore always has a sheet, an empty box is the plain button.
+  The base is the sheet the button got from styleToolButtons(): Windows gives its tool buttons a white face, and a sheet that
+  replaced it would take that look away from this button (a later rule of the same selector wins, :hover and :disabled still show).
+*/
+static QString gpsSheet(const QString &base,const QFont &font,const QString &box)
+{
+  const QString size=font.pointSizeF()>0?QString("%1pt").arg(font.pointSizeF()):QString("%1px").arg(font.pixelSize());
+  return base+QString("QToolButton { font-family: \"%1\"; font-size: %2; %3 }").arg(font.family(),size,box);
+}
 
 
 txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
@@ -104,7 +123,26 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   connect(ui->latLineEdit,SIGNAL(editingFinished ()),SLOT(slotPositionEdited()));
   connect(ui->lonLineEdit,SIGNAL(editingFinished ()),SLOT(slotPositionEdited()));
   connect(ui->placeLineEdit,SIGNAL(editingFinished ()),SLOT(slotGetParams()));
-  connect(ui->gpsToolButton,SIGNAL(clicked()),SLOT(slotGetGps()));
+  gpsButtonFont=ui->gpsToolButton->font();   // taken before any style sheet, see gpsSheet()
+  gpsBaseSheet=ui->gpsToolButton->styleSheet();
+  snapshotBaseSheet=ui->snapshotToolButton->styleSheet();
+  QSize gpsHint;
+  for(const QString &box:{gpsRedBox,gpsGreenBox,QString()})   // ends plain: the look of a GPS that is off
+    {
+      ui->gpsToolButton->setStyleSheet(gpsSheet(gpsBaseSheet,gpsButtonFont,box));
+      gpsHint=gpsHint.expandedTo(ui->gpsToolButton->sizeHint());   // border and padding differ with the color
+    }
+  ui->gpsToolButton->setFixedSize(gpsHint);   // one size for every color, or the row and the window would be resized
+  connect(ui->gpsToolButton,SIGNAL(clicked()),SLOT(slotGpsToggle()));   // green / red; the right-click menu reads the position
+  // the menu belongs to the right button only: actions added to the button itself would give it a menu arrow and a different size
+  gpsMenu=new QMenu(this);
+  gpsReadAction=gpsMenu->addAction("Read the GPS now");
+  gpsAutoAction=gpsMenu->addAction("Read the GPS before each transmission");
+  gpsAutoAction->setCheckable(true);
+  ui->gpsToolButton->setContextMenuPolicy(Qt::CustomContextMenu);
+  connect(ui->gpsToolButton,&QToolButton::customContextMenuRequested,this,[this](const QPoint &pos){gpsMenu->exec(ui->gpsToolButton->mapToGlobal(pos));});
+  connect(gpsReadAction,&QAction::triggered,this,&txWidget::slotGetGps);
+  connect(gpsAutoAction,&QAction::triggered,this,&txWidget::slotGpsToggle);
   connect(gpsReaderPtr,&gpsReader::fixReady,this,&txWidget::slotGpsFix);
   connect(placeLookupPtr,&placeLookup::placeReady,this,&txWidget::slotPlaceReady);
   connect(ui->xPlainTextEdit,SIGNAL(editingFinished()),SLOT(slotGetParams()));
@@ -129,14 +167,18 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   connect(&beaconTick,SIGNAL(timeout()),SLOT(slotBeaconTick()));
   beaconTimer.setSingleShot(true);
   beaconTick.setInterval(1000);
-  connect(&beaconCap,&beaconCapture::frameReady,this,&txWidget::slotBeaconFrame);
+  connect(&beaconCap,&beaconCapture::liveFrame,this,&txWidget::slotBeaconLive);
   connect(&beaconCap,&beaconCapture::failed,this,&txWidget::slotBeaconFailed);
+  connect(&beaconCap,&beaconCapture::recovered,this,&txWidget::slotBeaconRecovered);
   connect(ui->binaryToolButton,SIGNAL(clicked()),this,SLOT(slotBinary()));
   connect(ui->sizeSlider,SIGNAL(valueChanged(int)),SLOT(slotSize(int)));
   connect(ui->sizeSlider,SIGNAL(sliderReleased()),SLOT(slotSizeReleased()));
   sizeApplyTimer.setSingleShot(true);
   sizeApplyTimer.setInterval(100);
   connect(&sizeApplyTimer,SIGNAL(timeout()),SLOT(slotSizeApply()));
+  settingsSaveTimer.setSingleShot(true);
+  settingsSaveTimer.setInterval(1000);
+  connect(&settingsSaveTimer,SIGNAL(timeout()),SLOT(slotSaveSettings()));
   connect(ui->settingsTableWidget,SIGNAL(currentChanged(int)),this, SLOT(slotTransmissionMode(int)));
   connect(imageViewerPtr,SIGNAL(imageChanged()),SLOT(slotImageChanged()));
   connect(imageViewerPtr,SIGNAL(compressionReady()),SLOT(slotCompressionReady()));
@@ -173,6 +215,7 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
 
 txWidget::~txWidget()
 {
+  beaconCap.stop();
   writeSettings();
   txFunctionsPtr->terminate();
   delete txFunctionsPtr;
@@ -197,13 +240,20 @@ void txWidget::init()
   slotModeChanged(sstvModeIndexTx);
   changeTransmissionMode(transmissionModeIndex);
   //  setSettingsTab();
-  slotProfileChanged(0);
+  if(drmParamsSaved)
+    {
+      // the DRM options of the last session stay; the profile box only shows the profile they were last taken from
+      ui->drmProfileComboBox->setCurrentIndex(qBound(0,drmProfileIndex,qMax(0,ui->drmProfileComboBox->count()-1)));
+      setParams();
+    }
+  else slotProfileChanged(0);
   if(lowRes)
     {
       ui->txNotificationList->hide();
       ui->refreshPushButton->hide();
       ui->previewWidget->hide();
     }
+  settingsReady=true;
 }
 
 void txWidget::readSettings()
@@ -217,13 +267,18 @@ void txWidget::readSettings()
     }
 
   templateIndex=qSettings.value("templateIndex",0).toInt();
+  templateName=qSettings.value("templateName").toString();   // an older file has only the index
   useTemplate=qSettings.value("useTemplate",false).toBool();
 
   useCW=qSettings.value("useCW",false).toBool();
   useVOX=qSettings.value("useVOX",false).toBool();
   useHybrid=qSettings.value("useHybrid",false).toBool();
   compressedSize=qSettings.value("compressedSize",5000).toUInt();
+  sizeWanted=compressedSize;
   gridLayout=qSettings.value("gridLayout",0).toInt();
+  framing=qBound(0,qSettings.value("framing",0).toInt(),3);
+  drmProfileIndex=qSettings.value("drmProfile",0).toInt();
+  drmParamsSaved=qSettings.contains("drmProfile");   // written by this version only: an older file starts on profile 0, as it always did
   drmParams.bandwith=qSettings.value("drmBandWith",0).toInt();
   drmParams.interleaver=qSettings.value("drmInterLeaver",0).toInt();
   drmParams.protection=qSettings.value("drmProtection",0).toInt();
@@ -233,28 +288,29 @@ void txWidget::readSettings()
   int enc=qSettings.value("drmImageEncoding",imageViewer::ENCJPEG2000).toInt();
   if(enc!=imageViewer::ENCAVIF || !avifWriteSupported()) enc=imageViewer::ENCJPEG2000;
   imageViewerPtr->setEncoding(enc);
-  imageViewerPtr->latitude=qSettings.value("latitude",QString()).toString();
-  imageViewerPtr->longitude=qSettings.value("longitude",QString()).toString();
-  imageViewerPtr->place=qSettings.value("place",QString()).toString();
+  // the position, the place, To, Op, RSV and the comments belong to one QSO: the boxes start empty
   positionFormat=gpsCoordFormat;   // Configuration > GPS has been read by now
-  if(positionFormat==COORDDEGMIN)
-    {
-      double degrees;
-      if(parseCoordinateText(imageViewerPtr->latitude,true,degrees)) imageViewerPtr->latitude=formatCoordinate(degrees,true,positionFormat);
-      if(parseCoordinateText(imageViewerPtr->longitude,false,degrees)) imageViewerPtr->longitude=formatCoordinate(degrees,false,positionFormat);
-    }
-  placeKey=imageViewerPtr->latitude+"|"+imageViewerPtr->longitude;   // the saved place belongs to the saved position
+  placeKey=imageViewerPtr->latitude+"|"+imageViewerPtr->longitude;
+  gpsAutoRead=qSettings.value("gpsAutoRead",false).toBool();   // off: a typed position is never replaced unless the GPS button is switched to green
   qSettings.endGroup();
   setParams();
+  imageViewerPtr->setDefaultFit(framing);   // also shows it in both Framing boxes
+  updateGpsButton();
 }
 
 void txWidget::writeSettings()
 {
-  QSettings qSettings;
   slotGetParams();
+  saveSettings();
+}
+
+void txWidget::saveSettings()
+{
+  QSettings qSettings;
   qSettings.beginGroup("TX");
   qSettings.setValue( "sstvModeIndexTx", sstvModeIndexTx);
-  qSettings.setValue( "templateIndex", templateIndex);
+  qSettings.setValue( "templateIndex", qMax(0,templateIndex));   // -1 while the list is empty
+  qSettings.setValue( "templateName", templateName);
   qSettings.setValue( "useTemplate", useTemplate);
   qSettings.setValue( "useVOX", useVOX);
   qSettings.setValue( "useCW", useCW);
@@ -265,13 +321,30 @@ void txWidget::writeSettings()
   qSettings.setValue("drmQAM",drmParams.qam);
   qSettings.setValue("drmRobMode",drmParams.robMode);
   qSettings.setValue("drmReedSolomon",drmParams.reedSolomon);
-  qSettings.setValue("compressedSize",compressedSize);
+  qSettings.setValue("compressedSize",sizeWanted);   // not the size held down by the picture that is loaded now
   qSettings.setValue("drmImageEncoding",imageViewerPtr->encoding());
   qSettings.setValue("gridLayout",gridLayout);
-  qSettings.setValue("latitude",imageViewerPtr->latitude);     // the position belongs to the station, not to one QSO
-  qSettings.setValue("longitude",imageViewerPtr->longitude);
-  qSettings.setValue("place",imageViewerPtr->place);
+  qSettings.setValue("framing",framing);
+  qSettings.setValue("drmProfile",drmProfileIndex);
+  qSettings.setValue("gpsAutoRead",gpsAutoRead);
+  // older versions kept the position of the last session
+  qSettings.remove("latitude");
+  qSettings.remove("longitude");
+  qSettings.remove("place");
   qSettings.endGroup();
+}
+
+void txWidget::scheduleSettingsSave()
+{
+  // a change before init() is done is the program setting up; a calibration transmission borrows the mode and the options
+  if(!settingsReady || calTxActive) return;
+  settingsSaveTimer.start();
+}
+
+void txWidget::slotSaveSettings()
+{
+  if(calTxActive || (fileDecoderPtr && fileDecoderPtr->isBatch())) return;   // a headless run never writes the settings
+  saveSettings();
 }
 
 void txWidget::slotGetTXParams()
@@ -292,12 +365,14 @@ void txWidget::slotGetTXParams()
   drmParams.callsign=myCallsign;
   updateTxTime();
   txFunctionsPtr->forgetTxFileName();
+  scheduleSettingsSave();
 }
 
 
 void txWidget::slotGetParams()
 {
   getIndex(templateIndex,ui->templatesComboBox);
+  if(templateIndex>=0) templateName=ui->templatesComboBox->currentText();
   getValue(useTemplate,ui->templateCheckBox);
   getValue(useHybrid,ui->hybridCheckBox);
   getValue(imageViewerPtr->toCall,ui->toCallLineEdit);
@@ -316,6 +391,7 @@ void txWidget::slotGetParams()
     {
       applyTemplate();
     }
+  scheduleSettingsSave();
 }
 
 void txWidget::setParams()
@@ -333,8 +409,13 @@ void txWidget::setParams()
   setValue(useTemplate,ui->templateCheckBox);
   ui->templateCheckBox->blockSignals(false);
   ui->templatesComboBox->blockSignals(false);
-  setValue(useVOX,ui->voxCheckBox);
-  setValue(useCW,ui->cwCheckBox);
+  {
+    // a box that toggles reads all the others back (slotGetTXParams): CW and the DRM options, not shown yet, would be lost
+    QSignalBlocker voxBlocker(ui->voxCheckBox);
+    QSignalBlocker cwBlocker(ui->cwCheckBox);
+    setValue(useVOX,ui->voxCheckBox);
+    setValue(useCW,ui->cwCheckBox);
+  }
   setValue(useHybrid,ui->hybridCheckBox);
   setValue(imageViewerPtr->latitude,ui->latLineEdit);
   setValue(imageViewerPtr->longitude,ui->lonLineEdit);
@@ -378,9 +459,10 @@ void txWidget::initView()
 
 void txWidget::setupTemplatesComboBox()
 {
-  // keep the selected template when the list changes (a template was saved or added): by name, so a new file
-  // sorting in front of it does not move the selection, and without a signal per inserted item
-  const QString keepName=ui->templatesComboBox->currentText();
+  // keep the selected template when the list changes (a template was saved or added) and from one session to the next:
+  // by name, so a new file sorting in front of it does not move the selection, and without a signal per inserted item
+  QString keepName=ui->templatesComboBox->currentText();
+  if(keepName.isEmpty()) keepName=templateName;   // the box is still empty at startup: the template of the last session
   const QStringList sl=galleryWidgetPtr->getFilenames();
   int idx=keepName.isEmpty() ? -1 : sl.indexOf(keepName);
   if(idx<0) idx=qBound(0,templateIndex,qMax(0,(int)sl.count()-1));
@@ -454,8 +536,17 @@ void txWidget::refreshReplay()
 void txWidget::slotStart()
 {
   if(mainWindowPtr->busyMode()>=0) return;
+  if(startWaitPosition) return;   // the position is still being read: that Start is on its way
   if(imageViewerPtr->hasValidImage())
     {
+      if(gpsAutoReads() && requestGps(false))
+        {
+          // the GPS button is green: the picture is rendered with a fresh position, so it waits for it (slotGpsFix() or slotPlaceReady() carries on)
+          startWaitPosition=true;
+          ui->startToolButton->setEnabled(false);
+          statusBarPtr->showMessage(gpsReadingMessage);
+          return;
+        }
       doTx=TXNORMAL;
       prepareTx();
     }
@@ -612,6 +703,7 @@ void txWidget::startTxImage()
   if(!imageViewerPtr->hasValidImage())
     {
       addToLog("invalidImage",LOGTXMAIN);
+      enableButtons(true);   // prepareTx() locked the controls
       if(beaconPending)
         {
           beaconPending=false;
@@ -660,9 +752,10 @@ void txWidget::startTxImage()
     {
       ui->startToolButton->setEnabled(false);
     }
-  else if(calTxActive)
+  else
     {
-      restoreAfterCalibrationTx();
+      enableButtons(true);   // prepareTx() locked the controls
+      if(calTxActive) restoreAfterCalibrationTx();
     }
 }
 
@@ -717,6 +810,11 @@ void txWidget::sendWfText()
 
 void txWidget::slotStop()
 {
+  if(startWaitPosition)
+    {
+      startWaitPosition=false;   // Stop cancels a Start that is waiting for the position
+      if(statusBarPtr->currentMessage()==gpsReadingMessage) statusBarPtr->clearMessage();
+    }
   if(calTxActive) restoreAfterCalibrationTx();
   if(replayStale) refreshReplay();
   ui->startToolButton->setEnabled(true);
@@ -728,6 +826,8 @@ void txWidget::slotStop()
 
 void txWidget::enableButtons(bool enable)
 {
+  txLocked=!enable;
+  if(enable) resumeLive();
   ui->uploadToolButton->setEnabled(enable && useHybrid && (transmissionModeIndex!=TRXSSTV));
   ui->hybridCheckBox->setEnabled(enable);
   ui->startToolButton->setEnabled(enable);
@@ -981,6 +1081,7 @@ void txWidget::slotModeChanged(int m)
       updateGridControl();
       applyTemplate();
     }
+  scheduleSettingsSave();
 }
 
 // SSTV: stitched grids only make sense for modes larger than 512x400 (the size of PD160); DRM has no mode size
@@ -1006,6 +1107,7 @@ void txWidget::slotGridChanged(int i)
   ui->drmGridComboBox->setCurrentIndex(i);
   updateGridControl();
   applyTemplate();
+  scheduleSettingsSave();
 }
 
 // Repopulates sstvModeComboBox from scratch with every mode and rebuilds
@@ -1032,6 +1134,8 @@ void txWidget::slotResizeChanged(int i)
   ui->drmResizeComboBox->setCurrentIndex(i);
   imageViewerPtr->setFitMode(i);
   applyTemplate();
+  framing=qBound(0,i,3);
+  scheduleSettingsSave();
 }
 
 
@@ -1048,39 +1152,44 @@ void txWidget::slotSnapshot()
       stopBeacon();   // the (green) beacon icon stops the beacon; the dialog is opened with the next click
       return;
     }
-  QImage *im;
-  cameraDialog camera;
-  if(camera.exec()==QDialog::Accepted)
+  QImage image;
+  bool beacon;
+  int minutes;
+  {
+    cameraDialog camera;
+    if(camera.exec()!=QDialog::Accepted) return;
+    QImage *im=camera.getImage();
+    if(!im)
+      {
+        QMessageBox::warning(this,"Snapshot","No usable frame was received from the camera.");
+        return;
+      }
+    image=*im;
+    beacon=camera.beaconEnabled();
+    minutes=camera.beaconMinutes();
+  }   // the dialog has released the camera: the beacon opens it for itself
+  if(beacon)
     {
-      im=camera.getImage();
-      if(!im)
+      // the dialog's last frame is on the Transmit tab until the beacon's own live picture replaces it
+      QString bfn=QDir::tempPath()+"/qsstv_beacon.jpg";
+      if(!image.save(bfn,"JPG",95))
         {
-          QMessageBox::warning(this,"Snapshot","No usable frame was received from the camera.");
+          QMessageBox::warning(this,"Beacon","Unable to save the camera image.");
           return;
         }
-      if(camera.beaconEnabled())
-        {
-          // the dialog's live frame is the first beacon picture: no need to reopen the camera yet
-          QString bfn=QDir::tempPath()+"/qsstv_beacon.jpg";
-          if(!im->save(bfn,"JPG",95))
-            {
-              QMessageBox::warning(this,"Beacon","Unable to save the camera image.");
-              return;
-            }
-          setImage(bfn);
-          startBeacon(camera.beaconMinutes());
-          return;
-        }
-      QTemporaryFile itmp(txStockImagesPath+"/snapshotXXXXXX.jpg");
-      itmp.setAutoRemove(false);
-      if(!itmp.open() || !im->save(itmp.fileName()))
-        {
-          QMessageBox::warning(this,"Snapshot","Unable to save the camera image.");
-          return;
-        }
-      setImage(itmp.fileName());
-      galleryWidgetPtr->txStockImageChanged();
+      setImage(bfn);
+      startBeacon(minutes);
+      return;
     }
+  QTemporaryFile itmp(txStockImagesPath+"/snapshotXXXXXX.jpg");
+  itmp.setAutoRemove(false);
+  if(!itmp.open() || !image.save(itmp.fileName()))
+    {
+      QMessageBox::warning(this,"Snapshot","Unable to save the camera image.");
+      return;
+    }
+  setImage(itmp.fileName());
+  galleryWidgetPtr->txStockImageChanged();
 }
 
 
@@ -1123,6 +1232,8 @@ void txWidget::slotSize(int fsize)
     {
       sizeChanged=true;
       compressedSize=fsize;
+      if(!sizeFromRange) sizeWanted=fsize;
+      scheduleSettingsSave();
       if(ui->sizeSlider->isSliderDown())
         {
           // live update while dragging; coalesce the expensive re-encode
@@ -1212,12 +1323,15 @@ void txWidget::slotEncodingChanged(int enc)
 {
   imageViewerPtr->setEncoding(enc);
   slotImageChanged();   // size range, re-encode and TX time follow the codec
+  scheduleSettingsSave();
 }
 
 void txWidget::slotProfileChanged(int i)
 {
   drmProfileConfigPtr->getDRMParams(i,drmParams);
+  drmProfileIndex=i;
   setParams();
+  scheduleSettingsSave();
 }
 
 void txWidget::reloadProfiles()
@@ -1225,6 +1339,8 @@ void txWidget::reloadProfiles()
   int index;
   index= ui->drmProfileComboBox->currentIndex();
   setProfileNames();
+  index=qBound(0,index,qMax(0,ui->drmProfileComboBox->count()-1));
+  ui->drmProfileComboBox->setCurrentIndex(index);   // refilling the box left it on the first profile
   slotProfileChanged(index);
 }
 
@@ -1261,13 +1377,22 @@ void txWidget::slotImageChanged()
           maxSize=imageViewerPtr->setSize(imageViewerPtr->diplayedImageBytecount(),transmissionModeIndex==TRXDRM);
         }
       if(maxSize>MAXDRMSIZE) maxSize=MAXDRMSIZE;
-      ui->sizeSlider->setMaximum(maxSize);
-      ui->sizeSlider->setMinimum(MINDRMSIZE);
-      if(compressedSize>MAXDRMSIZE) compressedSize=MAXDRMSIZE;
-      if(compressedSize<MINDRMSIZE) compressedSize=MINDRMSIZE;
-      temp=compressedSize;
+      // the range follows the picture and would move the slider with it: that is not a choice of the user. The size
+      // that was chosen comes back as far as this picture allows (a blank placeholder at startup, or a small picture,
+      // must not lower it); slotSize() below does the one update
+      const bool wasFromRange=sizeFromRange;
+      sizeFromRange=true;
+      {
+        QSignalBlocker sliderBlocker(ui->sizeSlider);
+        ui->sizeSlider->setMaximum(maxSize);
+        ui->sizeSlider->setMinimum(MINDRMSIZE);
+        temp=qBound((uint)MINDRMSIZE,sizeWanted,(uint)MAXDRMSIZE);
+        if(temp>maxSize) temp=qMax(maxSize,(uint)MINDRMSIZE);
+        ui->sizeSlider->setValue(temp);
+      }
       compressedSize=0;
       slotSize(temp);
+      sizeFromRange=wasFromRange;
     }
   else
     {
@@ -1290,6 +1415,7 @@ void txWidget::slotHybridToggled()
   getValue(useHybrid,ui->hybridCheckBox);
   ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex!=TRXSSTV));
   updateTxTime();
+  scheduleSettingsSave();
 }
 
 
@@ -1476,13 +1602,13 @@ void txWidget::updateBeaconUi()
       painter.fillRect(pm.rect(),QColor(0,200,0,130));
       painter.end();
       icon=QIcon(pm);
-      ui->snapshotToolButton->setStyleSheet("QToolButton { background-color: rgba(0,200,0,70); border: 1px solid rgb(0,140,0); border-radius: 4px; }");
+      ui->snapshotToolButton->setStyleSheet(snapshotBaseSheet+"QToolButton { background-color: rgba(0,200,0,70); border: 1px solid rgb(0,140,0); border-radius: 4px; }");
       ui->snapshotToolButton->setToolTip(QString("WA8LMF Beacon Mode every %1 min - click to stop").arg(beaconMinutes));
     }
   else
     {
       icon=QIcon(":/icons/tb_camera.png");
-      ui->snapshotToolButton->setStyleSheet(QString());
+      ui->snapshotToolButton->setStyleSheet(snapshotBaseSheet);
       ui->snapshotToolButton->setToolTip("Camera picture or WA8LMF Beacon Mode");
     }
   ui->snapshotToolButton->setIcon(icon);
@@ -1495,12 +1621,18 @@ void txWidget::startBeacon(int minutes)
   beaconPending=false;
   beaconWaitPosition=false;
   beaconError.clear();
+  beaconCameraProblem.clear();
+  livePaused=false;
+  liveKey=imageViewerPtr->getImagePtr()->cacheKey();   // the picture loaded from the camera dialog: another one means the user loaded their own
   updateBeaconUi();
-  if(beaconUsesGps()) requestGps(false);   // the first picture is sent after 10 s, time enough for the position
-  // the first picture is already loaded (slotSnapshot); it is sent after 10 s, so the transmit settings can still be adjusted
+  if(gpsAutoReads()) requestGps(false);   // the first picture is sent after 10 s, time enough for the position
+  // The camera stays on from here until the beacon is stopped and its live picture is shown on this tab. The first picture is the
+  // newest live frame after 10 s: time to adjust the transmit settings, and for the camera's exposure to settle.
   beaconHold=true;
   beaconTimer.start(10000);
   beaconTick.start();
+  beaconCap.start();
+  beaconCap.setPreviewWanted(liveAllowed());
   slotBeaconTick();
 }
 
@@ -1512,8 +1644,10 @@ void txWidget::stopBeacon()
   beaconWaitPosition=false;
   beaconTimer.stop();
   beaconTick.stop();
-  beaconCap.abort();
+  beaconCap.stop();
   beaconError.clear();
+  beaconCameraProblem.clear();
+  livePaused=false;
   updateBeaconUi();
   emit beaconCountdownChanged(QString(),false);
 }
@@ -1521,9 +1655,15 @@ void txWidget::stopBeacon()
 void txWidget::slotBeaconTick()
 {
   if(!beaconRunning) return;
+  beaconCap.setPreviewWanted(liveAllowed());   // once a second: off while the tab is hidden or a picture is on its way
   if(!beaconError.isEmpty())
     {
       emit beaconCountdownChanged(beaconError,true);
+      return;
+    }
+  if(!beaconCameraProblem.isEmpty())
+    {
+      emit beaconCountdownChanged(beaconCameraProblem,true);
       return;
     }
   QString txt;
@@ -1532,7 +1672,6 @@ void txWidget::slotBeaconTick()
       int sec=(beaconTimer.remainingTime()+999)/1000;
       txt=QString("WA8LMF Beacon Mode: next in %1:%2").arg(sec/60).arg(sec%60,2,10,QChar('0'));
     }
-  else if(beaconCap.isBusy()) txt="WA8LMF Beacon Mode: grabbing camera image";
   else if(beaconWaitPosition) txt=placeAwaiting?"WA8LMF Beacon Mode: looking up the place":"WA8LMF Beacon Mode: reading the GPS";
   else txt="WA8LMF Beacon Mode: preparing transmission";
   emit beaconCountdownChanged(txt,false);
@@ -1541,11 +1680,14 @@ void txWidget::slotBeaconTick()
 void txWidget::slotBeaconTimer()
 {
   if(!beaconRunning) return;
-  if(beaconCap.isBusy() || beaconPending) return;
+  if(beaconPending) return;
   if(beaconHold)
     {
       beaconHold=false;
-      beaconTransmitLoaded();
+      // the first picture: the newest live frame, or the one from the camera dialog when the camera has not delivered one yet
+      QImage first=beaconCap.grab();
+      if(first.isNull()) beaconTransmitLoaded();
+      else slotBeaconFrame(first);
       return;
     }
   if(rxWidgetPtr->rxBusy())
@@ -1568,13 +1710,53 @@ void txWidget::slotBeaconTimer()
       beaconSkipped("no SSTV or DRM transmit mode is selected");
       return;
     }
-  if(beaconUsesGps()) requestGps(false);   // reads the position while the camera warms up
-  beaconCap.start();
+  QImage image=beaconCap.grab();
+  if(image.isNull())
+    {
+      beaconSkipped(beaconCap.problemText().isEmpty() ? QString("the camera gave no picture") : beaconCap.problemText());
+      return;
+    }
+  if(gpsAutoReads()) requestGps(false);   // the picture waits for the position
+  slotBeaconFrame(image);
 }
 
+// the camera is lost: shown in place of the countdown, the beacon stays on its schedule and the camera is opened again by itself
 void txWidget::slotBeaconFailed(const QString &reason)
 {
-  beaconSkipped(reason);
+  if(!beaconRunning) return;
+  beaconCameraProblem=QString("WA8LMF Beacon Mode camera problem %1: %2").arg(QTime::currentTime().toString("HH:mm"),reason);
+  slotBeaconTick();
+}
+
+void txWidget::slotBeaconRecovered()
+{
+  beaconCameraProblem.clear();
+  slotBeaconTick();
+}
+
+// a live camera picture: shown on this tab under the template until a picture is on its way to the air
+void txWidget::slotBeaconLive(const QImage &image)
+{
+  if(!liveAllowed()) return;
+  if(liveKey!=0 && imageViewerPtr->getImagePtr()->cacheKey()!=liveKey)
+    {
+      livePaused=true;   // the user loaded a picture of their own: it stays until the next transmission is over
+      return;
+    }
+  if(imageViewerPtr->setLiveFrame(image)) liveKey=imageViewerPtr->getImagePtr()->cacheKey();
+}
+
+bool txWidget::liveAllowed() const
+{
+  return beaconRunning && !livePaused && !txLocked && !beaconPending && !beaconWaitPosition
+      && !startWaitPosition && !calTxActive && !txFunctionsPtr->txBusy() && isVisible() && !window()->isMinimized();
+}
+
+void txWidget::resumeLive()
+{
+  livePaused=false;
+  liveKey=beaconRunning ? imageViewerPtr->getImagePtr()->cacheKey() : 0;
+  beaconCap.setPreviewWanted(liveAllowed());
 }
 
 void txWidget::slotBeaconFrame(const QImage &image)
@@ -1592,6 +1774,7 @@ void txWidget::slotBeaconFrame(const QImage &image)
       beaconSkipped("the camera picture could not be loaded");
       return;
     }
+  liveKey=imageViewerPtr->getImagePtr()->cacheKey();   // if this one is not sent after all, the live picture goes on from here
   beaconTransmitLoaded();
 }
 
@@ -1626,10 +1809,52 @@ void txWidget::beaconTransmitLoaded()
   prepareTx();
 }
 
-// a GPS position is read for every beacon transmission when the GPS is set up and the option is on (Configuration > GPS)
-bool txWidget::beaconUsesGps() const
+// the GPS is set up and enabled in Configuration > GPS
+static bool gpsUsable()
 {
-  return gpsEnabled && gpsBeaconRefresh;
+  return gpsEnabled && !gpsPort.isEmpty();
+}
+
+// a GPS position is read for every transmission, Start button and WA8LMF beacon alike, when the GPS is set up and its button is green
+bool txWidget::gpsAutoReads() const
+{
+  return gpsUsable() && gpsAutoRead;
+}
+
+// green: the GPS is read before each transmission, red: by hand; no color while the GPS is not set up
+void txWidget::updateGpsButton()
+{
+  const bool usable=gpsUsable();
+  const bool autoRead=gpsAutoReads();
+  QString tip,box;
+  if(!usable)
+    {
+      tip="GPS is off: set it up in Configuration";
+    }
+  else if(autoRead)
+    {
+      box=gpsGreenBox;
+      tip="Green: position read before each transmission. Click: by hand only";
+    }
+  else
+    {
+      box=gpsRedBox;
+      tip="Red: position read by hand (right-click). Click: read before each transmission";
+    }
+  ui->gpsToolButton->setStyleSheet(gpsSheet(gpsBaseSheet,gpsButtonFont,box));
+  ui->gpsToolButton->setToolTip(tip);
+  ui->gpsToolButton->setStatusTip(tip);
+  gpsAutoAction->setEnabled(usable);
+  gpsAutoAction->setChecked(autoRead);
+}
+
+// a click on the GPS button switches between reading the GPS before each transmission (green) and by hand (red)
+void txWidget::slotGpsToggle()
+{
+  if(gpsUsable()) gpsAutoRead=!gpsAutoRead;
+  else QMessageBox::information(this,"GPS","The GPS is not enabled.\nSet it up in Options > Configuration > GPS.");
+  updateGpsButton();
+  scheduleSettingsSave();
 }
 
 bool txWidget::requestGps(bool manual)
@@ -1673,13 +1898,36 @@ void txWidget::slotGpsFix(bool ok,double lat,double lon,const QString &reason)
   else
     {
       addToLog(QString("GPS: %1, using the last position").arg(reason),LOGTXMAIN);
+      if(startWaitPosition) statusBarPtr->showMessage(QString("GPS: %1, using the last position").arg(reason),10000);
     }
   if(beaconWaitPosition && !placeAwaiting)
     {
       beaconWaitPosition=false;
       beaconTransmitLoaded();   // a missing position never stops the beacon
     }
+  if(startWaitPosition && !placeAwaiting) startAfterPosition();   // nor a Start
   if(!ok && manual) QMessageBox::warning(this,"GPS",reason);
+}
+
+// the position (and the place) a Start was waiting for has arrived, or failed to: the picture is rendered with what is in the boxes now
+void txWidget::startAfterPosition()
+{
+  startWaitPosition=false;
+  if(statusBarPtr->currentMessage()==gpsReadingMessage) statusBarPtr->clearMessage();
+  ui->startToolButton->setEnabled(true);
+  // the wait takes up to a few seconds: check that nothing started meanwhile
+  if(mainWindowPtr->busyMode()>=0 || txFunctionsPtr->txBusy() || beaconPending)
+    {
+      addToLog("Start: the transmitter became busy while the GPS was read",LOGTXMAIN);
+      return;
+    }
+  if(!imageViewerPtr->hasValidImage())
+    {
+      addToLog("Start: the picture is gone",LOGTXMAIN);
+      return;
+    }
+  doTx=TXNORMAL;
+  prepareTx();
 }
 
 bool txWidget::requestPlace(bool manual)
@@ -1709,12 +1957,14 @@ void txWidget::slotPlaceReady(bool ok,const QString &place,const QString &reason
     {
       placeKey.clear();   // the next time the position is left or read, the lookup is tried again
       addToLog(QString("Place lookup: %1, keeping the last place").arg(reason),LOGTXMAIN);
+      if(startWaitPosition) statusBarPtr->showMessage(QString("Place lookup: %1, keeping the last place").arg(reason),10000);
     }
   if(beaconWaitPosition && !gpsAwaiting)
     {
       beaconWaitPosition=false;
       beaconTransmitLoaded();   // a missing place never stops the beacon
     }
+  if(startWaitPosition && !gpsAwaiting) startAfterPosition();   // nor a Start
   if(!ok && manual) QMessageBox::warning(this,"Place",reason);
 }
 

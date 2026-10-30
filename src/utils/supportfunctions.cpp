@@ -325,14 +325,19 @@ QStringList commonImageFormats()
   Its style takes that colour from the visual theme, not QPalette::Button, so force a lighter face with a
   stylesheet (state colours mimic the native Windows 10 buttons). Other platforms keep their native look.
 */
-void styleToolButtons(QWidget *parent)
+QString toolButtonSheet()
 {
-#ifdef Q_OS_WIN
-  const QString css=
+  return
     "QToolButton{background-color:white;border:1px solid #adadad;border-radius:2px;}"
     "QToolButton:hover{background-color:#e5f1fb;border-color:#0078d7;}"
     "QToolButton:pressed{background-color:#cce4f7;border-color:#005499;}"
     "QToolButton:disabled{background-color:#f4f4f4;border-color:#d0d0d0;}";
+}
+
+void styleToolButtons(QWidget *parent)
+{
+#ifdef Q_OS_WIN
+  const QString css=toolButtonSheet();
   foreach(QToolButton *b,parent->findChildren<QToolButton *>()) b->setStyleSheet(css);
 #else
   Q_UNUSED(parent);

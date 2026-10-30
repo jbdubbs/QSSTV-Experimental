@@ -93,6 +93,7 @@ void demodulator::init()
 {
   int i,j,k;
   FACAvailable=false;
+  fac_valid = -1;   // the FAC of a lost signal must not stay valid: it keeps the receiver "busy" and the FAC light green
   N_symbols_mode_detection = 20;
   N_symbols_frequency_pilot_search = 15;
   time_offset_log_last = 0;

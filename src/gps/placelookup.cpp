@@ -16,6 +16,56 @@ static const char *defaultService="https://nominatim.openstreetmap.org/reverse";
 static const char *userAgent="QSSTV-Experimental (https://github.com/jbdubbs/QSSTV-Experimental)";
 static const double sameSpot=0.01;   // degrees, about a kilometre: a position this close to the last answered one has the same place
 
+// A template has room for about this many characters of "City, State"; a longer place is shortened (the lookup only, text typed in is left alone)
+static const int maxPlaceLength=25;
+static const int minCityLength=10;   // a long state or country name must not squeeze the city out
+// Generic words in front of or behind the name of a municipality ("Meridian Charter Township", "City of Westminster"), tried in this order.
+// Not " City", " Town" or " Village" behind a name: Salt Lake City, Cape Town and Greenwich Village are the names.
+static const char *const designatorPrefixes[]={"Charter Township of ","Township of ","Regional Municipality of ","Rural Municipality of ",
+                                               "Municipality of ","City of ","Town of ","Village of ","Borough of ","County of ","Shire of ","District of "};
+static const char *const designatorSuffixes[]={" Charter Township"," Township"," Municipality"," Borough"};
+
+// the name without its designator, or the name itself when nothing else would be left
+static QString withoutDesignator(const QString &name)
+{
+  for(const char *p:designatorPrefixes)
+    {
+      const QString prefix=QLatin1String(p);
+      if(name.size()>prefix.size() && name.startsWith(prefix,Qt::CaseInsensitive)) return name.mid(prefix.size()).trimmed();
+    }
+  for(const char *s:designatorSuffixes)
+    {
+      const QString suffix=QLatin1String(s);
+      if(name.size()>suffix.size() && name.endsWith(suffix,Qt::CaseInsensitive)) return name.left(name.size()-suffix.size()).trimmed();
+    }
+  return name;
+}
+
+// the name cut to at most room characters: whole words (split at spaces and hyphens) when at least half of room remains, otherwise in the middle of a word
+static QString cutName(const QString &name,int room)
+{
+  if(name.size()<=room) return name;
+  auto separator=[](QChar c) {return c==QLatin1Char(' ') || c==QLatin1Char('-');};
+  int end=room;
+  if(name.at(end-1).isHighSurrogate()) end--;   // not between the halves of a character
+  if(!separator(name.at(end)))
+    {
+      int boundary=end;
+      while(boundary>0 && !separator(name.at(boundary-1))) boundary--;   // the start of the word that is cut
+      if(boundary-1>=room/2) end=boundary-1;
+    }
+  QString cut=name.left(end);
+  while(!cut.isEmpty() && (separator(cut.back()) || cut.endsWith(QLatin1Char(',')))) cut.chop(1);
+  return cut;
+}
+
+// "City, State" from its two parts, which may be empty
+static QString joinPlace(const QString &locality,const QString &region)
+{
+  if(region.isEmpty() || region==locality) return locality;
+  return locality.isEmpty()?region:locality+", "+region;
+}
+
 placeLookup::placeLookup(QObject *parent) : QObject(parent), reply(nullptr), serviceUrl(defaultService), pending(false),
   requestLat(0), requestLon(0), haveAnswer(false), cacheLat(0), cacheLon(0)
 {
@@ -119,7 +169,7 @@ QString placeLookup::placeFromReply(const QByteArray &json,QString &error)
       }
     return QString();
   };
-  const QString locality=first({"city","town","village","hamlet","municipality","suburb","county"});
+  QString locality=first({"city","town","village","hamlet","municipality","suburb","county"});
 
   // "WA" rather than "Washington" where the code is what people write: the ISO 3166-2 code is "US-WA"
   QString region;
@@ -132,8 +182,19 @@ QString placeLookup::placeFromReply(const QByteArray &json,QString &error)
   if(region.isEmpty()) region=first({"state","province","region"});
   if(region.isEmpty()) region=first({"country"});
 
-  QString place=locality;
-  if(!region.isEmpty() && region!=locality) place+=(place.isEmpty()?"":", ")+region;
+  QString place=joinPlace(locality,region);
+  if(place.size()>maxPlaceLength && !locality.isEmpty())
+    {
+      // too long for a template: drop "Charter Township" and the like, then cut the city, the state stays whole
+      locality=withoutDesignator(locality);
+      place=joinPlace(locality,region);
+      if(place.size()>maxPlaceLength)
+        {
+          const bool both=!region.isEmpty() && region!=locality;
+          const int room=both?qMax(maxPlaceLength-2-int(region.size()),minCityLength):maxPlaceLength;
+          place=joinPlace(cutName(locality,room),region);
+        }
+    }
   if(place.isEmpty()) error=tr("No place is known for this position");
   return place;
 }

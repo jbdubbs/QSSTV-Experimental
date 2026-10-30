@@ -7,21 +7,24 @@
 #include <QSettings>
 #include <QVideoFrameFormat>
 
-#define BEACONWARMUP 1500
-#define BEACONTIMEOUT 10000
+#define BEACONPREVIEWMS 250      // about 4 live pictures per second: plenty for a preview, little work for hours on end
+#define BEACONIDLEMS 1000        // a frame is kept for grab() this often while nobody watches the live picture
+#define BEACONFIRSTFRAME 10000   // a camera that was started has this long to deliver its first picture
+#define BEACONSTALL 5000         // and this long between pictures afterwards
+#define BEACONRETRY 5000         // a lost camera is opened again after this long
 #define BEACONMAXWIDTH 1280
 
 beaconCapture::beaconCapture(QObject *parent) :
   QObject(parent),
   cameraPtr(nullptr),
-  warmedUp(false)
+  running(false),
+  previewWanted(false)
 {
   captureSession.setVideoSink(&videoSink);
   connect(&videoSink,&QVideoSink::videoFrameChanged,this,&beaconCapture::slotVideoFrameChanged);
-  warmupTimer.setSingleShot(true);
-  timeoutTimer.setSingleShot(true);
-  connect(&warmupTimer,&QTimer::timeout,this,&beaconCapture::slotWarmupDone);
-  connect(&timeoutTimer,&QTimer::timeout,this,&beaconCapture::slotTimeout);
+  connect(&mediaDevices,&QMediaDevices::videoInputsChanged,this,&beaconCapture::slotDevicesChanged);
+  watchdog.setInterval(1000);
+  connect(&watchdog,&QTimer::timeout,this,&beaconCapture::slotWatchdog);
 }
 
 beaconCapture::~beaconCapture()
@@ -75,28 +78,76 @@ QCameraFormat beaconCapture::chooseFormat(const QCameraDevice &cd) const
 
 void beaconCapture::start()
 {
+  if(running) return;
+  running=true;
+  problem.clear();
+  watchdog.start();
+  openCamera();
+}
+
+void beaconCapture::stop()
+{
+  running=false;
+  watchdog.stop();
+  closeCamera();
+  problem.clear();
+}
+
+void beaconCapture::openCamera()
+{
   if(cameraPtr) return;
   QCameraDevice dev=chooseDevice();
   if(dev.isNull())
     {
-      emit failed("no camera found");
+      fail("no camera found");
       return;
     }
-  lastImage=QImage();
-  warmedUp=false;
   cameraPtr=new QCamera(dev,this);
   captureSession.setCamera(cameraPtr);
   connect(cameraPtr,&QCamera::errorOccurred,this,&beaconCapture::slotCameraError);
   QCameraFormat fmt=chooseFormat(dev);
   if(!fmt.isNull()) cameraPtr->setCameraFormat(fmt);
-  warmupTimer.start(BEACONWARMUP);
-  timeoutTimer.start(BEACONTIMEOUT);
+  lastFrame.invalidate();
+  openedAt.start();
   cameraPtr->start();
+}
+
+void beaconCapture::closeCamera()
+{
+  if(!cameraPtr) return;
+  cameraPtr->stop();
+  captureSession.setCamera(nullptr);
+  cameraPtr->deleteLater();
+  cameraPtr=nullptr;
+  lastFrame.invalidate();
+  lastImage=QImage();
+  lastImageAt.invalidate();
+}
+
+// the camera is lost: close it, say so (once per reason) and let the watchdog open it again
+void beaconCapture::fail(const QString &reason)
+{
+  closeCamera();
+  lostAt.start();
+  if(reason==problem) return;
+  problem=reason;
+  addToLog(QString("beacon camera: %1").arg(reason),LOGCAM);
+  emit failed(reason);
 }
 
 void beaconCapture::slotVideoFrameChanged(const QVideoFrame &frame)
 {
   if(!cameraPtr || !frame.isValid()) return;
+  lastFrame.start();
+  if(!problem.isEmpty())
+    {
+      problem.clear();
+      emit recovered();
+    }
+  // A frame can only be converted while the camera hands it over (later it is gone), and converting every frame of a
+  // webcam takes a good part of a core: so only every so often, and grab() gives the last picture converted.
+  if(convertGate.isValid() && !convertGate.hasExpired(previewWanted ? BEACONPREVIEWMS : BEACONIDLEMS)) return;
+  convertGate.start();
   QImage img=frame.toImage();
   if(img.isNull())
     {
@@ -105,50 +156,43 @@ void beaconCapture::slotVideoFrameChanged(const QVideoFrame &frame)
       return;
     }
   lastImage=img;
-  if(warmedUp) finish(QString());
+  lastImageAt.start();
+  if(previewWanted) emit liveFrame(img);
 }
 
-void beaconCapture::slotWarmupDone()
+QImage beaconCapture::grab(int maxAgeMs)
 {
-  warmedUp=true;
-  if(!lastImage.isNull()) finish(QString());
+  if(!cameraPtr || lastImage.isNull() || !lastImageAt.isValid() || lastImageAt.elapsed()>maxAgeMs) return QImage();
+  return lastImage;
 }
 
-void beaconCapture::slotTimeout()
+// reopens a lost camera, and closes one that stopped delivering pictures (unplugged, USB reset, back from sleep)
+void beaconCapture::slotWatchdog()
 {
-  finish("camera gave no picture (timed out)");
+  if(!running) return;
+  if(!cameraPtr)
+    {
+      if(lostAt.isValid() && lostAt.hasExpired(BEACONRETRY)) openCamera();
+      return;
+    }
+  if(lastFrame.isValid())
+    {
+      if(lastFrame.hasExpired(BEACONSTALL)) fail("camera stopped sending pictures");
+    }
+  else if(openedAt.hasExpired(BEACONFIRSTFRAME))
+    {
+      fail("camera gave no picture");
+    }
 }
 
 void beaconCapture::slotCameraError(QCamera::Error error,const QString &errorString)
 {
   if(error==QCamera::NoError) return;
-  addToLog(QString("beacon camera error: %1").arg(errorString),LOGCAM);
-  finish(errorString.isEmpty() ? QString("camera error") : QString("camera error: %1").arg(errorString));
+  fail(errorString.isEmpty() ? QString("camera error") : QString("camera error: %1").arg(errorString));
 }
 
-void beaconCapture::abort()
+// a camera was plugged in: do not wait for the next try
+void beaconCapture::slotDevicesChanged()
 {
-  if(!cameraPtr) return;
-  warmupTimer.stop();
-  timeoutTimer.stop();
-  cameraPtr->stop();
-  captureSession.setCamera(nullptr);
-  cameraPtr->deleteLater();
-  cameraPtr=nullptr;
-  lastImage=QImage();
-}
-
-void beaconCapture::finish(const QString &failure)
-{
-  if(!cameraPtr) return;
-  warmupTimer.stop();
-  timeoutTimer.stop();
-  QImage img=lastImage;
-  cameraPtr->stop();
-  captureSession.setCamera(nullptr);
-  cameraPtr->deleteLater();
-  cameraPtr=nullptr;
-  lastImage=QImage();
-  if(failure.isEmpty()) emit frameReady(img);
-  else emit failed(failure);
+  if(running && !cameraPtr) openCamera();
 }

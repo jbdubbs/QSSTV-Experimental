@@ -21,7 +21,6 @@
 bool    gpsEnabled=true;
 QString gpsPort;
 int     gpsBaud=4800;
-bool    gpsBeaconRefresh=true;
 
 static int failures=0;
 #define CHECK(cond) do { if(!(cond)) { std::printf("FAIL %s:%d  %s\n",__FILE__,__LINE__,#cond); failures++; } } while(0)
@@ -339,7 +338,7 @@ static void testPlaceParser()
   // the replies of the real service for three famous spots (shortened)
   CHECK(placeOf("{\"addresstype\":\"city\",\"name\":\"Seattle\",\"address\":{\"city\":\"Seattle\",\"county\":\"King County\",\"state\":\"Washington\",\"ISO3166-2-lvl4\":\"US-WA\",\"country\":\"United States\",\"country_code\":\"us\"}}")=="Seattle, WA");
   CHECK(placeOf("{\"address\":{\"city\":\"Missoula\",\"county\":\"Missoula County\",\"state\":\"Montana\",\"ISO3166-2-lvl4\":\"US-MT\",\"country\":\"United States\",\"country_code\":\"us\"}}")=="Missoula, MT");
-  CHECK(placeOf("{\"address\":{\"city\":\"City of Westminster\",\"ISO3166-2-lvl8\":\"GB-WSM\",\"state\":\"England\",\"ISO3166-2-lvl4\":\"GB-ENG\",\"country\":\"United Kingdom\",\"country_code\":\"gb\"}}")=="City of Westminster, England");
+  CHECK(placeOf("{\"address\":{\"city\":\"City of Westminster\",\"ISO3166-2-lvl8\":\"GB-WSM\",\"state\":\"England\",\"ISO3166-2-lvl4\":\"GB-ENG\",\"country\":\"United Kingdom\",\"country_code\":\"gb\"}}")=="Westminster, England");   // 28 characters with "City of"
 
   // the codes of Canada and Australia, the names elsewhere
   CHECK(placeOf("{\"address\":{\"town\":\"Banff\",\"state\":\"Alberta\",\"ISO3166-2-lvl4\":\"CA-AB\",\"country_code\":\"ca\"}}")=="Banff, AB");
@@ -370,6 +369,35 @@ static void testPlaceParser()
   CHECK(placeOf("<html>502 Bad Gateway</html>",&err).isEmpty() && err.contains("Unexpected"));
   CHECK(placeOf("[1,2,3]",&err).isEmpty() && err.contains("Unexpected"));
   CHECK(placeOf("{\"address\":{\"city\":\"Seattle\"}}",&err)=="Seattle" && err.isEmpty());
+
+  // a place of 25 characters or fewer is left alone, however it is built (#151)
+  CHECK(placeOf("{\"address\":{\"town\":\"Meridian Charter Township\",\"country_code\":\"xx\"}}")=="Meridian Charter Township");   // exactly 25
+  CHECK(placeOf("{\"address\":{\"city\":\"City of Westminster\",\"state\":\"Kent\",\"country_code\":\"xx\"}}")=="City of Westminster, Kent");   // 25
+  CHECK(placeOf("{\"address\":{\"town\":\"Zeeland Township\",\"state\":\"Michigan\",\"ISO3166-2-lvl4\":\"US-MI\",\"country_code\":\"us\"}}")=="Zeeland Township, MI");
+  // over 25: the designator goes first (the example of the issue: the real reply of the service for Okemos, Michigan)
+  CHECK(placeOf("{\"address\":{\"town\":\"Meridian Charter Township\",\"county\":\"Ingham County\",\"state\":\"Michigan\",\"ISO3166-2-lvl4\":\"US-MI\",\"country\":\"United States\",\"country_code\":\"us\"}}")=="Meridian, MI");
+  CHECK(placeOf("{\"address\":{\"town\":\"Charter Township of Meridian\",\"state\":\"Michigan\",\"ISO3166-2-lvl4\":\"US-MI\",\"country_code\":\"us\"}}")=="Meridian, MI");
+  CHECK(placeOf("{\"address\":{\"town\":\"Township of Lake of Bays\",\"state\":\"Ontario\",\"ISO3166-2-lvl4\":\"CA-ON\",\"country_code\":\"ca\"}}")=="Lake of Bays, ON");
+  CHECK(placeOf("{\"address\":{\"city\":\"Regional Municipality of Wood Buffalo\",\"state\":\"Alberta\",\"ISO3166-2-lvl4\":\"CA-AB\",\"country_code\":\"ca\"}}")=="Wood Buffalo, AB");
+  CHECK(placeOf("{\"address\":{\"city\":\"city of westminster\",\"state\":\"England\",\"country_code\":\"gb\"}}")=="westminster, England");   // any case
+  // names that end in City, Town or Village are the names
+  CHECK(placeOf("{\"address\":{\"city\":\"Salt Lake City\",\"state\":\"Utah\",\"ISO3166-2-lvl4\":\"US-UT\",\"country_code\":\"us\"}}")=="Salt Lake City, UT");
+  CHECK(placeOf("{\"address\":{\"city\":\"Greenwich Village Historic District\",\"state\":\"New York\",\"ISO3166-2-lvl4\":\"US-NY\",\"country_code\":\"us\"}}")=="Greenwich Village, NY");
+  // still too long: the city is cut at a word, the state stays whole
+  CHECK(placeOf("{\"address\":{\"town\":\"Saint-Jean-Pied-de-Port Beauville\",\"state\":\"Texas\",\"country_code\":\"xx\"}}")=="Saint-Jean-Pied-de, Texas");   // 18 characters of room: the cut falls at a hyphen
+  CHECK(placeOf("{\"address\":{\"town\":\"Port Saint Lucie Heights East\",\"state\":\"Florida\",\"ISO3166-2-lvl4\":\"US-FL\",\"country_code\":\"us\"}}")=="Port Saint Lucie, FL");
+  // a single long word is cut hard
+  CHECK(placeOf("{\"address\":{\"town\":\"Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch\",\"state\":\"Wales\",\"country_code\":\"gb\"}}")=="Llanfairpwllgwyngy, Wales");
+  // a long state does not squeeze the city out: it keeps 10 characters, so the whole is longer than 25
+  CHECK(placeOf("{\"address\":{\"city\":\"Villingen-Schwenningen\",\"state\":\"North Rhine-Westphalia\",\"country_code\":\"de\"}}")=="Villingen, North Rhine-Westphalia");
+  // no state, no country: the city alone is cut to 25 characters
+  CHECK(placeOf("{\"address\":{\"town\":\"Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch\"}}")=="Llanfairpwllgwyngyllgoger");
+  // a name that is nothing but the designator keeps it
+  CHECK(placeOf("{\"address\":{\"town\":\"Township\",\"state\":\"North Rhine-Westphalia\",\"country_code\":\"de\"}}")=="Township, North Rhine-Westphalia");
+  CHECK(placeOf("{\"address\":{\"town\":\"Town of\",\"state\":\"North Rhine-Westphalia\",\"country_code\":\"de\"}}")=="Town of, North Rhine-Westphalia");
+  // the cut falls at the space, which does not stay
+  const QString cut=placeOf("{\"address\":{\"town\":\"Aaaaaaaaaaaaaaa Bbbbbbbbbbbbbbbbbbbbbbbb\",\"state\":\"Maine\",\"ISO3166-2-lvl4\":\"US-ME\",\"country_code\":\"us\"}}");
+  CHECK(cut=="Aaaaaaaaaaaaaaa, ME");
 }
 
 struct PlaceResult
