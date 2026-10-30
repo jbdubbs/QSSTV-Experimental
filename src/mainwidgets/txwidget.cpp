@@ -36,6 +36,20 @@
 
 static const QString gpsReadingMessage="Reading the GPS ...";   // status bar, while a Start waits for the position
 
+static const QString gpsRedBox="background-color: rgba(220,0,0,90); border: 1px solid rgb(160,0,0); border-radius: 4px; padding: 1px 1px;";
+static const QString gpsGreenBox="background-color: rgba(0,200,0,90); border: 1px solid rgb(0,140,0); border-radius: 4px; padding: 1px 1px;";
+
+/*
+  The style sheet of the GPS button, with the font of the button in it. A style sheet without a font makes the button take the
+  application font (11 pt) instead of the 8 pt of this tab at its first repolish, the first click, and keep it when the sheet is
+  removed: the text grew inside the same box. The button therefore always has a sheet, an empty box is the plain button.
+*/
+static QString gpsSheet(const QFont &font,const QString &box)
+{
+  const QString size=font.pointSizeF()>0?QString("%1pt").arg(font.pointSizeF()):QString("%1px").arg(font.pixelSize());
+  return QString("QToolButton { font-family: \"%1\"; font-size: %2; %3 }").arg(font.family(),size,box);
+}
+
 
 txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
 {
@@ -107,7 +121,14 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   connect(ui->latLineEdit,SIGNAL(editingFinished ()),SLOT(slotPositionEdited()));
   connect(ui->lonLineEdit,SIGNAL(editingFinished ()),SLOT(slotPositionEdited()));
   connect(ui->placeLineEdit,SIGNAL(editingFinished ()),SLOT(slotGetParams()));
-  ui->gpsToolButton->setFixedSize(ui->gpsToolButton->sizeHint());   // a style sheet changes the size hint with every change of color, which would resize the row and the window
+  gpsButtonFont=ui->gpsToolButton->font();   // taken before any style sheet, see gpsSheet()
+  QSize gpsHint;
+  for(const QString &box:{gpsRedBox,gpsGreenBox,QString()})   // ends plain: the look of a GPS that is off
+    {
+      ui->gpsToolButton->setStyleSheet(gpsSheet(gpsButtonFont,box));
+      gpsHint=gpsHint.expandedTo(ui->gpsToolButton->sizeHint());   // border and padding differ with the color
+    }
+  ui->gpsToolButton->setFixedSize(gpsHint);   // one size for every color, or the row and the window would be resized
   connect(ui->gpsToolButton,SIGNAL(clicked()),SLOT(slotGpsToggle()));   // green / red; the right-click menu reads the position
   // the menu belongs to the right button only: actions added to the button itself would give it a menu arrow and a different size
   gpsMenu=new QMenu(this);
@@ -1784,22 +1805,22 @@ void txWidget::updateGpsButton()
 {
   const bool usable=gpsUsable();
   const bool autoRead=gpsAutoReads();
-  QString tip;
+  QString tip,box;
   if(!usable)
     {
-      ui->gpsToolButton->setStyleSheet(QString());
       tip="GPS is off: set it up in Configuration";
     }
   else if(autoRead)
     {
-      ui->gpsToolButton->setStyleSheet("QToolButton { background-color: rgba(0,200,0,90); border: 1px solid rgb(0,140,0); border-radius: 4px; padding: 1px 1px; }");
+      box=gpsGreenBox;
       tip="Green: position read before each transmission. Click: by hand only";
     }
   else
     {
-      ui->gpsToolButton->setStyleSheet("QToolButton { background-color: rgba(220,0,0,90); border: 1px solid rgb(160,0,0); border-radius: 4px; padding: 1px 1px; }");
+      box=gpsRedBox;
       tip="Red: position read by hand (right-click). Click: read before each transmission";
     }
+  ui->gpsToolButton->setStyleSheet(gpsSheet(gpsButtonFont,box));
   ui->gpsToolButton->setToolTip(tip);
   ui->gpsToolButton->setStatusTip(tip);
   gpsAutoAction->setEnabled(usable);

@@ -399,11 +399,17 @@ int main(int argc, char **argv)
     QToolButton *startButton = txw->findChild<QToolButton *>("startToolButton");
     check(startButton != nullptr, "(the Start button)");
     if (!startButton) return 1;
+    // the font of the button as it is drawn now (the style sheet is repolished when the event loop runs)
+    const auto fontOf = [&] {
+      QTest::qWait(50);
+      const QFontInfo fi(gpsButton->font());
+      return QString("%1 %2px").arg(fi.family()).arg(fi.pixelSize());
+    };
     gpsPort = slave;
     gpsEnabled = false;
     txw->gpsAutoRead = false;
     txw->updateGpsButton();
-    check(gpsButton->styleSheet().isEmpty() && gpsButton->toolTip().contains("off"), "with the GPS off the button has no color: " + gpsButton->toolTip());
+    check(!gpsButton->styleSheet().contains("background-color") && gpsButton->toolTip().contains("off"), "with the GPS off the button has no color: " + gpsButton->toolTip());
     boxes = 0;
     QTest::mouseClick(gpsButton, Qt::LeftButton);
     checkWait([&] {return boxes > 0 && lastBox.contains("not enabled");}, [&] {return "and a click says so: " + lastBox;});
@@ -424,16 +430,26 @@ int main(int argc, char **argv)
       gpsEnabled = false;
       txw->updateGpsButton();
       const int plain = txw->minimumSizeHint().width(), plainButton = gpsButton->sizeHint().width();
+      const QString plainFont = fontOf();
       gpsEnabled = true;
       txw->updateGpsButton();
       const int red = txw->minimumSizeHint().width(), redButton = gpsButton->sizeHint().width();
+      const QString redFont = fontOf();
       txw->gpsAutoRead = true;
       txw->updateGpsButton();
       const int green = txw->minimumSizeHint().width(), greenButton = gpsButton->sizeHint().width();
+      const QString greenFont = fontOf();
       txw->gpsAutoRead = false;
       txw->updateGpsButton();
       check(red == plain && green == plain && gpsButton->minimumSize() == gpsButton->maximumSize(), QString("the colors do not widen the Transmit tab (%1 px plain, %2 red, %3 green; the button %4, %5, %6)")
             .arg(plain).arg(red).arg(green).arg(plainButton).arg(redButton).arg(greenButton));
+      // the text keeps its size in every color and after every switch (#152: the first repolish of the style sheet changed the font of
+      // the button from the 8 pt of the tab to the application font). Offscreen the button is never polished, so this guards the
+      // sheet (it carries the font) but cannot show the original jump; that was measured on the real platform.
+      const QFontInfo wanted(txw->gpsButtonFont);
+      const QString want = QString("%1 %2px").arg(wanted.family()).arg(wanted.pixelSize());
+      check(plainFont == want && redFont == want && greenFont == want && fontOf() == want && gpsButton->styleSheet().contains("font-size"),
+            QString("and the colors keep the text size (%1; plain %2, red %3, green %4)").arg(want, plainFont, redFont, greenFont));
     }
 
     // the menu: the switch and the manual read
