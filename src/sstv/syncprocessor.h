@@ -3,6 +3,7 @@
 
 #include <sstvparam.h>
 #include "visfskid.h"
+#include "synctrain.h"
 #include <QObject>
 #include <QList>
 #include "filters.h"
@@ -26,6 +27,7 @@ struct ssenitivity
   int maxOutOfSyncLines;
   DSPFLOAT minOutOfSyncSeconds;   // a fade this long does not end the picture (as long as the picture is still running)
   DSPFLOAT lineTolerance;         // how far (fraction of a line) a pulse may be from the line grid of the picture and still count
+  DSPFLOAT trainLevel;            // syncTrainDetector: how much stronger 1200 Hz than 1900 Hz is a sync event (0: no pictures are started by a train)
 };
 
 struct ssyncEntry
@@ -180,6 +182,7 @@ private:
   DSPFLOAT modifiedClock;
   DSPFLOAT samplesPerLine;
   streamDecoder streamDecode;
+  syncTrainDetector train;       // finds a picture by the rhythm of its sync pulses (wide processor only)
   DSPFLOAT lineTolerance;
   modeMatchList *activeChainPtr;
 
@@ -190,6 +193,9 @@ private:
   esstvMode visMode;
 
   void extractSync();
+  void trainStep();
+  void startFromTrain();
+  bool beginPicture(bool viaTrain);
   bool validateSync();
   bool findMatch();
   bool addToMatch(esstvMode mode);
@@ -207,6 +213,8 @@ private:
   bool createModeBase();
   void checkSyncArray();
   void trackSyncs();
+  void chainUpdated(bool added);
+  void trainPulse(int peak);
   bool reanchorChain();
   void selectedModes(esstvMode &first,esstvMode &last) const;
   void calcSyncQuality();
@@ -234,6 +242,11 @@ private:
   uint visBackfillLines;     // sync intervals the picture was started before its first pulse, at its VIS code (0: at the pulse)
   bool visAnchored;          // the picture was started by its VIS code and runs by the clock: it never gives up, pulses only refine its position
   bool pendingVisStart;      // a VIS code was received: start the picture as soon as the stripe with its first line has been processed
+  bool pendingTrain;         // syncTrainDetector found a train: start the picture when the stripe has been processed
+  strainResult trainFound;
+  double trainRef;           // end of a pulse of the picture a train started, on its line grid (smoothed)
+  double trainDelayEnd;      // events of the train detector are made into pulses that end this long (samples) after them ...
+  double trainWidth;         // ... and are this wide
   struct svisRestart {bool valid; esstvMode mode; uint counter;} visRestart;   // a VIS code that arrived during a picture: starts the next one
 
   // receiver trace (rxtrace.h, QSSTV_RX_TRACE): only written, never read by the receiver
@@ -242,7 +255,9 @@ private:
   quint32 trDetectCounter;   // sampleCounter when the picture was detected
   quint32 trFreezeCounter;   // sampleCounter when the display froze
   bool trViaVis;             // the picture was started with a VIS code (also decides `proven`, below)
+  bool trViaTrain;           // ... by the rhythm of its sync pulses (syncTrainDetector)
   uint trHits;               // pulses added to the chain since detection
+  uint trTrainPulses;        // ... of which events of the train detector
   uint trFarHits;            // ... of which more than 2 lines after the last one
   uint trFreezes;
   uint trResyncs;

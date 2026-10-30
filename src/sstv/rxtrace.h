@@ -28,6 +28,17 @@ inline bool rxTraceOn()
   return rxTraceFile()!=nullptr;
 }
 
+/**
+ * With QSSTV_RX_TRACE_PULSES set as well, every sync pulse the pulse detector accepts (PULSE) and every event of the sync train
+ * detector (TPEAK) is traced with its position in the sample counter. For measuring how the two line up (the delays of
+ * syncTrainDetector::pulseDelayMs); a lot of lines.
+ */
+inline bool rxTracePulses()
+{
+  static const bool on=rxTraceOn() && qEnvironmentVariableIsSet("QSSTV_RX_TRACE_PULSES");
+  return on;
+}
+
 inline void rxTrace(const char *event,const QString &fields)
 {
   FILE *f=rxTraceFile();
