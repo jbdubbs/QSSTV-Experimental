@@ -267,12 +267,14 @@ void txWidget::readSettings()
     }
 
   templateIndex=qSettings.value("templateIndex",0).toInt();
+  templateName=qSettings.value("templateName").toString();   // an older file has only the index
   useTemplate=qSettings.value("useTemplate",false).toBool();
 
   useCW=qSettings.value("useCW",false).toBool();
   useVOX=qSettings.value("useVOX",false).toBool();
   useHybrid=qSettings.value("useHybrid",false).toBool();
   compressedSize=qSettings.value("compressedSize",5000).toUInt();
+  sizeWanted=compressedSize;
   gridLayout=qSettings.value("gridLayout",0).toInt();
   framing=qBound(0,qSettings.value("framing",0).toInt(),3);
   drmProfileIndex=qSettings.value("drmProfile",0).toInt();
@@ -307,7 +309,8 @@ void txWidget::saveSettings()
   QSettings qSettings;
   qSettings.beginGroup("TX");
   qSettings.setValue( "sstvModeIndexTx", sstvModeIndexTx);
-  qSettings.setValue( "templateIndex", templateIndex);
+  qSettings.setValue( "templateIndex", qMax(0,templateIndex));   // -1 while the list is empty
+  qSettings.setValue( "templateName", templateName);
   qSettings.setValue( "useTemplate", useTemplate);
   qSettings.setValue( "useVOX", useVOX);
   qSettings.setValue( "useCW", useCW);
@@ -318,7 +321,7 @@ void txWidget::saveSettings()
   qSettings.setValue("drmQAM",drmParams.qam);
   qSettings.setValue("drmRobMode",drmParams.robMode);
   qSettings.setValue("drmReedSolomon",drmParams.reedSolomon);
-  qSettings.setValue("compressedSize",compressedSize);
+  qSettings.setValue("compressedSize",sizeWanted);   // not the size held down by the picture that is loaded now
   qSettings.setValue("drmImageEncoding",imageViewerPtr->encoding());
   qSettings.setValue("gridLayout",gridLayout);
   qSettings.setValue("framing",framing);
@@ -369,6 +372,7 @@ void txWidget::slotGetTXParams()
 void txWidget::slotGetParams()
 {
   getIndex(templateIndex,ui->templatesComboBox);
+  if(templateIndex>=0) templateName=ui->templatesComboBox->currentText();
   getValue(useTemplate,ui->templateCheckBox);
   getValue(useHybrid,ui->hybridCheckBox);
   getValue(imageViewerPtr->toCall,ui->toCallLineEdit);
@@ -455,9 +459,10 @@ void txWidget::initView()
 
 void txWidget::setupTemplatesComboBox()
 {
-  // keep the selected template when the list changes (a template was saved or added): by name, so a new file
-  // sorting in front of it does not move the selection, and without a signal per inserted item
-  const QString keepName=ui->templatesComboBox->currentText();
+  // keep the selected template when the list changes (a template was saved or added) and from one session to the next:
+  // by name, so a new file sorting in front of it does not move the selection, and without a signal per inserted item
+  QString keepName=ui->templatesComboBox->currentText();
+  if(keepName.isEmpty()) keepName=templateName;   // the box is still empty at startup: the template of the last session
   const QStringList sl=galleryWidgetPtr->getFilenames();
   int idx=keepName.isEmpty() ? -1 : sl.indexOf(keepName);
   if(idx<0) idx=qBound(0,templateIndex,qMax(0,(int)sl.count()-1));
@@ -1227,6 +1232,7 @@ void txWidget::slotSize(int fsize)
     {
       sizeChanged=true;
       compressedSize=fsize;
+      if(!sizeFromRange) sizeWanted=fsize;
       scheduleSettingsSave();
       if(ui->sizeSlider->isSliderDown())
         {
@@ -1333,6 +1339,8 @@ void txWidget::reloadProfiles()
   int index;
   index= ui->drmProfileComboBox->currentIndex();
   setProfileNames();
+  index=qBound(0,index,qMax(0,ui->drmProfileComboBox->count()-1));
+  ui->drmProfileComboBox->setCurrentIndex(index);   // refilling the box left it on the first profile
   slotProfileChanged(index);
 }
 
@@ -1369,13 +1377,22 @@ void txWidget::slotImageChanged()
           maxSize=imageViewerPtr->setSize(imageViewerPtr->diplayedImageBytecount(),transmissionModeIndex==TRXDRM);
         }
       if(maxSize>MAXDRMSIZE) maxSize=MAXDRMSIZE;
-      ui->sizeSlider->setMaximum(maxSize);
-      ui->sizeSlider->setMinimum(MINDRMSIZE);
-      if(compressedSize>MAXDRMSIZE) compressedSize=MAXDRMSIZE;
-      if(compressedSize<MINDRMSIZE) compressedSize=MINDRMSIZE;
-      temp=compressedSize;
+      // the range follows the picture and would move the slider with it: that is not a choice of the user. The size
+      // that was chosen comes back as far as this picture allows (a blank placeholder at startup, or a small picture,
+      // must not lower it); slotSize() below does the one update
+      const bool wasFromRange=sizeFromRange;
+      sizeFromRange=true;
+      {
+        QSignalBlocker sliderBlocker(ui->sizeSlider);
+        ui->sizeSlider->setMaximum(maxSize);
+        ui->sizeSlider->setMinimum(MINDRMSIZE);
+        temp=qBound((uint)MINDRMSIZE,sizeWanted,(uint)MAXDRMSIZE);
+        if(temp>maxSize) temp=qMax(maxSize,(uint)MINDRMSIZE);
+        ui->sizeSlider->setValue(temp);
+      }
       compressedSize=0;
       slotSize(temp);
+      sizeFromRange=wasFromRange;
     }
   else
     {

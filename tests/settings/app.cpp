@@ -1,7 +1,8 @@
 // The Transmit and Receive tab settings in the REAL application objects (main window, TX tab, RX tab), offscreen (issue #149):
-//   app <scratch-dir> set|check
+//   app <scratch-dir> set|check|gone [jp2]
 // "set" changes the settings the way a user does, waits for the program to save them and ends WITHOUT a clean quit (_exit: no
 // closeEvent, no writeSettings(), like a Windows shutdown with the program open, End Task or a crash); "check" is the next start.
+// "gone" is a start after the selected template was deleted; "jp2" runs the DRM size with JPEG2000 (the default encoding) instead of AVIF.
 // Built and run by tests/settings/app.sh against an existing build-cmake tree (it links the application's object files).
 #include <QtTest>
 #include <QtWidgets>
@@ -23,6 +24,7 @@
 #include "ui_txwidget.h"
 #include "ftpfunctions.h"
 #include "beaconcapture.h"
+#include "templatedoc.h"
 // the TX tab keeps its members private; the test reads them
 #define private public
 #include "txwidget.h"
@@ -45,6 +47,16 @@ static int differentFrom(QComboBox *c, int a, int b)
   return 0;
 }
 
+// a box with two items cannot differ from both profiles: then at least from profile 0, which a restore bug would put back
+static int distinctPick(QComboBox *c, int a, int b)
+{
+  for (int i = 0; i < c->count(); i++)
+    if (i != a && i != b) return i;
+  for (int i = 0; i < c->count(); i++)
+    if (i != a) return i;
+  return 0;
+}
+
 static void pick(QComboBox *c, int i)
 {
   c->setCurrentIndex(i);
@@ -64,6 +76,8 @@ int main(int argc, char **argv)
   if (argc < 3) return 2;
   const QString scratch = argv[1];
   const bool setPhase = QString(argv[2]) == "set";
+  const bool gonePhase = QString(argv[2]) == "gone";
+  const bool jp2 = argc > 3 && QString(argv[3]) == "jp2";
   qputenv("HOME", scratch.toLocal8Bit());
   qputenv("XDG_CONFIG_HOME", (scratch + "/config").toLocal8Bit());
   qputenv("XDG_DATA_HOME", (scratch + "/data").toLocal8Bit());
@@ -82,6 +96,19 @@ int main(int argc, char **argv)
     qs.setValue("update/autoCheck", false);
     qs.setValue("appimage/integrationAsked", true);
   }
+  // templates: the TX tab lists the templates of the templates folder, sorted by path (the gallery drops what it cannot open)
+  const QString templatesDir = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/" + APPNAME + "/templates/";
+  QDir().mkpath(templatesDir);
+  const auto templateFile = [&](const QString &n) {return templatesDir + n + "." + tpl::nativeExtension;};
+  const auto seedTemplate = [&](const QString &n)
+  {
+    tpl::TemplateDocument d;
+    d.canvas = QRectF(0, 0, 320, 256);
+    tpl::saveFile(templateFile(n), d);
+  };
+  for (const char *n : {"b", "c", "d"}) seedTemplate(n);
+  if (!setPhase) seedTemplate("0-new");   // a template added since: it sorts in front of the others
+  if (gonePhase) QFile::remove(templateFile("c"));
   globalInit();
   mainWindowPtr = new mainWindow;
   QTest::qWait(300);
@@ -110,21 +137,29 @@ int main(int argc, char **argv)
   QCheckBox *autoSave = rxw->findChild<QCheckBox *>("autoSaveCheckBox"), *autoSlant = rxw->findChild<QCheckBox *>("autoSlantAdjustCheckBox");
   QSpinBox *complete = rxw->findChild<QSpinBox *>("completeSpinBox");
   QSlider *sizeSlider = txw->findChild<QSlider *>("sizeSlider");
+  QComboBox *interleave = txBox("drmTxInterleaveComboBox"), *protection = txBox("drmTxProtectionComboBox");
+  QComboBox *robMode = txBox("drmTxModeComboBox"), *reedSolomon = txBox("drmTxReedSolomonComboBox"), *templates = txBox("templatesComboBox");
 
   printf("== the tabs\n");
   check(mode && framing && drmFraming && grid && drmGrid && profile && qam && bandwidth && encoding && vox && cw && hybrid && useTemplate && txTabs,
         "the Transmit tab has the boxes");
   check(toCall && op && rsv && lat && lon && place && cx && cy && cz, "and the boxes of one QSO");
   check(rxMode && sensitivity && rxFormat && autoSave && autoSlant && complete, "the Receive tab has the boxes");
+  check(interleave && protection && robMode && reedSolomon && templates, "the DRM tab has the other option boxes and the template box");
   if (!(mode && framing && drmFraming && grid && drmGrid && profile && qam && bandwidth && encoding && vox && cw && hybrid && useTemplate && txTabs
-        && toCall && op && rsv && lat && lon && place && cx && cy && cz && rxMode && sensitivity && rxFormat && autoSave && autoSlant && complete && sizeSlider))
+        && toCall && op && rsv && lat && lon && place && cx && cy && cz && rxMode && sensitivity && rxFormat && autoSave && autoSlant && complete && sizeSlider
+        && interleave && protection && robMode && reedSolomon && templates))
     finish();
   check(profile->count() >= 2 && qam->count() >= 3 && bandwidth->count() >= 3 && sensitivity->count() == 4, "(the boxes have the items the test uses)");
 
   const int qamPick = differentFrom(qam, drmPFArray[0].params.qam, drmPFArray[1].params.qam);
   const int bwPick = differentFrom(bandwidth, drmPFArray[0].params.bandwith, drmPFArray[1].params.bandwith);
   const int rxModePick = 5, rxFormatPick = rxFormat->count() - 1;
-  const int encodingPick = avifWriteSupported() ? imageViewer::ENCAVIF : imageViewer::ENCJPEG2000;
+  const int encodingPick = (avifWriteSupported() && !jp2) ? imageViewer::ENCAVIF : imageViewer::ENCJPEG2000;
+  const drmTxParams &p0 = drmPFArray[0].params, &p1 = drmPFArray[1].params;
+  const int ilPick = distinctPick(interleave, p0.interleaver, p1.interleaver), prPick = distinctPick(protection, p0.protection, p1.protection);
+  const int rmPick = distinctPick(robMode, p0.robMode, p1.robMode), rsPick = distinctPick(reedSolomon, p0.reedSolomon, p1.reedSolomon);
+  const int templateIdx = templates->findText("c");
 
   if (setPhase)
     {
@@ -139,9 +174,17 @@ int main(int argc, char **argv)
       useTemplate->setChecked(true);
       txTabs->setCurrentIndex(TRXDRM);
       pick(profile, 1);
+      txw->reloadProfiles();   // Configuration > DRM was closed after a change of the profiles
+      check(profile->currentIndex() == 1, QString("the profile box still shows its profile after the profiles were reloaded (%1)").arg(profile->currentIndex()));
       pick(qam, qamPick);
       pick(bandwidth, bwPick);
       pick(encoding, encodingPick);
+      pick(interleave, ilPick);
+      pick(protection, prPick);
+      pick(robMode, rmPick);
+      pick(reedSolomon, rsPick);
+      check(templateIdx >= 0, "(the template box lists the seeded templates)");
+      pick(templates, templateIdx);
       sizeSlider->setMaximum(60000);   // the range follows the picture; there is none here
       sizeSlider->setValue(12000);
       // what belongs to one QSO
@@ -171,6 +214,9 @@ int main(int argc, char **argv)
       check(qs.value("TX/sstvModeIndexTx").toInt() == kMode, "the SSTV mode");
       check(qs.value("TX/framing").toInt() == 2 && qs.value("TX/gridLayout").toInt() == 3, "the framing and the grid");
       check(qs.value("TX/drmProfile").toInt() == 1 && qs.value("TX/drmQAM").toInt() == qamPick && qs.value("TX/drmBandWith").toInt() == bwPick, "the DRM profile and its options");
+      check(qs.value("TX/drmInterLeaver").toInt() == ilPick && qs.value("TX/drmProtection").toInt() == prPick
+            && qs.value("TX/drmRobMode").toInt() == rmPick && qs.value("TX/drmReedSolomon").toInt() == rsPick, "the DRM interleaver, protection, mode and Reed-Solomon");
+      check(qs.value("TX/templateName").toString() == "c", QString("the template, by its name (%1)").arg(qs.value("TX/templateName").toString()));
       check(qs.value("TX/drmImageEncoding").toInt() == encodingPick && qs.value("TX/compressedSize").toInt() == 12000,
             QString("the DRM encoding and size (%1 / %2, %3 / 12000)").arg(qs.value("TX/drmImageEncoding").toInt()).arg(encodingPick).arg(qs.value("TX/compressedSize").toInt()));
       check(qs.value("TX/useVOX").toBool() && qs.value("TX/useCW").toBool() && qs.value("TX/useHybrid").toBool() && qs.value("TX/useTemplate").toBool(), "VOX, CW, Hybrid and Template");
@@ -189,9 +235,34 @@ int main(int argc, char **argv)
   check(vox->isChecked() && cw->isChecked() && hybrid->isChecked() && useTemplate->isChecked(), "VOX, CW, Hybrid and Template");
   check(txTabs->currentIndex() == TRXDRM && transmissionModeIndex == TRXDRM, "the DRM tab");
   check(profile->currentIndex() == 1, "the DRM profile");
+  if (gonePhase)
+    {
+      check(templates->count() > 0 && templates->currentIndex() >= 0, QString("the template is gone: another one is selected (%1)").arg(templates->currentText()));
+      finish();
+    }
+  check(templates->currentText() == "c", QString("the template is back, although another one sorts in front of it (%1)").arg(templates->currentText()));
+  check(interleave->currentIndex() == ilPick && protection->currentIndex() == prPick && robMode->currentIndex() == rmPick && reedSolomon->currentIndex() == rsPick,
+        QString("the DRM interleaver, protection, mode and Reed-Solomon (%1 %2 %3 %4)").arg(interleave->currentIndex()).arg(protection->currentIndex()).arg(robMode->currentIndex()).arg(reedSolomon->currentIndex()));
   check(qam->currentIndex() == qamPick && bandwidth->currentIndex() == bwPick,
         QString("the DRM options are not replaced by profile 0 (QAM item %1, bandwidth item %2)").arg(qam->currentIndex()).arg(bandwidth->currentIndex()));
-  check(encoding->currentIndex() == encodingPick && txw->compressedSize == 12000, "the DRM encoding and size");
+  // the picture at startup is a blank placeholder: with JPEG2000 it cannot hold 12000 bytes, so the slider is held down for now
+  check(encoding->currentIndex() == encodingPick && txw->sizeWanted == 12000,
+        QString("the DRM encoding and the size that was chosen (%1, %2 / 12000)").arg(encoding->currentIndex()).arg(txw->sizeWanted));
+  {
+    QImage big(640, 480, QImage::Format_RGB32);   // noise: it does not compress below the largest size
+    quint32 r = 12345;
+    for (int y = 0; y < big.height(); y++)
+      for (int x = 0; x < big.width(); x++) {r = r * 1664525u + 1013904223u; big.setPixel(x, y, 0xff000000u | (r >> 8));}
+    // Hybrid is checked again by now. With it on, a picture in DRM mode crashes the program in hybridCrypt::reverseString()
+    // (it writes to the indexes of an empty QString, which only Qt 5 allowed): not what this test is about
+    hybrid->setChecked(false);
+    QString bigFile = scratch + "/noise.png";
+    big.save(bigFile);
+    tx->openImage(bigFile, false, true, false, false);   // like File > Open: the viewer tells the TX tab
+    QTest::qWait(3000);
+    check(txw->compressedSize == 12000 && sizeSlider->value() == 12000,
+          QString("and a picture that is large enough shows it again (%1, slider %2)").arg(txw->compressedSize).arg(sizeSlider->value()));
+  }
   check(toCall->text().isEmpty() && op->text().isEmpty() && rsv->text().isEmpty(), "To, Op and RSV are empty");
   check(lat->text().isEmpty() && lon->text().isEmpty() && place->text().isEmpty(), "Lat, Long and Place are empty");
   check(cx->toPlainText().isEmpty() && cy->toPlainText().isEmpty() && cz->toPlainText().isEmpty(), "X, Y and Z are empty");

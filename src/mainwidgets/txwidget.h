@@ -235,6 +235,8 @@ private:
   imageViewer *imageViewerPtr;
   uint maxSize;
   uint compressedSize;
+  uint sizeWanted=5000;          // the size the user chose (saved as TX/compressedSize): the slider shows it, held down by the picture
+  bool sizeFromRange=false;      // the size is being moved by the range of the slider (a new picture), not by the user
   bool sizeChanged;
   QTimer sizeApplyTimer;
   etxMode doTx;
@@ -254,6 +256,7 @@ private:
   QVector<esstvMode> txModeList;
   int gridLayout=0;
   int framing=0;                 // Stretch, Crop, Fit or Free: the default for every picture and grid cell (saved as TX/framing)
+  QString templateName;          // the template that was selected last (saved as TX/templateName): the list changes, an index would not follow
   int drmProfileIndex=0;         // the DRM profile that was selected last (saved as TX/drmProfile)
   bool drmParamsSaved=false;     // the settings file has DRM options: they are not replaced by profile 0
   QTimer settingsSaveTimer;      // single shot: writes the settings a moment after the last change
