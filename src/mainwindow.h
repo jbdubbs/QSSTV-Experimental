@@ -34,6 +34,8 @@ public:
   void switchMode(int rxtxMode) {slotModeChange(rxtxMode);}
   //! true once the quit is confirmed: settings are written for the last time and nothing may open a message box
   bool isQuitting() const {return quitting;}
+  //! --encode: the SSTV / DRM tab it switches to is not remembered, the next start (or the next --encode) must not begin in it
+  void setHeadlessEncode(bool on) {headlessEncode=on;}
   spectrumWidget *spectrumFramePtr;
   //! opens the built-in Users Guide, at `page` (e.g. "pages/template-editor.html") when it exists
   void openUserGuide(const QString &page);
@@ -78,6 +80,7 @@ private slots:
 private:
   Ui::MainWindow *ui;
   bool quitting=false; // set once quit is confirmed; QApplication::quit() re-sends closeEvent
+  bool headlessEncode=false; // --encode run: the mode switch is not written to the settings
   void closeEvent ( QCloseEvent *e );
   void readSettings();
   void writeSettings();

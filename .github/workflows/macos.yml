@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {arch: arm64,  runner: macos-14}          # Apple Silicon
+          - {arch: arm64,  runner: macos-15}          # Apple Silicon (macos-14 images are retired on 2026-11-02)
           - {arch: x86_64, runner: macos-15-intel}    # Intel
     runs-on: ${{ matrix.runner }}
     steps:

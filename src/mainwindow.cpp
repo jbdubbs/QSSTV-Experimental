@@ -906,7 +906,7 @@ void mainWindow::slotModeChange(int rxtxMode)
   txWidgetPtr->changeTransmissionMode(rxtxMode);
   rxWidgetPtr->changeTransmissionMode(rxtxMode);
   lastReceivedCall.clear();
-  if(!fileDecoderPtr->isBatch())
+  if(!fileDecoderPtr->isBatch() && !headlessEncode)
     {
       // the SSTV / DRM tab is remembered at once, not only when the program quits cleanly
       QSettings qSettings;

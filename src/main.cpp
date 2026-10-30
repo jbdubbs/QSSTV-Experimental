@@ -605,6 +605,7 @@ int main( int argc, char ** argv )
   if(encode)
     {
       // no main window is shown in encode mode
+      mainWindowPtr->setHeadlessEncode(true);   // --encode --drm must not leave the next run in DRM mode
       holdSplash();
       splash.finish(mainWindowPtr);
     }
@@ -675,6 +676,7 @@ int main( int argc, char ** argv )
         app.exit(0);
       },Qt::QueuedConnection);
       QTimer::singleShot(900000,&app,[&app](){fprintf(stderr,"--encode timed out\n");app.exit(3);});
+      if(transmissionModeIndex!=TRXSSTV) mainWindowPtr->switchMode(TRXSSTV);   // the saved tab may be DRM
       mainWindowPtr->startRunning(true);
       if(!txWidgetPtr->sendCalibrationImage(txMode,img))
         {

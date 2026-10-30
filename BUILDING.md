@@ -216,8 +216,8 @@ include it. The macOS CI job checks an AVIF DRM round trip on the bundled app (`
 
 ## macOS
 
-Apple Silicon (arm64) and Intel (x86_64): CI builds each natively (the Intel build runs on a
-`macos-15-intel` runner; because Homebrew's libraries target the runner's OS, the Intel build requires macOS 15 or newer), builds and decodes test recordings on every change, and testers
+Apple Silicon (arm64) and Intel (x86_64): CI builds each natively (on `macos-15` and `macos-15-intel`
+runners; because Homebrew's libraries target the runner's OS, both builds require macOS 15 or newer), builds and decodes test recordings on every change, and testers
 have verified the app's operation on real Intel and Apple Silicon Macs. CI cannot cover live audio, the microphone prompt, the GUI or CAT.
 
 ```

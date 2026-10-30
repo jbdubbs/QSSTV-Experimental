@@ -184,6 +184,21 @@ out=$(env -u DISPLAY -u WAYLAND_DISPLAY -u QT_QPA_PLATFORM "$QSSTV" --help 2>&1)
 n=$(env -u DISPLAY -u WAYLAND_DISPLAY -u QT_QPA_PLATFORM "$QSSTV" --list-modes 2>&1 | grep -c JB60)
 [ "$n" = 1 ] && ok "--list-modes lists JB60" || bad "--list-modes"
 
+# --encode must not write the SSTV / DRM tab it switched to: a DRM encode left DRM saved, and the next SSTV --encode (same settings)
+# stopped with "could not start the transmission". The macOS CI hit it, because settings there ignore $HOME.
+echo "== --encode and the saved SSTV / DRM tab"
+if "$QSSTV" --encode "$HERE/../drm/card160.png" --drm --drm-mode B --drm-qam 16 --drm-size 6000 --wav-out "$T/drmenc.wav" >/dev/null 2>&1; then
+  "$QSSTV" --encode "$HERE/../jb60_loopback/images/card.png" --mode JB60 --wav-out "$T/afterdrm.wav" >/dev/null 2>&1
+  expect_exit "SSTV --encode after a DRM --encode" 0 $?
+else bad "DRM --encode"; fi
+if [ "$(uname)" = Linux ]; then   # a GUI that was left in DRM: write the saved tab by hand (Linux settings follow XDG_CONFIG_HOME)
+  mkdir -p "$XDG_CONFIG_HOME/qsstv-experimental"
+  printf '[MAIN]\ntransmissionModeIndex=1\n' > "$XDG_CONFIG_HOME/qsstv-experimental/qsstv-experimental.conf"
+  "$QSSTV" --encode "$HERE/../jb60_loopback/images/card.png" --mode JB60 --wav-out "$T/fromdrm.wav" >/dev/null 2>&1
+  expect_exit "SSTV --encode when the saved tab is DRM" 0 $?
+  grep -q '^transmissionModeIndex=1' "$XDG_CONFIG_HOME/qsstv-experimental/qsstv-experimental.conf" && ok "the saved tab is still DRM" || bad "--encode changed the saved tab"
+fi
+
 echo
 echo "passed $pass, failed $fail"
 [ $fail = 0 ]
