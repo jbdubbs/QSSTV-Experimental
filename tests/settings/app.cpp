@@ -253,9 +253,7 @@ int main(int argc, char **argv)
     quint32 r = 12345;
     for (int y = 0; y < big.height(); y++)
       for (int x = 0; x < big.width(); x++) {r = r * 1664525u + 1013904223u; big.setPixel(x, y, 0xff000000u | (r >> 8));}
-    // Hybrid is checked again by now. With it on, a picture in DRM mode crashes the program in hybridCrypt::reverseString()
-    // (it writes to the indexes of an empty QString, which only Qt 5 allowed): not what this test is about
-    hybrid->setChecked(false);
+    // Hybrid is on (it was restored): a picture in DRM mode works out the transmit time through hybridCrypt (issue #155)
     QString bigFile = scratch + "/noise.png";
     big.save(bigFile);
     tx->openImage(bigFile, false, true, false, false);   // like File > Open: the viewer tells the TX tab

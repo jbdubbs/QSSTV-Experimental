@@ -1,4 +1,5 @@
 #include "hybridcrypt.h"
+#include <algorithm>
 #include <QDebug>
 #include "configparams.h"
 #include "QResource"
@@ -179,13 +180,7 @@ bool hybridCrypt::deCrypt(QByteArray *ba)
 
 void hybridCrypt::reverseString(QString & s)
 {
-  int i,j;
-  QString t;
-  for (i=0,j=s.length()-1;i<s.length();i++,j--)
-    {
-      t[j]=s[i];
-    }
-  s=t;
+  std::reverse(s.begin(),s.end());
 }
 
 bool hybridCrypt::getParam(QString resultStr)
