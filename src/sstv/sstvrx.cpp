@@ -349,7 +349,9 @@ void sstvRx::process()
       scopeViewerData->addData(SCDATA3,syncProcPtr->currentModePtr->debugStatePtr,syncProcPtr->sampleCounter,RXSTRIPE);
 #endif
       advanceBuffers();
-      if(syncProcPtr->tempOutOfSync)
+      // (not in the stripe that got a new clock: the picture has been cleared and is decoded again from its start in SLANTADJUST, which
+      // WAITFORSYNC would skip and leave the picture empty; the freeze is taken up when the picture has been decoded again)
+      if(syncProcPtr->tempOutOfSync && SSTVState==PROCESSING)
         {
           bufferIdx=bufferVideoDemod.getReadIndex();
           switchState(WAITFORSYNC);
