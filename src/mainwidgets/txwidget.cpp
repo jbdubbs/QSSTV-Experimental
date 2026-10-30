@@ -43,11 +43,13 @@ static const QString gpsGreenBox="background-color: rgba(0,200,0,90); border: 1p
   The style sheet of the GPS button, with the font of the button in it. A style sheet without a font makes the button take the
   application font (11 pt) instead of the 8 pt of this tab at its first repolish, the first click, and keep it when the sheet is
   removed: the text grew inside the same box. The button therefore always has a sheet, an empty box is the plain button.
+  The base is the sheet the button got from styleToolButtons(): Windows gives its tool buttons a white face, and a sheet that
+  replaced it would take that look away from this button (a later rule of the same selector wins, :hover and :disabled still show).
 */
-static QString gpsSheet(const QFont &font,const QString &box)
+static QString gpsSheet(const QString &base,const QFont &font,const QString &box)
 {
   const QString size=font.pointSizeF()>0?QString("%1pt").arg(font.pointSizeF()):QString("%1px").arg(font.pixelSize());
-  return QString("QToolButton { font-family: \"%1\"; font-size: %2; %3 }").arg(font.family(),size,box);
+  return base+QString("QToolButton { font-family: \"%1\"; font-size: %2; %3 }").arg(font.family(),size,box);
 }
 
 
@@ -122,10 +124,12 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   connect(ui->lonLineEdit,SIGNAL(editingFinished ()),SLOT(slotPositionEdited()));
   connect(ui->placeLineEdit,SIGNAL(editingFinished ()),SLOT(slotGetParams()));
   gpsButtonFont=ui->gpsToolButton->font();   // taken before any style sheet, see gpsSheet()
+  gpsBaseSheet=ui->gpsToolButton->styleSheet();
+  snapshotBaseSheet=ui->snapshotToolButton->styleSheet();
   QSize gpsHint;
   for(const QString &box:{gpsRedBox,gpsGreenBox,QString()})   // ends plain: the look of a GPS that is off
     {
-      ui->gpsToolButton->setStyleSheet(gpsSheet(gpsButtonFont,box));
+      ui->gpsToolButton->setStyleSheet(gpsSheet(gpsBaseSheet,gpsButtonFont,box));
       gpsHint=gpsHint.expandedTo(ui->gpsToolButton->sizeHint());   // border and padding differ with the color
     }
   ui->gpsToolButton->setFixedSize(gpsHint);   // one size for every color, or the row and the window would be resized
@@ -1581,13 +1585,13 @@ void txWidget::updateBeaconUi()
       painter.fillRect(pm.rect(),QColor(0,200,0,130));
       painter.end();
       icon=QIcon(pm);
-      ui->snapshotToolButton->setStyleSheet("QToolButton { background-color: rgba(0,200,0,70); border: 1px solid rgb(0,140,0); border-radius: 4px; }");
+      ui->snapshotToolButton->setStyleSheet(snapshotBaseSheet+"QToolButton { background-color: rgba(0,200,0,70); border: 1px solid rgb(0,140,0); border-radius: 4px; }");
       ui->snapshotToolButton->setToolTip(QString("WA8LMF Beacon Mode every %1 min - click to stop").arg(beaconMinutes));
     }
   else
     {
       icon=QIcon(":/icons/tb_camera.png");
-      ui->snapshotToolButton->setStyleSheet(QString());
+      ui->snapshotToolButton->setStyleSheet(snapshotBaseSheet);
       ui->snapshotToolButton->setToolTip("Camera picture or WA8LMF Beacon Mode");
     }
   ui->snapshotToolButton->setIcon(icon);
@@ -1820,7 +1824,7 @@ void txWidget::updateGpsButton()
       box=gpsRedBox;
       tip="Red: position read by hand (right-click). Click: read before each transmission";
     }
-  ui->gpsToolButton->setStyleSheet(gpsSheet(gpsButtonFont,box));
+  ui->gpsToolButton->setStyleSheet(gpsSheet(gpsBaseSheet,gpsButtonFont,box));
   ui->gpsToolButton->setToolTip(tip);
   ui->gpsToolButton->setStatusTip(tip);
   gpsAutoAction->setEnabled(usable);

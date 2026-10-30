@@ -217,6 +217,8 @@ private:
   bool startWaitPosition=false;      // the Start button was pressed, the position is still coming: slotGpsFix() or slotPlaceReady() starts the transmission
   bool gpsAutoRead=false;       // the GPS button is green: the GPS is read before each transmission (saved as TX/gpsAutoRead)
   QFont gpsButtonFont;          // the font of the GPS button before it got a style sheet, kept in every sheet
+  QString gpsBaseSheet;         // the sheet styleToolButtons() gave the GPS button (empty except on Windows): the sheets of its colors come after it
+  QString snapshotBaseSheet;    // the same for the camera / beacon button
   QMenu *gpsMenu=nullptr;               // right-click menu of the GPS button ...
   QAction *gpsReadAction=nullptr;       // ... read the position now
   QAction *gpsAutoAction=nullptr;       // ... and the switch between green and red

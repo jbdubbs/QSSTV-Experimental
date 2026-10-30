@@ -18,6 +18,7 @@
 #include "imageviewer.h"
 #include "mainwindow.h"
 #include "templatedoc.h"
+#include "supportfunctions.h"
 #include "gpsreader.h"
 #include "nmeaparser.h"
 #include "placelookup.h"
@@ -450,6 +451,53 @@ int main(int argc, char **argv)
       const QString want = QString("%1 %2px").arg(wanted.family()).arg(wanted.pixelSize());
       check(plainFont == want && redFont == want && greenFont == want && fontOf() == want && gpsButton->styleSheet().contains("font-size"),
             QString("and the colors keep the text size (%1; plain %2, red %3, green %4)").arg(want, plainFont, redFont, greenFont));
+    }
+
+    {
+      // Windows gives every tool button a white face (toolButtonSheet(), applied by styleToolButtons()). The GPS and the camera button
+      // used to replace that sheet with their own and lost the face. Emulated here with the real Windows sheet as their base: the style
+      // sheet cascade is the same on every platform. The face is read at the left edge, away from the text and the icon.
+      QToolButton *snapButton = txw->findChild<QToolButton *>("snapshotToolButton");
+      check(snapButton != nullptr, "(the camera button)");
+      if (!snapButton) return 1;
+      const QString win = toolButtonSheet(), keepGps = txw->gpsBaseSheet, keepSnap = txw->snapshotBaseSheet;
+      const auto face = [&](QToolButton *b) {
+        QTest::qWait(50);
+        const QImage im = b->grab().toImage();
+        return QColor(im.pixel(2, im.height() / 2));
+      };
+      const auto white = [](const QColor &c) {return c.red() > 240 && c.green() > 240 && c.blue() > 240;};
+      txw->gpsBaseSheet = txw->snapshotBaseSheet = win;
+      gpsEnabled = false;
+      txw->updateGpsButton();
+      const QColor gpsOff = face(gpsButton);
+      check(gpsButton->styleSheet().startsWith(win) && white(gpsOff), QString("on Windows a GPS that is off keeps the white face (%1)").arg(gpsOff.name()));
+      gpsEnabled = true;
+      txw->updateGpsButton();
+      const QColor gpsRed = face(gpsButton);
+      check(gpsButton->styleSheet().startsWith(win) && gpsRed.red() > gpsRed.green() + 40, QString("red is still red over it (%1)").arg(gpsRed.name()));
+      txw->gpsAutoRead = true;
+      txw->updateGpsButton();
+      const QColor gpsGreen = face(gpsButton);
+      check(gpsButton->styleSheet().startsWith(win) && gpsGreen.green() > gpsGreen.red() + 40, QString("and green is still green (%1)").arg(gpsGreen.name()));
+      txw->gpsAutoRead = false;
+      txw->updateGpsButton();
+      txw->beaconRunning = false;
+      txw->updateBeaconUi();
+      const QColor camOff = face(snapButton);
+      check(snapButton->styleSheet() == win && white(camOff), QString("the camera button keeps the white face when no beacon runs (%1)").arg(camOff.name()));
+      txw->beaconRunning = true;
+      txw->updateBeaconUi();
+      const QColor camGreen = face(snapButton);
+      check(snapButton->styleSheet().startsWith(win) && camGreen.green() > camGreen.red() + 20, QString("and is green while the beacon runs (%1)").arg(camGreen.name()));
+      txw->beaconRunning = false;
+      txw->updateBeaconUi();
+      check(snapButton->styleSheet() == win, "and gets the face back when it stops");
+      txw->gpsBaseSheet = keepGps;
+      txw->snapshotBaseSheet = keepSnap;
+      txw->updateGpsButton();
+      txw->updateBeaconUi();
+      check(snapButton->styleSheet() == keepSnap && !gpsButton->styleSheet().contains("QToolButton{background-color:white"), "without that base (every other platform) the sheets are as before");
     }
 
     // the menu: the switch and the manual read
