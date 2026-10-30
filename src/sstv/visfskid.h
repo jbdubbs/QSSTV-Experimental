@@ -3,6 +3,7 @@
 #include "appglobal.h"
 #include <QObject>
 #include "sstvparam.h"
+#include "tonefilters.h"
 
 
 #define FSKMIN1500 ((SAMPLERATE*100)/1000)
@@ -135,23 +136,6 @@ public:
 signals:
   void visCodeWideDetected(int,uint);
 private:
-  struct biquad
-  {
-    double b0,b1,b2,a1,a2,z1,z2;
-    void lowpass(double f,double q);
-    void highpass(double f,double q);
-    double run(double x);
-    void clear() {z1=z2=0;}
-  };
-  struct tank   // two pole resonator, rectifier and a 50 Hz low-pass: the strength of one tone
-  {
-    double a0,b1,b2,z1,z2,scale;
-    uint t50;                 // samples a tone needs to bring the strength to half of its end value
-    biquad lp;
-    void init(double f,double bw);
-    double run(double x);
-    void clear();
-  };
   enum evstate {IDLE,STARTBIT,BITS,STOP};
   /**
    * One set of tone detectors and the state of a code being read with them. A transmitter or a receiver that is some tens of Hz off
@@ -160,7 +144,7 @@ private:
    */
   struct bank
   {
-    tank t1080,t1200,t1320,t1900;
+    toneTank t1080,t1200,t1320,t1900;
     evstate state;
     uint runStart;            // localPos where d1200 stayed over the start bit level
     uint onset;               // localPos of the estimated beginning of the start bit (when the bits are read)
@@ -191,7 +175,7 @@ private:
     uint due;             // localPos at which the code is reported
   } candidate;
 
-  biquad pre[4];            // band-pass in front of the limiter
+  toneBiquad pre[4];        // band-pass in front of the limiter
   bank banks[3];
   uint localPos;            // samples seen since the last reset; only differences are used (the sample counter jumps back on a rewind)
   uint quiet;               // samples to stay idle after a code (the same code is not read twice)

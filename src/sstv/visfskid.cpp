@@ -564,68 +564,6 @@ void visDecoder::extractNarrow()
 #define VTDELAYTRIMLEVEL 2.6           // ms; the same for a start bit found where the strength passes a level (a weak signal): that is later than where it began
 #define VTDELAYTRIM      7.2           // ms; what the code is moved by so that the first line is where the sync pulses put it (tune with tests/filedecode, tests/slant and ADOPT pulses_vs_code_ms in the trace)
 
-void visToneDecoder::biquad::lowpass(double f,double q)
-{
-  double w=2*M_PI*f/SAMPLERATE,al=sin(w)/(2*q),c=cos(w),a0=1+al;
-  b0=(1-c)/2/a0; b1=(1-c)/a0; b2=(1-c)/2/a0; a1=-2*c/a0; a2=(1-al)/a0;
-  clear();
-}
-
-void visToneDecoder::biquad::highpass(double f,double q)
-{
-  double w=2*M_PI*f/SAMPLERATE,al=sin(w)/(2*q),c=cos(w),a0=1+al;
-  b0=(1+c)/2/a0; b1=-(1+c)/a0; b2=(1+c)/2/a0; a1=-2*c/a0; a2=(1-al)/a0;
-  clear();
-}
-
-double visToneDecoder::biquad::run(double x)
-{
-  double y=b0*x+z1;
-  z1=b1*x-a1*y+z2;
-  z2=b2*x-a2*y;
-  return y;
-}
-
-void visToneDecoder::tank::init(double f,double bw)
-{
-  double r=exp(-M_PI*bw/SAMPLERATE);
-  b1=2*r*cos(2*M_PI*f/SAMPLERATE);
-  b2=-r*r;
-  a0=sin(2*M_PI*f/SAMPLERATE)/((SAMPLERATE/6.0)/bw);
-  lp.lowpass(50,0.70710678);
-  scale=1;
-  clear();
-  // the strength of a limited tone (a square wave) at the middle of the resonator is 1
-  double d=1;
-  for(int i=0;i<SAMPLERATE/2;i++) d=run(sin(2*M_PI*f*i/SAMPLERATE)>=0?1.:-1.);
-  scale=1./d;
-  clear();
-  t50=0;
-  for(int i=0;i<SAMPLERATE/10;i++)
-    {
-      if(run(sin(2*M_PI*f*i/SAMPLERATE)>=0?1.:-1.)>=0.5)
-        {
-          t50=i;
-          break;
-        }
-    }
-  clear();
-}
-
-double visToneDecoder::tank::run(double x)
-{
-  double y=a0*x+b1*z1+b2*z2;
-  z2=z1;
-  z1=y;
-  return lp.run(fabs(y))*scale;
-}
-
-void visToneDecoder::tank::clear()
-{
-  z1=z2=0;
-  lp.clear();
-}
-
 visToneDecoder::visToneDecoder()
 {
   pre[0].highpass(700,0.70710678);
