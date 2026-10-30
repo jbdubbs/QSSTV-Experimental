@@ -142,7 +142,8 @@ bool rxFunctions::rxBusy()
   switch (transmissionModeIndex)
     {
     case TRXDRM:
-      return drmBusy;
+      // drmBusy is only refreshed while the receiver runs: a stopped receiver keeps the value it had (#153)
+      return !isIdle() && drmBusy;
       break;
     case TRXSSTV:
       return sstvRxPtr->isBusy();
