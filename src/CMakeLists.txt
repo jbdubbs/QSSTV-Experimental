@@ -287,6 +287,7 @@ set(QSSTV_SOURCES
     config/waterfallconfig.cpp
     utils/hybridcrypt.cpp
     sstv/visfskid.cpp
+    sstv/synctrain.cpp
     dsp/filters.cpp
     dsp/filter.cpp
     widgets/drmsegmentsview.cpp

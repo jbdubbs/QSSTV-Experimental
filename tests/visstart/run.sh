@@ -3,14 +3,19 @@
 #
 # The receiver used to start a picture at the first pulse of a chain of sync pulses, and the VIS code only gave the mode. With
 # the first lines in noise the picture started late, and everything below moved up by as many rows as there were lost lines
-# (MMSSTV starts at the end of the VIS code and shows those lines as noise). Each case transmits a picture through the real
+# (MMSSTV starts at the end of the VIS code and shows those lines as noise). It now starts the picture at the VIS code (DETECT
+# via=vis-start, 2026-10-29) and runs it by the clock; a chain of pulses that forms later refines its position. Each case transmits a picture through the real
 # transmitter (qsstv-experimental --encode), sinks the signal into noise right after the VIS code for N lines (wavtool.py
 # fade), and decodes it headless with the real receiver (--batch). Checks:
-#   - N lines in the noise: one picture, started via the VIS code, N lines recovered (trace field backfill_lines), and the
-#     rows below the noise are where they are in the same picture decoded without the noise (no vertical move at all)
+#   - N lines in the noise: one picture, started via the VIS code, and the rows below the noise are where they are in the same
+#     picture decoded without the noise (no vertical move at all)
 #   - a dip in the 1900 Hz leader of the VIS code (50 and 80 ms of the 300 ms) does not hide the code
-#   - a VIS code that no picture follows is forgotten after a while: a picture of another mode that comes 40 s later is
-#     received whole (before, the receiver stayed held to the first mode and lost most of it)
+#   - a VIS code that no picture follows: the picture it started runs on, and the VIS code of a picture of another mode that
+#     comes 40 s later ends it and is received whole (before, the receiver stayed held to the first mode and lost most of it)
+#   - the same in noise (0 dB SNR) with the first lines of the second picture lost: the code of the second picture is accepted
+#     while the first picture runs (it was checked against the mode of the first picture and thrown away, 2026-10-29: a real
+#     Martin 1 that came after a Scottie 2 that was never sent was lost) and the picture starts at its code, not at its pulses,
+#     in the right place (the code was taken to be 0.68 s earlier than it was, by the amount the receiver takes its buffers back)
 #   - control: a VIS code destroyed by the noise gives a picture found by its sync pulses only, not moved back
 # With RXTRACE_WAV=<recording from tests/rxtrace/capture.sh> a real recording of band noise is checked as well: it must not
 # contain a single VIS code.
@@ -30,6 +35,7 @@ WAVTOOL=$HERE/../fade/wavtool.py
 command -v ffmpeg >/dev/null || { echo "ffmpeg is needed to scale the test picture"; exit 2; }
 REAL_HOME=$HOME
 py() { HOME=$REAL_HOME python3 "$WAVTOOL" "$@"; }     # the app below runs with a throw-away HOME; python keeps yours
+hfn() { HOME=$REAL_HOME python3 "$HERE/../sensitivity/hfnoise.py" "$@"; }
 python3 -c "import numpy, PIL" 2>/dev/null || { echo "python3 with numpy and Pillow is needed"; exit 2; }
 
 T=$(mktemp -d)
@@ -73,8 +79,9 @@ for spec in ${VISSTART_CASES:-M1:8 M1:16 R36:30 PD120:10 S1:12 MP73:10 MC110-N:8
   via=$(fld "$tr" DETECT via); bf=$(fld "$tr" DETECT backfill_lines)
   r=$(py rows "$T/clean_$m"/*.png "$T/o_$spec"/*.png 0 0.5 --px 6)
   bot=$(echo "$r" | sed 's/.*bottom \([0-9.]*\).*/\1/')
-  if [ "$via" = vis ] && [ "$bf" = "$n" ] && ge "$bot" 0.9; then ok "$spec: started at the VIS code, $bf lines recovered ($r)"
-  else bad "$spec: via=$via, backfill_lines=$bf (want $n), rows: $r"; fi
+  if [ "$via" = vis-start ] && ge "$bot" 0.9; then ok "$spec: started at the VIS code, the $n lines in the noise are there ($r)"
+  elif [ "$m" = MC110-N ] && [ "$via" = vis ] && [ "$bf" = "$n" ] && ge "$bot" 0.9; then ok "$spec: narrow code, found by its pulses and moved back, $bf lines recovered ($r)"   # the narrow code is still read from the frequency (strong signals only)
+  else bad "$spec: via=$via, backfill_lines=$bf, rows: $r"; fi
 done
 
 echo "== a dip in the 1900 Hz leader of the VIS code"
@@ -83,19 +90,38 @@ prepare M1 && for spec in 1.25:0.05 1.22:0.08; do
   py fade "$T/M1.wav" "$T/d_$spec.wav" --start $st --ramp 0.002 --hold $hold --floor-db 60 --snr 25 --seed 3
   dec "$T/d_$spec.wav" "$T/od_$spec"
   tr="$T/od_$spec/trace.tsv"
-  if [ "$(npng "$T/od_$spec")" = 1 ] && [ "$(fld "$tr" DETECT via)" = vis ]; then ok "${hold}s dip at ${st}s: the VIS code is received"
-  else bad "${hold}s dip at ${st}s: $(npng "$T/od_$spec") pictures, via=$(fld "$tr" DETECT via) (want vis)"; fi
+  if [ "$(npng "$T/od_$spec")" = 1 ] && [ "$(fld "$tr" DETECT via)" = vis-start ]; then ok "${hold}s dip at ${st}s: the VIS code is received"
+  else bad "${hold}s dip at ${st}s: $(npng "$T/od_$spec") pictures, via=$(fld "$tr" DETECT via) (want vis-start)"; fi
 done
 
-echo "== a VIS code that no picture follows is forgotten"
+echo "== a VIS code that no picture follows: the next VIS code ends the picture it started"
 prepare M1 && prepare S1 && {
   py join "$T/ex.wav" "$T/M1.wav" 0.0165 40 "$T/S1.wav"      # the VIS code and the first line of a Martin 1, 40 s of noise, a Scottie 1
   dec "$T/ex.wav" "$T/oe"
   tr="$T/oe/trace.tsv"
-  lines=$(fld "$tr" SAVE lines)
-  [ "$(count "$tr" VISEXPIRE)" -ge 1 ] && ok "the unanswered VIS code expired" || bad "the unanswered VIS code did not expire"
-  if [ "$(npng "$T/oe")" = 1 ] && [ "$lines" = 256 ]; then ok "the Scottie 1 that follows is received whole ($lines lines)"
-  else bad "the Scottie 1 that follows: $(npng "$T/oe") pictures, $lines lines (want 1 picture, 256 lines)"; fi
+  lines=$(grep -a -P '\tSAVE\t' "$tr" | tail -1 | tr '\t' '\n' | sed -n 's/^lines=//p')
+  last=$(grep -a -P '\tSAVE\t' "$tr" | tail -1 | tr '\t' '\n' | sed -n 's/^mode=//p')
+  [ "$(fld "$tr" DETECT via)" = vis-start ] && ok "the Martin 1 was started by its VIS code" || bad "the Martin 1 was not started by its VIS code"
+  if [ "$last" = S1 ] && [ "$lines" = 256 ]; then ok "the Scottie 1 that follows is received whole ($lines lines)"
+  else bad "the Scottie 1 that follows: last picture $last, $lines lines (want S1, 256 lines)"; fi
+}
+
+echo "== the same in noise: the code of the next picture is accepted while the first picture runs"
+prepare M1 && prepare S1 && {
+  py fade "$T/S1.wav" "$T/S1f.wav" --start 1.715 --ramp 0.002 --hold 3.5 --floor-db 60 --snr 25 --seed 3      # the first lines of the Scottie 1 are in the noise
+  py join "$T/ex2.wav" "$T/M1.wav" 0.0165 40 "$T/S1f.wav"
+  hfn noise "$T/ex2.wav" "$T/ex2n.wav" --snr 0 --seed 1 --lead 5
+  dec "$T/ex2n.wav" "$T/on"
+  tr="$T/on/trace.tsv"
+  lines=$(grep -a -P '\tSAVE\t' "$tr" | tail -1 | tr '\t' '\n' | sed -n 's/^lines=//p')
+  last=$(grep -a -P '\tSAVE\t' "$tr" | tail -1 | tr '\t' '\n' | sed -n 's/^mode=//p')
+  vis=$(grep -a -P '\tVIS\t' "$tr" | tail -1 | tr '\t' '\n' | sed -n 's/^accepted=//p')
+  via=$(grep -a -P '\tDETECT\t' "$tr" | tail -1 | tr '\t' '\n' | sed -n 's/^via=//p')
+  [ "$vis" = 1 ] && ok "the VIS code of the Scottie 1 is accepted while the Martin 1 runs" || bad "the VIS code of the Scottie 1 was thrown away (accepted=$vis)"
+  refused=$(grep -a -c -P '\tADOPT\t.*accepted=0' "$tr")
+  [ "$refused" = 0 ] && ok "the pulses of the Scottie 1 agree with the place its code puts it at" || bad "$refused chains of pulses of the Scottie 1 were refused: the picture started at the wrong place"
+  if [ "$last" = S1 ] && [ "$lines" = 256 ] && [ "$via" = vis-start ]; then ok "the Scottie 1 is started by its code and received whole ($lines lines)"
+  else bad "the Scottie 1 in noise: last picture $last, $lines lines, started via=$via (want S1, 256 lines, vis-start)"; fi
 }
 
 echo "== control: the VIS code destroyed"
@@ -104,8 +130,8 @@ prepare M1 && {
   py fade "$T/c1.wav" "$T/c2.wav" --start 1.715 --ramp 0.05 --hold 3.5 --floor-db 60 --snr 25 --seed 4
   dec "$T/c2.wav" "$T/oc"
   tr="$T/oc/trace.tsv"
-  if [ "$(npng "$T/oc")" = 1 ] && [ "$(count "$tr" VIS)" = 0 ] && [ "$(fld "$tr" DETECT via)" = sync ] && [ "$(fld "$tr" DETECT backfill_lines)" = 0 ]; then
-    ok "no VIS code: found by its sync pulses, not moved back"
+  if [ "$(npng "$T/oc")" = 1 ] && [ "$(count "$tr" VIS)" = 0 ] && { [ "$(fld "$tr" DETECT via)" = sync ] || [ "$(fld "$tr" DETECT via)" = train ]; } && [ "$(fld "$tr" DETECT backfill_lines)" = 0 ]; then
+    ok "no VIS code: found by its sync pulses (chain or train), not moved back"
   else bad "no VIS code: $(npng "$T/oc") pictures, VIS codes $(count "$tr" VIS), via=$(fld "$tr" DETECT via), backfill_lines=$(fld "$tr" DETECT backfill_lines)"; fi
 }
 

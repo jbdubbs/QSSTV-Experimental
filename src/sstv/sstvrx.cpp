@@ -73,6 +73,7 @@ void sstvRx::resetParams(bool bufferReset)
       bufferSync1200Vol.reset();
       bufferSync1900Vol.reset();
       bufferInputVol.reset();
+      bufferInputAudio.reset();
       syncNarrowProc.reset();
       syncWideProc.reset();
     }
@@ -115,6 +116,11 @@ void sstvRx::run(DSPFLOAT *dataPtr,DSPFLOAT *volumePtr)
   bufferSync1200Vol.putNoCheck(syncFilterPtr->detect1200Ptr,RXSTRIPE);
   bufferSync1900Vol.putNoCheck(syncFilterPtr->detect1900Ptr,RXSTRIPE);
   bufferInputVol.putNoCheck(volumePtr ,RXSTRIPE);
+  {
+    float audio[RXSTRIPE];
+    for(int i=0;i<RXSTRIPE;i++) audio[i]=(float)dataPtr[i];
+    bufferInputAudio.putNoCheck(audio,RXSTRIPE);
+  }
 
   while (bufferVideoDemod.count())
     {
@@ -124,6 +130,8 @@ void sstvRx::run(DSPFLOAT *dataPtr,DSPFLOAT *volumePtr)
       syncNarrowProc.syncVolumePtr =bufferSync1900Vol.readPointer();
       syncWideProc.inputVolumePtr=bufferInputVol.readPointer();
       syncNarrowProc.inputVolumePtr=bufferInputVol.readPointer();
+      syncWideProc.audioPtr=bufferInputAudio.readPointer();
+      syncNarrowProc.audioPtr=bufferInputAudio.readPointer();
 
       displaySyncEvent* ce;
       if(syncProcPtr)
@@ -174,6 +182,7 @@ void sstvRx::advanceBuffers()
   bufferSync1200Vol.skip(RXSTRIPE);
   bufferSync1900Vol.skip(RXSTRIPE);
   bufferInputVol.skip(RXSTRIPE);
+  bufferInputAudio.skip(RXSTRIPE);
 }
 
 void sstvRx::rewindBuffers(uint rlen)
@@ -184,6 +193,7 @@ void sstvRx::rewindBuffers(uint rlen)
   bufferSync1200Vol.rewind(rlen);
   bufferSync1900Vol.rewind(rlen);
   bufferInputVol.rewind(rlen);
+  bufferInputAudio.rewind(rlen);
 }
 
 
@@ -339,7 +349,9 @@ void sstvRx::process()
       scopeViewerData->addData(SCDATA3,syncProcPtr->currentModePtr->debugStatePtr,syncProcPtr->sampleCounter,RXSTRIPE);
 #endif
       advanceBuffers();
-      if(syncProcPtr->tempOutOfSync)
+      // (not in the stripe that got a new clock: the picture has been cleared and is decoded again from its start in SLANTADJUST, which
+      // WAITFORSYNC would skip and leave the picture empty; the freeze is taken up when the picture has been decoded again)
+      if(syncProcPtr->tempOutOfSync && SSTVState==PROCESSING)
         {
           bufferIdx=bufferVideoDemod.getReadIndex();
           switchState(WAITFORSYNC);
