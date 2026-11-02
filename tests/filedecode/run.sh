@@ -109,16 +109,20 @@ run -o "$T/o_two" "$T/jb2.wav"; rc=$?
 n=$(ls "$T"/o_two/*.png 2>/dev/null | wc -l | tr -d ' ')
 [ $rc = 0 ] && [ "$n" = 2 ] && ok "two pictures in one file -> $n files" || bad "two pictures in one file: exit $rc, $n files"
 
-echo "== truncated recording (45% of the picture)"
-python3 - "$T/jb.wav" "$T/trunc.wav" <<'EOF'
+echo "== truncated recording (40% and 75% of the audio)"
+# the receiver counts lines: the 40% cut reaches 46% of the 496 lines, the 75% cut well over 50%
+python3 - "$T/jb.wav" "$T/trunc.wav" "$T/trunc75.wav" <<'EOF'
 import sys
 d=open(sys.argv[1],'rb').read()
-open(sys.argv[2],'wb').write(d[:44+int((len(d)-44)*0.45)])
+open(sys.argv[2],'wb').write(d[:44+int((len(d)-44)*0.40)])
+open(sys.argv[3],'wb').write(d[:44+int((len(d)-44)*0.75)])
 EOF
-run -o "$T/o_trunc" "$T/trunc.wav"; expect_exit "truncated file still saves the partial picture" 0 $?
-# --min-complete overrides the saved "Save if Complete (%)" (default 25) for this run
-run --min-complete 40 -o "$T/o_mc40" "$T/trunc.wav"; expect_exit "--min-complete 40 keeps a 45% picture" 0 $?
-run --min-complete 60 -o "$T/o_mc60" "$T/trunc.wav"; expect_exit "--min-complete 60 drops a 45% picture" 1 $?
+# the default "Save if Complete (%)" is 50: the 75% file is kept, the 40% one (46% of the lines) is not
+run -o "$T/o_trunc" "$T/trunc75.wav"; expect_exit "truncated file (75%) still saves the partial picture" 0 $?
+run -o "$T/o_trunc40" "$T/trunc.wav"; expect_exit "the default Save if Complete (50) drops a 46% picture" 1 $?
+# --min-complete overrides the saved "Save if Complete (%)" (default 50) for this run
+run --min-complete 40 -o "$T/o_mc40" "$T/trunc.wav"; expect_exit "--min-complete 40 keeps a 46% picture" 0 $?
+run --min-complete 60 -o "$T/o_mc60" "$T/trunc.wav"; expect_exit "--min-complete 60 drops a 46% picture" 1 $?
 [ -z "$(ls "$T/o_mc60" 2>/dev/null)" ] && ok "--min-complete 60: nothing written" || bad "--min-complete 60 wrote $(ls "$T/o_mc60")"
 
 if command -v ffmpeg >/dev/null; then

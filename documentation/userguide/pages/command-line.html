@@ -57,7 +57,7 @@ messages go to the standard error.</p>
 <kbd>Ctrl</kbd>+<kbd>C</kbd> ends the program at once). If the sound input cannot be opened, or disappears while running (a USB sound card is unplugged, for example), the program says so and exits with code 2,
 so a service manager can start it again. A receiver never keys the radio: it leaves the PTT alone, so the serial port you set for PTT may be in use by a running QSSTV window, or not be there, without
 holding <code>--listen</code> (or <code>--batch</code>) up.</p>
-<p>As in the window, an interrupted or poorly received analog picture is only kept if at least <span class="ui">Save if Complete (%)</span> of its lines arrived (25 by default; see <a href="receive.html">Receiving</a>), so a noisy
+<p>As in the window, an interrupted or poorly received analog picture is only kept if at least <span class="ui">Save if Complete (%)</span> of its lines arrived (50 by default; see <a href="receive.html">Receiving</a>), so a noisy
 channel does not fill the disk with fragments. <code>--listen</code> and <code>--batch</code> read this setting, like the others, from the settings you saved in the window, and <code>--min-complete &lt;percent&gt;</code> overrides it for one run (0 to 100; 100 keeps only
 pictures that arrived in full). It applies to the picture that is cut off when you stop as well, and never changes the saved setting. DRM files are not affected: they are saved only when complete.</p>
 <table class="compact"><tr><th>Exit code</th><th>Meaning</th></tr>
@@ -93,7 +93,7 @@ never crashes the program.</p>
 <dt><code>--list-modes</code></dt><dd>Prints the short names accepted by <code>--mode</code>, with the full names (see <a href="sstv-modes.html">SSTV modes</a>).</dd>
 <dt><code>--mode &lt;mode&gt;</code></dt><dd>With <code>--batch</code>, <code>--listen</code> or <code>--decode</code>: receive only this mode instead of auto detection. With <code>--encode</code>: the mode to transmit.</dd>
 <dt><code>--install</code> / <code>--uninstall</code></dt><dd>AppImage only: add or remove the desktop menu entry and icons, then exit. See <a href="help-updates.html">Help menu, updates and desktop integration</a>.</dd>
-<dt><code>--min-complete &lt;percent&gt;</code></dt><dd>With <code>--batch</code> or <code>--listen</code>: keep an analog picture only if at least this percentage of its lines was received, instead of the <span class="ui">Save if Complete (%)</span> setting (25 by default). Use it to keep fragments of weak signals out of the output directory.</dd>
+<dt><code>--min-complete &lt;percent&gt;</code></dt><dd>With <code>--batch</code> or <code>--listen</code>: keep an analog picture only if at least this percentage of its lines was received, instead of the <span class="ui">Save if Complete (%)</span> setting (50 by default). Use it to keep fragments of weak signals out of the output directory.</dd>
 <dt><code>--list-devices</code></dt><dd>Prints the sound card inputs that <code>--device</code> accepts, one per line (the default input is marked), and exits.</dd>
 <dt><code>--audio-info</code></dt><dd>Prints every sound input and output the audio system offers the program, each with its id, a default marker and its channel and sample-rate range, and exits. Use it, and send its output, when a device is missing from <span class="ui">Options &gt; Configuration &gt; Sound</span>.</dd>
 <dt><code>-h, --help</code> and <code>-v, --version</code></dt><dd>Print the help or the version and exit.</dd>

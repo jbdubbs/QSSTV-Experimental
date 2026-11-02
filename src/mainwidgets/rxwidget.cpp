@@ -119,7 +119,7 @@ void rxWidget::readSettings()
   sstvModeIndexRx=(esstvMode)qSettings.value("sstvModeIndexRx",0).toInt();
   defaultImageFormat=qSettings.value("defaultImageFormat","png").toString();
   if(ui->defaultImageFormatComboBox->findText(defaultImageFormat)<0) defaultImageFormat="png"; // saved format no longer offered
-  minCompletion=qSettings.value("minCompletion",25).toInt();
+  minCompletion=qSettings.value("minCompletion",50).toInt();
   setParams();
   qSettings.endGroup();
 

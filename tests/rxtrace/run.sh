@@ -30,7 +30,7 @@ T=$(mktemp -d)
 trap 'rm -rf "$T"' EXIT
 export HOME=$T/home XDG_CONFIG_HOME=$T/home/.config XDG_DATA_HOME=$T/home/.local/share QT_QPA_PLATFORM=offscreen
 mkdir -p "$HOME/.config/qsstv-experimental"
-# Sensitivity High (2), Save if Complete 25 (the default): the setting on which noise got furthest
+# Sensitivity High (2), Save if Complete 25 (no longer the default, 50 is): the setting on which noise got furthest
 printf '[RX]\nsensitivity=2\nminCompletion=25\n' > "$HOME/.config/qsstv-experimental/qsstv-experimental.conf"
 TMO=$(command -v timeout || command -v gtimeout)
 # decode FILE into DIR with a trace in DIR/trace.tsv

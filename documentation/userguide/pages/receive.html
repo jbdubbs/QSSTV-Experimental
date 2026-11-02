@@ -69,7 +69,7 @@
  picture; <strong>Save if Complete</strong> only judges pictures that were cut short). A picture whose VIS code was missed is started from the rhythm of its sync pulses
  (down to about -6 dB), a few lines to some seconds after it began; the lines before that are not in the picture.</dd>
 <dt>Default Image format</dt><dd>The file format used for saved pictures (the common formats the build can write, such as png and jpg).</dd>
-<dt>Save if Complete (%)</dt><dd>Interrupted pictures are only kept if at least this percentage of the picture's lines was received. The default is 25. Headless runs can override it with <code>--min-complete</code> (see <a href="command-line.html#listen">Decode from file and command line</a>).</dd>
+<dt>Save if Complete (%)</dt><dd>Interrupted pictures are only kept if at least this percentage of the picture's lines was received. The default is 50. Headless runs can override it with <code>--min-complete</code> (see <a href="command-line.html#listen">Decode from file and command line</a>).</dd>
 <dt>Call and LOG QSO</dt><dd>When the sender includes an FSK ID, the callsign is filled in here and logged automatically. You can type a
  callsign yourself and press <span class="ui">LOG QSO</span>. The log entry is broadcast as an ADIF record over UDP to
  <code>localhost</code>, port 2333 by default, which logging programs with an ADIF UDP listener can pick up.</dd>
