@@ -171,7 +171,7 @@ bool hybridCrypt::deCrypt(QByteArray *ba)
       tempStr[3]=QChar(num4);
       result.append(QChar(tempStr.toInt(&ok,16)));
     }
-  while(charCount<baSize);
+  while(charCount+8<=baSize); // only whole groups of 4 pairs: a payload that is not 8 * n + 2 bytes long used to be read past its end (issue #156)
   reverseString(result);
   getParam(result);
   return true;

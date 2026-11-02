@@ -4,6 +4,7 @@
 #include "hybridcrypt.h"
 #include <QByteArray>
 #include <cstdio>
+#include <vector>
 
 QString hybridFtpRemoteHost, hybridFtpRemoteDirectory, hybridFtpLogin, hybridFtpPassword;
 
@@ -39,6 +40,34 @@ int main()
     check(rx.deCrypt(&ba), "deCrypt succeeds");
     check(rx.host() == "ftp.example.org" && rx.user() == "user" && rx.passwd() == "s3cret" && rx.dir() == "pics" && rx.port() == 21,
           "and gives the login back");
+  }
+
+  // Issue #156: deCrypt() read the payload in groups of 8 bytes and only checked that the size was even, so a payload of another
+  // size than 8 * n + 2 made the last group read past the end. Every length goes through an exact-size heap buffer wrapped with
+  // fromRawData() (no copy, no terminating zero), so AddressSanitizer reports any read at an index >= the length.
+  printf("== payloads of other sizes (issue #156)\n");
+  {
+    const QByteArray good = ba;
+    const int goodSize = good.size();
+    int wrongRet = 0, wrongLogin = 0;
+    for (int n = 0; n <= goodSize + 16; n++)
+      {
+        std::vector<char> v(n);
+        for (int i = 0; i < n; i++) v[i] = i < goodSize ? good.at(i) : char(0x55);
+        QByteArray in = QByteArray::fromRawData(v.data(), n);
+        hybridCrypt rx;
+        bool ret = rx.deCrypt(&in);
+        bool expect = (n - 2) % 2 == 0 && n - 2 >= 20;     // the size rules that were already there
+        if (ret != expect) wrongRet++;
+        // A truncated payload may give a wrong login, but the real one (n == goodSize) and the real one followed by an even number
+        // of pad bytes (0, 2, 4, 6) must give it back: ignoring the part of a group that is not complete costs those nothing.
+        if (n >= goodSize && n <= goodSize + 6 && (n - goodSize) % 2 == 0)
+          {
+            if (!(rx.host() == "ftp.example.org" && rx.user() == "user" && rx.passwd() == "s3cret" && rx.dir() == "pics")) wrongLogin++;
+          }
+      }
+    check(wrongRet == 0, "every length from 0 to the payload + 16 bytes: the size rules still decide true / false");
+    check(wrongLogin == 0, "the payload followed by 0, 2, 4 or 6 pad bytes still gives the login back");
   }
 
   printf("== no Hybrid settings (issue #155)\n");
