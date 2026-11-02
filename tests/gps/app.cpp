@@ -163,6 +163,8 @@ int main(int argc, char **argv)
     check(waitFor([&] {return !txw->beaconWaitPosition;}), "and goes on even though the GPS failed");
     check(txw->beaconError.contains("no valid picture"), "(it did continue)");
     check(lat->text() == "47.60620" && boxes == 0, "the last position stays and no message box blocks an unattended beacon");
+    check(!txw->findChild<QMessageBox *>("gpsNotice")->isVisible(), "and no pop-up either: nobody is there to close it");
+    check(statusBarPtr->currentMessage().contains("using the last position"), "the status bar says why instead: " + statusBarPtr->currentMessage());
     txw->stopBeacon();
 
     // the option off: nothing is asked
@@ -534,6 +536,15 @@ int main(int argc, char **argv)
   {
     QToolButton *startButton = txw->findChild<QToolButton *>("startToolButton");
     QLineEdit *place = txw->findChild<QLineEdit *>("placeLineEdit");
+    // the pop-up that follows a Start while it waits for the position (#163): not modal, closes by itself, stays when something failed
+    QMessageBox *notice = txw->findChild<QMessageBox *>("gpsNotice");
+    check(notice != nullptr, "(the position pop-up exists)");
+    if (!notice) return 1;
+    notice->close();
+    bool noticeSeen = false;
+    QTimer noticeWatch;
+    QObject::connect(&noticeWatch, &QTimer::timeout, [&] {if (notice->isVisible()) noticeSeen = true;});
+    noticeWatch.start(20);
     QString lastStatus;
     const QMetaObject::Connection statusConn = QObject::connect(statusBarPtr, &QStatusBar::messageChanged, [&](const QString &m) {if (!m.isEmpty()) lastStatus = m;});
     int fixes = 0;
@@ -618,6 +629,7 @@ int main(int argc, char **argv)
         check(!sent.isNull() && toFresh < toStale / 4, QString("and it shows the new position (distance %1 to the new, %2 to the old)").arg(toFresh).arg(toStale));
       }
     check(statusBarPtr->currentMessage().isEmpty() || !statusBarPtr->currentMessage().contains("Reading the GPS"), "the status bar message is gone");
+    check(!noticeSeen && !notice->isVisible(), "an answer within a moment never shows the pop-up");
     endTx();
 
     // red: the position in the boxes goes out as it is, and the GPS is not asked
@@ -651,7 +663,10 @@ int main(int argc, char **argv)
     waitSaved(before3);
     check(saved().size() == before3 + 1 && lat->text() == "12.5" && boxes == 0, "a failed read never stops Start: the last position goes out and no message box blocks it");
     check(lastStatus.contains("using the last position"), "the status bar says why: " + lastStatus);
+    check(notice->isVisible() && notice->text().contains("Cannot open") && notice->text().contains("last position"), "and so does the pop-up: " + notice->text());
+    check(QApplication::activeModalWidget() == nullptr, "which is not modal");
     endTx();
+    notice->close();
 
     // Stop cancels a Start that is still waiting
     gpsPort = slave;
@@ -659,13 +674,91 @@ int main(int argc, char **argv)
     const int before4 = saved().size();
     QTest::mouseClick(startButton, Qt::LeftButton);
     check(txw->startWaitPosition, "(the receiver is silent, Start waits)");
+    QTest::qWait(700);
+    check(notice->isVisible(), "(the pop-up is up)");
     txw->slotStop();
     check(!txw->startWaitPosition && startButton->isEnabled() && !statusBarPtr->currentMessage().contains("Reading the GPS"), "Stop cancels it and frees the Start button");
+    check(!notice->isVisible(), "and takes the pop-up away");
     feeding = true;
     checkWait([&] {return lat->text() == "47.60620";}, [&] {return QString("(the read still ends with the position)");});
     QTest::qWait(500);
     check(saved().size() == before4 && mainWindowPtr->busyMode() < 0, "but nothing is sent");
     waitFor([&] {return gpsButton->isEnabled();});
+
+    // #163: a receiver that is connected but silent holds Start up for the short wait only, and the pop-up says why it went without
+    printf("  (silent receiver, #163)\n");
+    {
+      feeding = false;
+      render("12.5", "-45.25");
+      loadPicture();
+      noticeSeen = false;
+      boxes = 0;
+      const int before7 = saved().size();
+      newSecond();
+      QElapsedTimer clock;
+      clock.start();
+      QTest::mouseClick(startButton, Qt::LeftButton);
+      check(txw->startWaitPosition, "(Start waits for the receiver)");
+      QTest::qWait(300);
+      check(!notice->isVisible(), "a wait that is over within a moment shows no pop-up yet");
+      QTest::qWait(700);
+      check(notice->isVisible() && notice->text().contains("Reading the GPS"), "a longer wait shows it: " + notice->text());
+      check(QApplication::activeModalWidget() == nullptr, "(not modal: nothing is blocked)");
+      checkWait([&] {return !txw->startWaitPosition;}, [&] {return QString("(the wait ended after %1 ms)").arg(clock.elapsed());}, 5000);
+      check(clock.elapsed() >= 1500 && clock.elapsed() < 3500, QString("after the short wait of 2 s, not after 10 s: %1 ms").arg(clock.elapsed()));
+      waitSaved(before7);
+      check(saved().size() == before7 + 1 && lat->text() == "12.5" && boxes == 0, "the picture went out with the last position");
+      if (saved().size() > before7)
+        {
+          const QImage sent(txSSTVImagesPath + "/" + saved().first());
+          check(distance(sent, stale) < distance(sent, fresh) / 4, "(the picture shows the last position)");
+        }
+      check(notice->isVisible() && notice->text().contains("No GPS data") && notice->text().contains("last position"), "the pop-up stays and says why: " + notice->text());
+      endTx();
+      check(notice->isVisible(), "(and is still there when the transmission is over)");
+      notice->close();
+      waitFor([&] {return gpsButton->isEnabled();});
+
+      // a receiver that answers after a second: the pop-up is up while it is read and goes by itself when the position is in
+      printf("  (a receiver that answers late)\n");
+      render("12.5", "-45.25");
+      loadPicture();
+      noticeSeen = false;
+      const int before8 = saved().size();
+      newSecond();
+      QTest::mouseClick(startButton, Qt::LeftButton);
+      QTest::qWait(1000);
+      check(notice->isVisible() && notice->text().contains("Reading the GPS"), "the pop-up is up while the GPS is read");
+      feeding = true;
+      checkWait([&] {return !txw->startWaitPosition;}, [&] {return QString("(the position arrived)");});
+      waitSaved(before8);
+      check(noticeSeen && !notice->isVisible(), "the pop-up closed by itself");
+      check(saved().size() == before8 + 1 && lat->text() == "47.60620", "and the picture has the new position");
+      endTx();
+      waitFor([&] {return gpsButton->isEnabled();});
+
+      // nothing at all comes back from the GPS side: the backstop sends the picture anyway
+      printf("  (backstop)\n");
+      feeding = false;
+      render("12.5", "-45.25");
+      loadPicture();
+      const int before9 = saved().size();
+      newSecond();
+      gpsReaderPtr->blockSignals(true);   // fixReady never reaches the Transmit tab
+      clock.restart();
+      QTest::mouseClick(startButton, Qt::LeftButton);
+      check(txw->startWaitPosition, "(Start waits, the answer will not come)");
+      checkWait([&] {return !txw->startWaitPosition;}, [&] {return QString("(the backstop ended the wait after %1 ms)").arg(clock.elapsed());}, 9000);
+      check(clock.elapsed() >= 5000 && clock.elapsed() < 8000, QString("it needs about 6 s: %1 ms").arg(clock.elapsed()));
+      waitSaved(before9);
+      check(saved().size() == before9 + 1 && lat->text() == "12.5", "the picture goes out anyway, with the last position");
+      check(notice->isVisible() && notice->text().contains("last position"), "and the pop-up says so: " + notice->text());
+      endTx();
+      notice->close();
+      gpsReaderPtr->blockSignals(false);
+      feeding = true;
+      waitFor([&] {return gpsButton->isEnabled();});
+    }
 
     // the place: Start waits for it as well
     printf("  (place)\n");
@@ -679,10 +772,32 @@ int main(int argc, char **argv)
     QTest::mouseClick(startButton, Qt::LeftButton);
     checkWait([&] {return txw->placeAwaiting;}, [&] {return QString("(the position is in, the place is being looked up)");});
     check(txw->startWaitPosition && saved().size() == before5, "Start still waits");
+    noticeSeen = false;
+    checkWait([&] {return notice->isVisible();}, [&] {return QString("(the pop-up follows the lookup: %1)").arg(notice->text());}, 1500);
+    check(notice->text().contains("place"), "it says the place is looked up: " + notice->text());
     checkWait([&] {return !txw->startWaitPosition;}, [&] {return QString("and goes on when the place is in");});
     waitSaved(before5);
     check(fake.hits == hits + 1 && place->text() == "Seattle, WA" && saved().size() == before5 + 1, "with the place in the picture (" + place->text() + ")");
+    check(noticeSeen && !notice->isVisible(), "the pop-up closed by itself");
     endTx();
+
+    // a place service that is too slow does not hold Start back for more than the short wait
+    printf("  (slow place service, #163)\n");
+    fake.delayMs = 3500;
+    sentence = nmea("GPGGA,123519,3500.000,N,10500.000,W,1,08,0.9,545.4,M,46.9,M,,");
+    const int before10 = saved().size();
+    newSecond();
+    QElapsedTimer placeClock;
+    placeClock.start();
+    QTest::mouseClick(startButton, Qt::LeftButton);
+    checkWait([&] {return !txw->startWaitPosition;}, [&] {return QString("(the wait ended after %1 ms)").arg(placeClock.elapsed());}, 6000);
+    check(placeClock.elapsed() >= 1700 && placeClock.elapsed() < 3300, QString("after about 2 s, not after the 3.5 s of the service: %1 ms").arg(placeClock.elapsed()));
+    waitSaved(before10);
+    check(saved().size() == before10 + 1 && place->text() == "Seattle, WA", "the picture goes out with the last place");
+    check(notice->isVisible() && notice->text().contains("Place lookup") && notice->text().contains("last place"), "and the pop-up says so: " + notice->text());
+    endTx();
+    notice->close();
+    fake.delayMs = 0;
 
     // a failing lookup does not hold it back either
     printf("  (failing lookup)\n");
@@ -696,7 +811,9 @@ int main(int argc, char **argv)
     checkWait([&] {return !txw->startWaitPosition;}, [&] {return QString("(the failing lookup ended the wait)");});
     waitSaved(before6);
     check(saved().size() == before6 + 1 && place->text() == "Seattle, WA" && boxes == 0, "keeping the last place and showing no message box");
+    check(notice->isVisible() && notice->text().contains("500") && notice->text().contains("last place"), "the pop-up says why: " + notice->text());
     endTx();
+    notice->close();
     fake.status = 200;
     gpsPlaceLookup = false;
     txw->gpsAutoRead = false;

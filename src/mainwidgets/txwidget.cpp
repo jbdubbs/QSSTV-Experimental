@@ -36,6 +36,19 @@
 
 static const QString gpsReadingMessage="Reading the GPS ...";   // status bar, while a Start waits for the position
 
+/*
+  A transmission never waits long for the position (#163). The GPS and, after it, the place lookup are each given this long when
+  a Start or a beacon picture asks for them; then the picture goes out with the position and place that are in the boxes. The
+  reader closes its port and the lookup aborts its request when the time is up, so no late answer changes a picture that is
+  on the air. A read by hand (Read the GPS now) has time to say what is wrong with the receiver.
+*/
+static const int gpsTxWaitMs=2000;
+static const int placeTxWaitMs=2000;
+static const int gpsManualWaitMs=10000;
+static const int placeManualWaitMs=8000;
+static const int positionBackstopMs=6000;   // the two waits and a margin: even if no answer is ever reported, Start goes after this
+static const int positionNoticeDelayMs=500; // the pop-up appears only when the wait lasts this long, so a quick answer causes no flash
+
 static const QString gpsRedBox="background-color: rgba(220,0,0,90); border: 1px solid rgb(160,0,0); border-radius: 4px; padding: 1px 1px;";
 static const QString gpsGreenBox="background-color: rgba(0,200,0,90); border: 1px solid rgb(0,140,0); border-radius: 4px; padding: 1px 1px;";
 
@@ -145,6 +158,15 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   connect(gpsAutoAction,&QAction::triggered,this,&txWidget::slotGpsToggle);
   connect(gpsReaderPtr,&gpsReader::fixReady,this,&txWidget::slotGpsFix);
   connect(placeLookupPtr,&placeLookup::placeReady,this,&txWidget::slotPlaceReady);
+  // the pop-up of a Start that waits for the position: not modal and not activated, so it never holds up or takes the keys from the transmission
+  positionNotice=new QMessageBox(QMessageBox::Information,"GPS",QString(),QMessageBox::Ok,this);
+  positionNotice->setObjectName("gpsNotice");
+  positionNotice->setWindowModality(Qt::NonModal);
+  positionNotice->setAttribute(Qt::WA_ShowWithoutActivating);
+  positionNoticeTimer.setSingleShot(true);
+  connect(&positionNoticeTimer,&QTimer::timeout,this,[this] {if(startWaitPosition && !positionFailed) positionNotice->show();});
+  startWaitTimer.setSingleShot(true);
+  connect(&startWaitTimer,&QTimer::timeout,this,&txWidget::slotPositionBackstop);
   connect(ui->xPlainTextEdit,SIGNAL(editingFinished()),SLOT(slotGetParams()));
   connect(ui->yPlainTextEdit,SIGNAL(editingFinished()),SLOT(slotGetParams()));
   connect(ui->zPlainTextEdit,SIGNAL(editingFinished()),SLOT(slotGetParams()));
@@ -543,6 +565,7 @@ void txWidget::slotStart()
         {
           // the GPS button is green: the picture is rendered with a fresh position, so it waits for it (slotGpsFix() or slotPlaceReady() carries on)
           startWaitPosition=true;
+          startWaitBegin();
           ui->startToolButton->setEnabled(false);
           statusBarPtr->showMessage(gpsReadingMessage);
           return;
@@ -813,6 +836,8 @@ void txWidget::slotStop()
   if(startWaitPosition)
     {
       startWaitPosition=false;   // Stop cancels a Start that is waiting for the position
+      startWaitEnd();
+      noticeClose();
       if(statusBarPtr->currentMessage()==gpsReadingMessage) statusBarPtr->clearMessage();
     }
   if(calTxActive) restoreAfterCalibrationTx();
@@ -1864,7 +1889,11 @@ bool txWidget::requestGps(bool manual)
       if(manual) gpsManual=true;   // a beacon read is already under way: the button joins it
       return true;
     }
-  if(!gpsReaderPtr->requestFix()) return false;
+  if(!gpsReaderPtr->requestFix(manual?gpsManualWaitMs:gpsTxWaitMs))
+    {
+      addToLog("GPS: busy with another request, not read",LOGTXMAIN);
+      return false;
+    }
   gpsAwaiting=true;
   gpsManual=manual;
   ui->gpsToolButton->setEnabled(false);
@@ -1893,12 +1922,15 @@ void txWidget::slotGpsFix(bool ok,double lat,double lon,const QString &reason)
       setValue(formatCoordinate(lat,true,gpsCoordFormat),ui->latLineEdit);
       setValue(formatCoordinate(lon,false,gpsCoordFormat),ui->lonLineEdit);
       slotGetParams();   // takes the values over and renders the template again
-      requestPlace(manual);
+      requestPlace(manual,manual?placeManualWaitMs:placeTxWaitMs);
+      if(startWaitPosition && placeAwaiting) noticeText("Looking up the place ...");
     }
   else
     {
-      addToLog(QString("GPS: %1, using the last position").arg(reason),LOGTXMAIN);
-      if(startWaitPosition) statusBarPtr->showMessage(QString("GPS: %1, using the last position").arg(reason),10000);
+      const QString message=QString("GPS: %1, using the last position").arg(reason);
+      addToLog(message,LOGTXMAIN);
+      if(!manual) statusBarPtr->showMessage(message,20000);   // a read by hand has its message box; a transmission goes on, and says so
+      if(startWaitPosition) noticeFailure(QString("GPS: %1.\nThe picture is sent with the last position.").arg(reason));
     }
   if(beaconWaitPosition && !placeAwaiting)
     {
@@ -1909,10 +1941,65 @@ void txWidget::slotGpsFix(bool ok,double lat,double lon,const QString &reason)
   if(!ok && manual) QMessageBox::warning(this,"GPS",reason);
 }
 
+// A Start waits for the position (the GPS, then the place). The pop-up is armed: it comes up when the wait lasts a moment and
+// goes by itself when everything arrives; the backstop timer sends the picture even if no answer is ever reported (#163).
+void txWidget::startWaitBegin()
+{
+  positionFailed=false;
+  positionNotice->hide();   // the failure of an earlier Start that nobody closed
+  noticeText(gpsReadingMessage);
+  positionNoticeTimer.start(positionNoticeDelayMs);
+  startWaitTimer.start(positionBackstopMs);
+}
+
+void txWidget::startWaitEnd()
+{
+  positionNoticeTimer.stop();
+  startWaitTimer.stop();
+}
+
+void txWidget::noticeText(const QString &text)
+{
+  positionNotice->setIcon(QMessageBox::Information);
+  positionNotice->setText(text);
+}
+
+void txWidget::noticeFailure(const QString &text)
+{
+  positionFailed=true;
+  positionNoticeTimer.stop();
+  positionNotice->setIcon(QMessageBox::Warning);
+  positionNotice->setText(text);
+  positionNotice->show();
+}
+
+void txWidget::noticeClose()
+{
+  positionNoticeTimer.stop();
+  positionFailed=false;
+  positionNotice->hide();
+}
+
+// neither the GPS nor the place lookup reported back in time (their own timeouts should have): the Start goes on without them
+void txWidget::slotPositionBackstop()
+{
+  if(!startWaitPosition) return;
+  addToLog("Start: no answer about the position in time, sending with the last position",LOGTXMAIN);
+  gpsAwaiting=false;   // a late answer is somebody else's result now and does not touch the picture that is on the air
+  gpsManual=false;
+  placeAwaiting=false;
+  placeManual=false;
+  ui->gpsToolButton->setEnabled(true);
+  noticeFailure("No answer about the position in time.\nThe picture is sent with the last position.");
+  startAfterPosition();
+}
+
 // the position (and the place) a Start was waiting for has arrived, or failed to: the picture is rendered with what is in the boxes now
 void txWidget::startAfterPosition()
 {
   startWaitPosition=false;
+  startWaitEnd();
+  if(!positionFailed) noticeClose();   // everything came in: the pop-up goes by itself; a failure stays until it is closed
   if(statusBarPtr->currentMessage()==gpsReadingMessage) statusBarPtr->clearMessage();
   ui->startToolButton->setEnabled(true);
   // the wait takes up to a few seconds: check that nothing started meanwhile
@@ -1930,12 +2017,12 @@ void txWidget::startAfterPosition()
   prepareTx();
 }
 
-bool txWidget::requestPlace(bool manual)
+bool txWidget::requestPlace(bool manual,int timeoutMs)
 {
   if(!gpsPlaceLookup || placeAwaiting) return false;
   double lat,lon;   // whatever the notation, as long as it is one (range included)
   if(!parseCoordinateText(imageViewerPtr->latitude,true,lat) || !parseCoordinateText(imageViewerPtr->longitude,false,lon)) return false;
-  if(!placeLookupPtr->requestPlace(lat,lon)) return false;
+  if(!placeLookupPtr->requestPlace(lat,lon,timeoutMs)) return false;
   placeKey=imageViewerPtr->latitude+"|"+imageViewerPtr->longitude;
   placeAwaiting=true;
   placeManual=manual;
@@ -1956,8 +2043,10 @@ void txWidget::slotPlaceReady(bool ok,const QString &place,const QString &reason
   else
     {
       placeKey.clear();   // the next time the position is left or read, the lookup is tried again
-      addToLog(QString("Place lookup: %1, keeping the last place").arg(reason),LOGTXMAIN);
-      if(startWaitPosition) statusBarPtr->showMessage(QString("Place lookup: %1, keeping the last place").arg(reason),10000);
+      const QString message=QString("Place lookup: %1, keeping the last place").arg(reason);
+      addToLog(message,LOGTXMAIN);
+      if(startWaitPosition || beaconRunning) statusBarPtr->showMessage(message,20000);
+      if(startWaitPosition) noticeFailure(QString("Place lookup: %1.\nThe last place is used.").arg(reason));
     }
   if(beaconWaitPosition && !gpsAwaiting)
     {
@@ -1994,5 +2083,5 @@ void txWidget::slotPositionEdited()
   if(gpsCoordFormat==COORDDEGMIN) convertPosition(COORDDEGMIN);
   slotGetParams();
   if(imageViewerPtr->latitude+"|"+imageViewerPtr->longitude==placeKey) return;
-  requestPlace(false);
+  requestPlace(false,placeManualWaitMs);   // nobody waits for this one
 }

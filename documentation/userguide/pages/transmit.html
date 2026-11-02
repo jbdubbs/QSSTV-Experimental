@@ -65,8 +65,8 @@ every time the dialog opens).</p>
 <strong>SSTV</strong> or <strong>DRM</strong> tab that is currently selected, its mode and options, the selected template (for example a call
 sign overlay) and the picture size. The camera uses the format and resolution chosen in the dialog. It is always off when the program starts.</p>
 <p>With <a href="configuration.html#gps">Configuration &gt; GPS</a> set up and the <a href="#gps">GPS button</a> green, each beacon picture is preceded by a fresh GPS reading, so a <code>%a</code>/<code>%b</code> position in the template follows a moving station.
-The beacon waits for the reading for up to 10 seconds. If the GPS has no position the beacon is sent anyway, with the position that was last in the <em>Lat</em> and <em>Long</em> boxes.
-With the <a href="configuration.html#gps">city and state lookup</a> on, the beacon also waits for the <code>%g</code> place of a new position (up to about 8 seconds more) and is sent without it when there is no answer.</p>
+The beacon waits for the reading for up to 2 seconds. If the GPS has no position the beacon is sent anyway, with the position that was last in the <em>Lat</em> and <em>Long</em> boxes, and the status bar says why.
+With the <a href="configuration.html#gps">city and state lookup</a> on, the beacon also waits for the <code>%g</code> place of a new position (up to 2 seconds more) and is sent without it when there is no answer.</p>
 <p>When a scheduled beacon picture cannot be transmitted, the countdown in the status bar is replaced by a red message, for example <em>WA8LMF Beacon Mode not sent 14:32: a picture is
 being received</em>, <em>the camera gave no picture</em>, or <em>the transmitter is busy</em>. The beacon tries again after 30 seconds and the countdown returns as soon as a
 picture is sent. If the camera is lost (unplugged, or it stops delivering pictures) the countdown is replaced by a red <em>camera problem</em> message; the beacon keeps its schedule, the program opens the camera again
@@ -84,8 +84,9 @@ the <strong>GPS</strong> button next to the boxes to read it from a GPS receiver
 <strong>Read the GPS now</strong>; if the GPS cannot be read a message says why and the boxes keep their values. <strong>Green</strong> means the GPS is read before every transmission, whether you press <strong>Start</strong>
 or <a href="#beacon">WA8LMF Beacon Mode</a> sends a picture, and the position it finds replaces what is in the boxes. Click the button to switch between red and green (the right-click menu has the same switch); the choice is
 remembered for the next start. The button starts red, so a position that you typed is never replaced until you switch it to green, and it has no color while the GPS is off.
-With the button green, <strong>Start</strong> waits a moment for the receiver (up to 10 seconds), and the <strong>Stop</strong> button cancels the wait. If the GPS has no position the picture is sent with the position that is in the boxes,
-and the status bar says so.</p>
+With the button green, <strong>Start</strong> waits a moment for the receiver (up to 2 seconds, and up to 2 seconds more for the place), and the <strong>Stop</strong> button cancels the wait. If the wait lasts longer than half a second,
+a small pop-up says that the GPS (or the place) is being read; it closes by itself when the answer is in. If there is no answer, the picture is sent anyway, with the position that is in the boxes, and the pop-up stays
+and says why, until you close it. It never blocks the program or the transmission.</p>
 <p>Set <strong>Position format</strong> in <a href="configuration.html#gps">Configuration &gt; GPS</a> to <em>Degrees and decimal minutes</em> for the notation of GPS receivers and APRS, <code>47 36.37N</code> and <code>122 19.93W</code>
 (<code>084 23.82W</code>: the longitude has three degree digits). The boxes, the GPS button and the <code>%a</code> and <code>%b</code> macros then all use it, and a position typed or pasted in any notation, such as the decimal degrees of an online map, is
 converted when you leave the box.</p>

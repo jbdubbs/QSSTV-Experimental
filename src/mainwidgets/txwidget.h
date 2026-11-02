@@ -29,6 +29,7 @@ enum etxMode {TXUPLOAD,TXBINARY,TXNORMAL};
 class drmTransmitter;
 class QAction;
 class QMenu;
+class QMessageBox;
 namespace Ui {
 class txWidget;
 }
@@ -124,6 +125,7 @@ public slots:
   void slotGetGps();
   void slotGpsToggle();
   void slotGpsFix(bool ok,double lat,double lon,const QString &reason);
+  void slotPositionBackstop();
   void slotPlaceReady(bool ok,const QString &place,const QString &reason);
   void slotPositionEdited();
   void slotSize(int fsize);
@@ -182,10 +184,20 @@ private:
   bool gpsAutoReads() const;
   //! the picture waited for the position (Start button): sends it now
   void startAfterPosition();
-  //! asks the GPS for a position; the result comes back in slotGpsFix(). false: the GPS is busy with another request
+  //! asks the GPS for a position; the result comes back in slotGpsFix(). false: the GPS is busy with another request.
+  //! A read that a transmission waits for (manual=false) is given up after a short time, a read by hand takes longer.
   bool requestGps(bool manual);
   //! asks for the city and state of the position in the Lat and Long boxes, when that lookup is on; the result comes back in slotPlaceReady()
-  bool requestPlace(bool manual);
+  bool requestPlace(bool manual,int timeoutMs);
+  //! A Start is waiting for the position: the pop-up is armed (it shows when the wait lasts) and the backstop timer runs
+  void startWaitBegin();
+  //! the wait of a Start is over (sent, or cancelled): the timers stop, the pop-up goes unless it reports a failure
+  void startWaitEnd();
+  //! the text of the pop-up (not shown before the wait has lasted a moment)
+  void noticeText(const QString &text);
+  //! the position or the place could not be had: the pop-up shows why, at once, and stays until it is closed
+  void noticeFailure(const QString &text);
+  void noticeClose();
   void startBeacon(int minutes);
   void stopBeacon();
   void updateBeaconUi();
@@ -215,6 +227,10 @@ private:
   bool beaconPending=false;     // a beacon picture is on its way through prepareTx()/startTxImage()
   bool beaconWaitPosition=false;     // the beacon picture is ready, but the position (the GPS, then the place) is still coming: slotGpsFix() or slotPlaceReady() sends it
   bool startWaitPosition=false;      // the Start button was pressed, the position is still coming: slotGpsFix() or slotPlaceReady() starts the transmission
+  QMessageBox *positionNotice=nullptr;   // non-modal pop-up for a Start that waits for the position: closes by itself, stays when the GPS or the place failed
+  bool positionFailed=false;         // the pop-up reports a failure of this Start: startAfterPosition() leaves it open
+  QTimer positionNoticeTimer;        // single shot: shows the pop-up when the wait lasts, so a quick answer causes no flash
+  QTimer startWaitTimer;             // single shot, the backstop: a Start never waits longer than this, whatever the GPS and the lookup do
   bool gpsAutoRead=false;       // the GPS button is green: the GPS is read before each transmission (saved as TX/gpsAutoRead)
   QFont gpsButtonFont;          // the font of the GPS button before it got a style sheet, kept in every sheet
   QString gpsBaseSheet;         // the sheet styleToolButtons() gave the GPS button (empty except on Windows): the sheets of its colors come after it
