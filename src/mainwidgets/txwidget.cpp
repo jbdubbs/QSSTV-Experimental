@@ -42,11 +42,11 @@ static const QString gpsReadingMessage="Reading the GPS ...";   // status bar, w
   reader closes its port and the lookup aborts its request when the time is up, so no late answer changes a picture that is
   on the air. A read by hand (Read the GPS now) has time to say what is wrong with the receiver.
 */
-static const int gpsTxWaitMs=2000;
+static const int gpsTxWaitMs=5000;
 static const int placeTxWaitMs=2000;
 static const int gpsManualWaitMs=10000;
 static const int placeManualWaitMs=8000;
-static const int positionBackstopMs=6000;   // the two waits and a margin: even if no answer is ever reported, Start goes after this
+static const int positionBackstopMs=9000;   // the two waits and a margin: even if no answer is ever reported, Start goes after this
 static const int positionNoticeDelayMs=500; // the pop-up appears only when the wait lasts this long, so a quick answer causes no flash
 
 static const QString gpsRedBox="background-color: rgba(220,0,0,90); border: 1px solid rgb(160,0,0); border-radius: 4px; padding: 1px 1px;";

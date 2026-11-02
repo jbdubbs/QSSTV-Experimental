@@ -704,8 +704,8 @@ int main(int argc, char **argv)
       QTest::qWait(700);
       check(notice->isVisible() && notice->text().contains("Reading the GPS"), "a longer wait shows it: " + notice->text());
       check(QApplication::activeModalWidget() == nullptr, "(not modal: nothing is blocked)");
-      checkWait([&] {return !txw->startWaitPosition;}, [&] {return QString("(the wait ended after %1 ms)").arg(clock.elapsed());}, 5000);
-      check(clock.elapsed() >= 1500 && clock.elapsed() < 3500, QString("after the short wait of 2 s, not after 10 s: %1 ms").arg(clock.elapsed()));
+      checkWait([&] {return !txw->startWaitPosition;}, [&] {return QString("(the wait ended after %1 ms)").arg(clock.elapsed());}, 8000);
+      check(clock.elapsed() >= 4500 && clock.elapsed() < 6500, QString("after the short wait of 5 s, not after 10 s: %1 ms").arg(clock.elapsed()));
       waitSaved(before7);
       check(saved().size() == before7 + 1 && lat->text() == "12.5" && boxes == 0, "the picture went out with the last position");
       if (saved().size() > before7)
@@ -748,8 +748,8 @@ int main(int argc, char **argv)
       clock.restart();
       QTest::mouseClick(startButton, Qt::LeftButton);
       check(txw->startWaitPosition, "(Start waits, the answer will not come)");
-      checkWait([&] {return !txw->startWaitPosition;}, [&] {return QString("(the backstop ended the wait after %1 ms)").arg(clock.elapsed());}, 9000);
-      check(clock.elapsed() >= 5000 && clock.elapsed() < 8000, QString("it needs about 6 s: %1 ms").arg(clock.elapsed()));
+      checkWait([&] {return !txw->startWaitPosition;}, [&] {return QString("(the backstop ended the wait after %1 ms)").arg(clock.elapsed());}, 12000);
+      check(clock.elapsed() >= 8000 && clock.elapsed() < 11000, QString("it needs about 9 s: %1 ms").arg(clock.elapsed()));
       waitSaved(before9);
       check(saved().size() == before9 + 1 && lat->text() == "12.5", "the picture goes out anyway, with the last position");
       check(notice->isVisible() && notice->text().contains("last position"), "and the pop-up says so: " + notice->text());
