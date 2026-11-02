@@ -1008,6 +1008,9 @@ void txWidget::updateTxTime()
 {
   int sizeKb,seconds,minutes;
   if(!imageViewerPtr->hasValidImage()) return;
+  // The time follows from the compressed data, and asking for it (calcTxTime -> initDRMImage -> copyToBuffer) waits for a
+  // background encode: that froze the GUI until the encode was done (#164). slotCompressionReady() calls this again.
+  if(imageViewerPtr->encodePending()) return;
   seconds=txFunctionsPtr->calcTxTime(false,0);
   minutes=seconds/60;
   seconds=seconds-minutes*60;
@@ -1248,7 +1251,7 @@ void txWidget::slotSizeApply()
   bool dragging=ui->sizeSlider->isSliderDown();
   if(!dragging) QApplication::setOverrideCursor(Qt::WaitCursor);
   sizeChanged=false;
-  imageViewerPtr->setAsyncEncode(true);   // AVIF searches run in the background; compressionReady() shows the result
+  imageViewerPtr->setAsyncEncode(true);   // the encode (AVIF or JPEG2000) runs in the background; compressionReady() shows the result
   imageViewerPtr->setSize(compressedSize,transmissionModeIndex==TRXDRM);
   imageViewerPtr->setAsyncEncode(false);
   if(!imageViewerPtr->encodePending())
@@ -1353,15 +1356,9 @@ void txWidget::slotImageChanged()
   uint temp;
   if(transmissionModeIndex==TRXDRM)
     {
-      if(imageViewerPtr->encoding()==imageViewer::ENCAVIF)
-        {
-          // a near-lossless AVIF encode just to find the slider range would be slow; use the raw RGB size instead
-          maxSize=imageViewerPtr->diplayedImageBytecount()*3/4;
-        }
-      else
-        {
-          maxSize=imageViewerPtr->setSize(imageViewerPtr->diplayedImageBytecount(),transmissionModeIndex==TRXDRM);
-        }
+      // a near-lossless encode just to find the slider range would block the GUI for seconds (AVIF) or a good part of
+      // one (JPEG2000, issue #164): use the raw RGB size. A size above what the codec needs gives the same picture.
+      maxSize=imageViewerPtr->diplayedImageBytecount()*3/4;
       if(maxSize>MAXDRMSIZE) maxSize=MAXDRMSIZE;
       // the range follows the picture and would move the slider with it: that is not a choice of the user. The size
       // that was chosen comes back as far as this picture allows (a blank placeholder at startup, or a small picture,

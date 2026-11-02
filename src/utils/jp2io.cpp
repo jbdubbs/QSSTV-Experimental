@@ -8,6 +8,7 @@
 
 #include <QFile>
 #include <QDir>
+#include <QTemporaryFile>
 #include <QDebug>
 
 #define JP2_RFC3745_MAGIC "\x00\x00\x00\x0c\x6a\x50\x20\x20\x0d\x0a\x87\x0a"
@@ -425,8 +426,17 @@ opj_image_t *jp2IO::convert_gray_to_rgb(opj_image_t* original)
 QByteArray jp2IO::encode(QImage qimage, QImage &newImage,int &fileSize, int compressionRatio)
 {
   QByteArray byteArray;
-  QString fn=QString("%1/%2").arg(QDir::tempPath()).arg("qsstv.tmp");
-  //  char *of=fn.toLatin1().data();
+  // A name of its own for every encode: DRM encodes run in worker threads, so a superseded one can still be going while
+  // the next starts, and two programs may share the temp directory. OpenJPEG wants a file name, so the name is reserved
+  // here and the file removed when tf goes out of scope, whatever way encode() returns.
+  QTemporaryFile tf(QDir::tempPath()+"/qsstv-XXXXXX.jp2");
+  if(!tf.open())
+    {
+      addToLog("failed to encode image: no temporary file",LOGIMAG);
+      return byteArray;
+    }
+  QString fn=tf.fileName();
+  tf.close();
   bool success;
   init();
   fileSize=0;
@@ -496,7 +506,6 @@ QByteArray jp2IO::encode(QImage qimage, QImage &newImage,int &fileSize, int comp
       opj_destroy_codec(l_codec);
       opj_image_destroy(jp2Image);
       addToLog("failed to encode image",LOGIMAG);
-      remove(parameters.outfile);
       return byteArray;
     }
 
@@ -517,8 +526,6 @@ QByteArray jp2IO::encode(QImage qimage, QImage &newImage,int &fileSize, int comp
   fi.close();
   check(fn);
   newImage=decode(fn);
-  fi.remove();
-  remove(parameters.outfile);
   return byteArray;
 }
 

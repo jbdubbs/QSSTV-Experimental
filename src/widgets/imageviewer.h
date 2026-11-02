@@ -97,7 +97,7 @@ public:
   int encoding() const {return drmEncoding;}
   //  int calcSize(int &sizeRatio);
   uint setSize(int tcommpressSize,bool usesCompression);
-  void setAsyncEncode(bool on) {asyncEncode=on;}   // setSize() runs the AVIF search in a worker thread; compressionReady() follows
+  void setAsyncEncode(bool on) {asyncEncode=on;}   // setSize() runs the DRM encode (AVIF or JPEG2000) in a worker thread; compressionReady() follows
   bool encodePending() const {return encodeJob!=nullptr;}
   enum fitModeType {FITSTRETCH,FITCROP,FITFIT,FITFREE};
   void setFitMode(int mode);   // framing of the active image / grid cell: Stretch, Crop, Fit or Free (zoom/pan)
@@ -268,6 +268,10 @@ private:
     QByteArray data;   // result, written by the worker before QThread::finished
     QImage decoded;
     int quality=0;
+    int size=0;                 // size of data
+    bool wantAvif=false;        // the codec asked for; the worker falls back to JPEG2000 when AVIF fails
+    bool avifUsed=false;        // data is AVIF (else JPEG2000)
+    bool avifFailed=false;      // AVIF was asked for but the worker had to use JPEG2000
   };
   std::shared_ptr<EncodeJob> encodeJob;   // the newest background encode, null when none is outstanding
   bool asyncEncode=false;

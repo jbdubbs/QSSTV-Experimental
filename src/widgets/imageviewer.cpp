@@ -1675,7 +1675,7 @@ int imageViewer::applyTemplate()
       // so its better to calculate the end result for 3/4 of the source imag
 
       QImage rgb=resultImage.convertToFormat(QImage::Format_RGB32);
-      if(asyncEncode && drmEncoding==ENCAVIF && avifWriteSupported())
+      if(asyncEncode)
         {
           startAsyncEncode(rgb,compRatio,framedSingle);   // slotEncodeDone() finishes the job
           return 0;
@@ -1734,9 +1734,12 @@ int imageViewer::finishCompression(bool framedSingle,int compRatio,int fileSize)
   return compressedImageData.size();
 }
 
-// ---- background AVIF encode (size slider) ----
-// The quality search takes seconds on a big picture, so the slider hands it to a worker thread and goes on. Only the
-// newest request counts: a new render cancels the running search (polled between trial encodes) and drops its result.
+// ---- background DRM encode (size slider, codec box) ----
+// An AVIF quality search takes seconds on a big picture and a JPEG2000 encode (which also decodes its own result for
+// the preview) takes a good part of a second, so the slider and the codec box hand them to a worker thread and go on.
+// Only the newest request counts: a new render drops the result of the running one. The AVIF search polls a cancel flag
+// between trial encodes and stops early; OpenJPEG has no way to stop, so a superseded JPEG2000 encode runs to its end
+// in the background (each worker has its own jp2IO and its own temp file) and its result is thrown away.
 
 void imageViewer::startAsyncEncode(const QImage &rgb,int compRatio,bool framedSingle)
 {
@@ -1747,12 +1750,27 @@ void imageViewer::startAsyncEncode(const QImage &rgb,int compRatio,bool framedSi
   job->hint=lastAvifQuality;
   job->compRatio=compRatio;
   job->framedSingle=framedSingle;
+  job->wantAvif=(drmEncoding==ENCAVIF);
   compressedImageData.clear();
   encodeJob=job;
-  statusBarPtr->showMessage("Encoding AVIF...");
+  statusBarPtr->showMessage(job->wantAvif ? "Encoding AVIF..." : "Encoding JPEG 2000...");
   job->thread=QThread::create([job]()
     {
-      job->data=avifEncode(job->rgb,job->target,&job->decoded,&job->quality,job->hint,&job->cancel);
+      if(job->wantAvif && avifWriteSupported())
+        {
+          job->data=avifEncode(job->rgb,job->target,&job->decoded,&job->quality,job->hint,&job->cancel);
+          if(job->cancel.load()) return;   // superseded: nobody reads the result
+          if(!job->data.isEmpty() && !job->decoded.isNull())
+            {
+              job->avifUsed=true;
+              job->size=job->data.size();
+              return;
+            }
+        }
+      if(job->wantAvif) job->avifFailed=true;   // AVIF was asked for: slotEncodeDone() says it fell back
+      jp2IO jp2;
+      job->decoded=QImage();
+      job->data=jp2.encode(job->rgb,job->decoded,job->size,job->compRatio);
     });
   connect(job->thread,&QThread::finished,this,[this,job]() { if(encodeJob==job) slotEncodeDone(); });
   connect(job->thread,&QThread::finished,job->thread,&QObject::deleteLater);
@@ -1778,23 +1796,24 @@ void imageViewer::slotEncodeDone()
   if(!encodeJob) return;
   std::shared_ptr<EncodeJob> job=encodeJob;
   encodeJob.reset();
-  int size=0;
-  if(!job->data.isEmpty() && !job->decoded.isNull())
+  int size=job->size;
+  compressedImageData=job->data;
+  compressedImage=job->decoded;
+  if(job->avifUsed)
     {
       compressedExt="avif";
-      compressedImageData=job->data;
-      compressedImage=job->decoded;
-      size=job->data.size();
       lastAvifQuality=job->quality;
       addToLog(QString("AVIF quality %1, %2 bytes (target %3)").arg(job->quality).arg(size).arg(job->target),LOGIMAG);
     }
   else
     {
-      addToLog("AVIF encoding failed, using JPEG2000",LOGIMAG);
-      statusBarPtr->showMessage("AVIF encoding unavailable, using JPEG2000");
-      jp2IO jp2;
       compressedExt="jp2";
-      compressedImageData=jp2.encode(job->rgb,compressedImage,size,job->compRatio);
+      if(job->avifFailed)
+        {
+          addToLog("AVIF encoding failed, using JPEG2000",LOGIMAG);
+          statusBarPtr->showMessage("AVIF encoding unavailable, using JPEG2000");
+        }
+      else addToLog(QString("JPEG2000 %1 bytes (ratio %2)").arg(size).arg(job->compRatio),LOGIMAG);
     }
   fileSize=finishCompression(job->framedSingle,job->compRatio,size);   // what setSize() would have returned
   emit compressionReady();
