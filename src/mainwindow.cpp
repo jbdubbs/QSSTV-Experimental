@@ -281,6 +281,7 @@ void mainWindow::init()
   fileWatcherPtr->init();
   // the first-run questions are modal boxes (and the update check goes to GitHub): not in a headless run, nobody could answer them (#157)
   const bool headless=fileDecoderPtr->isBatch() || headlessEncode;
+  if(!headless) txWidgetPtr->gpsSettingsChanged();   // a GPS button that was left on starts following the GPS (a headless run never opens the port)
   if(!headless && appImageIntegration::available())
     QTimer::singleShot(4000,this,&mainWindow::offerDesktopIntegration);
   if(!headless && !appImageIntegration::available())
@@ -740,7 +741,7 @@ void mainWindow::slotConfigure()
         }
       dispatcherPtr->init();
       txWidgetPtr->positionFormatChanged();
-      txWidgetPtr->updateGpsButton();   // the GPS may have been enabled or disabled
+      txWidgetPtr->gpsSettingsChanged();   // the GPS may have been enabled or disabled, or another port or baud rate chosen
     }
 }
 

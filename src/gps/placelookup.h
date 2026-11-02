@@ -29,6 +29,8 @@ public:
   */
   bool requestPlace(double lat,double lon,int timeoutMs=8000);
   bool busy() const {return pending;}
+  //! Positions closer than this (degrees, about a kilometre) have the same place: no new request is made for them
+  static constexpr double sameSpotDegrees=0.01;
   //! The service to ask (the default is OpenStreetMap); the tests point it at a server of their own
   void setServiceUrl(const QUrl &url) {serviceUrl=url;}
   QUrl service() const {return serviceUrl;}

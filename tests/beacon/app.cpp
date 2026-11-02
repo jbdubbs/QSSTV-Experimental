@@ -203,8 +203,6 @@ int main(int argc, char **argv)
 
     const struct {const char *name; bool *flag;} blockers[] = {
       {"a beacon picture on its way", &txw->beaconPending},
-      {"the beacon waiting for the position", &txw->beaconWaitPosition},
-      {"a Start waiting for the position", &txw->startWaitPosition},
       {"a calibration transmission", &txw->calTxActive},
     };
     for (const auto &bl : blockers)

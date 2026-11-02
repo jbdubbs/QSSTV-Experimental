@@ -14,7 +14,6 @@
 // Nominatim wants a User-Agent that names the application, and no more than one request a second
 static const char *defaultService="https://nominatim.openstreetmap.org/reverse";
 static const char *userAgent="QSSTV-Experimental (https://github.com/jbdubbs/QSSTV-Experimental)";
-static const double sameSpot=0.01;   // degrees, about a kilometre: a position this close to the last answered one has the same place
 
 // A template has room for about this many characters of "City, State"; a longer place is shortened (the lookup only, text typed in is left alone)
 static const int maxPlaceLength=25;
@@ -76,7 +75,7 @@ bool placeLookup::requestPlace(double lat,double lon,int timeoutMs)
 {
   if(pending) return false;
   pending=true;
-  if(haveAnswer && std::fabs(lat-cacheLat)<sameSpot && std::fabs(lon-cacheLon)<sameSpot)
+  if(haveAnswer && std::fabs(lat-cacheLat)<sameSpotDegrees && std::fabs(lon-cacheLon)<sameSpotDegrees)
     {
       const QString place=cachePlace;
       QTimer::singleShot(0,this,[this,place] {finish(true,place,QString());});

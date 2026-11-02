@@ -27,7 +27,7 @@
    <item>
     <widget class="QCheckBox" name="enableCheckBox">
      <property name="toolTip">
-      <string>Let the GPS button and the beacon read the receiver</string>
+      <string>Let the GPS button on the Transmit tab follow the receiver</string>
      </property>
      <property name="text">
       <string>Enable GPS</string>

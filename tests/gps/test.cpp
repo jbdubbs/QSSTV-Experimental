@@ -509,6 +509,176 @@ static void testPlaceLookup()
   CHECK(!pl.busy());
 }
 
+// ---- tracking: the port stays open and every position is reported ----
+
+static void pump(int ms)
+{
+  QEventLoop loop;
+  QTimer::singleShot(ms,&loop,&QEventLoop::quit);
+  loop.exec();
+}
+
+struct Track
+{
+  int positions=0;
+  double lat=0,lon=0;
+  QList<int> states;
+  QStringList reasons;
+  int last() const {return states.isEmpty()?-1:states.last();}
+};
+
+// the sentences of a receiver that sends every intervalMs: a repeating timer that writes to the master side of the pty
+struct Feeder
+{
+  Feeder(int fd,const QByteArray &line,int intervalMs) : master(fd),data(line)
+  {
+    timer.setInterval(intervalMs);
+    QObject::connect(&timer,&QTimer::timeout,[this] {if(master>=0 && ::write(master,data.constData(),data.size())<0) {}});
+  }
+  void start() {timer.start();}
+  void stop() {timer.stop();}
+  int master;
+  QByteArray data;
+  QTimer timer;
+};
+
+static void testTracking()
+{
+  QString slave;
+  int master=openPty(slave);
+  CHECK(master>=0);
+  if(master<0) return;
+  gpsReader reader;
+  reader.setTrackTimeouts(900,500);
+  Track t;
+  QObject::connect(&reader,&gpsReader::positionUpdated,[&](double lat,double lon) {t.positions++; t.lat=lat; t.lon=lon;});
+  QObject::connect(&reader,&gpsReader::trackingState,[&](int state,const QString &reason) {t.states.append(state); t.reasons.append(reason);});
+  const QByteArray good=nmea("GPGGA,123519,4736.372,N,12219.926,W,1,08,0.9,545.4,M,46.9,M,,");
+  const QByteArray noFix=nmea("GPGGA,123519,,,,,0,00,99.9,,,,,,");
+
+  // 1. nothing to track without an enabled GPS that has a port
+  const QString savedPort=gpsPort;
+  gpsPort.clear();
+  CHECK(!reader.startTracking() && !reader.tracking());
+  gpsPort=slave;
+  gpsEnabled=false;
+  CHECK(!reader.startTracking() && !reader.tracking());
+  gpsEnabled=true;
+  gpsBaud=4800;
+
+  // 2. start: waiting for the receiver at once, then a position every sentence, reported at most about once a second
+  CHECK(reader.startTracking() && reader.tracking());
+  CHECK(t.last()==gpsReader::TRACKWAITING);
+  Feeder f(master,good,100);   // ten sentences a second: more than a real receiver
+  f.start();
+  pump(2500);
+  CHECK(t.last()==gpsReader::TRACKFIXED);
+  CHECK(t.positions>=2 && t.positions<=4);   // the first at once, then one per 0.8 s
+  CHECK(near(t.lat,47.6062) && near(t.lon,-122.3321));
+  CHECK(t.states==(QList<int>{gpsReader::TRACKWAITING,gpsReader::TRACKFIXED}));   // reported on a change only, never every second
+
+  // 3. the receiver goes silent: no position now, and it says that nothing arrives; the port stays open and a position makes it green again
+  f.stop();
+  int before=t.positions;
+  pump(1500);
+  CHECK(t.last()==gpsReader::TRACKWAITING && t.reasons.last().contains("No GPS data"));
+  CHECK(t.positions==before);
+  f.start();
+  pump(500);
+  CHECK(t.last()==gpsReader::TRACKFIXED);
+  CHECK(t.positions>before);   // the first position after the gap is not held back by the throttle
+
+  // 4. sentences without a fix: waiting, and it says the receiver has no fix
+  f.data=noFix;
+  pump(1800);
+  CHECK(t.last()==gpsReader::TRACKWAITING && t.reasons.last().contains("no position fix"));
+  f.data=good;
+  pump(500);
+  CHECK(t.last()==gpsReader::TRACKFIXED);
+
+  // 5. a one-shot request (the Test button of Configuration > GPS) pauses the tracking and gives the port back afterwards
+  before=t.positions;
+  CHECK(reader.requestFix(slave,4800,3000));
+  {
+    Result r=waitFix(reader,4000);
+    CHECK(r.got && r.ok && near(r.lat,47.6062));
+  }
+  CHECK(reader.tracking());
+  pump(1500);
+  CHECK(t.last()==gpsReader::TRACKFIXED && t.positions>before);   // tracking again
+  // a one-shot request that is running when tracking starts
+  reader.stopTracking();
+  CHECK(!reader.tracking());
+  CHECK(reader.requestFix(slave,4800,3000));
+  CHECK(reader.startTracking());
+  {
+    Result r=waitFix(reader,4000);
+    CHECK(r.got && r.ok);
+  }
+  before=t.positions;
+  pump(1500);
+  CHECK(reader.tracking() && t.positions>before);
+
+  // 6. stopTracking lets go of the port: no more positions, and the port can be opened by somebody else
+  reader.stopTracking();
+  before=t.positions;
+  pump(1200);
+  CHECK(t.positions==before && !reader.tracking());
+  CHECK(reader.requestFix(slave,4800,3000));
+  { Result r=waitFix(reader,4000); CHECK(r.got && r.ok); }
+  CHECK(!reader.tracking());   // a one-shot request alone does not start the tracking
+
+  // 7. restarting a running tracking (Configuration was closed with OK) opens the port again
+  CHECK(reader.startTracking());
+  pump(300);
+  CHECK(reader.startTracking());
+  const int stateCount=t.states.size();
+  pump(1500);
+  CHECK(t.last()==gpsReader::TRACKFIXED && t.states.size()>stateCount-1);
+  f.stop();
+  reader.stopTracking();
+  ::close(master);
+  f.master=-1;
+
+  // 8. a port that is not there (a USB receiver that is not plugged in yet): failed, tried again by itself, found when it appears
+  const QString link=QString("/tmp/gps-track-link.%1").arg(::getpid());
+  ::unlink(link.toLocal8Bit().constData());
+  gpsPort=link;
+  t=Track();
+  CHECK(reader.startTracking());
+  CHECK(t.last()==gpsReader::TRACKFAILED && t.reasons.last().contains("Cannot open"));
+  QString slave2;
+  const int master2=openPty(slave2);
+  CHECK(master2>=0);
+  if(::symlink(slave2.toLocal8Bit().constData(),link.toLocal8Bit().constData())<0) {}
+  Feeder f2(master2,good,200);
+  f2.start();
+  pump(1600);   // the retry is every 500 ms in this test
+  CHECK(t.last()==gpsReader::TRACKFIXED && t.positions>=1);
+
+  // 9. the receiver is unplugged while it is tracked: failed, and when it comes back the tracking goes on
+  f2.stop();
+  f2.master=-1;
+  ::close(master2);
+  pump(300);
+  CHECK(t.last()==gpsReader::TRACKFAILED);
+  ::unlink(link.toLocal8Bit().constData());
+  QString slave3;
+  const int master3=openPty(slave3);
+  if(::symlink(slave3.toLocal8Bit().constData(),link.toLocal8Bit().constData())<0) {}
+  Feeder f3(master3,good,200);
+  f3.start();
+  t.positions=0;
+  pump(1600);
+  CHECK(t.last()==gpsReader::TRACKFIXED && t.positions>=1);
+  f3.stop();
+  f3.master=-1;
+  reader.stopTracking();
+  ::close(master3);
+  ::unlink(link.toLocal8Bit().constData());
+  gpsPort=savedPort;
+}
+
 int main(int argc,char **argv)
 {
   QCoreApplication app(argc,argv);
@@ -521,6 +691,8 @@ int main(int argc,char **argv)
   std::printf("place lookup done\n");
   std::fflush(stdout);
   testReader();
+  testTracking();
+  std::printf("tracking done\n");
   if(failures) std::printf("%d check(s) FAILED\n",failures);
   else std::printf("gps: all checks passed\n");
   return failures?1:0;

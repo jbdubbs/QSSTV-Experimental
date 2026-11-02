@@ -134,44 +134,61 @@ int main(int argc, char **argv)
   gpsEnabled = true;
   gpsPort = slave;
   gpsBaud = 4800;
-  txw->gpsAutoRead = true;   // the GPS button is green
+  txw->gpsTracking = false;   // the GPS button is off
   txw->updateGpsButton();
+  gpsReaderPtr->setTrackTimeouts(1200, 500);   // a silent receiver is noticed after 1.2 s and a port that failed is tried again every 0.5 s (5 s each in the program)
+  // the GPS button is a switch (#158): a quick on and off reads the position once. The Transmit tab's slot is connected first, so the boxes are
+  // updated when this counter goes up.
+  int positionsSeen = 0;
+  const QMetaObject::Connection positionConn = QObject::connect(gpsReaderPtr, &gpsReader::positionUpdated, [&](double, double) {positionsSeen++;});
+  auto followOnce = [&] {
+    const int n = positionsSeen;
+    if (!txw->gpsTracking) QTest::mouseClick(gpsButton, Qt::LeftButton);
+    waitFor([&] {return positionsSeen > n;});
+    if (txw->gpsTracking) QTest::mouseClick(gpsButton, Qt::LeftButton);
+  };
+  const auto plain = [&] {return !gpsButton->styleSheet().contains("background-color");};
+  const auto amber = [&] {return gpsButton->styleSheet().contains("255,170,0");};
+  const auto green = [&] {return gpsButton->styleSheet().contains("0,200,0");};
 
-  printf("\n== WA8LMF beacon: the picture waits for the position\n");
+  printf("\n== WA8LMF beacon: the picture never waits for the position (#158)\n");
   {
     // no picture is loaded, so a beacon that gets as far as sending stops with this error: that proves it carried on
     check(!tx->hasValidImage(), "(no picture on the TX tab)");
+    // the GPS button is on and the receiver is silent: there is nothing to wait for
+    feeding = false;
+    boxes = 0;
+    QTest::mouseClick(gpsButton, Qt::LeftButton);
+    check(txw->gpsTracking && gpsReaderPtr->tracking(), "(the GPS button is on, the receiver is silent)");
     txw->beaconRunning = true;
     txw->beaconError.clear();
+    txw->beaconTransmitLoaded();
+    check(txw->beaconError.contains("no valid picture"), "the beacon goes on at once, without a position: " + txw->beaconError);
+    check(lat->text().isEmpty() && boxes == 0, "(the boxes are empty, and no message box came up)");
+    txw->stopBeacon();
+
+    // a position arrives: the boxes follow, and the beacon has it
     feeding = true;
-    check(txw->gpsAutoReads(), "the beacon reads the GPS when it is set up and the button is green");
-    check(txw->requestGps(false), "(the beacon asks for a position)");
-    txw->beaconTransmitLoaded();
-    check(txw->beaconWaitPosition && txw->beaconError.isEmpty(), "while the position is being read, the beacon waits");
-    check(waitFor([&] {return !txw->beaconWaitPosition;}), "and goes on when it arrives");
-    check(lat->text() == "47.60620" && lon->text() == "-122.33210", "with the position in the boxes (" + lat->text() + ", " + lon->text() + ")");
-    check(txw->beaconError.contains("no valid picture"), "and the beacon continued: " + txw->beaconError);
-    txw->stopBeacon();
-
-    // no position: the beacon is not held up and the old position stays
-    gpsPort = "/dev/does-not-exist-gps";
+    checkWait([&] {return lat->text() == "47.60620" && lon->text() == "-122.33210";}, [&] {return "(a position arrives: " + lat->text() + ", " + lon->text() + ")";});
     txw->beaconRunning = true;
     txw->beaconError.clear();
-    check(txw->requestGps(false), "(the beacon asks again, the port is gone)");
     txw->beaconTransmitLoaded();
-    check(txw->beaconWaitPosition, "the beacon waits again");
-    check(waitFor([&] {return !txw->beaconWaitPosition;}), "and goes on even though the GPS failed");
-    check(txw->beaconError.contains("no valid picture"), "(it did continue)");
-    check(lat->text() == "47.60620" && boxes == 0, "the last position stays and no message box blocks an unattended beacon");
-    check(!txw->findChild<QMessageBox *>("gpsNotice")->isVisible(), "and no pop-up either: nobody is there to close it");
-    check(statusBarPtr->currentMessage().contains("using the last position"), "the status bar says why instead: " + statusBarPtr->currentMessage());
+    check(txw->beaconError.contains("no valid picture") && tx->latitude == "47.60620", "the beacon goes on with the position that is there");
     txw->stopBeacon();
 
-    // the option off: nothing is asked
+    // the receiver is gone: the beacon does not mind
+    gpsPort = "/dev/does-not-exist-gps";
+    txw->gpsSettingsChanged();
+    txw->beaconRunning = true;
+    txw->beaconError.clear();
+    txw->beaconTransmitLoaded();
+    check(txw->beaconError.contains("no valid picture") && lat->text() == "47.60620" && boxes == 0, "nor when the port cannot be opened: the last position stays and no message box blocks an unattended beacon");
+    txw->stopBeacon();
+
+    // the button off again; the boxes are emptied for the next sections
     gpsPort = slave;
-    txw->gpsAutoRead = false;
-    check(!txw->gpsAutoReads(), "with the button red the beacon does not use the GPS");
-    txw->gpsAutoRead = true;
+    QTest::mouseClick(gpsButton, Qt::LeftButton);
+    check(!txw->gpsTracking && !gpsReaderPtr->tracking(), "(the GPS button is off)");
     lat->setText("");
     lon->setText("");
     txw->slotGetParams();
@@ -231,35 +248,37 @@ int main(int argc, char **argv)
 
     // from the GPS
     feeding = true;
-    txw->gpsReadAction->trigger();   // "Read the GPS now": the old click of the button
-    check(!gpsButton->isEnabled(), "the GPS button is off while the position is being read");
+    followOnce();   // switched on and off again: one reading
     checkWait([&] {return lat->text() == "47.60620";}, [&] {return "the GPS button fills in the latitude (" + lat->text() + ")";});
     check(lon->text() == "-122.33210", "and the longitude (" + lon->text() + ")");
-    check(waitFor([&] {return gpsButton->isEnabled();}), "and is on again");
+    check(!txw->gpsTracking && !lat->isReadOnly(), "(the button is off again and the boxes are free)");
     check(tx->latitude == "47.60620" && tx->longitude == "-122.33210", "the template values follow");
     check(*tx->getDisplayedImage() != typed, "and the picture is rendered again");
 
     // a south-west position is signed
     sentence = nmea("GPGGA,123519,3351.000,S,15112.000,E,1,08,0.9,545.4,M,46.9,M,,");
-    txw->gpsReadAction->trigger();   // "Read the GPS now": the old click of the button
+    followOnce();
     checkWait([&] {return lat->text() == "-33.85000" && lon->text() == "151.20000";}, [&] {return "southern and eastern positions come out signed (" + lat->text() + ", " + lon->text() + ")";});
   }
 
-  printf("\n== failures of the GPS button\n");
+  printf("\n== a GPS that cannot be read\n");
   {
     feeding = false;
     boxes = 0;
     gpsPort = "/dev/does-not-exist-gps";
-    txw->gpsReadAction->trigger();   // "Read the GPS now": the old click of the button
-    checkWait([&] {return boxes > 0;}, [&] {return "an unusable port gives a message: " + lastBox;});
-    check(lastBox.contains("Cannot open"), "that names the problem");
-    check(lat->text() == "-33.85000" && gpsButton->isEnabled(), "the boxes keep their values and the button is usable again");
+    QTest::mouseClick(gpsButton, Qt::LeftButton);
+    check(txw->gpsTracking && amber() && statusBarPtr->currentMessage().contains("Cannot open"), "an unusable port: amber, and the status bar names the problem: " + statusBarPtr->currentMessage());
+    QTest::qWait(300);
+    check(boxes == 0 && lat->text() == "-33.85000", "no message box, and the boxes keep their values");
+    QTest::mouseClick(gpsButton, Qt::LeftButton);
+    check(!txw->gpsTracking && !gpsReaderPtr->tracking() && plain(), "a click switches it off");
 
     boxes = 0;
     gpsEnabled = false;
-    txw->gpsReadAction->trigger();   // "Read the GPS now": the old click of the button
+    QTest::mouseClick(gpsButton, Qt::LeftButton);
     checkWait([&] {return boxes > 0 && lastBox.contains("not enabled");}, [&] {return "with the GPS disabled the button says so: " + lastBox;});
     gpsEnabled = true;
+    gpsPort = slave;
   }
 
   printf("\n== city and state (%%g)\n");
@@ -277,8 +296,8 @@ int main(int argc, char **argv)
     sentence = nmea("GPGGA,123519,4736.372,N,12219.926,W,1,08,0.9,545.4,M,46.9,M,,");
 
     // off: the position stays on the computer
-    txw->gpsReadAction->trigger();   // "Read the GPS now": the old click of the button
-    checkWait([&] {return lat->text() == "47.60620" && gpsButton->isEnabled();}, [&] {return "(the GPS button reads the position, " + lat->text() + ")";});
+    followOnce();
+    checkWait([&] {return lat->text() == "47.60620";}, [&] {return "(the GPS button reads the position, " + lat->text() + ")";});
     QTest::qWait(300);
     check(fake.hits == 0 && place->text().isEmpty(), "with the lookup off nothing is asked and the Place box stays empty");
 
@@ -313,7 +332,7 @@ int main(int argc, char **argv)
 
     // on: the GPS button finds the place of the position
     gpsPlaceLookup = true;
-    txw->gpsReadAction->trigger();   // "Read the GPS now": the old click of the button
+    followOnce();
     checkWait([&] {return place->text() == "Seattle, WA";}, [&] {return "the GPS button also fills in the place (" + place->text() + ")";});
     check(fake.hits == 1 && fake.lastRequest.contains("lat=47.60620") && fake.lastRequest.contains("lon=-122.33210"), "that asked the service for the position");
     check(tx->place == "Seattle, WA", "the template value follows");
@@ -350,58 +369,55 @@ int main(int argc, char **argv)
     emit lon->editingFinished();
     checkWait([&] {return place->text() == "Seattle, WA";}, [&] {return "leaving a box again tries the lookup again (" + place->text() + ")";});
 
-    // the GPS button says what went wrong
-    fake.status = 500;
-    sentence = nmea("GPGGA,123519,3351.000,S,15112.000,E,1,08,0.9,545.4,M,46.9,M,,");
-    boxes = 0;
-    txw->gpsReadAction->trigger();   // "Read the GPS now": the old click of the button
-    checkWait([&] {return boxes > 0;}, [&] {return "the GPS button reports a failed lookup: " + lastBox;});
-    check(lastBox.contains("500") && lat->text() == "-33.85000" && place->text() == "Seattle, WA", "with the position taken and the place kept");
+    // followed by the GPS: the place changes only when the position leaves the area of the last lookup (#158)
+    txw->placeFailedAt.invalidate();
     fake.status = 200;
-
-    // the beacon sends the picture after the place has arrived (the TX tab holds a picture by now: marked as not valid, a beacon that
-    // gets as far as sending stops with an error instead of transmitting)
-    tx->setValidImage(false);
-    fake.body = missoula;
-    fake.delayMs = 700;
+    fake.body = seattle;
+    place->setText("My Town, XX");
+    emit place->editingFinished();
     sentence = nmea("GPGGA,123519,4736.372,N,12219.926,W,1,08,0.9,545.4,M,46.9,M,,");
-    QString shown;
-    QObject::connect(txw, &txWidget::beaconCountdownChanged, txw, [&](const QString &text, bool) {shown = text;});
-    txw->beaconRunning = true;
-    txw->beaconError.clear();
-    check(txw->requestGps(false), "(the beacon asks for a position)");
-    txw->beaconTransmitLoaded();
-    check(txw->beaconWaitPosition, "the beacon waits for the position");
-    checkWait([&] {return txw->placeAwaiting;}, [&] {return QString("(the position is in, the place is being looked up)");});
-    txw->slotBeaconTick();
-    check(txw->beaconWaitPosition && txw->beaconError.isEmpty() && shown.contains("looking up the place"), "and then for the place: " + shown);
-    checkWait([&] {return !txw->beaconWaitPosition;}, [&] {return QString("the beacon goes on");});
-    check(place->text() == "Missoula, MT" && txw->beaconError.contains("no valid picture"), "once the place is in the picture (" + place->text() + ")");
-    txw->stopBeacon();
-    fake.delayMs = 0;
+    int hits = fake.hits;
+    QTest::mouseClick(gpsButton, Qt::LeftButton);
+    checkWait([&] {return lat->text() == "47.60620" && fake.hits == hits + 1 && !txw->placeAwaiting;}, [&] {return QString("(switched on: the first position asks for the place, %1 requests)").arg(fake.hits - hits);});
+    check(place->text() == "Seattle, WA", "and it is in the box (" + place->text() + ")");
+    place->setText("My Town, XX");
+    emit place->editingFinished();
+    sentence = nmea("GPGGA,123519,4736.500,N,12219.900,W,1,08,0.9,545.4,M,46.9,M,,");   // a few hundred metres on
+    checkWait([&] {return lat->text() == "47.60833";}, [&] {return "(the receiver moves a little: " + lat->text() + ")";});
+    QTest::qWait(2500);
+    check(fake.hits == hits + 1 && place->text() == "My Town, XX", "a position in the same area asks nothing and keeps a place that was typed in");
+    fake.body = missoula;
+    sentence = nmea("GPGGA,123519,4652.326,N,11359.640,W,1,08,0.9,545.4,M,46.9,M,,");   // 46.8721, -113.994: another city
+    checkWait([&] {return place->text() == "Missoula, MT";}, [&] {return "a position in another area looks the place up again (" + place->text() + ")";});
+    check(fake.hits == hits + 2, "with one request");
 
-    // a lookup that fails never holds the beacon back
+    // the service fails: no message box, one line in the status bar, and no new request every second while the receiver moves on
     fake.status = 500;
-    sentence = nmea("GPGGA,123519,3351.000,S,15112.000,E,1,08,0.9,545.4,M,46.9,M,,");
     boxes = 0;
-    txw->beaconRunning = true;
-    txw->beaconError.clear();
-    check(txw->requestGps(false), "(the beacon asks again, the service is failing)");
-    txw->beaconTransmitLoaded();
-    checkWait([&] {return !txw->beaconWaitPosition;}, [&] {return QString("the beacon goes on without a place");});
-    check(txw->beaconError.contains("no valid picture") && place->text() == "Missoula, MT" && boxes == 0, "keeping the last place and showing no message box");
-    txw->stopBeacon();
+    statusBarPtr->clearMessage();
+    sentence = nmea("GPGGA,123519,4030.000,N,10030.000,W,1,08,0.9,545.4,M,46.9,M,,");
+    hits = fake.hits;
+    checkWait([&] {return fake.hits == hits + 1 && !txw->placeAwaiting;}, [&] {return QString("(the service answers with an error, %1 requests)").arg(fake.hits - hits);});
+    check(place->text() == "Missoula, MT" && boxes == 0, "a failed lookup keeps the place and shows no message box");
+    check(statusBarPtr->currentMessage().contains("500") && statusBarPtr->currentMessage().contains("keeping the last place"), "the status bar says why: " + statusBarPtr->currentMessage());
+    sentence = nmea("GPGGA,123519,3000.000,N,09000.000,W,1,08,0.9,545.4,M,46.9,M,,");
+    checkWait([&] {return lat->text() == "30.00000";}, [&] {return "(the receiver moves on: " + lat->text() + ")";});
+    QTest::qWait(2500);
+    check(fake.hits == hits + 1, "and the next try waits: no request every second while the service fails (" + QString::number(fake.hits - hits) + " more)");
     fake.status = 200;
+    QTest::mouseClick(gpsButton, Qt::LeftButton);
+    check(!txw->gpsTracking, "(off)");
+    txw->placeFailedAt.invalidate();
+    lat->setText("-33.85000");   // the sections after this one expect these boxes
+    lon->setText("151.20000");
+    txw->slotGetParams();
   }
 
   // the two sections about the GPS button change the boxes; the section after them expects them as they are now
   const QString keepLat = lat->text(), keepLon = lon->text(), keepPlace = txw->findChild<QLineEdit *>("placeLineEdit")->text();
 
-  printf("\n== the GPS button: green reads before each transmission, red by hand (#148)\n");
+  printf("\n== the GPS button: one switch, the position follows the GPS (#158)\n");
   {
-    QToolButton *startButton = txw->findChild<QToolButton *>("startToolButton");
-    check(startButton != nullptr, "(the Start button)");
-    if (!startButton) return 1;
     // the font of the button as it is drawn now (the style sheet is repolished when the event loop runs)
     const auto fontOf = [&] {
       QTest::qWait(50);
@@ -410,49 +426,114 @@ int main(int argc, char **argv)
     };
     gpsPort = slave;
     gpsEnabled = false;
-    txw->gpsAutoRead = false;
+    txw->gpsTracking = false;
     txw->updateGpsButton();
-    check(!gpsButton->styleSheet().contains("background-color") && gpsButton->toolTip().contains("off"), "with the GPS off the button has no color: " + gpsButton->toolTip());
+    check(plain() && gpsButton->toolTip().contains("off"), "with the GPS off in Configuration the button has no color: " + gpsButton->toolTip());
     boxes = 0;
     QTest::mouseClick(gpsButton, Qt::LeftButton);
     checkWait([&] {return boxes > 0 && lastBox.contains("not enabled");}, [&] {return "and a click says so: " + lastBox;});
-    check(!txw->gpsAutoRead && !txw->gpsAutoReads(), "without switching anything");
-
+    check(!txw->gpsTracking && !gpsReaderPtr->tracking(), "without switching anything on");
     gpsEnabled = true;
     txw->updateGpsButton();   // what the main window does after the Configuration dialog
-    check(gpsButton->styleSheet().contains("220,0,0") && !txw->gpsAutoAction->isChecked(), "with the GPS on the button is red (by hand)");
-    check(!txw->gpsAutoReads(), "and nothing is read before a transmission: " + gpsButton->toolTip());
+    check(plain() && gpsButton->toolTip().contains("follow") && !lat->isReadOnly(), "with the GPS set up and the button off it is plain too, never red: " + gpsButton->toolTip());
+    check(gpsButton->contextMenuPolicy() != Qt::CustomContextMenu && gpsButton->actions().isEmpty() && gpsButton->menu() == nullptr, "and there is no right-click menu (a touch screen has none)");
+
+    // on, with a receiver that says nothing: amber, and the boxes are the GPS's
+    boxes = 0;
+    feeding = false;
     QTest::mouseClick(gpsButton, Qt::LeftButton);
-    check(txw->gpsAutoRead && txw->gpsAutoReads() && gpsButton->styleSheet().contains("0,200,0") && txw->gpsAutoAction->isChecked(), "a click makes it green: " + gpsButton->toolTip());
+    check(txw->gpsTracking && gpsReaderPtr->tracking(), "a click switches it on");
+    check(amber() && !green(), "amber while no position arrives: " + gpsButton->toolTip());
+    check(lat->isReadOnly() && lon->isReadOnly() && lat->toolTip().contains("GPS"), "Lat and Long cannot be typed in while it is on");
+    QTest::keyClicks(lat, "9");
+    check(lat->text() != "9" && !lat->text().endsWith("9"), "(a key typed into the box does nothing)");
+    checkWait([&] {return statusBarPtr->currentMessage().contains("No GPS data");}, [&] {return "the status bar says why there is no position: " + statusBarPtr->currentMessage();});
+
+    // a position arrives: green, and the boxes follow it without any transmission
+    sentence = nmea("GPGGA,123519,4736.372,N,12219.926,W,1,08,0.9,545.4,M,46.9,M,,");
+    feeding = true;
+    checkWait([&] {return green() && lat->text() == "47.60620";}, [&] {return "a position turns it green and fills the boxes (" + lat->text() + ", " + lon->text() + ")";});
+    check(lon->text() == "-122.33210" && tx->latitude == "47.60620" && tx->longitude == "-122.33210", "and the template values follow");
+    check(!amber() && gpsButton->toolTip().contains("Following"), "(" + gpsButton->toolTip() + ")");
+    // it goes on updating, every second or two
+    sentence = nmea("GPGGA,123519,4736.500,N,12219.000,W,1,08,0.9,545.4,M,46.9,M,,");
+    QElapsedTimer follow;
+    follow.start();
+    checkWait([&] {return lat->text() == "47.60833" && lon->text() == "-122.31667";}, [&] {return "a new position follows by itself (" + lat->text() + ", " + lon->text() + ")";}, 3000);
+    check(follow.elapsed() < 2500, QString("within a second or two (%1 ms)").arg(follow.elapsed()));
+    int seen = positionsSeen;
+    QTest::qWait(2100);
+    check(positionsSeen - seen >= 2 && positionsSeen - seen <= 3, QString("about one position a second reaches the Transmit tab, not every sentence (%1 in 2.1 s)").arg(positionsSeen - seen));
+
+    // the receiver is lost: amber again, the last position stays; it comes back: green
+    feeding = false;
+    checkWait([&] {return amber();}, [&] {return QString("when the position stops the button turns amber");}, 4000);
+    check(lat->text() == "47.60833", "and the boxes keep the last position");
+    feeding = true;
+    checkWait([&] {return green();}, [&] {return QString("and green again when it is back");});
+
+    // off: plain, the boxes keep what they have and can be typed in again
     QTest::mouseClick(gpsButton, Qt::LeftButton);
-    check(!txw->gpsAutoRead && gpsButton->styleSheet().contains("220,0,0") && !txw->gpsAutoAction->isChecked(), "and the next click makes it red again");
-    check(gpsButton->contextMenuPolicy() == Qt::CustomContextMenu && txw->gpsMenu->actions().size() == 2 && gpsButton->actions().isEmpty(), "the right-click menu has two entries and gives the button no menu arrow");
+    check(!txw->gpsTracking && !gpsReaderPtr->tracking() && plain(), "the next click switches it off and the button is plain");
+    check(!lat->isReadOnly() && !lon->isReadOnly() && lat->toolTip() == txw->latBoxTip && lat->text() == "47.60833", "the boxes can be typed in again and keep their values");
+    seen = positionsSeen;
+    sentence = nmea("GPGGA,123519,3351.000,S,15112.000,E,1,08,0.9,545.4,M,46.9,M,,");
+    QTest::qWait(1500);
+    check(positionsSeen == seen && lat->text() == "47.60833", "and the GPS is no longer read (the port is closed)");
+
+    // a quick on and off is a single update
+    followOnce();
+    check(lat->text() == "-33.85000" && lon->text() == "151.20000" && !txw->gpsTracking && !gpsReaderPtr->tracking(), "a quick on and off reads the position once (" + lat->text() + ", " + lon->text() + ")");
+
+    // the receiver is not there: amber, a message in the status bar and no message box
+    gpsPort = "/dev/does-not-exist-gps";
+    boxes = 0;
+    QTest::mouseClick(gpsButton, Qt::LeftButton);
+    check(txw->gpsTracking && amber() && statusBarPtr->currentMessage().contains("Cannot open"), "with a port that is not there it is amber and the status bar says so: " + statusBarPtr->currentMessage());
+    QTest::qWait(300);
+    check(boxes == 0 && lat->text() == "-33.85000", "without a message box, and the boxes keep their values");
+    // the port is there again (a USB receiver plugged in): found by itself
+    gpsPort = slave;
+    txw->gpsSettingsChanged();   // Configuration > GPS closed with OK
+    checkWait([&] {return green();}, [&] {return QString("after Configuration > GPS names a working port it is green");});
+    // the GPS is switched off in Configuration: the tracking stops, the button is remembered as on
+    gpsEnabled = false;
+    txw->gpsSettingsChanged();
+    check(!gpsReaderPtr->tracking() && plain() && txw->gpsTracking && !lat->isReadOnly(), "disabling the GPS in Configuration stops it and releases the boxes");
+    gpsEnabled = true;
+    txw->gpsSettingsChanged();
+    checkWait([&] {return gpsReaderPtr->tracking() && green();}, [&] {return QString("and enabling it again starts following again, as the button was left on");});
+    QTest::mouseClick(gpsButton, Qt::LeftButton);
+    check(!txw->gpsTracking && !gpsReaderPtr->tracking(), "(off)");
 
     {
       // the colored button must not make the Transmit tab (and with it the window) wider: the row is as wide as the widest one
       gpsEnabled = false;
       txw->updateGpsButton();
-      const int plain = txw->minimumSizeHint().width(), plainButton = gpsButton->sizeHint().width();
+      const int plainWidth = txw->minimumSizeHint().width(), plainButton = gpsButton->sizeHint().width();
       const QString plainFont = fontOf();
       gpsEnabled = true;
+      txw->gpsTracking = true;
+      txw->gpsTrackState = gpsReader::TRACKWAITING;
       txw->updateGpsButton();
-      const int red = txw->minimumSizeHint().width(), redButton = gpsButton->sizeHint().width();
-      const QString redFont = fontOf();
-      txw->gpsAutoRead = true;
+      const int amberWidth = txw->minimumSizeHint().width(), amberButton = gpsButton->sizeHint().width();
+      const QString amberFont = fontOf();
+      txw->gpsTrackState = gpsReader::TRACKFIXED;
       txw->updateGpsButton();
-      const int green = txw->minimumSizeHint().width(), greenButton = gpsButton->sizeHint().width();
+      const int greenWidth = txw->minimumSizeHint().width(), greenButton = gpsButton->sizeHint().width();
       const QString greenFont = fontOf();
-      txw->gpsAutoRead = false;
+      txw->gpsTracking = false;
+      txw->gpsTrackState = -1;
       txw->updateGpsButton();
-      check(red == plain && green == plain && gpsButton->minimumSize() == gpsButton->maximumSize(), QString("the colors do not widen the Transmit tab (%1 px plain, %2 red, %3 green; the button %4, %5, %6)")
-            .arg(plain).arg(red).arg(green).arg(plainButton).arg(redButton).arg(greenButton));
+      check(amberWidth == plainWidth && greenWidth == plainWidth && gpsButton->minimumSize() == gpsButton->maximumSize(), QString("the colors do not widen the Transmit tab (%1 px plain, %2 amber, %3 green; the button %4, %5, %6)")
+            .arg(plainWidth).arg(amberWidth).arg(greenWidth).arg(plainButton).arg(amberButton).arg(greenButton));
       // the text keeps its size in every color and after every switch (#152: the first repolish of the style sheet changed the font of
       // the button from the 8 pt of the tab to the application font). Offscreen the button is never polished, so this guards the
       // sheet (it carries the font) but cannot show the original jump; that was measured on the real platform.
       const QFontInfo wanted(txw->gpsButtonFont);
       const QString want = QString("%1 %2px").arg(wanted.family()).arg(wanted.pixelSize());
-      check(plainFont == want && redFont == want && greenFont == want && fontOf() == want && gpsButton->styleSheet().contains("font-size"),
-            QString("and the colors keep the text size (%1; plain %2, red %3, green %4)").arg(want, plainFont, redFont, greenFont));
+      check(plainFont == want && amberFont == want && greenFont == want && fontOf() == want && gpsButton->styleSheet().contains("font-size"),
+            QString("and the colors keep the text size (%1; plain %2, amber %3, green %4)").arg(want, plainFont, amberFont, greenFont));
     }
 
     {
@@ -476,13 +557,19 @@ int main(int argc, char **argv)
       check(gpsButton->styleSheet().startsWith(win) && white(gpsOff), QString("on Windows a GPS that is off keeps the white face (%1)").arg(gpsOff.name()));
       gpsEnabled = true;
       txw->updateGpsButton();
-      const QColor gpsRed = face(gpsButton);
-      check(gpsButton->styleSheet().startsWith(win) && gpsRed.red() > gpsRed.green() + 40, QString("red is still red over it (%1)").arg(gpsRed.name()));
-      txw->gpsAutoRead = true;
+      const QColor gpsNeutral = face(gpsButton);
+      check(gpsButton->styleSheet().startsWith(win) && white(gpsNeutral), QString("so does a GPS that is set up and not followed (%1)").arg(gpsNeutral.name()));
+      txw->gpsTracking = true;
+      txw->gpsTrackState = gpsReader::TRACKWAITING;
+      txw->updateGpsButton();
+      const QColor gpsAmber = face(gpsButton);
+      check(gpsButton->styleSheet().startsWith(win) && gpsAmber.red() > gpsAmber.blue() + 40 && gpsAmber.green() > gpsAmber.blue() + 20, QString("amber is still amber over it (%1)").arg(gpsAmber.name()));
+      txw->gpsTrackState = gpsReader::TRACKFIXED;
       txw->updateGpsButton();
       const QColor gpsGreen = face(gpsButton);
       check(gpsButton->styleSheet().startsWith(win) && gpsGreen.green() > gpsGreen.red() + 40, QString("and green is still green (%1)").arg(gpsGreen.name()));
-      txw->gpsAutoRead = false;
+      txw->gpsTracking = false;
+      txw->gpsTrackState = -1;
       txw->updateGpsButton();
       txw->beaconRunning = false;
       txw->updateBeaconUi();
@@ -502,53 +589,32 @@ int main(int argc, char **argv)
       check(snapButton->styleSheet() == keepSnap && !gpsButton->styleSheet().contains("QToolButton{background-color:white"), "without that base (every other platform) the sheets are as before");
     }
 
-    // the menu: the switch and the manual read
-    txw->gpsAutoAction->trigger();
-    check(txw->gpsAutoRead && gpsButton->styleSheet().contains("0,200,0"), "the menu switch makes it green");
-    txw->gpsAutoAction->trigger();
-    check(!txw->gpsAutoRead && gpsButton->styleSheet().contains("220,0,0"), "and red");
-    lat->setText("12.5");
-    lon->setText("-45.25");
-    emit lat->editingFinished();
-    feeding = true;
-    sentence = nmea("GPGGA,123519,4736.372,N,12219.926,W,1,08,0.9,545.4,M,46.9,M,,");
-    txw->gpsReadAction->trigger();
-    checkWait([&] {return lat->text() == "47.60620" && lon->text() == "-122.33210";}, [&] {return "'Read the GPS now' fills the boxes (" + lat->text() + ", " + lon->text() + ")";});
-    check(!txw->gpsAutoRead, "and leaves the button red");
-    waitFor([&] {return gpsButton->isEnabled();});
-
-    // remembered with the TX settings, red when nothing was saved
-    txw->gpsAutoRead = true;
+    // remembered with the TX settings, off when nothing was saved
+    txw->gpsTracking = true;
     txw->writeSettings();
     QSettings qs;
-    check(qs.value("TX/gpsAutoRead").toBool(), "the mode is saved with the TX settings");
-    txw->gpsAutoRead = false;
+    check(qs.value("TX/gpsAutoRead").toBool(), "the switch is saved with the TX settings");
+    txw->gpsTracking = false;
     txw->readSettings();
-    check(txw->gpsAutoRead && gpsButton->styleSheet().contains("0,200,0"), "and restored at the next start, green again");
+    check(txw->gpsTracking && !gpsReaderPtr->tracking(), "and restored at the next start (reading the settings opens no port: a headless run never does)");
+    txw->gpsSettingsChanged();   // what the main window does once it is up, unless the run is headless
+    checkWait([&] {return gpsReaderPtr->tracking() && green();}, [&] {return QString("which starts following the GPS again, green");});
     qs.remove("TX/gpsAutoRead");
     txw->readSettings();
-    check(!txw->gpsAutoRead && gpsButton->styleSheet().contains("220,0,0"), "with nothing saved the button starts red: a typed position is not replaced");
-    txw->gpsAutoRead = false;
-    txw->updateGpsButton();
+    txw->gpsSettingsChanged();
+    check(!txw->gpsTracking && !gpsReaderPtr->tracking() && plain() && !lat->isReadOnly(), "with nothing saved the button starts off: a typed position is not replaced");
   }
 
-  printf("\n== the Start button reads the GPS first when the button is green (#148)\n");
+  printf("\n== Start and the beacon never wait for the GPS (#158, #163)\n");
   {
     QToolButton *startButton = txw->findChild<QToolButton *>("startToolButton");
     QLineEdit *place = txw->findChild<QLineEdit *>("placeLineEdit");
-    // the pop-up that follows a Start while it waits for the position (#163): not modal, closes by itself, stays when something failed
-    QMessageBox *notice = txw->findChild<QMessageBox *>("gpsNotice");
-    check(notice != nullptr, "(the position pop-up exists)");
-    if (!notice) return 1;
-    notice->close();
-    bool noticeSeen = false;
-    QTimer noticeWatch;
-    QObject::connect(&noticeWatch, &QTimer::timeout, [&] {if (notice->isVisible()) noticeSeen = true;});
-    noticeWatch.start(20);
+    check(startButton != nullptr, "(the Start button)");
+    if (!startButton) return 1;
+    check(txw->findChild<QMessageBox *>("gpsNotice") == nullptr, "(there is no position pop-up any more: nothing waits)");
+    int boxesBefore = 0;
     QString lastStatus;
     const QMetaObject::Connection statusConn = QObject::connect(statusBarPtr, &QStatusBar::messageChanged, [&](const QString &m) {if (!m.isEmpty()) lastStatus = m;});
-    int fixes = 0;
-    const QMetaObject::Connection fixConn = QObject::connect(gpsReaderPtr, &gpsReader::fixReady, [&](bool, double, double, const QString &) {fixes++;});
 
     // the picture that was handed to the transmitter is saved: that is what is checked
     saveTXimages = true;
@@ -589,6 +655,15 @@ int main(int argc, char **argv)
       txw->slotStop();
       waitFor([&] {return mainWindowPtr->busyMode() < 0;}, 4000);
     };
+    // presses Start and returns how long it took until the picture was with the transmitter; -1: it never came
+    auto startAndTime = [&](const int count) -> qint64 {
+      newSecond();
+      QElapsedTimer clock;
+      clock.start();
+      QTest::mouseClick(startButton, Qt::LeftButton);
+      if (!waitSaved(count)) return -1;
+      return clock.elapsed();
+    };
 
     {
       // the template that shows %a and %b (a later test section selected another one)
@@ -599,229 +674,117 @@ int main(int argc, char **argv)
     }
     loadPicture();
     gpsPlaceLookup = false;
+    gpsPort = slave;
     const QImage stale = render("12.5", "-45.25");
     const QImage fresh = render("47.60620", "-122.33210");
-    check(distance(stale, fresh) > 20000, "(the old and the new position give different pictures)");
+    const QImage blank = render("", "");
+    check(distance(stale, fresh) > 20000 && distance(blank, fresh) > 20000, "(the old, the new and no position give different pictures)");
     render("12.5", "-45.25");
     loadPicture();
 
-    // green, a good fix
-    txw->gpsAutoRead = true;
-    gpsPort = slave;
-    txw->updateGpsButton();
+    // the button is on and the receiver sends: the boxes are current, Start sends at once with them
     feeding = true;
-    fixes = 0;
-    const int before = saved().size();
-    newSecond();
-    QTest::mouseClick(startButton, Qt::LeftButton);
-    check(txw->startWaitPosition && !startButton->isEnabled(), "Start waits for the position");
-    check(statusBarPtr->currentMessage().contains("Reading the GPS"), "and says so in the status bar: " + statusBarPtr->currentMessage());
-    check(lat->text() == "12.5" && saved().size() == before, "nothing has gone out yet, the boxes still hold the old position");
-    QTest::mouseClick(startButton, Qt::LeftButton);   // a second press while waiting
-    checkWait([&] {return !txw->startWaitPosition;}, [&] {return QString("(the position arrived)");});
-    check(lat->text() == "47.60620" && lon->text() == "-122.33210", "the boxes hold the position of the GPS (" + lat->text() + ", " + lon->text() + ")");
-    waitSaved(before);
-    check(saved().size() == before + 1 && fixes == 1, QString("one picture was handed to the transmitter, one read (%1 pictures, %2 reads)").arg(saved().size() - before).arg(fixes));
+    sentence = nmea("GPGGA,123519,4736.372,N,12219.926,W,1,08,0.9,545.4,M,46.9,M,,");
+    QTest::mouseClick(gpsButton, Qt::LeftButton);
+    checkWait([&] {return lat->text() == "47.60620";}, [&] {return "(the GPS button is on and the boxes follow, " + lat->text() + ")";});
+    int before = saved().size();
+    boxesBefore = boxes;
+    qint64 ms = startAndTime(before);
+    check(ms >= 0 && ms < 2500, QString("Start sends at once (%1 ms)").arg(ms));
+    check(startButton->isEnabled() || mainWindowPtr->busyMode() >= 0, "(the Start button was never held back)");
     if (saved().size() > before)
       {
         const QImage sent(txSSTVImagesPath + "/" + saved().first());
         const qint64 toFresh = distance(sent, fresh), toStale = distance(sent, stale);
-        check(!sent.isNull() && toFresh < toStale / 4, QString("and it shows the new position (distance %1 to the new, %2 to the old)").arg(toFresh).arg(toStale));
+        check(!sent.isNull() && toFresh < toStale / 4, QString("with the position of the GPS (distance %1 to the new, %2 to the old)").arg(toFresh).arg(toStale));
       }
-    check(statusBarPtr->currentMessage().isEmpty() || !statusBarPtr->currentMessage().contains("Reading the GPS"), "the status bar message is gone");
-    check(!noticeSeen && !notice->isVisible(), "an answer within a moment never shows the pop-up");
+    endTx();
+    check(boxes == boxesBefore, "(no message box)");
+
+    // the receiver goes silent while the button is on: Start does not wait for it, the last position goes out
+    feeding = false;
+    checkWait([&] {return amber();}, [&] {return QString("(the receiver is silent: amber)");}, 4000);
+    before = saved().size();
+    ms = startAndTime(before);
+    check(ms >= 0 && ms < 2500, QString("with a silent receiver Start still sends at once (%1 ms)").arg(ms));
+    check(lat->text() == "47.60620" && boxes == boxesBefore, "with the last position, and no message box");
+    if (saved().size() > before)
+      {
+        const QImage sent(txSSTVImagesPath + "/" + saved().first());
+        check(distance(sent, fresh) < distance(sent, stale) / 4, "(the picture shows the last position)");
+      }
     endTx();
 
-    // red: the position in the boxes goes out as it is, and the GPS is not asked
+    // the port is gone altogether
+    gpsPort = "/dev/does-not-exist-gps";
+    txw->gpsSettingsChanged();
+    check(amber() && txw->gpsTracking, "(the port is gone: amber)");
+    before = saved().size();
+    ms = startAndTime(before);
+    check(ms >= 0 && ms < 2500 && boxes == boxesBefore, QString("a port that cannot be opened does not hold Start either (%1 ms)").arg(ms));
+    endTx();
+
+    // no position at all yet: the picture is sent without one
+    render("", "");
+    loadPicture();
+    before = saved().size();
+    ms = startAndTime(before);
+    check(ms >= 0 && ms < 2500, QString("with no position at all Start sends too (%1 ms)").arg(ms));
+    if (saved().size() > before)
+      {
+        const QImage sent(txSSTVImagesPath + "/" + saved().first());
+        check(distance(sent, blank) < distance(sent, fresh) / 4, "without the position in the picture");
+      }
+    endTx();
+
+    // the beacon is not held up either (no picture is loaded, so a beacon that gets as far as sending stops with this error)
+    tx->setValidImage(false);
+    txw->beaconRunning = true;
+    txw->beaconError.clear();
+    txw->beaconTransmitLoaded();
+    check(txw->beaconError.contains("no valid picture"), "the beacon does not wait for the GPS: " + txw->beaconError);
+    txw->stopBeacon();
+    loadPicture();
+
+    // the button off: the typed position goes out as it is, and the GPS is not read
+    QTest::mouseClick(gpsButton, Qt::LeftButton);
+    check(!txw->gpsTracking && !gpsReaderPtr->tracking(), "(the GPS button is off)");
+    gpsPort = slave;
+    feeding = true;
     render("12.5", "-45.25");
-    txw->gpsAutoRead = false;
-    txw->updateGpsButton();
-    fixes = 0;
-    const int before2 = saved().size();
-    newSecond();
-    QTest::mouseClick(startButton, Qt::LeftButton);
-    check(!txw->startWaitPosition, "with the button red Start does not wait");
-    waitSaved(before2);
-    check(saved().size() == before2 + 1 && fixes == 0 && lat->text() == "12.5", QString("the typed position is sent and the GPS was not read (%1 pictures, %2 reads, Lat %3, busy %4)").arg(saved().size() - before2).arg(fixes).arg(lat->text()).arg(mainWindowPtr->busyMode()));
-    if (saved().size() > before2)
+    int positions = positionsSeen;
+    before = saved().size();
+    ms = startAndTime(before);
+    check(ms >= 0 && ms < 2500 && positionsSeen == positions && lat->text() == "12.5", QString("with the button off the typed position goes out and the GPS is not read (%1 ms, %2 reads)").arg(ms).arg(positionsSeen - positions));
+    if (saved().size() > before)
       {
         const QImage sent(txSSTVImagesPath + "/" + saved().first());
         check(distance(sent, stale) < distance(sent, fresh) / 4, "(the picture shows the typed position)");
       }
     endTx();
 
-    // green, but the receiver is gone: the last position goes out, without a message box
-    txw->gpsAutoRead = true;
-    txw->updateGpsButton();
-    gpsPort = "/dev/does-not-exist-gps";
-    boxes = 0;
-    lastStatus.clear();
-    const int before3 = saved().size();
-    newSecond();
-    QTest::mouseClick(startButton, Qt::LeftButton);
-    checkWait([&] {return !txw->startWaitPosition;}, [&] {return QString("(the failed read ended the wait)");});
-    waitSaved(before3);
-    check(saved().size() == before3 + 1 && lat->text() == "12.5" && boxes == 0, "a failed read never stops Start: the last position goes out and no message box blocks it");
-    check(lastStatus.contains("using the last position"), "the status bar says why: " + lastStatus);
-    check(notice->isVisible() && notice->text().contains("Cannot open") && notice->text().contains("last position"), "and so does the pop-up: " + notice->text());
-    check(QApplication::activeModalWidget() == nullptr, "which is not modal");
-    endTx();
-    notice->close();
-
-    // Stop cancels a Start that is still waiting
-    gpsPort = slave;
-    feeding = false;
-    const int before4 = saved().size();
-    QTest::mouseClick(startButton, Qt::LeftButton);
-    check(txw->startWaitPosition, "(the receiver is silent, Start waits)");
-    QTest::qWait(700);
-    check(notice->isVisible(), "(the pop-up is up)");
-    txw->slotStop();
-    check(!txw->startWaitPosition && startButton->isEnabled() && !statusBarPtr->currentMessage().contains("Reading the GPS"), "Stop cancels it and frees the Start button");
-    check(!notice->isVisible(), "and takes the pop-up away");
-    feeding = true;
-    checkWait([&] {return lat->text() == "47.60620";}, [&] {return QString("(the read still ends with the position)");});
-    QTest::qWait(500);
-    check(saved().size() == before4 && mainWindowPtr->busyMode() < 0, "but nothing is sent");
-    waitFor([&] {return gpsButton->isEnabled();});
-
-    // #163: a receiver that is connected but silent holds Start up for the short wait only, and the pop-up says why it went without
-    printf("  (silent receiver, #163)\n");
-    {
-      feeding = false;
-      render("12.5", "-45.25");
-      loadPicture();
-      noticeSeen = false;
-      boxes = 0;
-      const int before7 = saved().size();
-      newSecond();
-      QElapsedTimer clock;
-      clock.start();
-      QTest::mouseClick(startButton, Qt::LeftButton);
-      check(txw->startWaitPosition, "(Start waits for the receiver)");
-      QTest::qWait(300);
-      check(!notice->isVisible(), "a wait that is over within a moment shows no pop-up yet");
-      QTest::qWait(700);
-      check(notice->isVisible() && notice->text().contains("Reading the GPS"), "a longer wait shows it: " + notice->text());
-      check(QApplication::activeModalWidget() == nullptr, "(not modal: nothing is blocked)");
-      checkWait([&] {return !txw->startWaitPosition;}, [&] {return QString("(the wait ended after %1 ms)").arg(clock.elapsed());}, 8000);
-      check(clock.elapsed() >= 4500 && clock.elapsed() < 6500, QString("after the short wait of 5 s, not after 10 s: %1 ms").arg(clock.elapsed()));
-      waitSaved(before7);
-      check(saved().size() == before7 + 1 && lat->text() == "12.5" && boxes == 0, "the picture went out with the last position");
-      if (saved().size() > before7)
-        {
-          const QImage sent(txSSTVImagesPath + "/" + saved().first());
-          check(distance(sent, stale) < distance(sent, fresh) / 4, "(the picture shows the last position)");
-        }
-      check(notice->isVisible() && notice->text().contains("No GPS data") && notice->text().contains("last position"), "the pop-up stays and says why: " + notice->text());
-      endTx();
-      check(notice->isVisible(), "(and is still there when the transmission is over)");
-      notice->close();
-      waitFor([&] {return gpsButton->isEnabled();});
-
-      // a receiver that answers after a second: the pop-up is up while it is read and goes by itself when the position is in
-      printf("  (a receiver that answers late)\n");
-      render("12.5", "-45.25");
-      loadPicture();
-      noticeSeen = false;
-      const int before8 = saved().size();
-      newSecond();
-      QTest::mouseClick(startButton, Qt::LeftButton);
-      QTest::qWait(1000);
-      check(notice->isVisible() && notice->text().contains("Reading the GPS"), "the pop-up is up while the GPS is read");
-      feeding = true;
-      checkWait([&] {return !txw->startWaitPosition;}, [&] {return QString("(the position arrived)");});
-      waitSaved(before8);
-      check(noticeSeen && !notice->isVisible(), "the pop-up closed by itself");
-      check(saved().size() == before8 + 1 && lat->text() == "47.60620", "and the picture has the new position");
-      endTx();
-      waitFor([&] {return gpsButton->isEnabled();});
-
-      // nothing at all comes back from the GPS side: the backstop sends the picture anyway
-      printf("  (backstop)\n");
-      feeding = false;
-      render("12.5", "-45.25");
-      loadPicture();
-      const int before9 = saved().size();
-      newSecond();
-      gpsReaderPtr->blockSignals(true);   // fixReady never reaches the Transmit tab
-      clock.restart();
-      QTest::mouseClick(startButton, Qt::LeftButton);
-      check(txw->startWaitPosition, "(Start waits, the answer will not come)");
-      checkWait([&] {return !txw->startWaitPosition;}, [&] {return QString("(the backstop ended the wait after %1 ms)").arg(clock.elapsed());}, 12000);
-      check(clock.elapsed() >= 8000 && clock.elapsed() < 11000, QString("it needs about 9 s: %1 ms").arg(clock.elapsed()));
-      waitSaved(before9);
-      check(saved().size() == before9 + 1 && lat->text() == "12.5", "the picture goes out anyway, with the last position");
-      check(notice->isVisible() && notice->text().contains("last position"), "and the pop-up says so: " + notice->text());
-      endTx();
-      notice->close();
-      gpsReaderPtr->blockSignals(false);
-      feeding = true;
-      waitFor([&] {return gpsButton->isEnabled();});
-    }
-
-    // the place: Start waits for it as well
-    printf("  (place)\n");
+    // the place: a slow service does not hold Start back, the last place goes out
+    txw->placeFailedAt.invalidate();
+    txw->placeCellKnown = false;
     gpsPlaceLookup = true;
     fake.body = seattle;
-    fake.delayMs = 700;
+    place->setText("Seattle, WA");
     sentence = nmea("GPGGA,123519,4530.000,N,12245.000,W,1,08,0.9,545.4,M,46.9,M,,");
-    const int hits = fake.hits;
-    const int before5 = saved().size();
-    newSecond();
-    QTest::mouseClick(startButton, Qt::LeftButton);
-    checkWait([&] {return txw->placeAwaiting;}, [&] {return QString("(the position is in, the place is being looked up)");});
-    check(txw->startWaitPosition && saved().size() == before5, "Start still waits");
-    noticeSeen = false;
-    checkWait([&] {return notice->isVisible();}, [&] {return QString("(the pop-up follows the lookup: %1)").arg(notice->text());}, 1500);
-    check(notice->text().contains("place"), "it says the place is looked up: " + notice->text());
-    checkWait([&] {return !txw->startWaitPosition;}, [&] {return QString("and goes on when the place is in");});
-    waitSaved(before5);
-    check(fake.hits == hits + 1 && place->text() == "Seattle, WA" && saved().size() == before5 + 1, "with the place in the picture (" + place->text() + ")");
-    check(noticeSeen && !notice->isVisible(), "the pop-up closed by itself");
-    endTx();
-
-    // a place service that is too slow does not hold Start back for more than the short wait
-    printf("  (slow place service, #163)\n");
     fake.delayMs = 3500;
-    sentence = nmea("GPGGA,123519,3500.000,N,10500.000,W,1,08,0.9,545.4,M,46.9,M,,");
-    const int before10 = saved().size();
-    newSecond();
-    QElapsedTimer placeClock;
-    placeClock.start();
-    QTest::mouseClick(startButton, Qt::LeftButton);
-    checkWait([&] {return !txw->startWaitPosition;}, [&] {return QString("(the wait ended after %1 ms)").arg(placeClock.elapsed());}, 6000);
-    check(placeClock.elapsed() >= 1700 && placeClock.elapsed() < 3300, QString("after about 2 s, not after the 3.5 s of the service: %1 ms").arg(placeClock.elapsed()));
-    waitSaved(before10);
-    check(saved().size() == before10 + 1 && place->text() == "Seattle, WA", "the picture goes out with the last place");
-    check(notice->isVisible() && notice->text().contains("Place lookup") && notice->text().contains("last place"), "and the pop-up says so: " + notice->text());
+    QTest::mouseClick(gpsButton, Qt::LeftButton);
+    checkWait([&] {return lat->text() == "45.50000" && txw->placeAwaiting;}, [&] {return QString("(the position is in, the slow place lookup is running)");});
+    before = saved().size();
+    ms = startAndTime(before);
+    check(ms >= 0 && ms < 2500, QString("a place service that is slow does not hold Start back (%1 ms)").arg(ms));
+    check(place->text() == "Seattle, WA", "the last place goes out");
     endTx();
-    notice->close();
     fake.delayMs = 0;
-
-    // a failing lookup does not hold it back either
-    printf("  (failing lookup)\n");
-    fake.delayMs = 0;
-    fake.status = 500;
-    sentence = nmea("GPGGA,123519,4100.000,N,11500.000,W,1,08,0.9,545.4,M,46.9,M,,");
-    boxes = 0;
-    const int before6 = saved().size();
-    newSecond();
-    QTest::mouseClick(startButton, Qt::LeftButton);
-    checkWait([&] {return !txw->startWaitPosition;}, [&] {return QString("(the failing lookup ended the wait)");});
-    waitSaved(before6);
-    check(saved().size() == before6 + 1 && place->text() == "Seattle, WA" && boxes == 0, "keeping the last place and showing no message box");
-    check(notice->isVisible() && notice->text().contains("500") && notice->text().contains("last place"), "the pop-up says why: " + notice->text());
-    endTx();
-    notice->close();
-    fake.status = 200;
+    waitFor([&] {return !txw->placeAwaiting;}, 6000);
+    QTest::mouseClick(gpsButton, Qt::LeftButton);
     gpsPlaceLookup = false;
-    txw->gpsAutoRead = false;
-    txw->updateGpsButton();
     saveTXimages = false;
     feeding = false;
-    QObject::disconnect(statusConn);   // the lambdas refer to variables of this block
-    QObject::disconnect(fixConn);
+    QObject::disconnect(statusConn);   // the lambda refers to a variable of this block
     lat->setText(keepLat);
     lon->setText(keepLon);
     place->setText(keepPlace);
@@ -932,11 +895,11 @@ int main(int argc, char **argv)
     // the GPS button
     feeding = true;
     sentence = nmea("GPGGA,123519,4736.372,N,12219.926,W,1,08,0.9,545.4,M,46.9,M,,");
-    txw->gpsReadAction->trigger();   // "Read the GPS now": the old click of the button
-    checkWait([&] {return lat->text() == "47 36.37N" && lon->text() == "122 19.93W" && gpsButton->isEnabled();}, [&] {return "the GPS button writes degrees and minutes (" + lat->text() + ", " + lon->text() + ")";});
+    followOnce();
+    checkWait([&] {return lat->text() == "47 36.37N" && lon->text() == "122 19.93W";}, [&] {return "the GPS button writes degrees and minutes (" + lat->text() + ", " + lon->text() + ")";});
     sentence = nmea("GPGGA,123519,3351.000,S,00712.000,W,1,08,0.9,545.4,M,46.9,M,,");
-    txw->gpsReadAction->trigger();   // "Read the GPS now": the old click of the button
-    checkWait([&] {return lat->text() == "33 51.00S" && lon->text() == "007 12.00W" && gpsButton->isEnabled();}, [&] {return "with the hemisphere letters and the longitude padded (" + lat->text() + ", " + lon->text() + ")";});
+    followOnce();
+    checkWait([&] {return lat->text() == "33 51.00S" && lon->text() == "007 12.00W";}, [&] {return "with the hemisphere letters and the longitude padded (" + lat->text() + ", " + lon->text() + ")";});
     feeding = false;
 
     // the macros print it
@@ -1054,6 +1017,20 @@ int main(int argc, char **argv)
             check(lat->text() == "1.0" && tx->latitude == "1.0", "and does not touch the Lat and Long of the TX tab");
             check(testButton->isEnabled(), "the Test button is usable again");
             check(fake.hits == hitsBefore, "(no place was asked for: the lookup was not on when the position came)");
+
+            // with the GPS button on, Test takes the port for a moment and gives it back
+            txw->gpsTracking = true;
+            gpsEnabled = true;
+            gpsPort = slave;
+            txw->gpsSettingsChanged();
+            checkWait([&] {return green();}, [&] {return QString("(the GPS button is on and green)");});
+            result->clear();
+            QTest::mouseClick(testButton, Qt::LeftButton);
+            checkWait([&] {return result->text().startsWith("Position:");}, [&] {return "Test works while the GPS is followed: " + result->text();});
+            const int seenBefore = positionsSeen;
+            checkWait([&] {return positionsSeen > seenBefore && green() && gpsReaderPtr->tracking();}, [&] {return QString("and the tracking goes on afterwards");});
+            QTest::mouseClick(gpsButton, Qt::LeftButton);
+            check(!txw->gpsTracking && !gpsReaderPtr->tracking(), "(off)");
 
             // the format chosen on the page is the one Test shows, whether or not it is saved
             formatBox->setCurrentIndex(COORDDEGMIN);
@@ -1316,6 +1293,7 @@ int main(int argc, char **argv)
     check(!qs.value("GPS/enabled").toBool(), "which is what is saved");
   }
 
+  QObject::disconnect(positionConn);   // the lambda refers to a variable of main
   printf("\n%d passed, %d failed\n", passed, failed);
   fflush(stdout);
   _exit(failed ? 1 : 0);   // the application's threads are not shut down by this probe

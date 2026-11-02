@@ -14,6 +14,7 @@
 #include <QWidget>
 #include <QVector>
 #include <QTimer>
+#include <QElapsedTimer>
 #include "beaconcapture.h"
 
 enum etxMode {TXUPLOAD,TXBINARY,TXNORMAL};
@@ -27,9 +28,6 @@ enum etxMode {TXUPLOAD,TXBINARY,TXNORMAL};
 
 
 class drmTransmitter;
-class QAction;
-class QMenu;
-class QMessageBox;
 namespace Ui {
 class txWidget;
 }
@@ -51,7 +49,11 @@ public:
   void readSettings();
   //! Configuration > GPS may have another position format now: the Lat and Long boxes are converted to it (in both directions)
   void positionFormatChanged();
-  void updateGpsButton();   //!< colors the GPS button (green: read before each transmission, red: by hand); not colored while the GPS is off
+  void updateGpsButton();   //!< looks of the GPS button: green (positions arrive), amber (on, no position now), plain (off or the GPS is not set up)
+  //! Configuration > GPS may have changed (enabled, port, baud rate): the tracking is restarted with the new settings, or stopped when the GPS is no longer usable
+  void gpsSettingsChanged();
+  //! the GPS button is on: the GPS is read all the time and the Lat and Long boxes follow it
+  bool gpsTracks() const {return gpsTracking;}
   //  void repeat(QImage *im,esstvMode sm);
   void sendRepeaterImage(esstvMode rxMode=NOTVALID);
   void setImage(QImage *ima);
@@ -122,10 +124,9 @@ public slots:
   void slotBeaconLive(const QImage &image);
   void slotBeaconFailed(const QString &reason);
   void slotBeaconRecovered();
-  void slotGetGps();
   void slotGpsToggle();
-  void slotGpsFix(bool ok,double lat,double lon,const QString &reason);
-  void slotPositionBackstop();
+  void slotGpsPosition(double lat,double lon);
+  void slotGpsTrackingState(int state,const QString &reason);
   void slotPlaceReady(bool ok,const QString &place,const QString &reason);
   void slotPositionEdited();
   void slotSize(int fsize);
@@ -180,24 +181,12 @@ private:
   bool liveAllowed() const;
   //! a transmission is over (or never started): the camera picture is shown live again
   void resumeLive();
-  //! the GPS is set up and the GPS button is green: every transmission (Start and the beacon) reads a fresh position first
-  bool gpsAutoReads() const;
-  //! the picture waited for the position (Start button): sends it now
-  void startAfterPosition();
-  //! asks the GPS for a position; the result comes back in slotGpsFix(). false: the GPS is busy with another request.
-  //! A read that a transmission waits for (manual=false) is given up after a short time, a read by hand takes longer.
-  bool requestGps(bool manual);
-  //! asks for the city and state of the position in the Lat and Long boxes, when that lookup is on; the result comes back in slotPlaceReady()
-  bool requestPlace(bool manual,int timeoutMs);
-  //! A Start is waiting for the position: the pop-up is armed (it shows when the wait lasts) and the backstop timer runs
-  void startWaitBegin();
-  //! the wait of a Start is over (sent, or cancelled): the timers stop, the pop-up goes unless it reports a failure
-  void startWaitEnd();
-  //! the text of the pop-up (not shown before the wait has lasted a moment)
-  void noticeText(const QString &text);
-  //! the position or the place could not be had: the pop-up shows why, at once, and stays until it is closed
-  void noticeFailure(const QString &text);
-  void noticeClose();
+  //! the GPS is set up and enabled in Configuration > GPS
+  bool gpsUsable() const;
+  //! asks for the city and state of the position in the Lat and Long boxes, when that lookup is on; the result comes back in slotPlaceReady(). Nothing waits for it.
+  bool requestPlace();
+  //! the Lat and Long boxes follow the GPS while the button is on: they cannot be typed in then
+  void updatePositionBoxes();
   void startBeacon(int minutes);
   void stopBeacon();
   void updateBeaconUi();
@@ -225,23 +214,17 @@ private:
   bool livePaused=false;        // the user loaded a picture of their own: no live picture until the transmission is over
   qint64 liveKey=0;             // cacheKey() of the TX picture the live picture last put there; another one means the user loaded a picture
   bool beaconPending=false;     // a beacon picture is on its way through prepareTx()/startTxImage()
-  bool beaconWaitPosition=false;     // the beacon picture is ready, but the position (the GPS, then the place) is still coming: slotGpsFix() or slotPlaceReady() sends it
-  bool startWaitPosition=false;      // the Start button was pressed, the position is still coming: slotGpsFix() or slotPlaceReady() starts the transmission
-  QMessageBox *positionNotice=nullptr;   // non-modal pop-up for a Start that waits for the position: closes by itself, stays when the GPS or the place failed
-  bool positionFailed=false;         // the pop-up reports a failure of this Start: startAfterPosition() leaves it open
-  QTimer positionNoticeTimer;        // single shot: shows the pop-up when the wait lasts, so a quick answer causes no flash
-  QTimer startWaitTimer;             // single shot, the backstop: a Start never waits longer than this, whatever the GPS and the lookup do
-  bool gpsAutoRead=false;       // the GPS button is green: the GPS is read before each transmission (saved as TX/gpsAutoRead)
+  bool gpsTracking=false;       // the GPS button is on: the GPS is read all the time (saved as TX/gpsAutoRead, the key of an earlier version of the button)
+  int gpsTrackState=-1;         // last gpsReader::trackState reported while tracking, -1 before the first one
+  QString gpsTrackReason;       // ... and its reason, for the tooltip
   QFont gpsButtonFont;          // the font of the GPS button before it got a style sheet, kept in every sheet
   QString gpsBaseSheet;         // the sheet styleToolButtons() gave the GPS button (empty except on Windows): the sheets of its colors come after it
   QString snapshotBaseSheet;    // the same for the camera / beacon button
-  QMenu *gpsMenu=nullptr;               // right-click menu of the GPS button ...
-  QAction *gpsReadAction=nullptr;       // ... read the position now
-  QAction *gpsAutoAction=nullptr;       // ... and the switch between green and red
-  bool gpsAwaiting=false;       // this widget has a GPS request in flight (the Test button of Configuration > GPS does not count)
-  bool gpsManual=false;         // ... and the Get GPS button made it, so a failure is shown in a message box
   bool placeAwaiting=false;     // a place lookup of this widget is in flight (the Test button of Configuration > GPS does not count)
-  bool placeManual=false;       // ... and the Get GPS button started it
+  bool placeCellKnown=false;    // placeLat / placeLon hold the position of the last lookup started by the tracking
+  double placeLat=0,placeLon=0;
+  QElapsedTimer placeFailedAt;  // when the last lookup of the tracking failed: not tried again for a minute (no request every second when offline)
+  QString latBoxTip,lonBoxTip;  // the tooltips of the Lat and Long boxes (the boxes say they are set by the GPS while it is followed)
   QString placeKey;             // the Lat and Long text that the last lookup was for: a box that is left unchanged asks nothing
   int positionFormat=0;         // the format (coordinateFormat) that the Lat and Long boxes were last written in
   QTimer repeaterTxDelayTimer;

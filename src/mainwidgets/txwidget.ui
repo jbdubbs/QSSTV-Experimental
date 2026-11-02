@@ -1215,10 +1215,10 @@
          <item>
         <widget class="QToolButton" name="gpsToolButton">
          <property name="toolTip">
-          <string>Read the position from the GPS receiver</string>
+          <string>Click: follow the GPS</string>
          </property>
          <property name="statusTip">
-          <string>Read the position from the GPS receiver</string>
+          <string>Click: follow the GPS</string>
          </property>
          <property name="text">
           <string>GPS</string>

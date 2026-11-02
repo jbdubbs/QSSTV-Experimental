@@ -4,15 +4,24 @@
 
 #include <QSerialPort>
 
-gpsReader::gpsReader(QObject *parent) : QObject(parent), port(nullptr), pending(false), sawNmea(false)
+// Receivers send a position every second, in two or three sentences; one report per this long is enough for the boxes
+static const int trackMinIntervalMs=800;
+
+gpsReader::gpsReader(QObject *parent) : QObject(parent), port(nullptr), pending(false), sawNmea(false),
+  trackPort(nullptr), trackingOn(false), trackPaused(false), trackSawNmea(false), trackStateNow(-1)
 {
   timeout.setSingleShot(true);
   connect(&timeout,SIGNAL(timeout()),SLOT(slotTimeout()));
+  trackWatchdog.setSingleShot(true);
+  connect(&trackWatchdog,SIGNAL(timeout()),SLOT(slotTrackWatchdog()));
+  trackRetry.setSingleShot(true);
+  connect(&trackRetry,SIGNAL(timeout()),SLOT(slotTrackRetry()));
 }
 
 gpsReader::~gpsReader()
 {
   delete port;
+  delete trackPort;
 }
 
 bool gpsReader::requestFix(int timeoutMs)
@@ -31,6 +40,12 @@ bool gpsReader::requestFix(const QString &portName,int baud,int timeoutMs)
 {
   if(pending) return false;
   pending=true;
+  if(trackingOn && !trackPaused)
+    {
+      // the tracking holds the port: let go of it for this request, finish() takes it up again
+      closeTracking();
+      trackPaused=true;
+    }
   sawNmea=false;
   buffer.clear();
   usedPort=portName;
@@ -100,4 +115,128 @@ void gpsReader::finish(bool ok,double lat,double lon,const QString &reason)
     }
   pending=false;
   emit fixReady(ok,lat,lon,reason);
+  if(trackPaused && !pending)   // a slot of fixReady may have stopped the tracking (trackPaused is false then) or asked again (pending)
+    {
+      trackPaused=false;
+      if(trackingOn) openTracking();
+    }
+}
+
+bool gpsReader::startTracking()
+{
+  if(!gpsEnabled || gpsPort.isEmpty()) return false;
+  stopTracking();
+  trackingOn=true;
+  trackStateNow=-1;
+  if(pending)
+    {
+      trackPaused=true;   // a one-shot request is running: finish() opens the port
+      return true;
+    }
+  openTracking();
+  return true;
+}
+
+void gpsReader::stopTracking()
+{
+  trackingOn=false;
+  trackPaused=false;
+  trackStateNow=-1;
+  closeTracking();
+}
+
+void gpsReader::closeTracking()
+{
+  trackWatchdog.stop();
+  trackRetry.stop();
+  if(trackPort!=nullptr)
+    {
+      trackPort->disconnect(this);
+      trackPort->close();
+      trackPort->deleteLater();
+      trackPort=nullptr;
+    }
+  trackBuffer.clear();
+}
+
+void gpsReader::openTracking()
+{
+  closeTracking();
+  trackSawNmea=false;
+  lastReported.invalidate();   // the first position after (re)opening is reported at once
+  trackPort=new QSerialPort(gpsPort,this);
+  trackPort->setBaudRate(gpsBaud);
+  trackPort->setDataBits(QSerialPort::Data8);
+  trackPort->setParity(QSerialPort::NoParity);
+  trackPort->setStopBits(QSerialPort::OneStop);
+  trackPort->setFlowControl(QSerialPort::NoFlowControl);
+  if(!trackPort->open(QIODevice::ReadOnly))
+    {
+      const QString reason=tr("Cannot open %1: %2").arg(gpsPort,trackPort->errorString());
+      closeTracking();
+      setTrackState(TRACKFAILED,reason);
+      trackRetry.start(trackRetryMs);
+      return;
+    }
+  trackPort->clear(QSerialPort::Input);
+  connect(trackPort,SIGNAL(readyRead()),SLOT(slotTrackReadyRead()));
+  connect(trackPort,SIGNAL(errorOccurred(QSerialPort::SerialPortError)),SLOT(slotTrackError()));
+  setTrackState(TRACKWAITING,tr("Waiting for the GPS receiver on %1").arg(gpsPort));
+  trackWatchdog.start(trackSilenceMs);
+}
+
+void gpsReader::setTrackState(int state,const QString &reason)
+{
+  if(state==trackStateNow && reason==trackReasonNow) return;
+  trackStateNow=state;
+  trackReasonNow=reason;
+  emit trackingState(state,reason);
+}
+
+void gpsReader::slotTrackReadyRead()
+{
+  if(!trackingOn || trackPort==nullptr) return;
+  trackBuffer.append(trackPort->readAll());
+  int end;
+  while((end=trackBuffer.indexOf('\n'))>=0)
+    {
+      const QByteArray line=trackBuffer.left(end);
+      trackBuffer.remove(0,end+1);
+      if(line.trimmed().startsWith('$')) trackSawNmea=true;
+      double lat,lon;
+      if(!nmeaParseFix(line,lat,lon)) continue;
+      trackWatchdog.start(trackSilenceMs);
+      trackSawNmea=false;   // "no fix" below is told from "no data" by what arrives after this position
+      setTrackState(TRACKFIXED,QString());
+      if(lastReported.isValid() && lastReported.elapsed()<trackMinIntervalMs) continue;
+      lastReported.start();
+      emit positionUpdated(lat,lon);
+      if(!trackingOn || trackPort==nullptr) return;   // a slot of positionUpdated() stopped the tracking
+    }
+  if(trackBuffer.size()>8192) trackBuffer.clear();   // no line ending at all: not NMEA at this baud rate
+}
+
+void gpsReader::slotTrackError()
+{
+  if(!trackingOn || trackPort==nullptr) return;
+  if(trackPort->error()==QSerialPort::NoError) return;
+  const QString reason=tr("GPS port %1: %2").arg(gpsPort,trackPort->errorString());
+  closeTracking();
+  setTrackState(TRACKFAILED,reason);
+  trackRetry.start(trackRetryMs);
+}
+
+void gpsReader::slotTrackWatchdog()
+{
+  if(!trackingOn || trackPort==nullptr) return;
+  if(trackSawNmea) setTrackState(TRACKWAITING,tr("The GPS receiver on %1 has no position fix").arg(gpsPort));
+  else setTrackState(TRACKWAITING,tr("No GPS data from %1 (check the port and the baud rate)").arg(gpsPort));
+  trackSawNmea=false;   // from here on a silent receiver is told apart from one that talks without a fix
+  trackWatchdog.start(trackSilenceMs);
+}
+
+void gpsReader::slotTrackRetry()
+{
+  if(!trackingOn || trackPaused) return;
+  openTracking();
 }
