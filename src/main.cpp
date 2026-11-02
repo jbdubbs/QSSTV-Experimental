@@ -551,6 +551,7 @@ int main( int argc, char ** argv )
   globalInit();
   mainWindowPtr=new mainWindow;
   mainWindowPtr->setWindowIcon(QPixmap(":/icons/qsstv.png"));
+  if(encode) mainWindowPtr->setHeadlessEncode(true);   // before init(): no tab is saved, no first-run question is armed
   if(listen)
     {
       // the window's constructor has read the settings: from here on only this run's choices (never written back)
@@ -605,7 +606,6 @@ int main( int argc, char ** argv )
   if(encode)
     {
       // no main window is shown in encode mode
-      mainWindowPtr->setHeadlessEncode(true);   // --encode --drm must not leave the next run in DRM mode
       holdSplash();
       splash.finish(mainWindowPtr);
     }

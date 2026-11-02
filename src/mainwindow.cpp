@@ -279,9 +279,11 @@ void mainWindow::init()
   lockTimer->start(250);
   if(fileWatcherPtr==nullptr) fileWatcherPtr=new fileWatcher;
   fileWatcherPtr->init();
-  if(!fileDecoderPtr->isBatch() && appImageIntegration::available())
+  // the first-run questions are modal boxes (and the update check goes to GitHub): not in a headless run, nobody could answer them (#157)
+  const bool headless=fileDecoderPtr->isBatch() || headlessEncode;
+  if(!headless && appImageIntegration::available())
     QTimer::singleShot(4000,this,&mainWindow::offerDesktopIntegration);
-  if(!fileDecoderPtr->isBatch() && !appImageIntegration::available())
+  if(!headless && !appImageIntegration::available())
     QTimer::singleShot(6000,this,&mainWindow::offerUpdateCheck);
 }
 

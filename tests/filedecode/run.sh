@@ -199,6 +199,27 @@ if [ "$(uname)" = Linux ]; then   # a GUI that was left in DRM: write the saved 
   grep -q '^transmissionModeIndex=1' "$XDG_CONFIG_HOME/qsstv-experimental/qsstv-experimental.conf" && ok "the saved tab is still DRM" || bad "--encode changed the saved tab"
 fi
 
+# --encode must not ask the first-run questions (#157): the menu-integration question of an AppImage (4 s after start) and the update
+# question of the other installs (6 s) are boxes nobody can answer in a headless run, and a run that opens one never ends. The process is
+# frozen from 3.5 s to 10.5 s, so both timers are overdue when it continues (the run itself takes about 5 s, which made the hang a race).
+# The settings are new, so the questions are still open; $QSSTV's own children are frozen too (an AppImage runs the program as a child).
+frozen_encode() {   # frozen_encode <name> [env options...]: 0 when the encode ends by itself, 1 when it hangs
+  local h="$T/frozen-$1" pid i; shift
+  mkdir -p "$h"
+  env "$@" HOME="$h" XDG_CONFIG_HOME="$h/.config" XDG_DATA_HOME="$h/.local/share" "$QSSTV" --encode "$HERE/../jb60_loopback/images/card.png" \
+      --mode JB60 --wav-out "$h/o.wav" >/dev/null 2>&1 &
+  pid=$!
+  ( sleep 3.5; kill -STOP $pid 2>/dev/null; pkill -STOP -P $pid 2>/dev/null; sleep 7; pkill -CONT -P $pid 2>/dev/null; kill -CONT $pid 2>/dev/null ) &
+  for i in $(seq 45); do
+    kill -0 $pid 2>/dev/null || { wait $pid 2>/dev/null; [ "$(wc -c <"$h/o.wav" | tr -d ' ')" -gt 6000000 ]; return; }
+    sleep 1
+  done
+  pkill -9 -P $pid 2>/dev/null; kill -9 $pid 2>/dev/null; return 1
+}
+echo "== --encode asks no first-run question"
+frozen_encode appimage APPIMAGE="$QSSTV" APPDIR="$HERE" && ok "AppImage: the menu-integration question does not stop --encode" || bad "AppImage: --encode hangs behind the menu-integration question"
+frozen_encode plain -u APPIMAGE -u APPDIR && ok "other installs: the update question does not stop --encode" || bad "other installs: --encode hangs behind the update question"
+
 echo
 echo "passed $pass, failed $fail"
 [ $fail = 0 ]
