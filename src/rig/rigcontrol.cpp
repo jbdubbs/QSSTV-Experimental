@@ -27,6 +27,7 @@
 #include "configparams.h"
 #include "dispatcher.h"
 #include "dispatch/filedecoder.h"
+#include "supportfunctions.h"
 
 
 #include <QSplashScreen>
@@ -293,6 +294,7 @@ bool rigControl::setPTT(bool on)
   ptt_t ptt;
   /* Hamlib will fall back to RIG_PTT_ON if RIG_PTT_ON_DATA is not available in current hamlib configuration */
   if(on) ptt=RIG_PTT_ON_DATA; else ptt=RIG_PTT_OFF;
+  pttError.clear();
   if(!rigControlEnabled || !canSetPTT) return false;
 
   for(int i=0;i<RIGCMDTRIES;i++)
@@ -303,7 +305,8 @@ bool rigControl::setPTT(bool on)
           return true;
         }
     }
-  errorMessage(retcode,"setPTT");
+  pttError=QString("The radio did not accept the PTT command (%1).").arg(QString(rigerror(retcode)));
+  if(!on) errorMessage(retcode,"setPTT");   // keying down is reported by activatePTT() in a box that stays
   return false;
 }
 
@@ -403,36 +406,69 @@ void rigControl::activatePTT(bool b)
   // --batch / --listen only receive: nothing was keyed, so there is nothing to release, and a port that cannot be opened
   // (it is in use by a window, say) would stop behind a message box that nobody can answer (issue #136)
   if(fileDecoderPtr->isBatch()) return;
+  // Why the radio cannot be keyed although the setup says it should be (#162). Keying down is where it matters, so only that
+  // says it in a box; letting go of a PTT that was never keyed stays quiet. Nothing is cancelled: the transmission goes on (a
+  // radio that is keyed some other way, VOX say, still sends it) and Stop ends it.
+  QString problem;
   if(catParams.enableSerialPTT)
     {
-      if (catParams.pttSerialPort.isEmpty()) return;
-      if(pttSerialPortPtr==nullptr)
+      if(catParams.pttSerialPort.isEmpty())
         {
-          pttSerialPortPtr=new QSerialPort(catParams.pttSerialPort,this);
-          if(!pttSerialPortPtr->open(QIODevice::ReadWrite))
-            {
-              QMessageBox::warning(txWidgetPtr,"Serial Port Error",
-                                   QString("Unable to open serial port %1\ncheck Options->Configuration\n"
-                                           "make sure that you have read/write permission\nIf you do not have a serial port,\n"
-                                           "then disable -Serial PTT- option in the configuration").arg(catParams.pttSerialPort) ,
-                                   QMessageBox::Ok);
-              delete pttSerialPortPtr;
-              pttSerialPortPtr=nullptr;
-              return;
-            }
-          setSerialPTTLines(false); // idle (PTT-off) state as soon as the port is opened
+          problem="Serial PTT is switched on, but no serial port is chosen.";
         }
-      setSerialPTTLines(b);
+      else
+        {
+          if(pttSerialPortPtr==nullptr)
+            {
+              QSerialPort *port=new QSerialPort(catParams.pttSerialPort,this);
+              if(port->open(QIODevice::ReadWrite))
+                {
+                  pttSerialPortPtr=port;
+                  setSerialPTTLines(false); // idle (PTT-off) state as soon as the port is opened
+                }
+              else
+                {
+                  problem=QString("The PTT serial port %1 cannot be opened (%2). Check that you have read and write permission on it, "
+                                  "or switch Serial PTT off if you have no such port.").arg(catParams.pttSerialPort,port->errorString());
+                  delete port;
+                }
+            }
+          if(pttSerialPortPtr) setSerialPTTLines(b);
+        }
     }
   else if(catParams.enableXMLRPC)
     {
       xmlIntfPtr->activatePTT(b);
     }
+  else if(catParams.enableCAT && catParams.pttType!=RIG_PTT_NONE)
+    {
+      // the radio is meant to key the transmitter (PTT type None leaves that to VOX)
+      if(!rigControlEnabled)
+        {
+          problem="The radio is not connected (CAT)";
+          if(!initError.isEmpty()) problem+=": "+initError;
+          problem+=".";
+        }
+      else if(!canSetPTT)
+        {
+          problem="The chosen radio has no PTT command for the chosen PTT type.";
+        }
+      else if(!setPTT(b))
+        {
+          problem=pttError;
+        }
+    }
   else setPTT(b); // does nothing if rigController is disabled
-  mainWindowPtr->setPTT(b);
+  mainWindowPtr->setPTT(b && problem.isEmpty());   // lit while the radio is keyed
   if(b)
     {
-      addToLog("dispatcher: PTT activated",LOGDISPATCH);
+      addToLog(problem.isEmpty() ? "dispatcher: PTT activated" : "dispatcher: PTT not activated: "+problem,LOGDISPATCH);
+      if(!problem.isEmpty())
+        {
+          showProblem("PTT problem",QString("The radio was not keyed: %1\n\nThe picture is being sent anyway, but the radio only "
+                                            "transmits it if something else keys it, VOX for one. Stop ends the transmission. "
+                                            "Configuration > CAT has the PTT settings.").arg(problem));
+        }
     }
   else
     {

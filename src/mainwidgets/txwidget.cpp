@@ -533,9 +533,46 @@ void txWidget::refreshReplay()
 
 
 
+/*!
+  The transmit buttons ignore a press while a transmission runs or a picture is being received: the transmitter does not talk over
+  a picture that is arriving. That was silent, and looked like a button that does nothing (#162): the status bar now says why. The
+  Stop button ends either (it also gives up a picture that is being received, and puts the receiver back to listening).
+*/
+bool txWidget::busyNotice()
+{
+  if(mainWindowPtr->busyMode()<0) return false;
+  QString why;
+  if(txFunctionsPtr->txBusy()) why="a transmission is running (Stop ends it)";
+  else if(transmissionModeIndex==TRXDRM) why="a DRM picture is being received (Stop gives it up)";
+  else why="a picture is being received (Stop gives it up)";
+  statusBarPtr->showMessage(QString("Not transmitting: %1").arg(why),10000);
+  return true;
+}
+
+/*!
+  dispatcher::startTX() gives false when the sound output cannot be started, and the controls were just unlocked again with
+  nobody told (#162). The status bar says it, and a box does when somebody pressed the button (a beacon, a repeater and a
+  calibration have their own way of reporting, and a headless run has nobody to read a box).
+*/
+void txWidget::startFailedNotice(bool attended)
+{
+  QString text;
+  if(soundIOPtr && !soundIOPtr->driverOK())
+    {
+      text="Nothing was transmitted: there is no working sound output.\n\nChoose the sound card in Configuration > Sound.";
+    }
+  else
+    {
+      text="Nothing was transmitted: the sound output could not be started.";
+      if(soundIOPtr && !soundIOPtr->getLastError().trimmed().isEmpty()) text+="\n\n"+soundIOPtr->getLastError().trimmed();
+    }
+  statusBarPtr->showMessage(text.section('\n',0,0),15000);
+  if(attended) showProblem("Cannot transmit",text);
+}
+
 void txWidget::slotStart()
 {
-  if(mainWindowPtr->busyMode()>=0) return;
+  if(busyNotice()) return;
   if(imageViewerPtr->hasValidImage())
     {
       doTx=TXNORMAL;   // with the position that is in the boxes now: a transmission never waits for the GPS
@@ -705,6 +742,10 @@ void txWidget::startTxImage()
   QString fn;
   fn=imageViewerPtr->getFilename();
   QFileInfo finf(fn);
+  const bool beaconWasPending=beaconPending;   // cleared below, once the beacon has been told
+  // a box is for somebody who pressed Start: not a repeater, and not a headless run with nobody to read it (a beacon and a
+  // calibration report in their own way, below)
+  const bool attended=!repeaterEnabled && !(fileDecoderPtr && fileDecoderPtr->isBatch());
 
   bool started=false;
   switch(transmissionModeIndex)
@@ -747,12 +788,13 @@ void txWidget::startTxImage()
     {
       enableButtons(true);   // prepareTx() locked the controls
       if(calTxActive) restoreAfterCalibrationTx();
+      else if(!beaconWasPending) startFailedNotice(attended);   // a beacon says it in its own line (beaconSkipped)
     }
 }
 
 void txWidget::sendBSR()
 {
-  if(mainWindowPtr->busyMode()>=0) return;
+  if(busyNotice()) return;
   QByteArray *p;
   bsrForm::eResult res;
   bsrForm bsrf;
@@ -1387,7 +1429,7 @@ void txWidget::slotImageChanged()
 
 void txWidget::slotBinary()
 {
-  if(mainWindowPtr->busyMode()>=0) return;
+  if(busyNotice()) return;
   slotGetParams();
   doTx=TXBINARY;
   dispatcherPtr->startDRMTxBinary();

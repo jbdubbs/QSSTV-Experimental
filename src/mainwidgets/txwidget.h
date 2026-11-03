@@ -171,6 +171,10 @@ private:
   void rebuildModeComboBox();
   void updateGridControl();
   void startTxImage();
+  //! a transmit button was pressed while a transmission runs or a picture is being received: true, after saying so in the status bar (#162)
+  bool busyNotice();
+  //! the transmitter could not be started: the status bar says why, and a box too when somebody pressed the button (#162)
+  void startFailedNotice(bool attended);
   void restoreAfterCalibrationTx();
   void enableButtons(bool enable);
   //! a scheduled beacon could not transmit: report it, and retry in 30 s

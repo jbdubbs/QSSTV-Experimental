@@ -1208,13 +1208,25 @@ int main(int argc, char **argv)
           cp->activeRTS = true;
           cp->pttSerialPort = brokenLink;
           boxes = 0;
+          // a PTT that cannot be keyed is reported in a box that stays and holds nothing up (non-modal, #162)
+          auto pttProblem = [&]() -> QString {
+            QString text;
+            for (QWidget *w : QApplication::topLevelWidgets())
+              if (w->isVisible())
+                if (QMessageBox *mb = qobject_cast<QMessageBox *>(w))
+                  if (mb->windowTitle() == "PTT problem") { text = mb->text(); mb->close(); }
+            QTest::qWait(30);   // the closed box is deleted
+            return text;
+          };
           rigControllerPtr->activatePTT(true);
-          check(boxes > 0 && lastBox.contains("Unable to open serial port"), "a link to a device that is not there is reported: " + lastBox.section('\n', 0, 0));
+          QTest::qWait(100);
+          const QString pttText = pttProblem();
+          check(pttText.contains("cannot be opened") && pttText.contains(brokenLink), "a link to a device that is not there is reported: " + pttText.section('\n', 0, 0));
           cp->pttSerialPort = fakeLink;
           boxes = 0;
           rigControllerPtr->activatePTT(true);
           QTest::qWait(300);
-          check(boxes == 0, "a link to a device that is there opens it without a message");
+          check(boxes == 0 && pttProblem().isEmpty(), "a link to a device that is there opens it without a message");
           rigControllerPtr->activatePTT(false);
           cp->enableSerialPTT = false;
           cp->activeRTS = false;

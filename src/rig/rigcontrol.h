@@ -81,6 +81,7 @@ private:
   QSerialPort *pttSerialPortPtr;
   void setSerialPTTLines(bool b);
   bool setPTT(bool On);
+  QString pttError;       // why the last setPTT() failed
   double lastFrequency;
   QStringList xmlModes;
   bool canSetFreq;

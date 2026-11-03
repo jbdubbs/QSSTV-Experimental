@@ -79,6 +79,8 @@ bool loadImageAutoRotate(QImage &im, QIODevice *device);
 QString pictureNameFilter();
 
 bool trash(QString filename,bool forceDelete);
+/** a warning box that stays until it is closed and holds nothing up (non-modal); the same text is shown once; GUI thread only */
+void showProblem(const QString &title,const QString &text);
 
 
 

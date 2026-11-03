@@ -26,11 +26,46 @@
 #include <QImageReader>
 #include <QSet>
 #include <QToolButton>
+#include <QApplication>
+#include <QMessageBox>
+#include <QMainWindow>
+#include <QPointer>
+#include <QHash>
 #include <stdarg.h>
 #include "dirdialog.h"
 
 
 QString lastPath("");
+
+/*!
+  A warning that stays on the screen until it is closed, and that nothing waits for: the transmission, the receiver and the
+  beacon go on behind it. (An exec() box would hold up the caller, and a beacon timer firing inside its event loop would start
+  the next picture under it.) The same message is shown once: a second one raises the box that is open. Call from the GUI thread.
+*/
+void showProblem(const QString &title,const QString &text)
+{
+  static QHash<QString,QPointer<QMessageBox> > shown;
+  QPointer<QMessageBox> &box=shown[title+QLatin1Char('\n')+text];
+  if(box)
+    {
+      box->raise();
+      return;
+    }
+  QWidget *parent=nullptr;
+  const QList<QWidget *> tops=QApplication::topLevelWidgets();
+  for(QWidget *w:tops)
+    {
+      if(qobject_cast<QMainWindow *>(w))
+        {
+          parent=w;
+          break;
+        }
+    }
+  box=new QMessageBox(QMessageBox::Warning,title,text,QMessageBox::Ok,parent);
+  box->setAttribute(Qt::WA_DeleteOnClose);
+  box->setWindowModality(Qt::NonModal);
+  box->show();
+}
 
 bool getValue(int &val, QLineEdit* input)
 {
