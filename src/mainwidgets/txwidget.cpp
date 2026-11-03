@@ -534,18 +534,16 @@ void txWidget::refreshReplay()
 
 
 /*!
-  The transmit buttons ignore a press while a transmission runs or a picture is being received: the transmitter does not talk over
-  a picture that is arriving. That was silent, and looked like a button that does nothing (#162): the status bar now says why. The
-  Stop button ends either (it also gives up a picture that is being received, and puts the receiver back to listening).
+  The transmit buttons are ignored while a transmission is running, and only then (#162): what is being received does not matter.
+  A picture that is arriving is stopped when the transmission starts (dispatcher::startTX() keeps it if enough of it is there),
+  because the receiver, not the user, used to decide that: a picture started by a VIS code was followed to its nominal end even
+  when the signal was gone, and noise started pictures too, so Start did nothing for minutes. The press is not silent: the status
+  bar says that a transmission is running, and Stop ends it.
 */
 bool txWidget::busyNotice()
 {
-  if(mainWindowPtr->busyMode()<0) return false;
-  QString why;
-  if(txFunctionsPtr->txBusy()) why="a transmission is running (Stop ends it)";
-  else if(transmissionModeIndex==TRXDRM) why="a DRM picture is being received (Stop gives it up)";
-  else why="a picture is being received (Stop gives it up)";
-  statusBarPtr->showMessage(QString("Not transmitting: %1").arg(why),10000);
+  if(!txFunctionsPtr->txBusy()) return false;
+  statusBarPtr->showMessage("Not transmitting: a transmission is running (Stop ends it)",10000);
   return true;
 }
 

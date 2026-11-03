@@ -1,13 +1,15 @@
 // A Start that cannot transmit says why (issue #162), in the REAL application objects, offscreen:
 //   app <scratch-dir>
-//   - Start while the receiver is busy: a status bar line, nothing else happens (it used to be silent)
-//   - Start while a transmission runs: the same, naming the transmission
+//   - Start while the receiver is busy, or a picture is arriving: the transmission starts (what is being received does not matter);
+//     a picture that has arrived far enough (Save if Complete) is kept, a shorter one is dropped
+//   - Start while a transmission runs: a status bar line (it used to be silent)
 //   - Start with no working sound output: a box that stays (non-modal, shown once) and a status bar line, the controls unlocked again;
 //     a calibration / --encode transmission and a beacon get no box
 //   - keying the radio fails: a box when the transmitter is keyed down, none when it is released, none when no PTT is meant
 // Built and run by tests/starthint/app.sh against an existing build-cmake tree (it links the application's object files).
 #include <QtTest>
 #include <QtWidgets>
+#include <QDir>
 #include <cstdio>
 #include <cstdlib>
 #include <unistd.h>
@@ -15,6 +17,7 @@
 #include "sstvrx.h"
 #undef private
 #include "appglobal.h"
+#include "directoriesconfig.h"
 #include "dispatcher.h"
 #include "mainwindow.h"
 #include "rigcontrol.h"
@@ -58,6 +61,8 @@ static bool boxWith(const QString &title, const QString &text)
     if (m->windowTitle() == title && m->text().contains(text)) return true;
   return false;
 }
+static void say(const QString &s) { printf("  .. %s\n", qPrintable(s)); fflush(stdout); }
+static bool txRunning() { return txWidgetPtr->functionsPtr()->txBusy(); }
 static bool waitFor(std::function<bool()> f, int ms)
 {
   QElapsedTimer t; t.start();
@@ -110,20 +115,50 @@ int main(int argc, char **argv)
   QTest::qWait(100);
   check(txWidgetPtr->getImageViewerPtr()->hasValidImage(), "a picture is on the Transmit tab");
 
-  printf("\n== Start while a picture is being received\n");
+  // the sound output is a file from here on (like --encode), so a transmission can run without a sound card; a short mode keeps it small
+  txWidgetPtr->slotModeChanged(R36);
+  printf("\n== Start while the receiver is busy: it is not held back\n");
+  soundBase::txFileName = scratch + "/forced.wav";
   statusBarPtr->clearMessage();
   rxf->sstvRxPtr->SSTVState = sstvRx::PROCESSING;
   check(mainWindowPtr->busyMode() >= 0, "the receiver counts as busy");
   QTest::mouseClick(startBtn, Qt::LeftButton);
-  QTest::qWait(100);
-  QString msg = statusBarPtr->currentMessage();
-  printf("  .. status bar: '%s'\n", qPrintable(msg));
-  check(msg.contains("Not transmitting") && msg.contains("picture is being received") && msg.contains("Stop"),
-        "the status bar says that a picture is being received and what ends it");
-  check(!locked() && boxes().isEmpty(), "nothing else happened: controls not locked, no box");
-  txWidgetPtr->slotStop();   // gives the picture up
-  QTest::qWait(300);
-  check(mainWindowPtr->busyMode() < 0, "Stop puts the receiver back to listening, as the line says");
+  check(locked(), "Start is taken: the controls lock at once");
+  check(waitFor([&] { return !locked() && !txRunning(); }, 60000) && QFileInfo(scratch + "/forced.wav").size() > 100000,
+        "the transmission was sent and ended");
+  check(mainWindowPtr->busyMode() < 0, "the receiver is back to listening afterwards");
+  check(!statusBarPtr->currentMessage().contains("Not transmitting"), "no 'Not transmitting' line for a receiver");
+
+  printf("\n== Start while a picture is arriving: what has arrived is kept when it is enough (Save if Complete)\n");
+  const QString inWav = scratch + "/in.wav";
+  soundBase::txFileName = inWav;
+  QTest::mouseClick(startBtn, Qt::LeftButton);
+  waitFor([&] { return !locked() && !txRunning(); }, 60000);
+  check(QFileInfo(inWav).size() > 1000000, "a Robot 36 transmission is recorded to be received");
+  auto saved = [&] { return QDir(rxSSTVImagesPath).entryList(QStringList() << "R36_*", QDir::Files).size(); };
+  // receive the recording (about ten times real time) and press Start when `percent` of it has gone through the receiver
+  auto startAt = [&](int percent, const QString &out) -> bool {
+    soundBase::txFileName.clear();
+    dispatcherPtr->idleAll();
+    QString err;
+    if (!soundIOPtr->startFileCapture(inWav, true, err)) { printf("  .. %s\n", qPrintable(err)); return false; }
+    rxf->startRX();
+    if (!waitFor([&] { return soundIOPtr->fileProgressPercent() >= percent && rxf->sstvRxPtr->isReceivingImage(); }, 30000)) return false;
+    soundBase::txFileName = out;
+    QTest::mouseClick(startBtn, Qt::LeftButton);
+    const bool taken = locked();
+    const bool ended = waitFor([&] { return !locked() && !txRunning(); }, 60000);
+    soundIOPtr->clearFileSource();
+    return taken && ended && QFileInfo(out).size() > 100000;
+  };
+  int before = saved();
+  say(QString("pictures in %1 before: %2").arg(rxSSTVImagesPath).arg(before));
+  check(startAt(75, scratch + "/over_a.wav"), "Start at about 75 % of the picture: the transmission is sent");
+  check(saved() == before + 1, QString("and the picture is kept (%1 saved)").arg(saved() - before));
+  before = saved();
+  check(startAt(30, scratch + "/over_b.wav"), "Start at about 25 % of the picture: the transmission is sent");
+  check(saved() == before, QString("and the picture is dropped, it is under Save if Complete (%1 saved)").arg(saved() - before));
+  check(mainWindowPtr->busyMode() < 0, "the receiver is idle again");
 
   printf("\n== Start while a transmission runs\n");
   statusBarPtr->clearMessage();
@@ -131,7 +166,7 @@ int main(int argc, char **argv)
   check(waitFor([] { return txWidgetPtr->functionsPtr()->txBusy(); }, 2000), "the transmitter is busy");
   QTest::mouseClick(startBtn, Qt::LeftButton);
   QTest::qWait(100);
-  msg = statusBarPtr->currentMessage();
+  QString msg = statusBarPtr->currentMessage();
   printf("  .. status bar: '%s'\n", qPrintable(msg));
   check(msg.contains("Not transmitting") && msg.contains("transmission is running"), "the status bar says that a transmission is running");
   dispatcherPtr->idleAll();

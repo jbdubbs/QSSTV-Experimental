@@ -34,6 +34,7 @@ It also starts, stops and synchronizes the threads.
 #include "spectrumwidget.h"
 #include "vumeter.h"
 #include "rxfunctions.h"
+#include "sstvrx.h"
 #include "mainwindow.h"
 #include "rigcontrol.h"
 #include "logbook.h"
@@ -44,6 +45,8 @@ It also starts, stops and synchronizes the threads.
 #include "editorsetup.h"
 
 #include <QDir>
+#include <QElapsedTimer>
+#include <QThread>
 
 #include <QSettings>
 #include <QMessageBox>
@@ -353,8 +356,36 @@ void dispatcher::startRX()
   rxWidgetPtr->functionsPtr()->startRX();
 }
 
+/*!
+  A transmission starts while an analog picture is arriving (#162: the user may start one whenever no transmission runs). idleAll()
+  would throw the picture away, like the Stop button. Instead the capture is ended the way a headless --listen run ends it
+  (soundBase::finishPictureOnStop): the receiver notices that the capture is over, hands the picture it is in the middle of to
+  sstvRx::saveImage(), which keeps it when it meets Save if Complete, and goes idle. The receiver thread waits for this
+  thread to take that picture, so the events are pumped here. A DRM reception, a repeater (its own picture would be sent from
+  inside this call), a calibration and a headless run are left to idleAll().
+*/
+void dispatcher::finishReceivedPicture()
+{
+  if(transmissionModeIndex!=TRXSSTV || calibrationRx || repeaterEnabled) return;
+  if(fileDecoderPtr && fileDecoderPtr->isBatch()) return;
+  rxFunctions *rxf=rxWidgetPtr->functionsPtr();
+  if(rxf->isIdle() || !rxf->sstvRxPtr->isReceivingImage()) return;
+  addToLog("dispatcher: transmission over a picture that is arriving, finishing it first",LOGDISPATCH);
+  soundBase::finishPictureOnStop=true;
+  soundIOPtr->idleRX();
+  QElapsedTimer waited;
+  waited.start();
+  while(!rxf->isIdle() && waited.elapsed()<3000)
+    {
+      qApp->processEvents();
+      QThread::msleep(2);
+    }
+  soundBase::finishPictureOnStop=false;
+}
+
 bool dispatcher::startTX(txFunctions::etxState state)
 {
+  finishReceivedPicture();
   idleAll();
   if(!soundIOPtr->startPlayback())
     {
@@ -378,7 +409,7 @@ void dispatcher::startDRMFIXTx(QByteArray ba)
 
 void dispatcher::startDRMTxBinary()
 {
-  if(mainWindowPtr->busyMode()>=0) return;
+  if(txWidgetPtr->functionsPtr()->txBusy()) return;   // what is being received does not stop a user's transmission (#162); txWidget::slotBinary() has said so
   //TODO: this whole thing should probably live in txWidget::slotBinary
   QFileInfo finfo;
   int sizeOfFile;

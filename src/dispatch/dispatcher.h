@@ -27,6 +27,8 @@ public:
   ~dispatcher();
   void init();
   void idleAll();
+  /** an analog picture is arriving: stop the receiver so that the part received so far is kept when it meets Save if Complete (idleAll() would throw it away) */
+  void finishReceivedPicture();
   void startRX();
   bool startTX(txFunctions::etxState state);
   void readSettings();
