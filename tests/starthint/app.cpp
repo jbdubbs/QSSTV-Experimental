@@ -5,6 +5,7 @@
 //   - Start while a transmission runs: a status bar line (it used to be silent)
 //   - Start with no working sound output: a box that stays (non-modal, shown once) and a status bar line, the controls unlocked again;
 //     a calibration / --encode transmission and a beacon get no box
+//   - a DRM picture that cannot be compressed (#166): the tab unlocks, the sound output is let go of, a box says why
 //   - keying the radio fails: a box when the transmitter is keyed down, none when it is released, none when no PTT is meant
 // Built and run by tests/starthint/app.sh against an existing build-cmake tree (it links the application's object files).
 #include <QtTest>
@@ -250,6 +251,47 @@ int main(int argc, char **argv)
   check(boxes().isEmpty(), "PTT through XML-RPC: no box");
   cp->enableXMLRPC = false;
   closeBoxes();
+
+  printf("\n== a DRM picture that cannot be compressed (#166): nothing stays locked\n");
+  // the encoder writes its output to a temporary file in QDir::tempPath(): a folder that is not there makes every encode fail
+  const QString goodTmp = scratch + "/tmp";
+  QDir().mkpath(goodTmp);
+  qputenv("TMPDIR", "/nonexistent-qsstv-tmp");
+  mainWindowPtr->switchMode(TRXDRM);
+  check(transmissionModeIndex == TRXDRM, "(DRM mode)");
+  const QString pic = scratch + "/pic.png";
+  img.save(pic);
+  imageViewer *iv = txWidgetPtr->getImageViewerPtr();
+  QString picName = pic;
+  iv->openImage(picName, false, true, false, false);
+  waitFor([&] { return !iv->encodePending(); }, 30000);
+  QTest::qWait(300);
+  {
+    QByteArray probe;
+    check(!iv->copyToBuffer(&probe) && probe.isEmpty(), "(the encoder really gives nothing with that temporary folder)");
+  }
+  soundBase::txFileName = scratch + "/drmfail.wav";   // the sound output is a file: only the encode can fail
+  closeBoxes();
+  statusBarPtr->clearMessage();
+  QTest::mouseClick(startBtn, Qt::LeftButton);
+  check(waitFor([&] { return !boxes().isEmpty(); }, 8000), "a box appears");
+  printf("  .. box: '%s'\n", boxes().isEmpty() ? "" : qPrintable(boxes().first()->text()));
+  check(boxWith("Cannot transmit", "could not be compressed") && boxWith("Cannot transmit", "/nonexistent-qsstv-tmp"),
+        "it says the picture could not be compressed and names the temporary folder");
+  check(waitFor([&] { return !locked() && startBtn->isEnabled() && !txRunning(); }, 5000), "the Transmit tab is unlocked again");
+  check(!soundIOPtr->isPlaying(), "the sound output is let go of");
+  check(statusBarPtr->currentMessage().contains("Nothing was transmitted"), "the status bar says it too");
+  closeBoxes();
+
+  qputenv("TMPDIR", goodTmp.toLocal8Bit());
+  iv->openImage(picName, false, true, false, false);
+  waitFor([&] { return !iv->encodePending(); }, 30000);
+  QTest::qWait(300);
+  soundBase::txFileName = scratch + "/drmok.wav";
+  QTest::mouseClick(startBtn, Qt::LeftButton);
+  check(locked(), "with a usable temporary folder Start is taken");
+  check(waitFor([&] { return !locked() && !txRunning(); }, 120000) && QFileInfo(scratch + "/drmok.wav").size() > 100000, "and the DRM picture is sent");
+  check(boxes().isEmpty(), "without a box");
 
   finish();
 }

@@ -40,6 +40,7 @@ public:
   QString getTxFileName(QString fileName);
   bool ftpDRMHybrid(QString fileName, QString destName);
   bool initDRMImage(bool binary, QString fileName);
+  QString initError() const {return initErr;}   //!< why the last initDRMImage() gave false
   void updateTxList();
   void who();
   void sendBSR(QByteArray *p,drmTxParams dp);
@@ -73,6 +74,7 @@ private:
     QString	drmTxStamp;
     int		hybridTxCount;
     QByteArray baDRM;
+    QString initErr;
     QString lastHybridUpload;
     QTemporaryFile ftmp;
     ftpFunctions ff;

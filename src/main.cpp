@@ -632,9 +632,15 @@ int main( int argc, char ** argv )
       drmTxParams prm=drmParams;
       for(const auto &s : drmSet) prm.*(s.first)=s.second;
       soundBase::txFileName=parser.isSet(wavOutOpt) ? parser.value(wavOutOpt) : parser.value(encodeOpt)+".wav";
-      QObject::connect(txWidgetPtr,&txWidget::calibrationTxFinished,&app,[&app]()
+      bool encodeFailed=false;   // calibrationTxFailed() comes before calibrationTxFinished()
+      QObject::connect(txWidgetPtr,&txWidget::calibrationTxFailed,&app,[&encodeFailed](const QString &why)
       {
-        app.exit(0);
+        fprintf(stderr,"--encode: %s\n",qPrintable(why));
+        encodeFailed=true;
+      });
+      QObject::connect(txWidgetPtr,&txWidget::calibrationTxFinished,&app,[&app,&encodeFailed]()
+      {
+        app.exit(encodeFailed ? fileDecoder::EXIT_BADFILE : 0);
       },Qt::QueuedConnection);
       QTimer::singleShot(1800000,&app,[&app](){fprintf(stderr,"--encode timed out\n");app.exit(3);});
       mainWindowPtr->startRunning(false);   // no sound card receiver: the transmitter writes a file
@@ -648,7 +654,7 @@ int main( int argc, char ** argv )
       result=app.exec();
       mainWindowPtr->shutdown(false);
       globalEnd();
-      fprintf(stderr,"wrote %s\n",qPrintable(soundBase::txFileName));
+      if(!encodeFailed) fprintf(stderr,"wrote %s\n",qPrintable(soundBase::txFileName));
       return result;
     }
   if(encode)
@@ -671,9 +677,15 @@ int main( int argc, char ** argv )
       soundBase::txFileName=parser.isSet(wavOutOpt) ? parser.value(wavOutOpt) : parser.value(encodeOpt)+".wav";
       // only leave the event loop here: slotStop() emits this and then still calls startRX(), which needs the worker
       // threads, so they are shut down after exec() has returned
-      QObject::connect(txWidgetPtr,&txWidget::calibrationTxFinished,&app,[&app]()
+      bool encodeFailed=false;   // calibrationTxFailed() comes before calibrationTxFinished()
+      QObject::connect(txWidgetPtr,&txWidget::calibrationTxFailed,&app,[&encodeFailed](const QString &why)
       {
-        app.exit(0);
+        fprintf(stderr,"--encode: %s\n",qPrintable(why));
+        encodeFailed=true;
+      });
+      QObject::connect(txWidgetPtr,&txWidget::calibrationTxFinished,&app,[&app,&encodeFailed]()
+      {
+        app.exit(encodeFailed ? fileDecoder::EXIT_BADFILE : 0);
       },Qt::QueuedConnection);
       QTimer::singleShot(900000,&app,[&app](){fprintf(stderr,"--encode timed out\n");app.exit(3);});
       if(transmissionModeIndex!=TRXSSTV) mainWindowPtr->switchMode(TRXSSTV);   // the saved tab may be DRM
@@ -688,7 +700,7 @@ int main( int argc, char ** argv )
       result=app.exec();
       mainWindowPtr->shutdown(false);
       globalEnd();
-      fprintf(stderr,"wrote %s\n",qPrintable(soundBase::txFileName));
+      if(!encodeFailed) fprintf(stderr,"wrote %s\n",qPrintable(soundBase::txFileName));
       return result;
     }
   if(batch)

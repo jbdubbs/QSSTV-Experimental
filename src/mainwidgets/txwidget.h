@@ -45,6 +45,8 @@ public:
 //  void startTX(bool st, bool check=true);
   void prepareTx();
   void prepareTxComplete(bool ok);
+  //! the TX thread could not prepare the picture after the transmission had started (txFunctions::startFailed()): say why, and put everything back as Stop does (#166)
+  void txStartFailed(const QString &why);
   void writeSettings();
   void readSettings();
   //! Configuration > GPS may have another position format now: the Lat and Long boxes are converted to it (in both directions)
@@ -156,6 +158,7 @@ signals:
   void txStopped();
   void progressChanged(int percent); //!< TX progress 0..100 (calibration dialog)
   void calibrationTxFinished();
+  void calibrationTxFailed(const QString &why); //!< a calibration / --encode transmission could not start or went wrong; calibrationTxFinished() follows
   void beaconCountdownChanged(const QString &text,bool error); //!< status bar text for the running webcam beacon (countdown, or the reason it is not transmitting); empty: not running
 
 private:
@@ -173,6 +176,8 @@ private:
   void startTxImage();
   //! a transmit button was pressed while a transmission is running: true, after saying so in the status bar; what is being received does not count (#162)
   bool busyNotice();
+  //! somebody pressed Start and can read a box: not a repeater, not a headless run
+  bool attendedTx() const;
   //! the transmitter could not be started: the status bar says why, and a box too when somebody pressed the button (#162)
   void startFailedNotice(bool attended);
   void restoreAfterCalibrationTx();

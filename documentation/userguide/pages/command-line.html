@@ -73,6 +73,7 @@ but never written. The EXIF or HEIF orientation of a photo is applied, as when y
 <pre><code>qsstv --encode rose.png --mode PD120 --wav-out pd120.wav
 qsstv --encode rose.png --drm --drm-mode B --drm-qam 16 --drm-bw 2.8 --wav-out rose-drm.wav</code></pre>
 <p>A round trip is a good test of an installation: encode a picture and then decode the WAV with <code>--batch</code>.</p>
+<p>When the transmission cannot be made (the WAV cannot be written, or a DRM picture cannot be compressed because the temporary folder is full or missing) the reason is printed and the exit code is 2; the WAV is not announced as written.</p>
 
 <h2 id="template">--render-template and --convert-template</h2>
 <p>Two headless options for the templates used on the Transmit tab (<a href="transmit.html">Transmit</a>). Neither starts the receiver or opens a window.</p>

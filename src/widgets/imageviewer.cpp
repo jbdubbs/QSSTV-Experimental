@@ -1231,7 +1231,7 @@ bool imageViewer::copyToBuffer(QByteArray *ba)
 {
   QImage im;
   QImage cvimg;
-  int fileSize;
+  int fileSize=0;   // stays 0 when the encode gives nothing
   finishPendingEncode();   // a slider-driven background encode must land before its data is read
   cvimg=displayedImage.convertToFormat(QImage::Format_RGB32);
 #if (QT_VERSION < QT_VERSION_CHECK(5,10,0))
@@ -1660,7 +1660,7 @@ int imageViewer::applyTemplate()
   if(!templateInUse()) displayedImage=resultImage;
   if(useCompression)
     {
-      int fileSize;
+      int fileSize=0;   // stays 0 when the encode gives nothing: it was left as it was, and a large garbage value made "the original file is smaller" true, so a failed encode sent the original file at random
 #if (QT_VERSION < QT_VERSION_CHECK(5,10,0))
       byteCount=(resultImage.convertToFormat(QImage::Format_RGB32).byteCount()*3)/4;
 #else

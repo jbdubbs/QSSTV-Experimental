@@ -1,4 +1,5 @@
 #include "drmtx.h"
+#include <QDir>
 #include "appglobal.h"
 #include "soundbase.h"
 #include "dispatcher.h"
@@ -84,8 +85,17 @@ bool drmTx::initDRMImage(bool binary,QString fileName)
   QFile inf;
   setTxParams(drmParams);
 
-  if (binary && fileName.isEmpty()) return false;
-  if (!binary && !txWidgetPtr->getImageViewerPtr()->hasValidImage()) return false;
+  initErr.clear();
+  if (binary && fileName.isEmpty())
+    {
+      initErr="No file is chosen.";
+      return false;
+    }
+  if (!binary && !txWidgetPtr->getImageViewerPtr()->hasValidImage())
+    {
+      initErr="There is no picture to send.";
+      return false;
+    }
 
   addToLog(QString("bin=%1, fileName=%2").arg(binary).arg(fileName),LOGDRMTX);
 
@@ -100,6 +110,7 @@ bool drmTx::initDRMImage(bool binary,QString fileName)
           if(!inf.open(QIODevice::ReadOnly))
             {
               addToLog(QString("Unable to open '%1' for read").arg(fileName),LOGDRMTX);
+              initErr=QString("The file %1 cannot be opened for reading.").arg(fileName);
               return false;
             }
           baDRM=inf.readAll();
@@ -109,6 +120,7 @@ bool drmTx::initDRMImage(bool binary,QString fileName)
           if(!txWidgetPtr->getImageViewerPtr()->copyToBuffer(&baDRM))
             {
               addToLog(QString("Unable to copy image from txWidget->viewer"),LOGDRMTX);
+              initErr=QString("The picture could not be compressed for transmission. The usual reason is a temporary folder that is full or not writable (%1).").arg(QDir::tempPath());
               return false;
             }
           drmTxFileName.setFile(drmTxFileName.completeBaseName()+"."+QFileInfo(txWidgetPtr->getImageViewerPtr()->getCompressedFilename()).suffix());

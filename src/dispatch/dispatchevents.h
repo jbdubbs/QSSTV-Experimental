@@ -36,7 +36,8 @@ enum dispatchEventType
   displayProgressFTP,
   moveToTx,
   notifyCheck,
-  statusBarMsg
+  statusBarMsg,
+  txStartFailed   //!< the TX thread could not begin a transmission (the picture could not be prepared): unlock the GUI and say why
 };
 
 class baseEvent: public QEvent
@@ -178,6 +179,20 @@ public:
   bool ok() const { return _ok; }
 private:
   bool _ok;
+};
+
+class txStartFailedEvent : public baseEvent
+{
+public:
+  /** create event */
+  txStartFailedEvent(const QString &why):baseEvent( (QEvent::Type)txStartFailed ), _why(why)
+  {
+    description="txStartFailedEvent";
+  }
+  /** why the transmission could not start */
+  QString why() const { return _why; }
+private:
+  QString _why;
 };
 
 class lineDisplayEvent : public baseEvent

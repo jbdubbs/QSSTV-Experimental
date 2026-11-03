@@ -741,9 +741,8 @@ void txWidget::startTxImage()
   fn=imageViewerPtr->getFilename();
   QFileInfo finf(fn);
   const bool beaconWasPending=beaconPending;   // cleared below, once the beacon has been told
-  // a box is for somebody who pressed Start: not a repeater, and not a headless run with nobody to read it (a beacon and a
-  // calibration report in their own way, below)
-  const bool attended=!repeaterEnabled && !(fileDecoderPtr && fileDecoderPtr->isBatch());
+  // a box is for somebody who pressed Start (a beacon and a calibration report in their own way, below)
+  const bool attended=attendedTx();
 
   bool started=false;
   switch(transmissionModeIndex)
@@ -785,9 +784,37 @@ void txWidget::startTxImage()
   else
     {
       enableButtons(true);   // prepareTx() locked the controls
-      if(calTxActive) restoreAfterCalibrationTx();
+      if(calTxActive)
+        {
+          QString why=soundIOPtr ? soundIOPtr->getLastError().trimmed() : QString();
+          if(why.isEmpty()) why="the transmitter could not be started";
+          emit calibrationTxFailed(why);
+          restoreAfterCalibrationTx();
+        }
       else if(!beaconWasPending) startFailedNotice(attended);   // a beacon says it in its own line (beaconSkipped)
     }
+}
+
+bool txWidget::attendedTx() const
+{
+  return !repeaterEnabled && !(fileDecoderPtr && fileDecoderPtr->isBatch());
+}
+
+/*!
+  The transmission had started (the receiver stopped, the PTT keyed, the sound output started) when the TX thread found that the
+  picture could not be prepared, for DRM that it could not be compressed (txFunctions::startFailed()). Nothing else ends such a
+  transmission: the tab stayed locked, the receiver stopped and the PTT keyed until somebody pressed Stop (#166). slotStop() is that
+  Stop: it releases the PTT and the sound output, unlocks the tab and starts the receiver again.
+*/
+void txWidget::txStartFailed(const QString &why)
+{
+  addToLog("txStartFailed: "+why,LOGTXMAIN);
+  QString first=why.section('.',0,0);
+  if(!first.isEmpty()) first[0]=first[0].toLower();
+  statusBarPtr->showMessage(first.isEmpty() ? QString("Nothing was transmitted") : QString("Nothing was transmitted: %1.").arg(first),15000);
+  if(calTxActive) emit calibrationTxFailed(why);
+  else if(attendedTx()) showProblem("Cannot transmit",QString("Nothing was transmitted.\n\n%1").arg(why.isEmpty() ? QString("The picture could not be prepared for transmission.") : why));
+  slotStop();
 }
 
 void txWidget::sendBSR()

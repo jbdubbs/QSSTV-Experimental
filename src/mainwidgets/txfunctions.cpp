@@ -170,7 +170,7 @@ void txFunctions::run()
               switchTxState(TXSENDDRM);
             }
           else
-            switchTxState(TXIDLE);
+            startFailed();
           break;
 
         case TXSENDDRMBINARY:
@@ -182,7 +182,7 @@ void txFunctions::run()
               switchTxState(TXSENDDRM);
             }
           else
-            switchTxState(TXIDLE);
+            startFailed();
           break;
 
         case TXSENDDRMBSR:
@@ -362,6 +362,18 @@ bool txFunctions::txBusy()
 void txFunctions::startTX(etxState state)
 {
   switchTxState(state);
+}
+
+/*!
+  The picture could not be prepared once the transmission had been started (dispatcher::startTX() had stopped the receiver, keyed the
+  PTT and started the sound output). The thread goes back to idle, and the GUI is told: nothing else ends this transmission, so the
+  Transmit tab stayed locked, the receiver stopped and the PTT keyed until somebody pressed Stop (#166).
+*/
+void txFunctions::startFailed()
+{
+  const QString why=drmTxPtr->initError();
+  switchTxState(TXIDLE);
+  QApplication::postEvent(dispatcherPtr,new txStartFailedEvent(why));   // Qt will delete it when done
 }
 
 void txFunctions::prepareTXComplete(bool ok)

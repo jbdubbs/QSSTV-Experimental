@@ -83,6 +83,7 @@ private:
   void switchTxState(etxState newState);
   void startProgress(double duration);
   void prepareTXComplete(bool ok);
+  void startFailed();   //!< the picture could not be prepared: back to idle, and the GUI unlocks and says why (#166)
   etxState txState;
   bool started;
   bool abort;

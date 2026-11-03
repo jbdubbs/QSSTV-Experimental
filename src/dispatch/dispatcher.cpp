@@ -193,6 +193,9 @@ void dispatcher::customEvent( QEvent * e )
     case txPrepareComplete:
       txWidgetPtr->prepareTxComplete(((txPrepareCompleteEvent *)e)->ok());
       break;
+    case txStartFailed:
+      txWidgetPtr->txStartFailed(((txStartFailedEvent *)e)->why());
+      break;
 
     case templatesChanged:
       galleryWidgetPtr->changedMatrix(imageViewer::TEMPLATETHUMB);
