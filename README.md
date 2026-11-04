@@ -35,7 +35,7 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 #### Features
 
 - **Sample-rate calibration** - from WWV time ticks, NTP, or the slant of a received SSTV picture
-- **Decode SSTV from audio files** - (WAV, MP3, FLAC, OGG, AAC), from the GUI (*File > Decode SSTV From File...*) at about 10x real time, or from the command line with `qsstv-experimental --batch`, headless, with scriptable exit codes. `qsstv-experimental --listen` is the live counterpart: a headless receiver that saves the pictures from a sound card input (`--device`, `--list-devices`)
+- **Decode SSTV from audio files** - (WAV, MP3, FLAC, OGG, AAC), from the GUI (*File > Decode SSTV From File...*) at about 10x real time
 - **New SSTV modes:** - *JB60*, a ~61 s 640*496 color mode, and *PD120W*, a 16:9 widescreen PD120
 - **Stitched grid images:** - transmit pictures as 1x2, 2x1 or 2x2 grids on the higher resolution SSTV modes and DRM
 - **Pan/Zoom images for transmission** - Place images exactly how you want them in-frame (and in grids) before transmission
@@ -43,13 +43,19 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 - **WebP, AVIF and HEIC** - image formats, with EXIF/HEIF orientation applied on import
 - **Image viewer zoom and pan:** - smooth mouse-wheel zoom and drag-to-pan
 - **Clipboard support:** - copy images from anywhere, paste into the transmit window or TX stock
-- **New template editor** - rebuilt from scratch for the overlay on transmitted pictures: undo/redo, zoom, snapping, gradients, shadows, text boxes that wrap and shrink to fit, group resize and rotate, layers, a macro palette, starter templates and color bars, and a size preview of the template on every SSTV mode. Templates keep their proportions on modes of another shape (items are anchored to the edges) instead of being stretched. Templates are saved in a new, safe `.qtempl` format; old `.templ` files still open. Pictures are edited in your own picture editor (a copy, the original is never touched)
+- **New template editor** - rebuilt from scratch for the overlay on transmitted pictures: undo/redo, zoom, snapping, gradients, shadows, text boxes that wrap and shrink to fit, group resize and rotate, layers, a macro palette, starter templates and color bars, and a size preview of the template on every SSTV mode. 
 - **ADIF logbook broadcast over UDP** - on every OS
 - **DRM Live size-slider preview:** - the picture preview updates as the slider is dragged
 - **DRM Progressive Image Reception** - Image previews as you receive, improving in quality over time
+- **DRM AVIF Encoding** - Allows shorter transmissions at higher image quality
+- **DRM New Bandwidth Option** - Now allows 4.8 kHz bandwidth for VHF/UHF FM data port radios (not to be used on HF)
 - **Follows Desktop Themes** - On Linux builds (also should on other OSs.  I'm not buying a Windows license to find out)
+- **WA8LMF Beacon Mode** - Beacons a connected webcam image at a user-defined interval
+- **GPS Functionality In Templates** - Connects to a serial GPS device and allows insertion of coordinates and an internet-connected location name lookup
 
 #### Other changes and updates
+
+- **Receiver Improved** - Major receiver improvements that now match or exceed performance of MMSSTV 1.13
 
 1. Fixed - Changing audio devices results in the receiver not starting back up correctly
 2. Fixed - Images in the viewer show 0x0 dimensions
@@ -75,6 +81,7 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 22. Updated - Documentation.  Now both offline and online.
 23. Removed - Dead or abandoned code or assets
 24. New - Automatic update notifications
+25. New - Receive images from your sound card on the command line (--listen), or encode and decode files as well from various audio formats
 
 ## Download a pre-built release
 
@@ -113,3 +120,5 @@ I'd like to record a special thank you to all the testers of QSSTV-Experimental:
 - Stephen WA8LMF (http://wa8lmf.net/) (Extensive Windows SSTV and DRM testing of nearly every test release)
 - Rick KC8LOQ (Testing and feedback on several Windows releases)
 - Finn KF8GTK (Testing and feedback on Linux releases)
+- ploeffler (Testing, PRs, and ideas)
+- barnburner6503 (Testing and bug reports)
