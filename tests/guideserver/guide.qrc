@@ -1,0 +1,8 @@
+<RCC>
+  <qresource prefix="/">
+    <file alias="guide/index.html">guide/index.html</file>
+    <file alias="guide/sub/page.html">guide/sub/page.html</file>
+    <file alias="guide/pic.png">guide/pic.png</file>
+    <file alias="outside.txt">outside.txt</file>
+  </qresource>
+</RCC>

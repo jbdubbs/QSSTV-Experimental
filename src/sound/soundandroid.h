@@ -34,16 +34,19 @@ public:
   int write(uint numFrames);
 
   //! A description of what was opened (device ids, rate, preset), for the log and the Sound page
-  QString routeSummary() const {return route;}
-  //! Input samples that reached full scale (or were clipped by the digital gain) since the last call: the clip warning
+  QString routeSummary() const override {return route;}
+  //! Input samples that reached full scale (or were clipped by the digital gain) since the last call
   int takeClipCount() {return clips.exchange(0);}
+  //! The microphone delivers nothing for a while, or is overloaded (see soundBase::inputProblem())
+  QString inputProblem();
   //! Live change of the digital gain (dB), without reopening the stream
-  void setRxGainDb(double db);
+  void setRxGainDb(double db) override;
 
 protected:
   void flushCapture();
   void flushPlayback();
   void prepareCapture();
+  void preparePlayback();
   void closeDevices();
   void waitPlaybackEnd();
   void idleTick();
@@ -54,6 +57,7 @@ private:
   friend class dataCallback;
   friend class errorCallback;
 
+  QString inputProblemNow();
   bool openInput(int deviceId,QString &why);
   bool openOutput(int deviceId,QString &why);
   void startInput();
@@ -88,6 +92,9 @@ private:
   std::atomic<int> clips;
   std::atomic<unsigned> overruns;
   std::atomic<unsigned> underruns;
+  std::atomic<int> peak;           // the largest input sample since the level was last logged
+  std::atomic<unsigned> zeroRun;   // input samples in a row that are exactly zero: what a muted or blocked microphone delivers
+  bool focusHeld;                  // audio focus is held for the transmission in progress
 };
 
 #endif // SOUNDANDROID_H

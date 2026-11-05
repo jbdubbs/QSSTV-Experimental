@@ -3,6 +3,7 @@ package io.github.jbdubbs.qsstv_experimental;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
@@ -43,6 +44,32 @@ public class FileHelper
         }
         String last = uri.getLastPathSegment();
         return last != null ? last : "file";
+    }
+
+    /**
+     * Hand a picture to another app through the system share sheet. The file is in the app's own storage, so it goes out as
+     * a content:// URI from Qt's FileProvider (declared in the manifest, authority "<application id>.qtprovider", which covers
+     * the app's files folder) with a read grant for the receiving app.
+     */
+    public static void shareImage(Context context, String path)
+    {
+        try
+        {
+            java.io.File file = new java.io.File(path);
+            Uri uri = androidx.core.content.FileProvider.getUriForFile(context, context.getPackageName() + ".qtprovider", file);
+            String mime = imageMimeType(file.getName());
+            Intent send = new Intent(Intent.ACTION_SEND);
+            send.setType(mime != null ? mime : "image/*");
+            send.putExtra(Intent.EXTRA_STREAM, uri);
+            send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            Intent chooser = Intent.createChooser(send, "Share picture");
+            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(chooser);
+        }
+        catch (RuntimeException e)
+        {
+            Log.w(TAG, "shareImage " + path + ": " + e);
+        }
     }
 
     private static String imageMimeType(String name)

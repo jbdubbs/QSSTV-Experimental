@@ -241,9 +241,11 @@ because macOS's audio decoder does not handle Vorbis.
 
 ## Android (in development)
 
-An Android build is being developed on the `android-port` branch. It builds, installs and starts, but it is not
-released: the touch layout, the Android audio backend, USB serial PTT and the permission prompts are still to come, so
-the window is the desktop one and does not fit a phone yet. Android 9 (API 28) or newer, 64-bit ARM (`arm64-v8a`) or `x86_64` for the emulator.
+An Android build is being developed on the `android-port` branch. It receives and transmits through the phone's own microphone
+and speaker (or a headset or USB audio interface), asks for the microphone permission, keeps receiving with the screen off (a
+foreground service), saves received pictures to the gallery and decodes recordings opened from a file manager ("Open with"). It is not
+released: the window is still the desktop one and does not fit a phone, and USB serial PTT/CAT, GPS and the camera are still to come.
+Android 9 (API 28) or newer, 64-bit ARM (`arm64-v8a`) or `x86_64` for the emulator.
 
 You need JDK 21, the Android SDK with platform 36 and **NDK 27.2.12479018 (r27c)**, and Qt 6.11.2 for Android (the NDK must be
 the one the Qt kit was built with) plus the matching desktop Qt as the host tools, for example with [aqtinstall](https://github.com/miurahr/aqtinstall):
@@ -283,3 +285,9 @@ The application id is `io.github.jbdubbs.qsstv_experimental` and the version com
 (the version code is derived from it, see the end of `src/CMakeLists.txt`). For the emulator build `android_x86_64` with the matching
 `build-android-x86_64` and deps directory. On a Linux host with SELinux enforcing (Fedora), start the emulator with `-gpu host`:
 its software renderer (SwiftShader) needs executable heap memory, which SELinux denies, and the emulator then crashes at startup.
+
+What to look at when something does not work on a phone: `adb logcat -s qsstv-audio qsstv-service qsstv-files` shows the audio devices
+and route that were opened, the microphone level and problems (muted, overloaded), the foreground service, and the files that were
+picked, decoded and added to the gallery. A keyboard (or `adb shell input keyevent`) reaches the User's Guide with F1 and the
+Configuration dialog with F2 until the touch layout has its own navigation. The User's Guide is compiled into the app and shown in the
+browser from a server on 127.0.0.1; `tests/guideserver/run.sh` checks that server on the desktop.

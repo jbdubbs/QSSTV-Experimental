@@ -151,6 +151,7 @@ private slots:
   void slotLoad();
   void slotNew();
   void slotUploadFTP();
+  void slotShare();
   void slotProperties();
   void slotCopy();
   void slotPaste();
@@ -206,6 +207,7 @@ private:
   QMenu *toTXMenu;
   QAction *editAct;
   QAction *uploadAct;
+  QAction *shareAct;   // Android: the share sheet; not made elsewhere
   QAction *deleteAct;
   QAction *clearAct;
   QAction *viewAct;

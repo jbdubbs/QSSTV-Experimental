@@ -29,6 +29,12 @@ namespace Ui {
   class soundConfig;
   }
 
+#ifdef Q_OS_ANDROID
+class QComboBox;
+class QLabel;
+class QSlider;
+#endif
+
 class soundConfig : public baseConfig
 {
   Q_OBJECT
@@ -43,12 +49,25 @@ public:
 
 
 
+#ifdef Q_OS_ANDROID
+protected:
+  void showEvent(QShowEvent *e) override;   //!< the route in use and the media volume, as they are now
+#endif
+
 private slots:
   void refreshDeviceLists();
   void updateChannelEnables();
 
 private:
   Ui::soundConfig *ui;
+#ifdef Q_OS_ANDROID
+  void buildPhoneAudioBox();   //!< the phone's own controls, made in code so the shared form stays as it is
+  QComboBox *micPresetCombo;
+  QSlider *rxGainSlider;
+  QLabel *rxGainLabel;
+  QSlider *volumeSlider;
+  QLabel *routeLabel;
+#endif
 
 };
 

@@ -321,7 +321,7 @@ set(QSSTV_SOURCES
 
 if(ANDROID)
   # the native sound backend (AAudio through Oboe); the other platforms use soundqtmultimedia.cpp only
-  list(APPEND QSSTV_SOURCES sound/soundandroid.cpp android/openwith.cpp)
+  list(APPEND QSSTV_SOURCES sound/soundandroid.cpp android/openwith.cpp android/androidaudio.cpp)
 endif()
 
 # Video capture used to be Linux/macOS-only V4L2 (excluded on macOS via the original
@@ -460,6 +460,13 @@ target_link_libraries(qsstv PRIVATE
     PkgConfig::OPENJP2
     hamlib::hamlib
 )
+if(ANDROID)
+  # The User's Guide is compiled into the app (documentation/userguide stays the one source, see BUILDING.md): an Android app
+  # has no folder to install it to, and guideserver serves it from :/userguide to the browser on 127.0.0.1
+  file(GLOB_RECURSE QSSTV_GUIDE_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/../documentation/userguide/*")
+  qt_add_resources(qsstv "userguide" PREFIX "/userguide" BASE "${CMAKE_CURRENT_SOURCE_DIR}/../documentation/userguide"
+                   FILES ${QSSTV_GUIDE_FILES})
+endif()
 if(ANDROID)
   # Oboe, built static by tools/build-android-deps.sh (it also uses OpenSL ES on a device without AAudio)
   find_path(OBOE_INCLUDE_DIR NAMES oboe/Oboe.h)

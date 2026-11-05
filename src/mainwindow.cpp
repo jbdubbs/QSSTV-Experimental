@@ -50,6 +50,10 @@
 #include "soundbackend.h"
 #include "platformpermissions.h"
 #include "platformservice.h"
+#ifdef Q_OS_ANDROID
+#include "androidaudio.h"
+#include <android/log.h>
+#endif
 #include "configdialog.h"
 #include "configparams.h"
 #include "rigcontrol.h"
@@ -161,6 +165,10 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
   connect(ui->actionAboutQSSTV, SIGNAL(triggered()),SLOT(slotAboutQSSTV()));
   connect(ui->actionAboutQt, SIGNAL(triggered()),SLOT(slotAboutQt()));
   connect(ui->actionUsersGuide, SIGNAL(triggered()),SLOT(slotDocumentation()));
+#ifdef Q_OS_ANDROID
+  ui->actionUsersGuide->setShortcut(Qt::Key_F1);   // a keyboard (or the test harness) has no menu bar to click here
+  ui->actionConfigure->setShortcut(Qt::Key_F2);
+#endif
 #ifndef Q_OS_ANDROID   // an Android app is installed and updated by the store (and Google Play does not allow its own update prompt)
   if(appImageIntegration::available())
     {
@@ -255,6 +263,18 @@ mainWindow::~mainWindow()
  * @brief initialize sound device and dispatcher
  *
  */
+#ifdef Q_OS_ANDROID
+// Android 13 and later: without the notification permission the foreground service still runs, but its notification (the only
+// sign that the program is listening with the screen off) is not shown. Asked once; the system does not repeat a refusal anyway.
+static void askForNotifications()
+{
+  QSettings qs;
+  if(qs.value("android/notificationsAsked",false).toBool()) return;
+  qs.setValue("android/notificationsAsked",true);
+  androidRequestNotificationPermission();
+}
+#endif
+
 void mainWindow::init()
 {
   if(!fileDecoderPtr->isBatch()) // a headless decode must not prune the user's image caches
@@ -277,17 +297,30 @@ void mainWindow::init()
             {
               rxWantedActive=true;
               restartSound(false);
+              QTimer::singleShot(2000,this,[]{askForNotifications();});
             }
           else
             {
-              showProblem(tr("Microphone"),tr("QSSTV-Experimental needs the microphone permission to receive. Allow it in the system settings "
-                                              "(Apps, QSSTV-Experimental, Permissions) and start the program again."));
+              micDenied=true;
+              QMessageBox *box=new QMessageBox(QMessageBox::Warning,tr("Microphone"),
+                                               tr("QSSTV-Experimental needs the microphone permission to receive. Allow it in the system settings "
+                                                  "(Permissions, Microphone); the receiver starts when you come back."),QMessageBox::Ok,this);
+              QPushButton *settings=box->addButton(tr("Open settings"),QMessageBox::ActionRole);
+              connect(settings,&QPushButton::clicked,this,[]{androidOpenAppSettings();});
+              box->setAttribute(Qt::WA_DeleteOnClose);
+              box->setWindowModality(Qt::NonModal);
+              box->show();
             }
         });
     }
   else
-#endif
+    {
+      restartSound(true);
+      QTimer::singleShot(4000,this,[]{askForNotifications();});
+    }
+#else
   restartSound(true);
+#endif
   dispatcherPtr->init();
   galleryWidgetPtr->init();
   txWidgetPtr->init();
@@ -319,6 +352,13 @@ void mainWindow::init()
   connect(qApp,&QGuiApplication::applicationStateChanged,this,[this](Qt::ApplicationState state)
     {
       if(state!=Qt::ApplicationActive) writeSettings();
+      else dispatcherPtr->appResumed();
+      if(state==Qt::ApplicationActive && micDenied && platformPermissions::microphoneGranted())
+        {
+          micDenied=false;   // given in the system settings since: the receiver was waiting for it
+          rxWantedActive=true;
+          restartSound(false);
+        }
     });
 #endif
 }
@@ -536,6 +576,7 @@ void mainWindow::restartSound(bool inStartUp)
   // to be redone every time too -- see soundBase::deviceLost()'s doc comment and
   // recoverSound() for why.
   connect(soundIOPtr,&soundBase::deviceLost,this,&mainWindow::recoverSound);
+  connect(soundIOPtr,&soundBase::audioNotice,this,[this](const QString &message){statusBarPtr->showMessage(message,10000);});
   bool soundOK=soundIOPtr->init(BASESAMPLERATE);
   if(!soundOK)
     {
@@ -806,7 +847,11 @@ void mainWindow::openUserGuide(const QString &page)
       return;
     }
   const QString appDir=QCoreApplication::applicationDirPath();
-  const QStringList candidates={appDir+"/userguide",
+  const QStringList candidates={
+#ifdef Q_OS_ANDROID
+                                QStringLiteral(":/userguide"),   // compiled into the app
+#endif
+                                appDir+"/userguide",
                                 appDir+"/../share/doc/qsstv/userguide",
                                 appDir+"/../Resources/userguide",   // macOS .app bundle
                                 QStringLiteral(QSSTV_USERGUIDE_SRC_DIR)};
@@ -818,6 +863,9 @@ void mainWindow::openUserGuide(const QString &page)
           // served over http on localhost: a file:// URL breaks in sandboxed (Flatpak/Snap) browsers,
           // which only get the single file and 404 on every link to another page or image
           QUrl url=guideServer::instance().urlFor(dir);
+#ifdef Q_OS_ANDROID
+          __android_log_print(ANDROID_LOG_INFO,"qsstv-files","user's guide: %s from %s",qPrintable(url.toString()),qPrintable(dir));
+#endif
           if(url.isEmpty()) url=QUrl::fromLocalFile(QFileInfo(index).canonicalFilePath());
           if(!page.isEmpty() && QFileInfo::exists(QDir(dir).filePath(page))) url=url.resolved(QUrl(page));
           openUrlOrWarn(this,url);
@@ -1018,6 +1066,14 @@ void mainWindow::timerEvent(QTimerEvent *)
   // the foreground service that keeps the microphone working in the background runs exactly while the sound backend
   // is receiving or sending (driverOK(): the permission was given and the device opened)
   platformService::setActive(soundIOPtr && soundIOPtr->driverOK() && (soundIOPtr->isCapturing() || soundIOPtr->isPlaying()));
+  // a muted, blocked or overloaded microphone: say so while it lasts (soundBase::inputProblem())
+  const QString problem=soundIOPtr ? soundIOPtr->inputProblem() : QString();
+  if(problem!=inputProblemShown)
+    {
+      inputProblemShown=problem;
+      if(problem.isEmpty()) statusBarPtr->clearMessage();
+      else statusBarPtr->showMessage(problem);
+    }
 #endif
 }
 

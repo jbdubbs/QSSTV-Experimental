@@ -64,6 +64,13 @@
                 <data android:mimeType="application/ogg" />
             </intent-filter>
 
+          <!-- Qt stops its event loop while the app is not in front, unless this is true. The receiver hands every result
+               to the GUI thread and waits for it, so with the screen off (or the User's Guide open in the browser) decoding
+               would stop. The foreground service (RxService) is what keeps the process alive meanwhile. -->
+          <meta-data
+                android:name="android.app.background_running"
+                android:value="true" />
+
           <meta-data
                 android:name="android.app.lib_name"
                 android:value="-- %%INSERT_APP_LIB_NAME%% --" />

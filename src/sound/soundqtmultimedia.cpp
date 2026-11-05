@@ -1,5 +1,8 @@
 #include "soundqtmultimedia.h"
 #include "configparams.h" // inputAudioDevice/outputAudioDevice (via soundconfig.h)
+#ifdef Q_OS_ANDROID
+#include "androidaudio.h"
+#endif
 
 #include <QElapsedTimer>
 #include <QMediaDevices>
@@ -42,6 +45,13 @@ void getCardList(QStringList &inputList, QStringList &outputList)
 {
   inputList.clear();
   outputList.clear();
+#ifdef Q_OS_ANDROID
+  // Qt names an Android device by its type only; androidAudioDevices() adds the product name of a USB or Bluetooth device, which
+  // is what makes a saved choice find the same device again (and is what soundAndroid looks up)
+  for(const androidAudioDevice &d : androidAudioDevices(true)) inputList.append(d.description);
+  for(const androidAudioDevice &d : androidAudioDevices(false)) outputList.append(d.description);
+  return;
+#endif
   const auto inputs=QMediaDevices::audioInputs();
   for(const QAudioDevice &d : inputs) inputList.append(d.description());
   const auto outputs=QMediaDevices::audioOutputs();

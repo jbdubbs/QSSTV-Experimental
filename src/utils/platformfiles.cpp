@@ -70,6 +70,15 @@ bool exportToGallery(const QString &localFile)
   return ok;
 }
 
+bool shareImage(const QString &localFile)
+{
+  QJniObject context=QNativeInterface::QAndroidApplication::context();
+  if(!context.isValid() || !QFileInfo::exists(localFile)) return false;
+  QJniObject::callStaticMethod<void>(helperClass,"shareImage","(Landroid/content/Context;Ljava/lang/String;)V",
+                                     context.object<jobject>(),QJniObject::fromString(localFile).object<jstring>());
+  return true;
+}
+
 void cleanImportCache()
 {
   QDir(importDir()).removeRecursively();
@@ -79,6 +88,7 @@ void cleanImportCache()
 
 QString importPicked(const QString &picked) {return picked;}
 bool exportToGallery(const QString &) {return false;}
+bool shareImage(const QString &) {return false;}
 void cleanImportCache() {}
 
 #endif

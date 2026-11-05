@@ -19,6 +19,7 @@
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
 #include "imageviewer.h"
+#include "platformfiles.h"
 #include "appglobal.h"
 #include "logging.h"
 #include "configparams.h"
@@ -98,6 +99,11 @@ imageViewer::imageViewer(QWidget *parent): QLabel(parent)
   connect(editAct, SIGNAL(triggered()), this, SLOT(slotEdit()));
   uploadAct = new QAction(tr("&Upload to FTP"), this);
   connect(uploadAct, SIGNAL(triggered()), this, SLOT(slotUploadFTP()));
+  shareAct=nullptr;
+#ifdef Q_OS_ANDROID
+  shareAct = new QAction(tr("&Share..."), this);
+  connect(shareAct, SIGNAL(triggered()), this, SLOT(slotShare()));
+#endif
   deleteAct = new QAction(tr("&Delete"), this);
   connect(deleteAct, SIGNAL(triggered()), this, SLOT(slotDelete()));
   clearAct = new QAction(tr("&Clear"), this);
@@ -620,6 +626,7 @@ void imageViewer::setType(thumbType tp)
     case RXIMG:
       section({viewAct,propertiesAct});
       section({copyAct});
+      if(shareAct) section({shareAct});
       section({clearAct});
       break;
 
@@ -641,6 +648,7 @@ void imageViewer::setType(thumbType tp)
     case RXDRMTHUMB:
       section({toTXAct,viewAct,propertiesAct});
       section({uploadAct,copyAct});
+      if(shareAct) section({shareAct});
       section({deleteAct});
       break;
 
@@ -1057,6 +1065,13 @@ void imageViewer::slotNew()
   QApplication::postEvent(dispatcherPtr, ce );  // Qt will delete it when done
 }
 
+
+void imageViewer::slotShare()
+{
+  // the picture on the screen as a file: a received picture was saved when it was complete, a thumbnail is a file
+  if(imageFileName.isEmpty() || !QFileInfo::exists(imageFileName)) return;
+  platformFiles::shareImage(imageFileName);
+}
 
 void imageViewer::slotUploadFTP()
 {

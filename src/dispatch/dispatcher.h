@@ -34,6 +34,10 @@ public:
   void readSettings();
   void writeSettings();
   void customEvent( QEvent * e );
+#ifdef Q_OS_ANDROID
+  /** the app is in front again: show what the events skipped while it was out of sight (the last receiver status, the picture) */
+  void appResumed();
+#endif
   void startDRMFIXTx(QByteArray ba);
   void startDRMTxBinary();
   //  void startDRMHybridTx(QString fn);
@@ -65,6 +69,11 @@ private slots:
   void slotRenameListing(bool err);
 
 private:
+#ifdef Q_OS_ANDROID
+  QString missedSSTVStatus;    // the newest rxSSTVStatus text that came while the app was out of sight
+  bool missedStatus=false;
+  bool missedPicture=false;
+#endif
   void saveRxSSTVImage(esstvMode mode);
   bool inList(QList <QUrlInfo> lst,QString fn);
   void timerEvent(QTimerEvent *event);

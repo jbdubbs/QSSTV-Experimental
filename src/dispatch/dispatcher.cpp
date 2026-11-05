@@ -108,6 +108,16 @@ void dispatcher::slotTemplateSaved()
 }
 
 
+#ifdef Q_OS_ANDROID
+void dispatcher::appResumed()
+{
+  if(missedStatus) rxWidgetPtr->setSSTVStatusText(missedSSTVStatus);
+  if(missedPicture) rxWidgetPtr->getImageViewerPtr()->displayImage();
+  missedStatus=false;
+  missedPicture=false;
+}
+#endif
+
 /*!
   All communication between the threads are passed via this eventhandler.
 */
@@ -117,6 +127,22 @@ void dispatcher::customEvent( QEvent * e )
   dispatchEventType type;
   QString fn;
   type=(dispatchEventType)e->type();
+#ifdef Q_OS_ANDROID
+  // With the app out of sight (screen off, another app in front) the event loop keeps running so that receiving goes on
+  // (android.app.background_running in the manifest), but there is no surface to draw on and Qt warns that drawing then can
+  // crash: skip the events that only draw. The picture itself is written by the receiver; it is shown again when the app returns.
+  if(type==displayFFT || type==displaySync || type==rxSSTVStatus || type==lineDisplay || type==displayDRMInfo || type==displayDRMStat)
+    {
+      const Qt::ApplicationState appState=QGuiApplication::applicationState();
+      if(appState!=Qt::ApplicationActive && appState!=Qt::ApplicationInactive)
+        {
+          // the receiver's state changes only now and then, so what is on the screen must be right when the app returns
+          if(type==rxSSTVStatus) {missedSSTVStatus=((rxSSTVStatusEvent*)e)->getStr();missedStatus=true;}
+          else if(type==lineDisplay) missedPicture=true;
+          return;
+        }
+    }
+#endif
   if((type!=displayFFT)
      && (type!=displaySync)
      && (type!=rxSSTVStatus)

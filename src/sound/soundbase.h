@@ -101,6 +101,9 @@ signals:
   // reports; this is the cross-platform fallback/diagnostic in case it ever does
   // report something, or for any other unexpected mid-session device loss).
   void deviceLost(const QString &reason);
+  //! Something the user should know about the audio route (Android: the PTT tone is not used on the phone speaker, the media
+  //! volume is low); shown in the status bar by mainWindow
+  void audioNotice(const QString &message);
 
 public slots:
 
@@ -116,6 +119,15 @@ protected:
   virtual void flushPlayback()=0;
   virtual void prepareCapture() {;}
   virtual void preparePlayback() {;}
+  //! A problem with the signal coming in, or an empty string: the microphone delivers nothing (muted, in a call, blocked in the
+  //! privacy settings) or is overloaded. Polled by mainWindow once a second; only the Android backend can tell.
+public:
+  virtual QString inputProblem() {return QString();}
+  //! What the backend opened, for the Sound page (the Android backend: devices, rate, microphone processing)
+  virtual QString routeSummary() const {return QString();}
+  //! A digital gain for the received audio, in dB, that takes effect without reopening the device (Android backend only)
+  virtual void setRxGainDb(double) {;}
+protected:
   virtual void idleTick() {;}   //!< about every 100 ms while neither capture nor playback is running (the Android backend stops its input stream)
   virtual void closeDevices()=0;
   virtual void waitPlaybackEnd()=0;

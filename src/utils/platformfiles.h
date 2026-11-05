@@ -19,6 +19,9 @@ namespace platformFiles
   //! Android: make a saved picture show up in the gallery (Pictures/QSSTV-Experimental). Returns true when it was added.
   bool exportToGallery(const QString &localFile);
 
+  //! Android: offer a saved picture to other apps (the share sheet). Returns false where there is no such thing.
+  bool shareImage(const QString &localFile);
+
   //! Delete the copies importPicked() made in earlier runs
   void cleanImportCache();
 }

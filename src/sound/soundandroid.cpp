@@ -1,10 +1,9 @@
 #include "soundandroid.h"
 #include "configparams.h"   // inputAudioDevice, outputAudioDevice, micPreset, rxGainDb, the channel options (via soundconfig.h)
 #include "platformpermissions.h"
+#include "androidaudio.h"
 
-#include <QAudioDevice>
 #include <QElapsedTimer>
-#include <QMediaDevices>
 #include <QMetaObject>
 
 #include <android/log.h>
@@ -52,21 +51,6 @@ private:
 
 #define WAITMS 10   // longest a thread waits for the audio callback before looking at its stop flag again
 
-// Qt's QAudioDevice::id() on Android is the Android audio device id, as text; 0 (unspecified) lets the system route the
-// stream, which follows a headset being plugged in, so only a device the user chose by name is pinned.
-static int deviceIdFor(const QString &saved,const QList<QAudioDevice> &devices)
-{
-  if(saved.isEmpty() || saved=="default") return oboe::kUnspecified;
-  for(const QAudioDevice &d : devices)
-    if(d.description()==saved)
-      {
-        bool ok=false;
-        const int id=QString::fromUtf8(d.id()).toInt(&ok);
-        if(ok) return id;
-      }
-  return oboe::kUnspecified;
-}
-
 static const char *presetName(oboe::InputPreset p)
 {
   switch(p)
@@ -94,6 +78,9 @@ soundAndroid::soundAndroid() : capRing(17), playRing(17)   // 131072 samples: 2.
   clips=0;
   overruns=0;
   underruns=0;
+  zeroRun=0;
+  peak=0;
+  focusHeld=false;
   txConv.resize(size_t(DOWNSAMPLESIZE)*2);
   inCallback=std::make_shared<dataCallback>(this,true);
   outCallback=std::make_shared<dataCallback>(this,false);
@@ -128,8 +115,10 @@ bool soundAndroid::init(int samplerate)
   outChannels=(pttToneOtherChannel && !duplicateChannel) ? 2 : 1;
   setRxGainDb(rxGainDb);
 
-  const int inId=deviceIdFor(inputAudioDevice,QMediaDevices::audioInputs());
-  const int outId=deviceIdFor(outputAudioDevice,QMediaDevices::audioOutputs());
+  // the saved names are the ones androidAudioDevices() makes ("Phone speaker", "USB audio: Digirig Mobile"); 0 lets the system
+  // choose the route, which follows a headset being plugged in
+  const int inId=androidDeviceId(inputAudioDevice,true);
+  const int outId=androidDeviceId(outputAudioDevice,false);
   QString why;
   if(!openInput(inId,why))
     {
@@ -143,11 +132,28 @@ bool soundAndroid::init(int samplerate)
       errorHandler("Audio init error",QString("playback: %1").arg(why));
       return false;
     }
+  if(outChannels==2 && androidIsBuiltInSpeaker(outStream->getDeviceId()))
+    {
+      // Android sums a stereo stream for a mono speaker: the PTT tone on the second channel would land in the picture
+      outStream->close();
+      outStream.reset();
+      outChannels=1;
+      if(!openOutput(outId,why))
+        {
+          closeDevices();
+          errorHandler("Audio init error",QString("playback: %1").arg(why));
+          return false;
+        }
+      emit audioNotice(tr("The PTT tone on the second channel is not used on the phone's own speaker."));
+    }
   route=QString("input id %1, %2 Hz, %3 microphone processing; output id %4, %5 channel%6")
         .arg(inStream->getDeviceId()).arg(inStream->getSampleRate()).arg(presetName(inStream->getInputPreset()))
         .arg(outStream->getDeviceId()).arg(outChannels).arg(outChannels==1 ? "" : "s");
   addToLog("Android audio: "+route,LOGSOUND);
   ALOG("opened: %s",qPrintable(route));
+  for(const androidAudioDevice &d:androidAudioDevices(true)) ALOG("input  id %d type %d: %s",d.id,d.type,qPrintable(d.description));
+  for(const androidAudioDevice &d:androidAudioDevices(false)) ALOG("output id %d type %d: %s",d.id,d.type,qPrintable(d.description));
+  ALOG("media volume %d%%",androidMediaVolumePercent());
   isStereo=false;
   soundDriverOK=true;
   return true;
@@ -240,12 +246,16 @@ oboe::DataCallbackResult soundAndroid::inputReady(const qint16 *data,int numFram
   qint16 chunk[1024];
   int done=0;
   int clipped=0;
+  bool silent=true;
+  int maxRaw=0;
   while(done<numFrames)
     {
       const int n=std::min(1024,numFrames-done);
       for(int i=0;i<n;i++)
         {
           const int raw=data[done+i];
+          if(raw!=0) silent=false;
+          if(raw>maxRaw) maxRaw=raw; else if(-raw>maxRaw) maxRaw=-raw;
           int v=(raw*gain)>>8;
           if(raw>=32700 || raw<=-32700) clipped++;   // the microphone itself is overloaded
           else if(v>32767) {v=32767;clipped++;}      // or the digital gain pushed it over
@@ -256,6 +266,8 @@ oboe::DataCallbackResult soundAndroid::inputReady(const qint16 *data,int numFram
       done+=n;
     }
   if(clipped) clips+=clipped;
+  if(silent) zeroRun+=unsigned(numFrames); else zeroRun=0;
+  if(maxRaw>peak.load(std::memory_order_relaxed)) peak.store(maxRaw,std::memory_order_relaxed);
   if(readerWaiting.load(std::memory_order_acquire)) dataCond.wakeOne();
   return oboe::DataCallbackResult::Continue;
 }
@@ -265,6 +277,7 @@ void soundAndroid::startInput()
   idleTicks=0;
   if(!inStream || inRunning) return;
   capRing.reset();
+  zeroRun=0;
   const oboe::Result r=inStream->requestStart();
   if(r!=oboe::Result::OK)
     {
@@ -287,11 +300,56 @@ void soundAndroid::stopInput()
 
 void soundAndroid::prepareCapture()
 {
+  if(fileSource) return;   // decoding a recording: the microphone is not needed (and its indicator stays off)
   startInput();
+}
+
+QString soundAndroid::inputProblem()
+{
+  static QString last;
+  static int polls=0;
+  if(inRunning && ++polls%10==0) ALOG("input level: peak %d of 32768, %u samples of digital silence in a row",peak.exchange(0),zeroRun.load());
+  const QString now=inputProblemNow();
+  if(now!=last)
+    {
+      last=now;
+      ALOG("input problem: %s",now.isEmpty() ? "none" : qPrintable(now));
+    }
+  return now;
+}
+
+QString soundAndroid::inputProblemNow()
+{
+  if(!inRunning) return QString();
+  // a microphone that is muted, in use by a call, or blocked in the privacy settings delivers exact zeros, which a working one never does
+  if(zeroRun.load()>=3u*unsigned(sampleRate))
+    return tr("No microphone signal: it may be muted, in use by a call or another app, or blocked in the system's privacy settings.");
+  // the count is since the last look, about a second ago: a clip here and there is nothing, hundreds are a distorted tone
+  if(clips.exchange(0)>=200)
+    return tr("The microphone is overloaded: move it away from the sound source or lower the volume there.");
+  return QString();
+}
+
+void soundAndroid::preparePlayback()
+{
+  // called again every few milliseconds until enough of the transmission is queued: once per transmission
+  if(focusHeld) return;
+  focusHeld=true;
+  androidRequestTransmitFocus();   // other apps stop playing, so nothing sounds over the picture
+  const int volume=androidMediaVolumePercent();
+  ALOG("media volume %d%%%s",volume,volume<40 ? ", telling the user" : "");
+  if(volume<40) emit audioNotice(tr("The media volume is %1%. Raise it with the volume keys so the transmission is loud enough.").arg(volume));
 }
 
 void soundAndroid::idleTick()
 {
+  // a transmission that was stopped part way never reaches waitPlaybackEnd(): give the audio focus back at the latest here
+  if(focusHeld)
+    {
+      stopOutput();
+      androidAbandonTransmitFocus();
+      focusHeld=false;
+    }
   // neither receiving nor transmitting for three seconds: let go of the microphone (battery, and the system's microphone indicator)
   if(inRunning && ++idleTicks>=30) stopInput();
 }
@@ -437,6 +495,7 @@ void soundAndroid::waitPlaybackEnd()
       }
       writerWaiting.store(false,std::memory_order_release);
     }
+  const unsigned duringPlayback=underruns.load();   // what follows is the speaker's own tail, silence by design
   // and the last buffers are still on their way through the hardware
   if(!stopThread && !closing)
     {
@@ -446,8 +505,13 @@ void soundAndroid::waitPlaybackEnd()
       msleep(ms);
     }
   stopOutput();
-  ALOG("speaker stopped, %u underruns",underruns.load());
-  if(underruns>0) addToLog(QString("playback underruns: %1").arg(underruns.load()),LOGSOUND);
+  if(focusHeld)
+    {
+      androidAbandonTransmitFocus();
+      focusHeld=false;
+    }
+  ALOG("speaker stopped, %u underruns during playback",duringPlayback);
+  if(duringPlayback>0) addToLog(QString("playback underruns: %1").arg(duringPlayback),LOGSOUND);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -457,6 +521,11 @@ void soundAndroid::closeDevices()
   closing=true;
   stopInput();
   stopOutput();
+  if(focusHeld)
+    {
+      androidAbandonTransmitFocus();
+      focusHeld=false;
+    }
   if(inStream) {inStream->close(); inStream.reset();}
   if(outStream) {outStream->close(); outStream.reset();}
   soundDriverOK=false;
