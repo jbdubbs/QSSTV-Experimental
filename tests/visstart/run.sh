@@ -9,6 +9,8 @@
 # fade), and decodes it headless with the real receiver (--batch). Checks:
 #   - N lines in the noise: one picture, started via the VIS code, and the rows below the noise are where they are in the same
 #     picture decoded without the noise (no vertical move at all)
+#   - a PD picture sent the way every other program sends it (sync pulse and porch before the first line, QSSTV leaves them out):
+#     the pulses move the picture to where they put it instead of being refused as noise (#167: it was 20 ms to the side)
 #   - a dip in the 1900 Hz leader of the VIS code (50 and 80 ms of the 300 ms) does not hide the code
 #   - a VIS code that no picture follows: the picture it started runs on, and the VIS code of a picture of another mode that
 #     comes 40 s later ends it and is received whole (before, the receiver stayed held to the first mode and lost most of it)
@@ -55,7 +57,7 @@ pass=0; fail=0
 ok()  { echo "  ok   $1"; pass=$((pass+1)); }
 bad() { echo "  FAIL $1"; fail=$((fail+1)); }
 
-declare -A SIZE=([M1]=320x256 [R36]=320x240 [PD120]=640x496 [S1]=320x256 [MP73]=320x256 [MC110-N]=320x256)
+declare -A SIZE=([PD50]=320x256 [M1]=320x256 [R36]=320x240 [PD120]=640x496 [S1]=320x256 [MP73]=320x256 [MC110-N]=320x256)
 declare -A LINEMS=([M1]=446.446 [R36]=150 [PD120]=508.48 [S1]=428.38 [MP73]=570 [MC110-N]=428.53)
 declare -A START=([M1]=1.715 [R36]=1.715 [PD120]=1.715 [S1]=1.715 [MP73]=1.955 [MC110-N]=2.365)
 prepare() {      # encode the picture once per mode, decode it clean
@@ -82,6 +84,24 @@ for spec in ${VISSTART_CASES:-M1:8 M1:16 R36:30 PD120:10 S1:12 MP73:10 MC110-N:8
   if [ "$via" = vis-start ] && ge "$bot" 0.9; then ok "$spec: started at the VIS code, the $n lines in the noise are there ($r)"
   elif [ "$m" = MC110-N ] && [ "$via" = vis ] && [ "$bf" = "$n" ] && ge "$bot" 0.9; then ok "$spec: narrow code, found by its pulses and moved back, $bf lines recovered ($r)"   # the narrow code is still read from the frequency (strong signals only)
   else bad "$spec: via=$via, backfill_lines=$bf, rows: $r"; fi
+done
+
+echo "== a PD picture from another program: the sync pulse and porch of its first line follow the VIS code (issue #167)"
+# QSSTV's own PD transmission has no sync pulse and porch before its first line, every other program sends them (the stop bit and the
+# 20 ms pulse run together). The code puts the picture 20 ms too early for those, the pulses must move it, not be refused as noise:
+# before, the whole picture was received 20 ms (11 to 22% of the width) to the side, and the left edge of every row was garbage.
+for m in ${VISSTART_PD:-PD50 PD120}; do
+  prepare $m || { bad "$m (standard): could not prepare"; continue; }
+  py pdlead "$T/$m.wav" "$T/std_$m.wav" --at 1.710
+  dec "$T/std_$m.wav" "$T/os_$m"
+  tr="$T/os_$m/trace.tsv"
+  if [ "$(npng "$T/os_$m")" != 1 ]; then bad "$m (standard): $(npng "$T/os_$m") pictures, want 1"; continue; fi
+  via=$(fld "$tr" DETECT via)
+  acc=$(grep -a -c -P '\tADOPT\t.*accepted=1' "$tr"); refused=$(grep -a -c -P '\tADOPT\t.*accepted=0' "$tr")
+  r=$(py rows "$T/clean_$m"/*.png "$T/os_$m"/*.png 0.5 0.5 --px 24)     # (pulses and code differ by a few pixels; the 20 ms error was 70 to 104)
+  top=$(echo "$r" | sed 's/top \([0-9.]*\).*/\1/'); bot=$(echo "$r" | sed 's/.*bottom \([0-9.]*\).*/\1/')
+  if [ "$via" = vis-start ] && [ "$acc" -ge 1 ] && [ "$refused" = 0 ] && ge "$top" 0.9 && ge "$bot" 0.9; then ok "$m (standard): started at the VIS code, its pulses adopted and the picture is in place ($r)"
+  else bad "$m (standard): via=$via, chains adopted $acc, refused $refused, rows: $r"; fi
 done
 
 echo "== a dip in the 1900 Hz leader of the VIS code"
