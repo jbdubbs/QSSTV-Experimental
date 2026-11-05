@@ -691,3 +691,35 @@ if(WIN32)
   endif()
 endif()
 include(CPack)
+
+# --- Android -------------------------------------------------------------------------------
+# The package (APK/AAB) is built by androiddeployqt from these target properties plus packaging/android
+# (the manifest and the launcher icons). See BUILDING.md for the full recipe.
+if(ANDROID)
+  if(COMMAND qt_policy)
+    qt_policy(SET QTP0002 NEW)   # android-specific target properties may hold generator expressions, as valid JSON strings
+  endif()
+  # versionName follows the release; versionCode must only ever grow (Google Play): major*1000000 + minor*10000 + patch*100,
+  # so 10.1 -> 10010000 and a later 10.1.1 -> 10010100. The two digits in between are free for a rebuild of the same release.
+  set(QSSTV_ANDROID_VERSION_NAME "${CPACK_PACKAGE_VERSION}")
+  string(REGEX MATCH "^([0-9]+)\\.([0-9]+)(\\.([0-9]+))?" _ver "${QSSTV_ANDROID_VERSION_NAME}")
+  if(NOT _ver)
+    message(FATAL_ERROR "cannot derive the Android versionCode from CPACK_PACKAGE_VERSION=\"${CPACK_PACKAGE_VERSION}\"")
+  endif()
+  if(NOT CMAKE_MATCH_4)
+    set(CMAKE_MATCH_4 0)
+  endif()
+  math(EXPR QSSTV_ANDROID_VERSION_CODE "${CMAKE_MATCH_1}*1000000 + ${CMAKE_MATCH_2}*10000 + ${CMAKE_MATCH_4}*100")
+  set_target_properties(qsstv PROPERTIES
+      # the application id: permanent once the app is published, and an Android package name cannot contain a hyphen
+      QT_ANDROID_PACKAGE_NAME "io.github.jbdubbs.qsstv_experimental"
+      QT_ANDROID_APP_NAME "QSSTV-Experimental"
+      QT_ANDROID_APP_ICON "@mipmap/ic_launcher"
+      QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/android"
+      QT_ANDROID_VERSION_NAME "${QSSTV_ANDROID_VERSION_NAME}"
+      QT_ANDROID_VERSION_CODE "${QSSTV_ANDROID_VERSION_CODE}"
+      QT_ANDROID_MIN_SDK_VERSION 28      # Android 9, what Qt 6.11 supports
+      QT_ANDROID_TARGET_SDK_VERSION 36   # Android 16, what Google Play asks for
+      QT_ANDROID_COMPILE_SDK_VERSION 36)
+  message(STATUS "Android: ${QSSTV_ANDROID_VERSION_NAME}, versionCode ${QSSTV_ANDROID_VERSION_CODE}")
+endif()

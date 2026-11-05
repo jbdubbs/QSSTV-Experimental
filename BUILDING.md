@@ -238,3 +238,48 @@ for microphone access; if you deny it, re-enable it under System Settings > Priv
 Headless checks work as on Linux: `QSSTV_BIN=build/qsstv-experimental.app/Contents/MacOS/qsstv-experimental tests/filedecode/run.sh` (needs
 Homebrew bash, `brew install bash`, since macOS ships bash 3.2). Ogg Vorbis files are decoded with libvorbisfile
 because macOS's audio decoder does not handle Vorbis.
+
+## Android (in development)
+
+An Android build is being developed on the `android-port` branch. It builds, installs and starts, but it is not
+released: the touch layout, the Android audio backend, USB serial PTT and the permission prompts are still to come, so
+the window is the desktop one and does not fit a phone yet. Android 9 (API 28) or newer, 64-bit ARM (`arm64-v8a`) or `x86_64` for the emulator.
+
+You need JDK 21, the Android SDK with platform 36 and **NDK 27.2.12479018 (r27c)**, and Qt 6.11.2 for Android (the NDK must be
+the one the Qt kit was built with) plus the matching desktop Qt as the host tools, for example with [aqtinstall](https://github.com/miurahr/aqtinstall):
+
+```
+aqt install-qt linux desktop 6.11.2 linux_gcc_64 -O ~/Qt
+aqt install-qt all_os android 6.11.2 android_arm64_v8a -m qtmultimedia qtserialport qtpositioning qtimageformats -O ~/Qt
+```
+
+FFTW, OpenJPEG, libaom/libavif and Hamlib are cross-compiled as static libraries by `tools/build-android-deps.sh` (set `ABIS`
+and `ONLY` to build less; it needs a local Hamlib checkout, `HAMLIB_SRC`, like the Windows build). Then configure with the Android kit
+and let pkg-config find them:
+
+```
+tools/build-android-deps.sh
+DEPS=$PWD/third_party/android-deps/arm64-v8a
+export JAVA_HOME=/path/to/jdk-21 PKG_CONFIG_LIBDIR=$DEPS/lib/pkgconfig
+~/Qt/6.11.2/android_arm64_v8a/bin/qt-cmake -S src -B build-android-arm64 -G Ninja \
+  -DQT_HOST_PATH=$HOME/Qt/6.11.2/gcc_64 -DANDROID_SDK_ROOT=$HOME/Android/Sdk \
+  -DANDROID_NDK_ROOT=$HOME/Android/Sdk/ndk/27.2.12479018 -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  -DHAMLIB_ROOT=$DEPS -DCMAKE_FIND_ROOT_PATH=$DEPS
+cmake --build build-android-arm64
+```
+
+Use Release or RelWithDebInfo: a Debug build is refused on Android (the oscilloscope needs Qwt). The result is an unsigned APK
+in `build-android-arm64/android-build/build/outputs/apk/release/`. Align and sign it before installing (the debug key that
+Android Studio creates is fine for testing), then `adb install`:
+
+```
+BT=$HOME/Android/Sdk/build-tools/36.0.0
+$BT/zipalign -f -p 4 android-build-release-unsigned.apk app-aligned.apk
+$BT/apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android --out app.apk app-aligned.apk
+adb install -r app.apk
+```
+
+The application id is `io.github.jbdubbs.qsstv_experimental` and the version comes from `CPACK_PACKAGE_VERSION`
+(the version code is derived from it, see the end of `src/CMakeLists.txt`). For the emulator build `android_x86_64` with the matching
+`build-android-x86_64` and deps directory. On a Linux host with SELinux enforcing (Fedora), start the emulator with `-gpu host`:
+its software renderer (SwiftShader) needs executable heap memory, which SELinux denies, and the emulator then crashes at startup.

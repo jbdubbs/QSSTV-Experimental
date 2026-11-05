@@ -158,6 +158,7 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
   connect(ui->actionAboutQSSTV, SIGNAL(triggered()),SLOT(slotAboutQSSTV()));
   connect(ui->actionAboutQt, SIGNAL(triggered()),SLOT(slotAboutQt()));
   connect(ui->actionUsersGuide, SIGNAL(triggered()),SLOT(slotDocumentation()));
+#ifndef Q_OS_ANDROID   // an Android app is installed and updated by the store (and Google Play does not allow its own update prompt)
   if(appImageIntegration::available())
     {
       // AppImage-only Help entries: desktop integration and updating
@@ -178,6 +179,7 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
       autoUpd->setChecked(QSettings().value("update/autoCheck",false).toBool());
       connect(autoUpd,&QAction::toggled,this,&mainWindow::slotAutoUpdateToggled);
     }
+#endif
   connect(idPushButton, SIGNAL(clicked()), this, SLOT(slotSendWFID()));
   connect(cwPushButton, SIGNAL(clicked()), this, SLOT(slotSendCWID()));
   connect(rxWidgetPtr,SIGNAL(fixFileRequested()),this,SLOT(slotSendBSR()));
@@ -282,10 +284,12 @@ void mainWindow::init()
   // the first-run questions are modal boxes (and the update check goes to GitHub): not in a headless run, nobody could answer them (#157)
   const bool headless=fileDecoderPtr->isBatch() || headlessEncode;
   if(!headless) txWidgetPtr->gpsSettingsChanged();   // a GPS button that was left on starts following the GPS (a headless run never opens the port)
+#ifndef Q_OS_ANDROID   // no AppImage menu entry and no GitHub update question on Android
   if(!headless && appImageIntegration::available())
     QTimer::singleShot(4000,this,&mainWindow::offerDesktopIntegration);
   if(!headless && !appImageIntegration::available())
     QTimer::singleShot(6000,this,&mainWindow::offerUpdateCheck);
+#endif
 }
 
 /*!
