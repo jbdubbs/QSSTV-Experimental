@@ -23,13 +23,13 @@ run() {
   timeout 120 "$SCRATCH/shot" "$SCRATCH/home-$shell-$w" "$OUT" "$shell" "$w" "$h" "$@" || rc=1
 }
 if [ -n "${SIZES:-}" ]; then
-  for spec in $SIZES; do IFS=: read -r shell w h <<< "$spec"; run "$shell" "$w" "$h" rx tx gallery more; done
+  for spec in $SIZES; do IFS=: read -r shell w h <<< "$spec"; run "$shell" "$w" "$h" rx tx gallery more settings; done
 else
   run desktop 900 600 rx tx gallery
-  run phone 411 800 rx tx gallery more
-  run phone 360 640 rx tx gallery more
-  run phone 850 411 rx tx gallery more
-  run tablet 800 1200 rx tx gallery more
+  run phone 411 800 rx tx gallery more settings
+  run phone 360 640 rx tx gallery more settings
+  run phone 850 411 rx tx gallery more settings
+  run tablet 800 1200 rx tx gallery more settings
 fi
 echo "screenshots: $OUT"
 exit $rc

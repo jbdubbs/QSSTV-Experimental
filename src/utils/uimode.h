@@ -35,6 +35,13 @@ namespace uiMode
   */
   int availableWidth(const QWidget *w);
 
+  /*!
+    The shorter side of the screen: what a window is as wide as when the phone is held upright, whichever way it is held now.
+    What is arranged once for a narrow screen (the pages of Settings) uses this, so turning the phone does not change it.
+    With QSSTV_UI set, QSSTV_UI_SHORT stands in for it.
+  */
+  int shortSide(const QWidget *w);
+
   //! the smallest comfortable size of a thing to tap, in logical pixels (48 dp)
   constexpr int tapSize=48;
 }

@@ -26,6 +26,8 @@
 #include "rxwidget.h"
 #include "filewatcher.h"
 #include "touchpage.h"
+#include "reflow.h"
+#include <QScrollArea>
 #include <QListWidget>
 #include <QScroller>
 #include <QStackedWidget>
@@ -89,7 +91,15 @@ void configDialog::setupTouch()
 
 void configDialog::showEvent(QShowEvent *e)
 {
-  if(levels) levels->setCurrentIndex(0);
+  if(levels)
+    {
+      levels->setCurrentIndex(0);
+      // the pages for a narrow screen (what a phone is, held either way); a tablet keeps them as they are
+      const int shortSide=uiMode::shortSide(this);
+      if(uiMode::narrow(shortSide))
+        for(int i=0;i<ui->configTabWidget->count();i++)
+          if(QScrollArea *sa=qobject_cast<QScrollArea *>(ui->configTabWidget->widget(i))) reflowNarrow(sa->widget(),shortSide-24);
+    }
   QDialog::showEvent(e);
 }
 

@@ -166,6 +166,7 @@ set(QSSTV_SOURCES
     utils/macroexpansion.cpp
     widgets/imageviewer.cpp
     widgets/touchpage.cpp
+    widgets/reflow.cpp
     template/templatedoc.cpp
     template/templatelegacy.cpp
     template/mmsstvtemplate.cpp

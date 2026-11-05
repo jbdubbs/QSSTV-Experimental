@@ -42,4 +42,13 @@ int availableWidth(const QWidget *w)
   return width;
 }
 
+int shortSide(const QWidget *w)
+{
+  bool ok=false;
+  const int imitated=qEnvironmentVariableIntValue("QSSTV_UI_SHORT",&ok);
+  if(ok && touch() && imitated>0) return imitated;
+  if(const QScreen *s=w ? w->screen() : QGuiApplication::primaryScreen()) return qMin(s->size().width(),s->size().height());
+  return 360;
+}
+
 }

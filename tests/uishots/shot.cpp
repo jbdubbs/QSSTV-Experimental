@@ -8,14 +8,17 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
+#include <algorithm>
 #include <vector>
 #include <unistd.h>
 #include "appglobal.h"
 #include "configparams.h"
 #include "dispatcher.h"
 #include "mainwindow.h"
+#include "configdialog.h"
 #include "uimode.h"
 #include "touchpage.h"
+#include "reflow.h"
 #include "spectrumwidget.h"
 
 int main(int argc, char **argv)
@@ -34,6 +37,7 @@ int main(int argc, char **argv)
     {
       qputenv("QSSTV_UI", shell.toLocal8Bit());
       qputenv("QSSTV_UI_WIDTH", QByteArray::number(width));   // the screen of the phone being imitated
+      qputenv("QSSTV_UI_SHORT", QByteArray::number(std::min(width, height)));
     }
   QCoreApplication::setOrganizationName("qsstv-uishots");
   QCoreApplication::setApplicationName("qsstv-uishots");
@@ -77,11 +81,46 @@ int main(int argc, char **argv)
         }
     }
   int exitCode = 0;
+  int settingsOverflow = 0;
   printf("%s %dx%d: main window minimum %dx%d, is %dx%d\n", qPrintable(shell), width, height,
          mainWindowPtr->minimumSizeHint().width(), mainWindowPtr->minimumSizeHint().height(), mainWindowPtr->width(), mainWindowPtr->height());
   for (int i = 6; i < argc; i++)
     {
       const QString page = argv[i];
+      if (page == "settings")
+        {
+          // every section of Settings (touch shells): how wide its page wants to be, and whether it scrolls sideways at this width
+          configDialog *cd = configDialogPtr;
+          cd->setProperty("touchPrepared", true);   // not maximized (offscreen has its own screen size): the size of the phone
+          cd->resize(width, height);
+          cd->show();
+          QTest::qWait(300);
+          cd->resize(width, height);
+          QTest::qWait(300);
+          QTabWidget *ct = cd->findChild<QTabWidget *>("configTabWidget");
+          if (!ct) {printf("  settings (not in this shell)\n"); continue;}
+          if (QStackedWidget *st = qobject_cast<QStackedWidget *>(ct->parentWidget())) st->setCurrentIndex(1);   // a section, not the list
+          QTest::qWait(200);
+          printf("  settings dialog %dx%d (minimum %dx%d)\n", cd->width(), cd->height(), cd->minimumSizeHint().width(), cd->minimumSizeHint().height());
+          for (int k = 0; k < ct->count(); k++)
+            {
+              ct->setCurrentIndex(k);
+              QTest::qWait(150);
+              QScrollArea *sa = qobject_cast<QScrollArea *>(ct->widget(k));
+              const QString title = ct->tabText(k);
+              const QString file = QString("%1/%2-%3x%4-settings-%5.png").arg(outDir, shell).arg(width).arg(height).arg(title);
+              cd->grab().save(file);
+              const int over = sa ? sa->horizontalScrollBar()->maximum() : -1;
+              printf("    %-12s min %4d x %4d, viewport %d wide, sideways scroll %d%s\n", qPrintable(title),
+                     sa && sa->widget() ? sa->widget()->minimumSizeHint().width() : -1, sa && sa->widget() ? sa->widget()->minimumSizeHint().height() : -1,
+                     sa ? sa->viewport()->width() : -1, over, over > 0 ? "   <-- too wide" : "");
+              if (over > 0 && shell != "desktop") settingsOverflow++;
+              if (sa && sa->widget() && qEnvironmentVariableIsSet("SHOT_DUMP"))
+                for (const QString &o : reflowOffenders(sa->widget(), sa->viewport()->width())) printf("        %s\n", qPrintable(o));
+            }
+          cd->hide();
+          continue;
+        }
       const QStringList names = {"rx", "tx", "gallery", "more"};
       const int index = names.indexOf(page);
       if (index < 0) {fprintf(stderr, "unknown page %s\n", argv[i]); continue;}
@@ -100,6 +139,11 @@ int main(int argc, char **argv)
           if (a->isVisible() && a->widget())
             printf("      scroll area: viewport %dx%d, content %dx%d (min %dx%d), vertical scroll range %d, hfw %d\n", a->viewport()->width(), a->viewport()->height(), a->widget()->width(), a->widget()->height(), a->widget()->minimumSizeHint().width(), a->widget()->minimumSizeHint().height(), a->verticalScrollBar()->maximum(), int(a->widget()->layout() && a->widget()->layout()->hasHeightForWidth()));
       printf("  %-8s page minimum %dx%d, saved %s\n", argv[i], w->minimumSizeHint().width(), w->minimumSizeHint().height(), qPrintable(QFileInfo(file).fileName()));
+    }
+  if (settingsOverflow)
+    {
+      printf("FAIL %d section(s) of Settings are wider than the screen\n", settingsOverflow);
+      exitCode = 1;
     }
   if (shell != "desktop" && mainWindowPtr->width() > width)
     {
