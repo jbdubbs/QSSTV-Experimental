@@ -1,0 +1,52 @@
+#ifndef UIMODE_H
+#define UIMODE_H
+
+#include <QtGlobal>
+
+class QWidget;
+
+/*!
+  Which user interface the program shows. Two things are decided apart:
+
+  - the shell around the pages: the desktop one (menu bar, tabs at the top, the status bar with the operating buttons) or the
+    touch one (no menu bar, large tabs at the bottom with a More page, the spectrum on the Receive page). Android always has the
+    touch shell; every other platform the desktop shell, unless the environment variable QSSTV_UI is "phone" or "tablet", which is how
+    the touch layouts are looked at (and tested, tests/uishots) on the desktop;
+  - how a page arranges itself, from the width it is given: narrow (a phone held upright: one column) or wide (a phone on its
+    side, a tablet, the desktop: the arrangement the pages always had).
+*/
+namespace uiMode
+{
+  //! below this many device independent pixels (Qt's logical pixels on Android) a page uses one column
+  constexpr int narrowWidth=600;
+
+  //! the touch shell is in use
+  bool touch();
+
+  //! the width a page has, or is about to be given, is a narrow one
+  bool narrow(int width);
+  bool narrow(const QWidget *w);
+
+  /*!
+    The width to arrange a window for: the smaller of its own width and its screen's. A window that opens wider than the screen
+    (its pages cannot get narrower, until they are arranged for a narrow screen) must not be taken for a wide one. With
+    QSSTV_UI set, the environment variable QSSTV_UI_WIDTH stands in for the screen, which is how a phone is imitated on the desktop.
+  */
+  int availableWidth(const QWidget *w);
+
+  //! the smallest comfortable size of a thing to tap, in logical pixels (48 dp)
+  constexpr int tapSize=48;
+}
+
+/*!
+  A window with levels of its own (Settings: the list of sections, and a section) that takes the Back key before it is closed:
+  backPressed() returns true when it went up one level instead.
+*/
+class backAware
+{
+public:
+  virtual ~backAware() = default;
+  virtual bool backPressed() = 0;
+};
+
+#endif // UIMODE_H

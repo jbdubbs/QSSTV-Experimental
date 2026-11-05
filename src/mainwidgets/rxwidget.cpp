@@ -15,6 +15,8 @@
 #include "configparams.h"
 #include "ftpthread.h"
 #include "dispatch/filedecoder.h"
+#include "ui_rxwidget.h"
+#include <QHBoxLayout>
 
 
 rxWidget::rxWidget(QWidget *parent):QWidget(parent),ui(new Ui::rxWidget)
@@ -528,3 +530,53 @@ vuMeter *rxWidget::sMeterPtr()
   return ui->syncWidget;
 }
 
+void rxWidget::arrange(bool narrow,int availableWidth)
+{
+  if(narrow!=arrangedNarrow)
+    {
+      arrangedNarrow=narrow;
+      if(narrow)
+        {
+          // the picture and the meters side by side under the toolbar, then the settings: everything in one column
+          narrowRow=new QHBoxLayout;
+          narrowRow->setContentsMargins(0,0,0,0);
+          narrowRow->setSpacing(2);
+          ui->verticalLayout_4->removeWidget(ui->imageFrame);
+          ui->horizontalLayout_4->removeItem(ui->verticalLayout_5);
+          ui->verticalLayout_5->setParent(nullptr);
+          narrowRow->addWidget(ui->imageFrame,1);
+          narrowRow->addLayout(ui->verticalLayout_5);
+          ui->verticalLayout_4->addLayout(narrowRow);
+          ui->horizontalLayout_4->setDirection(QBoxLayout::TopToBottom);
+          ui->settingsTableWidget->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Expanding);   // as wide as the page
+        }
+      else
+        {
+          ui->verticalLayout_4->removeItem(narrowRow);
+          narrowRow->removeWidget(ui->imageFrame);
+          narrowRow->removeItem(ui->verticalLayout_5);
+          ui->verticalLayout_5->setParent(nullptr);
+          delete narrowRow;
+          narrowRow=nullptr;
+          ui->verticalLayout_4->addWidget(ui->imageFrame);
+          ui->horizontalLayout_4->insertLayout(1,ui->verticalLayout_5);
+          ui->horizontalLayout_4->setDirection(QBoxLayout::LeftToRight);
+          ui->settingsTableWidget->setSizePolicy(QSizePolicy::Fixed,QSizePolicy::Expanding);
+          ui->imageFrame->setMinimumSize(280,200);
+        }
+    }
+  // a picture is about 4:3; it gets a height of its own because it has no hint of one
+  if(narrow) ui->imageFrame->setMinimumSize(0,qMax(160,(availableWidth-40)*3/4));
+}
+
+QWidget *rxWidget::takeSettings()
+{
+  ui->horizontalLayout_4->removeWidget(ui->settingsTableWidget);
+  return ui->settingsTableWidget;
+}
+
+void rxWidget::giveBackSettings()
+{
+  ui->settingsTableWidget->setSizePolicy(arrangedNarrow ? QSizePolicy::Expanding : QSizePolicy::Fixed,QSizePolicy::Expanding);
+  ui->horizontalLayout_4->addWidget(ui->settingsTableWidget);
+}

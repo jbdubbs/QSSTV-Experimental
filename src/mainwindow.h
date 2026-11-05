@@ -13,6 +13,10 @@ namespace Ui {
   class MainWindow;
   }
 
+class bottomNav;
+class QBoxLayout;
+class QScrollArea;
+
 class mainWindow : public QMainWindow
 {
   Q_OBJECT
@@ -54,6 +58,10 @@ private slots:
   void slotCheckForUpdatesWeb();
   void slotAutoUpdateToggled(bool on);
   void offerUpdateCheck();
+  void applySafeArea();     //!< touch shell: margins for the system bars Android draws over the window
+  void arrangeRail(bool on);   //!< touch shell, a phone on its side: navigation at the left, spectrum and settings beside the picture
+  void arrangePages();      //!< touch shell: let each page arrange itself for the width of the window and size the tabs to fill it
+  void setupTouchShell();   //!< the shell for a touch screen (uimode.h): tabs at the bottom, the menu bar's items on a More page
   void offerDesktopIntegration();
   void slotAboutQSSTV();
   void slotFullScreen();
@@ -120,6 +128,17 @@ private:
   bool beaconCountdownError=false;
   void updateBeaconCountdownVisibility();
   void timerEvent(QTimerEvent *);
+  void resizeEvent(QResizeEvent *e) override;
+  void showEvent(QShowEvent *e) override;
+  bool eventFilter(QObject *o,QEvent *e) override;
+  void goBack();   //!< touch shell: what the Back key does
+  bool safeAreaConnected=false;
+  QBoxLayout *shellLayout=nullptr;        // touch shell: the pages and the navigation
+  bottomNav *nav=nullptr;
+  QScrollArea *rxScroll=nullptr;          // the Receive page
+  QWidget *rxSide=nullptr;                // beside it on a phone on its side: spectrum above the settings
+  QScrollArea *rxSideScroll=nullptr;
+  bool rail=false;
   QStringList modModeList;
   QStringList modPassBandList;
 };

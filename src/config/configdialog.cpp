@@ -25,6 +25,11 @@
 #include "txwidget.h"
 #include "rxwidget.h"
 #include "filewatcher.h"
+#include "touchpage.h"
+#include <QListWidget>
+#include <QStackedWidget>
+#include <QTabBar>
+#include <QVBoxLayout>
 
 
 configDialog::configDialog(QWidget *parent) :
@@ -34,6 +39,60 @@ configDialog::configDialog(QWidget *parent) :
   ui->setupUi(this);
   ui->catWidget->attachRigController(rigControllerPtr);
   ui->configTabWidget->setCurrentIndex(0);
+  if(uiMode::touch()) setupTouch();
+}
+
+/*!
+  Touch shell: the thirteen tabs do not fit a phone, so the sections are a list and the section chosen is a page of its own
+  (the dialog is maximized by prepareTouchWindow()). The Back key goes from the section to the list, then closes the dialog.
+  Sections that a phone does not have (the repeater, the FTP upload) are left out.
+*/
+void configDialog::setupTouch()
+{
+  QTabWidget *tabs=ui->configTabWidget;
+  for(QWidget *gone:{static_cast<QWidget *>(ui->repeaterTab),static_cast<QWidget *>(ui->ftpTab)})
+    tabs->removeTab(tabs->indexOf(gone));
+  // every section scrolls, sideways too until it has an arrangement for a narrow screen
+  for(int i=0;i<tabs->count();i++)
+    {
+      const QString title=tabs->tabText(i);
+      QWidget *page=tabs->widget(i);
+      tabs->removeTab(i);
+      tabs->insertTab(i,makeTouchScrollPage2D(page,tabs),title);
+    }
+  tabs->tabBar()->hide();
+  tabs->setDocumentMode(true);
+
+  QListWidget *list=new QListWidget(this);
+  list->setFrameShape(QFrame::NoFrame);
+  QFont f=list->font();
+  f.setPixelSize(18);
+  list->setFont(f);
+  for(int i=0;i<tabs->count();i++)
+    {
+      QListWidgetItem *item=new QListWidgetItem(tabs->tabText(i),list);
+      item->setSizeHint(QSize(0,uiMode::tapSize+12));
+    }
+  levels=new QStackedWidget(this);
+  levels->addWidget(list);
+  ui->verticalLayout->replaceWidget(tabs,levels);
+  levels->addWidget(tabs);
+  levels->setCurrentIndex(0);
+  connect(list,&QListWidget::itemClicked,this,[this,tabs,list](QListWidgetItem *item)
+    {
+      tabs->setCurrentIndex(list->row(item));
+      levels->setCurrentIndex(1);
+    });
+}
+
+bool configDialog::backPressed()
+{
+  if(levels && levels->currentIndex()==1)
+    {
+      levels->setCurrentIndex(0);
+      return true;
+    }
+  return false;
 }
 
 configDialog::~configDialog()

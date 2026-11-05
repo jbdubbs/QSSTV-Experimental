@@ -21,9 +21,16 @@ void setActive(bool on)
   current=on;
 }
 
+void moveToBackground()
+{
+  QJniObject activity=QNativeInterface::QAndroidApplication::context();
+  if(activity.isValid()) activity.callMethod<jboolean>("moveTaskToBack","(Z)Z",jboolean(true));
+}
+
 #else
 
 void setActive(bool) {}
+void moveToBackground() {}
 
 #endif
 

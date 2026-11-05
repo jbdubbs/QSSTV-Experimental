@@ -135,9 +135,11 @@ protected:
   void keyPressEvent(QKeyEvent *e);
   void wheelEvent(QWheelEvent *e);
   void mouseMoveEvent(QMouseEvent *e);
+  void showContextMenu(const QPoint &pos,const QPoint &globalPos);
   void mouseReleaseEvent(QMouseEvent *e);
   void focusInEvent(QFocusEvent *e);
   void focusOutEvent(QFocusEvent *e);
+  bool event(QEvent *e) override;   //!< touch screens: pinch to zoom the viewer
   void paintEvent(QPaintEvent *e);
 
 public slots:
@@ -296,6 +298,9 @@ private:
   QRect view;
   QPoint clickPos;
   QTimer clickTimer;
+  int pinchLevel=0;             //!< zoom steps made by the pinch in progress
+  QTimer longPressTimer;        //!< touch screens: a finger held still opens the pop-up menu
+  QPoint longPressPos;
   QTimer framingTimer;
   QImage previewBase;               // last rendered frame shrunk to the window (live DRM zoom/pan preview)
   QVector<double> renderedZoom;     // framing of the last render, per slot

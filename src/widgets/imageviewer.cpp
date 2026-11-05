@@ -26,6 +26,10 @@
 #include "dispatcher.h"
 #include "dirdialog.h"
 #include "extviewer.h"
+#include "uimode.h"
+#include <QGestureEvent>
+#include <QPinchGesture>
+#include <cmath>
 #include "jp2io.h"
 #include "avifenc.h"
 #include <QThread>
@@ -134,6 +138,16 @@ imageViewer::imageViewer(QWidget *parent): QLabel(parent)
   clickTimer.setSingleShot(true);
   clickTimer.setInterval(40);
   connect(&clickTimer, SIGNAL(timeout()), this, SLOT(slotLeftClick()));
+  longPressTimer.setSingleShot(true);
+  longPressTimer.setInterval(500);
+  connect(&longPressTimer,&QTimer::timeout,this,[this]
+    {
+      // the finger is still down and has not moved: this is a menu, not a click, a drag or a recentring
+      dragging=false;
+      dragMoved=true;
+      unsetCursor();
+      showContextMenu(longPressPos,mapToGlobal(longPressPos));
+    });
 
   init(RXIMG);
   activeMovie=false;
@@ -491,6 +505,32 @@ void imageViewer::displayImage()
 
 }
 
+bool imageViewer::event(QEvent *e)
+{
+  if(e->type()==QEvent::Gesture && ttype==EXTVIEW)
+    {
+      QGestureEvent *ge=static_cast<QGestureEvent *>(e);
+      if(QGesture *g=ge->gesture(Qt::PinchGesture))
+        {
+          QPinchGesture *pinch=static_cast<QPinchGesture *>(g);
+          if(pinch->state()==Qt::GestureStarted) pinchLevel=0;
+          if(pinch->totalScaleFactor()>0 && hasValidImage())
+            {
+              // each doubling (halving) of the distance between the fingers is one zoom step in (out)
+              const int level=int(std::floor(std::log2(pinch->totalScaleFactor())));
+              if(level!=pinchLevel)
+                {
+                  zoom(mapToImage(mapFromGlobal(pinch->hotSpot().toPoint())),level-pinchLevel);
+                  pinchLevel=level;
+                }
+            }
+          ge->accept(g);
+          return true;
+        }
+    }
+  return QLabel::event(e);
+}
+
 void imageViewer::zoom(const QPoint centre, int dlevel)
 {
   addToLog(QString("centre=%1,%2 dlevel=%3").arg(centre.x()).arg(centre.y()).arg(dlevel),LOGIMAG);
@@ -566,6 +606,12 @@ QPoint imageViewer::mapToImage(const QPoint &pos)
 void imageViewer::setType(thumbType tp)
 {
   ttype=tp;
+  if(ttype==EXTVIEW && uiMode::touch())
+    {
+      // two fingers zoom the viewer; one finger still reaches mousePressEvent() as the touch screen's own mouse events
+      setAttribute(Qt::WA_AcceptTouchEvents);
+      grabGesture(Qt::PinchGesture);
+    }
   switch(ttype)
     {
     case RXIMG:
@@ -613,8 +659,16 @@ void imageViewer::setType(thumbType tp)
   // remove it last on its own (so a slip of the mouse does not delete anything)
   auto section=[this](std::initializer_list<QAction *> actions)
   {
+    QList<QAction *> shown;
+    for(QAction *a : actions)
+      {
+        // what the phone does not have: an upload to an FTP server, a picture editor program, the template editor
+        if(uiMode::touch() && (a==uploadAct || a==editAct || a==newAct)) continue;
+        shown<<a;
+      }
+    if(shown.isEmpty()) return;
     if(!popup->actions().isEmpty()) popup->addSeparator();
-    for(QAction *a : actions) popup->addAction(a);
+    for(QAction *a : shown) popup->addAction(a);
   };
   switch(tp)
     {
@@ -706,6 +760,12 @@ void imageViewer::mousePressEvent( QMouseEvent *e )
       else if (e->type() == QEvent::MouseButtonPress)
         {
           setFocus();
+          if(uiMode::touch() && popupEnabled)
+            {
+              // a finger has no right button: holding it still opens the menu
+              longPressPos=e->pos();
+              longPressTimer.start();
+            }
           if(isGalleryThumb()) emit thumbClicked(this,e->modifiers());
           if(gridActive())
             {
@@ -738,39 +798,43 @@ void imageViewer::mousePressEvent( QMouseEvent *e )
     }
   else if (e->button() == Qt::RightButton)
     {
-      if(popupEnabled)
-        {
-          setFocus();
-          if(isGalleryThumb() && !selected) emit thumbClicked(this,Qt::NoModifier);   // right-click outside the selection selects just this one
-          if(gridActive())
-            {
-              selectSegment(segmentAt(e->pos()));
-              displayImage();
-            }
-          resetFramingAct->setEnabled(ttype==TXIMG && fitOf(curSlot())==FITFREE);
-          copyAct->setEnabled(gridActive() ? !segImages.value(activeSeg).isNull() : (hasValidImage() || !displayedImage.isNull()));
-          pasteAct->setEnabled(!clipboardImage().isNull());
-          if(ttype==RXIMG) clearAct->setEnabled(true);   // live RX never sets validImage; the toolbar Clear is always available too
-          if(ttype==TXIMG) deleteAct->setEnabled(gridActive() ? !segImages.value(activeSeg).isNull() : hasValidImage());
-          //              if (pixmap())
-          // with a TX grid the To TX entry becomes a submenu: Auto / Grid 1..N
-          popup->removeAction(toTXMenu->menuAction());
-          toTXAct->setVisible(true);
-          int nseg=txWidgetPtr->txGridSegments();
-          if(nseg>1 && popup->actions().contains(toTXAct))
-            {
-              toTXMenu->clear();
-              toTXMenu->addAction(tr("Auto"))->setData(-1);
-              for(int i=0;i<nseg;i++) toTXMenu->addAction(tr("Grid %1").arg(i+1))->setData(i);
-              popup->insertMenu(toTXAct,toTXMenu);
-              toTXAct->setVisible(false);
-            }
-          if(hasValidImage())
-
-            clickPos = mapToImage(e->pos());
-          popup->popup(QCursor::pos());
-        }
+      if(popupEnabled) showContextMenu(e->pos(),QCursor::pos());
     }
+}
+
+//! The pop-up menu of the picture: a right click, on a touch screen a long press (see mousePressEvent())
+void imageViewer::showContextMenu(const QPoint &pos,const QPoint &globalPos)
+{
+  if(!popupEnabled) return;
+  setFocus();
+  if(isGalleryThumb() && !selected) emit thumbClicked(this,Qt::NoModifier);   // right-click outside the selection selects just this one
+  if(gridActive())
+    {
+      selectSegment(segmentAt(pos));
+      displayImage();
+    }
+  resetFramingAct->setEnabled(ttype==TXIMG && fitOf(curSlot())==FITFREE);
+  copyAct->setEnabled(gridActive() ? !segImages.value(activeSeg).isNull() : (hasValidImage() || !displayedImage.isNull()));
+  pasteAct->setEnabled(!clipboardImage().isNull());
+  if(ttype==RXIMG) clearAct->setEnabled(true);   // live RX never sets validImage; the toolbar Clear is always available too
+  if(ttype==TXIMG) deleteAct->setEnabled(gridActive() ? !segImages.value(activeSeg).isNull() : hasValidImage());
+  //              if (pixmap())
+  // with a TX grid the To TX entry becomes a submenu: Auto / Grid 1..N
+  popup->removeAction(toTXMenu->menuAction());
+  toTXAct->setVisible(true);
+  int nseg=txWidgetPtr->txGridSegments();
+  if(nseg>1 && popup->actions().contains(toTXAct))
+    {
+      toTXMenu->clear();
+      toTXMenu->addAction(tr("Auto"))->setData(-1);
+      for(int i=0;i<nseg;i++) toTXMenu->addAction(tr("Grid %1").arg(i+1))->setData(i);
+      popup->insertMenu(toTXAct,toTXMenu);
+      toTXAct->setVisible(false);
+    }
+  if(hasValidImage())
+
+    clickPos = mapToImage(pos);
+  popup->popup(globalPos);
 }
 
 // EXTVIEW: the wheel zooms about the cursor
@@ -833,6 +897,7 @@ void imageViewer::wheelEvent(QWheelEvent *e)
 // EXTVIEW: dragging with the left button pans the zoomed image
 void imageViewer::mouseMoveEvent(QMouseEvent *e)
 {
+  if(longPressTimer.isActive() && (e->pos()-longPressPos).manhattanLength()>uiMode::tapSize/4) longPressTimer.stop();
   if(ttype==TXIMG && dragging && (e->buttons() & Qt::LeftButton) && fitOf(dragSlot)==FITFREE && !displayedImage.isNull())
     {
       QPoint d=mapToImage(e->pos())-dragStartPt;
@@ -866,6 +931,7 @@ void imageViewer::mouseMoveEvent(QMouseEvent *e)
 
 void imageViewer::mouseReleaseEvent(QMouseEvent *e)
 {
+  longPressTimer.stop();
   if(ttype==TXIMG && dragging && e->button()==Qt::LeftButton)
     {
       dragging=false;

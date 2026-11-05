@@ -40,6 +40,8 @@
 #include <QLibraryInfo>
 #include <QPluginLoader>
 #endif
+#include "uimode.h"
+#include "touchpage.h"
 #include "appglobal.h"
 #include "mainwindow.h"
 #include "platformfiles.h"
@@ -345,6 +347,7 @@ int main( int argc, char ** argv )
   openWith openFilter;   // "Open with QSSTV-Experimental" for an audio recording
 #endif
   applySchemeAwareFusionPalette();
+  if(uiMode::touch()) QApplication::setStyle(new touchStyle(QApplication::style()->name()));   // controls big enough for a finger
   if(qEnvironmentVariableIsSet("QSSTV_LOG_FORMATS"))
     {
       // diagnostic: which image formats this Qt/plugin set can read, and the dialog filter built from them

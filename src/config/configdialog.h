@@ -2,12 +2,15 @@
 #define CONFIGDIALOG_H
 
 #include <QDialog>
+#include "uimode.h"
+
+class QStackedWidget;
 
 namespace Ui {
 class configDialog;
 }
 
-class configDialog : public QDialog
+class configDialog : public QDialog, public backAware
 {
   Q_OBJECT
 
@@ -18,6 +21,7 @@ public:
   void writeSettings();
   void setSoundClocks(double rx,double tx);
   int exec();
+  bool backPressed() override;
   bool soundNeedsRestart;
   bool guiNeedsRestart;
 
@@ -27,7 +31,9 @@ signals:
 
 
 private:
+  void setupTouch();   //!< touch shell: the sections as a list, a section on a page of its own
   Ui::configDialog *ui;
+  QStackedWidget *levels=nullptr;
 
 };
 

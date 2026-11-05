@@ -1,0 +1,106 @@
+// Screenshots and size checks of the REAL main window, offscreen, in the desktop shell or the touch shells at a given size:
+//   shot <scratch-dir> <out-dir> desktop|phone|tablet <width> <height> <page>...
+// pages: rx tx gallery more (the More page exists in the touch shells only). Each page is saved as <out-dir>/<shell>-<w>x<h>-<page>.png and
+// its minimum size is printed: a window that cannot get as small as the screen is what squeezed and clipped the desktop layout on a phone.
+// Exit code 1 when a touch shell's window is wider than asked for. Built and run by tests/uishots/app.sh (links the objects of build-cmake).
+#include <QtTest>
+#include <QtWidgets>
+#include <cstdio>
+#include <cstdlib>
+#include <cmath>
+#include <vector>
+#include <unistd.h>
+#include "appglobal.h"
+#include "configparams.h"
+#include "dispatcher.h"
+#include "mainwindow.h"
+#include "uimode.h"
+#include "touchpage.h"
+#include "spectrumwidget.h"
+
+int main(int argc, char **argv)
+{
+  setvbuf(stdout, nullptr, _IOLBF, 0);
+  if (argc < 7) {fprintf(stderr, "usage: shot scratch outdir desktop|phone|tablet width height page...\n"); return 2;}
+  const QString scratch = argv[1], outDir = argv[2], shell = argv[3];
+  const int width = atoi(argv[4]), height = atoi(argv[5]);
+  qputenv("HOME", scratch.toLocal8Bit());
+  qputenv("XDG_CONFIG_HOME", (scratch + "/config").toLocal8Bit());
+  qputenv("XDG_DATA_HOME", (scratch + "/data").toLocal8Bit());
+  qputenv("QT_QPA_PLATFORM", "offscreen");
+  qputenv("PIPEWIRE_REMOTE", "qsstv-test-no-such-server");
+  qputenv("PULSE_SERVER", "unix:/nonexistent/qsstv-test");
+  if (shell != "desktop")
+    {
+      qputenv("QSSTV_UI", shell.toLocal8Bit());
+      qputenv("QSSTV_UI_WIDTH", QByteArray::number(width));   // the screen of the phone being imitated
+    }
+  QCoreApplication::setOrganizationName("qsstv-uishots");
+  QCoreApplication::setApplicationName("qsstv-uishots");
+  QApplication app(argc, argv);
+  if (uiMode::touch()) QApplication::setStyle(new touchStyle(QApplication::style()->name()));   // as in main.cpp
+  QSettings::setDefaultFormat(QSettings::IniFormat);
+  QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, scratch + "/settings");
+  {
+    QSettings qs;   // the first-run questions would block an offscreen run
+    qs.setValue("update/asked", true);
+    qs.setValue("update/autoCheck", false);
+    qs.setValue("appimage/integrationAsked", true);
+  }
+  QDir().mkpath(outDir);
+  globalInit();
+  mainWindowPtr = new mainWindow;
+  QTest::qWait(300);
+  mainWindowPtr->init();
+  mainWindowPtr->startRunning(false);   // no sound card receiver
+  mainWindowPtr->resize(width, height);
+  mainWindowPtr->show();
+  QTest::qWait(800);
+  mainWindowPtr->resize(width, height);   // the pages have arranged themselves for the screen: the window may get as small as it was asked for now
+  QTest::qWait(300);
+  QTabWidget *tabs = mainWindowPtr->findChild<QTabWidget *>("maintabWidget");
+  if (qEnvironmentVariableIsSet("SHOT_FFT"))
+    {
+      // what the receiver sends the spectrum display about twelve times a second: a tone and some noise
+      std::vector<double> samples(8192);
+      for (int frame = 0; frame < 40; frame++)
+        {
+          for (size_t i = 0; i < samples.size(); i++)
+            samples[i] = 3000 * sin(2 * M_PI * 1500.0 * i / 12000.0) + (rand() % 2001 - 1000);
+          mainWindowPtr->spectrumFramePtr->realFFT(samples.data());
+          QTest::qWait(10);
+        }
+    }
+  int exitCode = 0;
+  printf("%s %dx%d: main window minimum %dx%d, is %dx%d\n", qPrintable(shell), width, height,
+         mainWindowPtr->minimumSizeHint().width(), mainWindowPtr->minimumSizeHint().height(), mainWindowPtr->width(), mainWindowPtr->height());
+  for (int i = 6; i < argc; i++)
+    {
+      const QString page = argv[i];
+      const QStringList names = {"rx", "tx", "gallery", "more"};
+      const int index = names.indexOf(page);
+      if (index < 0) {fprintf(stderr, "unknown page %s\n", argv[i]); continue;}
+      if (!tabs || index >= tabs->count()) {printf("  %-8s (not in this shell)\n", argv[i]); continue;}
+      tabs->setCurrentIndex(index);
+      QTest::qWait(400);
+      QWidget *w = tabs->currentWidget();
+      const QString file = QString("%1/%2-%3x%4-%5.png").arg(outDir, shell).arg(width).arg(height).arg(page);
+      mainWindowPtr->grab().save(file);
+      if (qEnvironmentVariableIsSet("SHOT_DUMP"))
+        for (QWidget *c : w->findChildren<QWidget *>())
+          if (c->isVisible() && (c->objectName() == "imageFrame" || c->objectName() == "settingsTableWidget" || c->objectName() == "rxWindow" || c->objectName() == "txWindow" || c->objectName() == "syncWidget"))
+            printf("      %-22s geo %d,%d %dx%d  min %dx%d hint %dx%d\n", qPrintable(c->objectName()), c->mapTo(mainWindowPtr, QPoint(0, 0)).x(), c->mapTo(mainWindowPtr, QPoint(0, 0)).y(), c->width(), c->height(), c->minimumSizeHint().width(), c->minimumSizeHint().height(), c->sizeHint().width(), c->sizeHint().height());
+      if (qEnvironmentVariableIsSet("SHOT_DUMP"))
+        for (QScrollArea *a : mainWindowPtr->findChildren<QScrollArea *>())
+          if (a->isVisible() && a->widget())
+            printf("      scroll area: viewport %dx%d, content %dx%d (min %dx%d), vertical scroll range %d, hfw %d\n", a->viewport()->width(), a->viewport()->height(), a->widget()->width(), a->widget()->height(), a->widget()->minimumSizeHint().width(), a->widget()->minimumSizeHint().height(), a->verticalScrollBar()->maximum(), int(a->widget()->layout() && a->widget()->layout()->hasHeightForWidth()));
+      printf("  %-8s page minimum %dx%d, saved %s\n", argv[i], w->minimumSizeHint().width(), w->minimumSizeHint().height(), qPrintable(QFileInfo(file).fileName()));
+    }
+  if (shell != "desktop" && mainWindowPtr->width() > width)
+    {
+      printf("FAIL the window is %d wide, %d asked for: something in it cannot get narrower\n", mainWindowPtr->width(), width);
+      exitCode = 1;
+    }
+  fflush(stdout);
+  _exit(exitCode);   // nothing is saved here
+}

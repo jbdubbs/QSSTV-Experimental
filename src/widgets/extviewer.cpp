@@ -4,6 +4,8 @@
 #include <QDebug>
 #include <QSettings>
 #include <QScreen>
+#include <QPushButton>
+#include "uimode.h"
 
 extViewer::extViewer(QWidget *parent) :   QDialog(parent),   ui(new Ui::extViewer)
 {
@@ -11,6 +13,16 @@ extViewer::extViewer(QWidget *parent) :   QDialog(parent),   ui(new Ui::extViewe
   activeMovie=false;
   setModal(false);
   setWindowFlags(windowFlags() | Qt::WindowMaximizeButtonHint | Qt::WindowMinimizeButtonHint | Qt::WindowCloseButtonHint);
+  if(uiMode::touch())
+    {
+      // no title bar with a close button on a phone (the Back key closes it too)
+      QPushButton *closeButton=new QPushButton(tr("Close"),this);
+      closeButton->setMinimumHeight(uiMode::tapSize);
+      ui->verticalLayout->addWidget(closeButton);
+      connect(closeButton,&QPushButton::clicked,this,&QDialog::close);
+      ui->lineEdit->setReadOnly(true);
+      setWindowState(Qt::WindowMaximized);
+    }
 }
 
 extViewer::~extViewer()
@@ -47,6 +59,7 @@ void extViewer::setup(const QImage &img,const QString &title)
 
 void extViewer::restoreSize(int fw,int fh)
 {
+  if(uiMode::touch()) return;   // always the whole screen
   QSettings qSettings;
   qSettings.beginGroup("EXTVIEWER");
   int sw=qSettings.value("width",-1).toInt();

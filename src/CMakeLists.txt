@@ -143,6 +143,7 @@ set(QSSTV_SOURCES
     utils/platformpermissions.cpp
     utils/platformservice.cpp
     utils/platformfiles.cpp
+    utils/uimode.cpp
     widgets/spectrumwidget.cpp
     widgets/vumeter.cpp
     widgets/fftdisplay.cpp
@@ -164,6 +165,7 @@ set(QSSTV_SOURCES
     sound/waterfalltext.cpp
     utils/macroexpansion.cpp
     widgets/imageviewer.cpp
+    widgets/touchpage.cpp
     template/templatedoc.cpp
     template/templatelegacy.cpp
     template/mmsstvtemplate.cpp

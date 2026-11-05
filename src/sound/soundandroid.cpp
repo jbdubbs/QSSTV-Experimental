@@ -4,6 +4,7 @@
 #include "androidaudio.h"
 
 #include <QElapsedTimer>
+#include <QGuiApplication>
 #include <QMetaObject>
 
 #include <android/log.h>
@@ -308,7 +309,7 @@ QString soundAndroid::inputProblem()
 {
   static QString last;
   static int polls=0;
-  if(inRunning && ++polls%10==0) ALOG("input level: peak %d of 32768, %u samples of digital silence in a row",peak.exchange(0),zeroRun.load());
+  if(inRunning && ++polls%10==0) ALOG("input level: peak %d of 32768, %u samples of digital silence in a row, app state %d",peak.exchange(0),zeroRun.load(),int(QGuiApplication::applicationState()));
   const QString now=inputProblemNow();
   if(now!=last)
     {
