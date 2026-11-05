@@ -63,7 +63,12 @@ void breakButtonText(QAbstractButton *b,int limit)
 //! a form can have changed since: the first measuring was before the font and the style were final)
 void forget(QLayout *l)
 {
-  for(int i=0;i<l->count();i++) l->itemAt(i)->invalidate();
+  for(int i=0;i<l->count();i++)
+    {
+      QLayoutItem *it=l->itemAt(i);
+      it->invalidate();
+      if(QWidget *w=it->widget()) w->updateGeometry();   // the way the widget item is told to measure again for certain
+    }
   l->invalidate();
 }
 
@@ -193,9 +198,10 @@ void reflowNarrow(QWidget *page,int width)
   // everything that was measured on the way was measured before the rows above it were changed: measure the whole page again,
   // the innermost first
   for(QLayout *l:layouts) forget(l);
-  // What a page asks for is what its widgets ask for, no more: a widget item of the page's layout was seen to report 116 dp more
-  // than the widget's own minimum size hint (466 for 350), and the page then scrolled sideways although everything in it fits.
-  // An explicit minimum (any positive width replaces the measured one) says it plainly.
+  // Every widget is told to measure again (updateGeometry): a widget item of a layout keeps what it measured before the rows
+  // above it were changed, and the section then scrolled sideways although everything in it fits (466 dp asked for, 350 needed).
+  // The page asks for what its widgets ask for now, as an explicit minimum (any positive width replaces the measured one).
+  for(QWidget *w:page->findChildren<QWidget *>()) w->updateGeometry();
   int need=1;
   if(QLayout *pl=page->layout())
     for(int i=0;i<pl->count();i++)
@@ -214,12 +220,6 @@ QStringList reflowOffenders(QWidget *page,int width)
       if(const QComboBox *cb=qobject_cast<const QComboBox *>(w)) extra=QString(" (policy %1, contents %2, items %3)").arg(int(cb->sizeAdjustPolicy())).arg(cb->minimumContentsLength()).arg(cb->count());
       out<<QString("%1 '%2' wants %3%4").arg(w->metaObject()->className(),w->objectName()).arg(w->minimumSizeHint().width()).arg(extra);
     }
-  if(qEnvironmentVariableIsSet("QSSTV_REFLOW_DUMP") || page->property("reflowDump").toBool())
-    for(QLayout *l:page->findChildren<QLayout *>())
-      {
-        forget(l);
-        out<<QString("   layout %1 of '%2' min %3 hint %4 items %5").arg(l->metaObject()->className(),l->parentWidget() ? l->parentWidget()->objectName() : QString()).arg(l->minimumSize().width()).arg(l->sizeHint().width()).arg(l->count());
-      }
   // and the layouts that are still too wide, with the widgets in them (a row that could not be put in a column)
   QList<QLayout *> layouts=page->findChildren<QLayout *>();
   if(page->layout()) layouts<<page->layout();
@@ -231,7 +231,7 @@ QStringList reflowOffenders(QWidget *page,int width)
       for(int i=0;i<l->count();i++)
         {
           QLayoutItem *it=l->itemAt(i);
-          if(it->widget()) parts<<QString("%1 '%2' %3 (hint %4, set %5, policy %6, size hint %7)").arg(it->widget()->metaObject()->className(),it->widget()->objectName()).arg(it->minimumSize().width()).arg(it->widget()->minimumSizeHint().width()).arg(it->widget()->minimumWidth()).arg(int(it->widget()->sizePolicy().horizontalPolicy())).arg(QString("%1, item hint %2, item max %3, widget max %4, min %5x%6, hfw %7, layout min %8").arg(it->widget()->sizeHint().width()).arg(it->sizeHint().width()).arg(it->maximumSize().width()).arg(it->widget()->maximumWidth()).arg(it->widget()->minimumSize().width()).arg(it->widget()->minimumSize().height()).arg(int(it->hasHeightForWidth())).arg(it->widget()->layout() ? it->widget()->layout()->minimumSize().width() : -1));
+          if(it->widget()) parts<<QString("%1 '%2' %3 (hint %4)").arg(it->widget()->metaObject()->className(),it->widget()->objectName()).arg(it->minimumSize().width()).arg(it->widget()->minimumSizeHint().width());
           else if(it->layout()) parts<<QString("[%1 %2]").arg(it->layout()->metaObject()->className()).arg(it->layout()->minimumSize().width());
           else parts<<"spacer";
         }
