@@ -47,6 +47,9 @@
 #include "dispatch/filedecoder.h"
 #include "ui_mainwindow.h"
 #include "soundqtmultimedia.h"
+#include "soundbackend.h"
+#include "platformpermissions.h"
+#include "platformservice.h"
 #include "configdialog.h"
 #include "configparams.h"
 #include "rigcontrol.h"
@@ -141,7 +144,7 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
   txWidgetPtr=ui->txWindow;
   galleryWidgetPtr=ui->galleryWindow;
   readSettings();
-  soundIOPtr=new soundQtMultimedia;
+  soundIOPtr=newSoundBackend();
   dispatcherPtr=new dispatcher;
   fileDecoderPtr=new fileDecoder(this);
   waterfallPtr=new waterfallText;
@@ -264,6 +267,26 @@ void mainWindow::init()
   //start rx and tx threads
   rxWidgetPtr->functionsPtr()->start();
   txWidgetPtr->functionsPtr()->start();
+#ifdef Q_OS_ANDROID
+  if(!platformPermissions::microphoneGranted())
+    {
+      // Android asks the user first; the receiver starts as soon as the answer is yes (rxWantedActive is what restartSound() reads)
+      platformPermissions::requestMicrophone(this,[this](bool granted)
+        {
+          if(granted)
+            {
+              rxWantedActive=true;
+              restartSound(false);
+            }
+          else
+            {
+              showProblem(tr("Microphone"),tr("QSSTV-Experimental needs the microphone permission to receive. Allow it in the system settings "
+                                              "(Apps, QSSTV-Experimental, Permissions) and start the program again."));
+            }
+        });
+    }
+  else
+#endif
   restartSound(true);
   dispatcherPtr->init();
   galleryWidgetPtr->init();
@@ -289,6 +312,14 @@ void mainWindow::init()
     QTimer::singleShot(4000,this,&mainWindow::offerDesktopIntegration);
   if(!headless && !appImageIntegration::available())
     QTimer::singleShot(6000,this,&mainWindow::offerUpdateCheck);
+#endif
+#ifdef Q_OS_ANDROID
+  // Android may end the process while the app is in the background, with no clean exit (and so no writeSettings() from
+  // shutdown()): save the settings whenever the app leaves the foreground
+  connect(qApp,&QGuiApplication::applicationStateChanged,this,[this](Qt::ApplicationState state)
+    {
+      if(state!=Qt::ApplicationActive) writeSettings();
+    });
 #endif
 }
 
@@ -500,7 +531,7 @@ void mainWindow::restartSound(bool inStartUp)
       delete soundIOPtr;
       soundIOPtr=nullptr;
     }
-  soundIOPtr=new soundQtMultimedia;
+  soundIOPtr=newSoundBackend();
   // soundIOPtr is destroyed and recreated above every call, so this connection has
   // to be redone every time too -- see soundBase::deviceLost()'s doc comment and
   // recoverSound() for why.
@@ -983,6 +1014,11 @@ void mainWindow::timerEvent(QTimerEvent *)
     {
       freqDisplay->setText("No Rig");
     }
+#ifdef Q_OS_ANDROID
+  // the foreground service that keeps the microphone working in the background runs exactly while the sound backend
+  // is receiving or sending (driverOK(): the permission was given and the device opened)
+  platformService::setActive(soundIOPtr && soundIOPtr->driverOK() && (soundIOPtr->isCapturing() || soundIOPtr->isPlaying()));
+#endif
 }
 
 void mainWindow::cleanUpCache(QString dirPath)

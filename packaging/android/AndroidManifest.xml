@@ -19,6 +19,11 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- RxService: the microphone keeps working with the screen off or another app in front, while a notification says so -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!-- Declared optional, otherwise Google Play hides the app from devices without them (RECORD_AUDIO and CAMERA
          imply a required feature): a tablet without a camera can still receive from a USB audio interface -->
@@ -51,6 +56,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Open with QSSTV-Experimental, from a file manager or another app: an SSTV or DRM recording is decoded -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="audio/*" />
+                <data android:mimeType="application/ogg" />
+            </intent-filter>
 
           <meta-data
                 android:name="android.app.lib_name"
@@ -60,6 +72,11 @@
                 android:name="android.app.arguments"
                 android:value="-- %%INSERT_APP_ARGUMENTS%% --" />
         </activity>
+
+        <service
+            android:name="io.github.jbdubbs.qsstv_experimental.RxService"
+            android:foregroundServiceType="microphone"
+            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

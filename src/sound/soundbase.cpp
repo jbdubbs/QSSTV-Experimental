@@ -64,6 +64,7 @@ void soundBase::run()
     {
       if((captureState==CPINIT) &&   (playbackState==PBINIT))
         {
+          idleTick();
           msleep(100);
           continue;
         }

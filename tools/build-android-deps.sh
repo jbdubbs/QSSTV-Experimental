@@ -1,6 +1,6 @@
 #!/bin/bash
 # Cross-compile the native libraries the Android build links -- FFTW (double and float), OpenJPEG,
-# libaom + libavif (optional AVIF over DRM) and Hamlib -- for each Android ABI, and vendor the
+# libaom + libavif (optional AVIF over DRM), Hamlib and Oboe (the audio backend) -- for each Android ABI, and vendor the
 # result into this repo's gitignored third_party/ tree. Everything is built STATIC and position
 # independent (-fPIC), because it ends up inside libqsstv-experimental_<abi>.so; that also means no
 # extra .so files to align (Google Play needs 16 KB page alignment, see ANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES).
@@ -11,7 +11,7 @@
 # Usage:
 #   tools/build-android-deps.sh                          # every component, ABIs arm64-v8a and x86_64
 #   ABIS="arm64-v8a" tools/build-android-deps.sh         # one ABI
-#   ONLY="fftw openjpeg" tools/build-android-deps.sh     # a subset: fftw openjpeg aom avif hamlib
+#   ONLY="fftw openjpeg" tools/build-android-deps.sh     # a subset: fftw openjpeg aom avif hamlib oboe
 #   rm -rf third_party/android-deps*                     # to start over from clean
 #
 # Needs: the Android NDK (r27c, the one the official Qt 6.11 Android kits were built with:
@@ -30,7 +30,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # repo root
 NDK=${ANDROID_NDK_ROOT:-$HOME/Android/Sdk/ndk/27.2.12479018}
 API=${ANDROID_API:-28}                                   # Qt 6.11 and Hamlib's own Android CI both use 28 as the minimum
 ABIS=${ABIS:-"arm64-v8a x86_64"}
-ONLY=${ONLY:-"fftw openjpeg aom avif hamlib"}
+ONLY=${ONLY:-"fftw openjpeg aom avif hamlib oboe"}
 BASE=${ANDROID_DEPS_PREFIX:-$HERE/third_party/android-deps}
 WORK=${ANDROID_DEPS_WORK:-${BASE}-src}
 HAMLIB_SRC=${HAMLIB_SRC:-$HOME/projects/hamlib-upstream-sstv}
@@ -43,6 +43,7 @@ FFTW_SHA256=${FFTW_SHA256:-56c932549852cddcfafdab3820b0200c7742675be92179e59e621
 OPENJPEG_TAG=${OPENJPEG_TAG:-v2.5.4}     # the app calls opj_decoder_set_strict_mode(): needs >= 2.5
 LIBAOM_TAG=${LIBAOM_TAG:-v3.15.1}
 LIBAVIF_TAG=${LIBAVIF_TAG:-v1.4.2}
+OBOE_TAG=${OBOE_TAG:-1.10.0}            # Google's AAudio/OpenSL ES wrapper (Apache-2.0); see src/sound/soundandroid.cpp
 
 TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake"
 LLVM="$NDK/toolchains/llvm/prebuilt/linux-x86_64"
@@ -158,6 +159,14 @@ for ABI in $ABIS; do
       -DAVIF_LIBYUV=OFF -DAVIF_LIBSHARPYUV=OFF -DAVIF_JPEG=OFF -DAVIF_ZLIBPNG=OFF
   fi
 
+  if want oboe; then
+    echo "== oboe $OBOE_TAG"
+    clone https://github.com/google/oboe.git "$OBOE_TAG" oboe
+    build oboe all -DBUILD_SHARED_LIBS=OFF
+    # Oboe installs into lib/<abi>/; put the archive where find_library() looks (lib/) like the other components
+    cp "$PREFIX/lib/$ABI/liboboe.a" "$PREFIX/lib/liboboe.a"
+  fi
+
   if want hamlib; then
     echo "== hamlib $HAMLIB_COMMIT (static, no libusb: Android's USB host API replaces it)"
     # Hamlib's own Android CI recipe (.github/workflows/android-ndk.yml): clang from the NDK, --without-libusb.
@@ -182,6 +191,7 @@ for ABI in $ABIS; do
     want openjpeg && echo "openjpeg: $OPENJPEG_TAG"
     want aom     && echo "libaom:  $LIBAOM_TAG"
     want avif    && echo "libavif: $LIBAVIF_TAG"
+    want oboe    && echo "oboe:    $OBOE_TAG"
     want hamlib  && echo "hamlib:  $HAMLIB_SRC @ $HAMLIB_COMMIT"
     echo "built:   $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   } > "$PREFIX/VENDORED.txt"

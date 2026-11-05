@@ -61,6 +61,7 @@ license texts ship with the library (Windows: next to the DLLs; AppImage: inside
 | libheif, libde265 | LGPL v3 | <https://github.com/strukturag/libheif>, <https://github.com/strukturag/libde265> |
 | libavif, libaom | BSD 2-clause | <https://github.com/AOMediaCodec/libavif>, <https://aomedia.googlesource.com/aom/> |
 | libwebp | BSD 3-clause | <https://chromium.googlesource.com/webm/libwebp> |
+| Oboe (Android build only: the audio streams) | Apache 2.0 | <https://github.com/google/oboe> |
 
 For the LGPL libraries, binary releases use dynamic linking, so you may replace them with your own build.
 Corresponding source for the bundled versions is available from the URLs above; contact the maintainer if you

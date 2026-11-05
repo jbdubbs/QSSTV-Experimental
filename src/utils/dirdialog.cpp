@@ -1,6 +1,7 @@
 #include "dirdialog.h"
 #include <QDir>
 #include <QFileDialog>
+#include "platformfiles.h"
 
 static QString lastPath;
 
@@ -43,7 +44,7 @@ QString dirDialog::openFileName(const QString &path, const QString &filter)
       QFileInfo  fi(fn);
       lastPath=fi.absolutePath();
     }
-  return fn;
+  return platformFiles::importPicked(fn);   // Android: a copy of the document the picker returned
 }
 
 /*!

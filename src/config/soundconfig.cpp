@@ -44,6 +44,8 @@ soundBase::edataSrc soundRoutingInput;
 soundBase::edataDst soundRoutingOutput;
 
 quint32 recordingSize;
+int micPreset;
+double rxGainDb;
 
 
 
@@ -119,6 +121,10 @@ void soundConfig::readSettings()
   soundRoutingInput=  (soundBase::edataSrc)qSettings.value("soundRoutingInput",  0 ).toInt();
   soundRoutingOutput= (soundBase::edataDst)qSettings.value("soundRoutingOutput", 0 ).toInt();
   recordingSize= qSettings.value("recordingSize", 100 ).toInt();
+  micPreset=qSettings.value("micPreset",micPresetAuto).toInt();
+  if(micPreset<micPresetAuto || micPreset>micPresetStandard) micPreset=micPresetAuto;
+  rxGainDb=qSettings.value("rxGainDb",0.0).toDouble();
+  if(!(rxGainDb>=0.0 && rxGainDb<=30.0)) rxGainDb=0.0;
   qSettings.endGroup();
   setParams();
 }
@@ -140,6 +146,8 @@ void soundConfig::writeSettings()
   qSettings.setValue ("soundRoutingInput", soundRoutingInput );
   qSettings.setValue ("soundRoutingOutput",soundRoutingOutput );
   qSettings.setValue ("recordingSize",recordingSize );
+  qSettings.setValue("micPreset",micPreset);
+  qSettings.setValue("rxGainDb",rxGainDb);
   qSettings.endGroup();
 }
 

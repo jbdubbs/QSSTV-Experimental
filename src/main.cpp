@@ -23,6 +23,8 @@
 
 #include <QtGui>
 #include <QCommandLineParser>
+#include <QDir>
+#include <QStandardPaths>
 #include <cstdio>
 
 #ifdef Q_OS_WIN
@@ -40,6 +42,7 @@
 #endif
 #include "appglobal.h"
 #include "mainwindow.h"
+#include "platformfiles.h"
 #include <QPixmap>
 #include <QSplashScreen>
 #include <QEventLoop>
@@ -308,6 +311,10 @@ static int templateCommand(const QString &file,bool convert,const QString &outFi
   return 0;
 }
 
+#ifdef Q_OS_ANDROID
+#include "openwith.h"
+#endif
+
 int main( int argc, char ** argv )
 {
 
@@ -326,6 +333,17 @@ int main( int argc, char ** argv )
   QGuiApplication::setDesktopFileName(qEnvironmentVariableIsSet("FLATPAK_ID") ? qEnvironmentVariable("FLATPAK_ID")
                                                                               : QStringLiteral("qsstv-experimental"));
   QApplication app( argc, argv );
+#ifdef Q_OS_ANDROID
+  // QDir::tempPath() is $TMPDIR, else /tmp, and there is no /tmp on Android: the JPEG 2000 encoder, the DRM preview and the
+  // FTP tests write there. The app's own cache folder is private and cleaned by the system when space runs short.
+  if(qEnvironmentVariableIsEmpty("TMPDIR"))
+    {
+      const QString cache=QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+      if(!cache.isEmpty() && QDir().mkpath(cache)) qputenv("TMPDIR",cache.toLocal8Bit());
+    }
+  platformFiles::cleanImportCache();   // copies of files picked in an earlier run
+  openWith openFilter;   // "Open with QSSTV-Experimental" for an audio recording
+#endif
   applySchemeAwareFusionPalette();
   if(qEnvironmentVariableIsSet("QSSTV_LOG_FORMATS"))
     {
@@ -719,6 +737,9 @@ int main( int argc, char ** argv )
       splash.finish(mainWindowPtr);
     }
   mainWindowPtr->startRunning(files.isEmpty() && !listen);   // decoding files replaces the sound card receiver until it is done
+#ifdef Q_OS_ANDROID
+  openFilter.windowIsUp();
+#endif
   if(listen) fileDecoderPtr->startListening();   // starts the receiver itself, once the mode is set
   else if(!files.isEmpty()) fileDecoderPtr->decodeFiles(files);
   result=app.exec();

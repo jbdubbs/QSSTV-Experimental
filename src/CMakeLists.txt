@@ -139,6 +139,10 @@ set(QSSTV_SOURCES
     config/configdialog.cpp
     sound/soundbase.cpp
     sound/soundqtmultimedia.cpp
+    sound/soundbackend.cpp
+    utils/platformpermissions.cpp
+    utils/platformservice.cpp
+    utils/platformfiles.cpp
     widgets/spectrumwidget.cpp
     widgets/vumeter.cpp
     widgets/fftdisplay.cpp
@@ -315,6 +319,11 @@ set(QSSTV_SOURCES
     videocapt/imagesettings.cpp
 )
 
+if(ANDROID)
+  # the native sound backend (AAudio through Oboe); the other platforms use soundqtmultimedia.cpp only
+  list(APPEND QSSTV_SOURCES sound/soundandroid.cpp android/openwith.cpp)
+endif()
+
 # Video capture used to be Linux/macOS-only V4L2 (excluded on macOS via the original
 # qmake !macx: gate); Phase 5 of the cross-platform plan replaced it with a Qt Multimedia
 # camera backend (QCamera/QMediaCaptureSession/QVideoSink) that works on every OS, same
@@ -406,7 +415,7 @@ endif()
 
 target_include_directories(qsstv PRIVATE
     config dispatch drmrx drmtx dsp editor gps logbook mainwidgets
-    rig scope sound sstv template utils widgets xmlrpc videocapt
+    rig scope sound sstv template utils widgets xmlrpc videocapt android
 )
 
 # Unlike qmake's uic (which resolves all FORMS into one shared include path), CMake's
@@ -451,6 +460,16 @@ target_link_libraries(qsstv PRIVATE
     PkgConfig::OPENJP2
     hamlib::hamlib
 )
+if(ANDROID)
+  # Oboe, built static by tools/build-android-deps.sh (it also uses OpenSL ES on a device without AAudio)
+  find_path(OBOE_INCLUDE_DIR NAMES oboe/Oboe.h)
+  find_library(OBOE_LIBRARY NAMES oboe)
+  if(NOT OBOE_INCLUDE_DIR OR NOT OBOE_LIBRARY)
+    message(FATAL_ERROR "Oboe not found: run tools/build-android-deps.sh (ONLY=oboe) and pass -DCMAKE_FIND_ROOT_PATH=<its output dir>")
+  endif()
+  target_include_directories(qsstv PRIVATE "${OBOE_INCLUDE_DIR}")
+  target_link_libraries(qsstv PRIVATE "${OBOE_LIBRARY}" log OpenSLES)
+endif()
 if(LIBAVIF_FOUND)
   target_link_libraries(qsstv PRIVATE PkgConfig::LIBAVIF)
   if(ANDROID)

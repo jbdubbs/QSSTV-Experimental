@@ -25,6 +25,7 @@ It also starts, stops and synchronizes the threads.
 
 */
 #include "dispatcher.h"
+#include "platformfiles.h"
 #include "appglobal.h"
 #include "configparams.h"
 #include <QTimeZone>
@@ -537,6 +538,9 @@ void dispatcher::saveRxSSTVImage(esstvMode mode)
 
 void dispatcher::saveImage(QString fileName, QString infotext)
 {
+#ifdef Q_OS_ANDROID
+  platformFiles::exportToGallery(fileName);   // the picture also shows up in the phone's gallery (Pictures/QSSTV-Experimental)
+#endif
   // filename is the name of the original file in hybrid mode
   QFileInfo info(fileName);
   QString fn=QDir::tempPath()+"/"+info.baseName()+"."+ftpDefaultImageFormat;

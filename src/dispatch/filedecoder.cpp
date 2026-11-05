@@ -3,6 +3,7 @@
  *   See filedecoder.h for what this is and why.                           *
  ***************************************************************************/
 #include "filedecoder.h"
+#include "platformfiles.h"
 #include "appglobal.h"
 #include "configparams.h"
 #include "directoriesconfig.h"
@@ -202,7 +203,19 @@ void fileDecoder::chooseAndDecode(QWidget *parent)
   qSettings.beginGroup("RX");
   qSettings.setValue("lastDecodeDir",QFileInfo(files.first()).absolutePath());
   qSettings.endGroup();
-  decodeFiles(files);
+  // Android: the picker returns content:// URIs; decode copies of them in the app's cache (unchanged paths elsewhere)
+  QStringList local;
+  for(const QString &f:files)
+    {
+      const QString p=platformFiles::importPicked(f);
+      if(!p.isEmpty()) local<<p;
+    }
+  if(local.isEmpty())
+    {
+      QMessageBox::warning(parent,tr("Decode from file"),tr("The file could not be opened."));
+      return;
+    }
+  decodeFiles(local);
 }
 
 void fileDecoder::decodeFiles(const QStringList &files)

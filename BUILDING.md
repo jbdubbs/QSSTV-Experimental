@@ -253,7 +253,7 @@ aqt install-qt linux desktop 6.11.2 linux_gcc_64 -O ~/Qt
 aqt install-qt all_os android 6.11.2 android_arm64_v8a -m qtmultimedia qtserialport qtpositioning qtimageformats -O ~/Qt
 ```
 
-FFTW, OpenJPEG, libaom/libavif and Hamlib are cross-compiled as static libraries by `tools/build-android-deps.sh` (set `ABIS`
+FFTW, OpenJPEG, libaom/libavif, Hamlib and Oboe (the Android audio library) are cross-compiled as static libraries by `tools/build-android-deps.sh` (set `ABIS`
 and `ONLY` to build less; it needs a local Hamlib checkout, `HAMLIB_SRC`, like the Windows build). Then configure with the Android kit
 and let pkg-config find them:
 

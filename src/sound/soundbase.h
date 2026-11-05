@@ -116,6 +116,7 @@ protected:
   virtual void flushPlayback()=0;
   virtual void prepareCapture() {;}
   virtual void preparePlayback() {;}
+  virtual void idleTick() {;}   //!< about every 100 ms while neither capture nor playback is running (the Android backend stops its input stream)
   virtual void closeDevices()=0;
   virtual void waitPlaybackEnd()=0;
 
