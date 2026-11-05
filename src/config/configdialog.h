@@ -22,6 +22,7 @@ public:
   void setSoundClocks(double rx,double tx);
   int exec();
   bool backPressed() override;
+  void showEvent(QShowEvent *e) override;   //!< touch shell: always starts at the list of sections
   bool soundNeedsRestart;
   bool guiNeedsRestart;
 

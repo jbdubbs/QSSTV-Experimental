@@ -24,6 +24,7 @@
 It also starts, stops and synchronizes the threads.
 
 */
+#include "applog.h"
 #include "dispatcher.h"
 #include "platformfiles.h"
 #include "appglobal.h"
@@ -367,6 +368,7 @@ void dispatcher::customEvent( QEvent * e )
 
 void dispatcher::idleAll()
 {
+  APPLOG("qsstv-tx","idleAll");
   if(prTimerIndex>=0)
     {
       killTimer(prTimerIndex);

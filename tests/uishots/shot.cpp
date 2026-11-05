@@ -38,7 +38,12 @@ int main(int argc, char **argv)
   QCoreApplication::setOrganizationName("qsstv-uishots");
   QCoreApplication::setApplicationName("qsstv-uishots");
   QApplication app(argc, argv);
-  if (uiMode::touch()) QApplication::setStyle(new touchStyle(QApplication::style()->name()));   // as in main.cpp
+  if (uiMode::touch())   // as in main.cpp
+    {
+      QApplication::setStyle(new touchStyle(QApplication::style()->name()));
+      if (qEnvironmentVariableIsSet("SHOT_DARK")) QGuiApplication::styleHints()->setColorScheme(Qt::ColorScheme::Dark);
+      applyTouchPalette();
+    }
   QSettings::setDefaultFormat(QSettings::IniFormat);
   QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, scratch + "/settings");
   {

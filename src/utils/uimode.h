@@ -1,6 +1,7 @@
 #ifndef UIMODE_H
 #define UIMODE_H
 
+#include <QString>
 #include <QtGlobal>
 
 class QWidget;
@@ -47,6 +48,18 @@ class backAware
 public:
   virtual ~backAware() = default;
   virtual bool backPressed() = 0;
+};
+
+/*!
+  A widget that tells the page scrolling of the touch shell (touchFlick, touchpage.h) what a finger on it should do: "pass" (the
+  widget has the press, the page takes the drag), "skip" (the widget keeps the drag) or "" (the usual: the press waits for the
+  finger to be lifted or to move).
+*/
+class flickAware
+{
+public:
+  virtual ~flickAware() = default;
+  virtual QString touchFlickMode() const = 0;
 };
 
 #endif // UIMODE_H

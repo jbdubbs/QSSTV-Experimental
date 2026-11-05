@@ -27,9 +27,9 @@
 #include "dirdialog.h"
 #include "extviewer.h"
 #include "uimode.h"
-#include <QGestureEvent>
-#include <QPinchGesture>
 #include <cmath>
+#include <QTouchEvent>
+#include <QLineF>
 #include "jp2io.h"
 #include "avifenc.h"
 #include <QThread>
@@ -505,30 +505,160 @@ void imageViewer::displayImage()
 
 }
 
+/*!
+  Touch screens: what a finger on the picture does. The live picture and the preview have nothing to drag: the page scrolls. A
+  picture to transmit with free framing is dragged inside its frame, and the zoomed viewer is panned and pinched.
+*/
+QString imageViewer::touchFlickMode() const
+{
+  switch(ttype)
+    {
+    case RXIMG:
+    case PREVIEW:
+      return "pass";
+    case TXIMG:
+      return (fitOf(curSlot())==FITFREE) ? "skip" : "pass";
+    case EXTVIEW:
+      return "skip";
+    default:
+      return QString();
+    }
+}
+
+/*!
+  The zoomed viewer on a touch screen takes the touch events itself (and so gets no mouse events made from them): one finger pans
+  the picture, two fingers zoom and pan it continuously (the point under the fingers stays under them), a double tap zooms in on
+  the point or goes back to the whole picture.
+*/
 bool imageViewer::event(QEvent *e)
 {
-  if(e->type()==QEvent::Gesture && ttype==EXTVIEW)
+  if(ttype==EXTVIEW && uiMode::touch())
     {
-      QGestureEvent *ge=static_cast<QGestureEvent *>(e);
-      if(QGesture *g=ge->gesture(Qt::PinchGesture))
+      switch(e->type())
         {
-          QPinchGesture *pinch=static_cast<QPinchGesture *>(g);
-          if(pinch->state()==Qt::GestureStarted) pinchLevel=0;
-          if(pinch->totalScaleFactor()>0 && hasValidImage())
-            {
-              // each doubling (halving) of the distance between the fingers is one zoom step in (out)
-              const int level=int(std::floor(std::log2(pinch->totalScaleFactor())));
-              if(level!=pinchLevel)
-                {
-                  zoom(mapToImage(mapFromGlobal(pinch->hotSpot().toPoint())),level-pinchLevel);
-                  pinchLevel=level;
-                }
-            }
-          ge->accept(g);
+        case QEvent::TouchBegin:
+        case QEvent::TouchUpdate:
+        case QEvent::TouchEnd:
+        case QEvent::TouchCancel:
+          touchView(static_cast<QTouchEvent *>(e));
+          e->accept();
           return true;
+        default:
+          break;
         }
     }
   return QLabel::event(e);
+}
+
+//! the part of the widget the picture is drawn in (mapToImage() maps from it)
+QRect imageViewer::pictureRect() const
+{
+  QRect cr=contentsRect();
+  cr.adjust(margin(),margin(),-margin(),-margin());
+  const QPixmap p=pixmap(Qt::ReturnByValue);
+  const QRect aligned=QStyle::alignedRect(QApplication::layoutDirection(),QFlag(alignment()),p.size(),cr);
+  return aligned.intersected(cr);
+}
+
+void imageViewer::touchView(QTouchEvent *te)
+{
+  if(displayedImage.isNull()) return;
+  const QRect full=displayedImage.rect();
+  const QRect inter=pictureRect();
+  if(inter.width()<=0 || inter.height()<=0) return;
+  QList<QEventPoint> down;
+  for(const QEventPoint &p:te->points())
+    if(p.state()!=QEventPoint::Released) down<<p;
+  auto clampView=[&](QRect v)
+  {
+    v.setWidth(qBound(48,v.width(),full.width()));
+    v.setHeight(qBound(48,v.height(),full.height()));
+    v.moveLeft(qBound(0,v.x(),full.width()-v.width()));
+    v.moveTop(qBound(0,v.y(),full.height()-v.height()));
+    return (v.width()>=full.width() || v.height()>=full.height()) ? full : v;
+  };
+  const QRect cur=view.isNull() ? full : view;
+
+  if(te->type()==QEvent::TouchBegin)
+    {
+      touchPinching=false;
+      touchMoved=false;
+      touchStart=te->points().first().position();
+      touchLast=touchStart;
+      touchClock.restart();
+      return;
+    }
+  if(down.size()>=2)
+    {
+      const QPointF a=down[0].position(),b=down[1].position();
+      const QPointF mid=(a+b)/2;
+      const double dist=qMax(1.0,QLineF(a,b).length());
+      touchMoved=true;
+      if(!touchPinching)
+        {
+          touchPinching=true;
+          pinchView=cur;
+          pinchDist=dist;
+          // the picture's point under the fingers, in picture pixels
+          pinchAnchor=QPointF(cur.x()+(mid.x()-inter.x())*cur.width()/inter.width(),
+                              cur.y()+(mid.y()-inter.y())*cur.height()/inter.height());
+        }
+      const double scale=dist/pinchDist;
+      QRect v;
+      v.setSize(QSize(qRound(pinchView.width()/scale),qRound(pinchView.height()/scale)));
+      v.setSize(QSize(qBound(48,v.width(),full.width()),qBound(48,v.height(),full.height())));
+      v.moveLeft(qRound(pinchAnchor.x()-(mid.x()-inter.x())*v.width()/inter.width()));
+      v.moveTop(qRound(pinchAnchor.y()-(mid.y()-inter.y())*v.height()/inter.height()));
+      view=clampView(v);
+      displayImage();
+      return;
+    }
+  if(down.size()==1)
+    {
+      const QPointF pos=down[0].position();
+      if(touchPinching)
+        {
+          // one finger was lifted from a pinch: the rest pans from where it is now
+          touchPinching=false;
+          touchLast=pos;
+          return;
+        }
+      if(!touchMoved && (pos-touchStart).manhattanLength()>12) touchMoved=true;
+      if(touchMoved && !view.isNull() && cur.width()<full.width())
+        {
+          QRect v=cur;
+          v.translate(qRound((touchLast.x()-pos.x())*cur.width()/inter.width()),qRound((touchLast.y()-pos.y())*cur.height()/inter.height()));
+          view=clampView(v);
+          displayImage();
+        }
+      touchLast=pos;
+      return;
+    }
+  // every finger is up
+  if(te->type()==QEvent::TouchEnd && !touchMoved && !touchPinching && touchClock.elapsed()<300)
+    {
+      // a tap; the second of two quick ones zooms
+      const QPointF pos=touchStart;
+      if(touchTapClock.isValid() && touchTapClock.elapsed()<350 && (pos-touchTapPos).manhattanLength()<40)
+        {
+          touchTapClock.invalidate();
+          if(!view.isNull() && cur.width()<full.width()) view=QRect();   // back to the whole picture
+          else
+            {
+              QRect v(0,0,full.width()/3,full.height()/3);
+              v.moveCenter(QPoint(qRound(cur.x()+(pos.x()-inter.x())*cur.width()/inter.width()),
+                                  qRound(cur.y()+(pos.y()-inter.y())*cur.height()/inter.height())));
+              view=clampView(v);
+            }
+          displayImage();
+        }
+      else
+        {
+          touchTapClock.restart();
+          touchTapPos=pos;
+        }
+    }
+  touchPinching=false;
 }
 
 void imageViewer::zoom(const QPoint centre, int dlevel)
@@ -608,9 +738,7 @@ void imageViewer::setType(thumbType tp)
   ttype=tp;
   if(ttype==EXTVIEW && uiMode::touch())
     {
-      // two fingers zoom the viewer; one finger still reaches mousePressEvent() as the touch screen's own mouse events
-      setAttribute(Qt::WA_AcceptTouchEvents);
-      grabGesture(Qt::PinchGesture);
+      setAttribute(Qt::WA_AcceptTouchEvents);   // see event(): pinch, pan and double tap
     }
   switch(ttype)
     {

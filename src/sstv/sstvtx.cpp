@@ -1,3 +1,4 @@
+#include "applog.h"
 #include "sstvtx.h"
 #include <algorithm>
 #include "appglobal.h"
@@ -242,7 +243,9 @@ bool sstvTx::sendImage(imageViewer *ivPtr)
     sendVIS();
   }
   addToLog("txFunc: sendImage",LOGTXFUNC);
+  APPLOG("qsstv-tx","preamble and VIS sent, the picture follows");
   mb=currentMode->transmitImage(ivPtr);
+  APPLOG("qsstv-tx","transmitImage returned %d",int(mb));
   if(mb==modeBase::MBABORTED) return false;
   else  return true;
 }

@@ -27,6 +27,7 @@
 #include "filewatcher.h"
 #include "touchpage.h"
 #include <QListWidget>
+#include <QScroller>
 #include <QStackedWidget>
 #include <QTabBar>
 #include <QVBoxLayout>
@@ -73,6 +74,7 @@ void configDialog::setupTouch()
       QListWidgetItem *item=new QListWidgetItem(tabs->tabText(i),list);
       item->setSizeHint(QSize(0,uiMode::tapSize+12));
     }
+  QScroller::grabGesture(list->viewport(),QScroller::LeftMouseButtonGesture);   // the list is dragged with a finger
   levels=new QStackedWidget(this);
   levels->addWidget(list);
   ui->verticalLayout->replaceWidget(tabs,levels);
@@ -83,6 +85,12 @@ void configDialog::setupTouch()
       tabs->setCurrentIndex(list->row(item));
       levels->setCurrentIndex(1);
     });
+}
+
+void configDialog::showEvent(QShowEvent *e)
+{
+  if(levels) levels->setCurrentIndex(0);
+  QDialog::showEvent(e);
 }
 
 bool configDialog::backPressed()

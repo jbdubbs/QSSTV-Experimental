@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- No action bar (the window covers the whole screen and keeps clear of the system bars itself). Android 9 has no night
+         variant of the device theme: light there; values-v29 follows the system's light/dark setting. -->
+    <style name="QSSTVTheme" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+</resources>

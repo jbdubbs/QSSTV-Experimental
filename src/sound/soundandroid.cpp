@@ -451,10 +451,18 @@ int soundAndroid::write(uint numFrames)
   size_t done=0;
   QElapsedTimer stall;
   stall.start();
+  // The sound thread ends the playback when the TX buffer is found empty (soundBase::play()): with a sound card that blocks it
+  // cannot get far ahead of the thread that makes the audio, but a ring this size lets it empty the buffer of the preamble and
+  // the VIS code into the ring in a moment and find nothing there before the first line of the picture is made, and the rest of
+  // the transmission is thrown away (the picture was "sent" in 3 seconds and nothing of it was heard). So the speaker's ring is
+  // only filled to half a second, which the callback needs as a reserve, and no more.
+  const size_t highWater=size_t(BASESAMPLERATE/2)*size_t(outChannels);
   while(done<total)
     {
       if(stopThread || closing) return -1;
-      const size_t w=playRing.write(txConv.data()+done,total-done);
+      const size_t queued=playRing.readable();
+      const size_t room=queued>=highWater ? 0 : highWater-queued;
+      const size_t w=room>0 ? playRing.write(txConv.data()+done,std::min(total-done,room)) : 0;
       if(w>0)
         {
           done+=w;
@@ -472,7 +480,7 @@ int soundAndroid::write(uint numFrames)
       writerWaiting.store(true,std::memory_order_release);
       {
         QMutexLocker l(&waitMutex);
-        if(playRing.writable()==0 && !stopThread) spaceCond.wait(&waitMutex,WAITMS);
+        if(playRing.readable()>=highWater && !stopThread) spaceCond.wait(&waitMutex,WAITMS);
       }
       writerWaiting.store(false,std::memory_order_release);
     }

@@ -32,6 +32,7 @@
 #include <QFile>
 #include <windows.h> // WM_POWERBROADCAST / PBT_APMRESUME* -- see nativeEvent() below
 #endif
+#include "applog.h"
 #include "mainwindow.h"
 #include "appimageintegration.h"
 #include "updatecheck.h"
@@ -78,6 +79,7 @@
 #include <QMessageBox>
 #include <QScreen>
 #include <QTimer>
+#include <QElapsedTimer>
 #include <QApplication>
 #include "filewatcher.h"
 #include "ftpfunctions.h"
@@ -350,6 +352,7 @@ void mainWindow::setupTouchShell()
   shellLayout=column;
   ui->horizontalLayout->addWidget(shell);
   qApp->installEventFilter(this);   // the Back key
+  qApp->installEventFilter(new touchFlick(this));   // a finger scrolls the pages, whatever it starts on
   arrangePages();
 }
 
@@ -419,6 +422,11 @@ void mainWindow::arrangePages()
 
 void mainWindow::goBack()
 {
+  // some phones deliver a Back gesture twice in quick succession (a key press and the system's own callback): the second one
+  // would close what the first one only stepped out of (a Settings section, then the whole of Settings)
+  static QElapsedTimer last;
+  if(last.isValid() && last.elapsed()<250) return;
+  last.restart();
   QWidget *front=QApplication::activePopupWidget();
   if(!front) front=QApplication::activeModalWidget();
   if(!front)
@@ -429,7 +437,12 @@ void mainWindow::goBack()
   if(front)
     {
       backAware *levels=dynamic_cast<backAware *>(front);
-      if(!levels || !levels->backPressed()) front->close();
+      if(!levels || !levels->backPressed())
+        {
+          // reject(), not close(): a message box with no cancel button (About...) ignores being closed
+          if(QDialog *d=qobject_cast<QDialog *>(front)) d->reject();
+          else front->close();
+        }
     }
   else if(ui->maintabWidget->currentIndex()!=0) ui->maintabWidget->setCurrentIndex(0);
   else platformService::moveToBackground();
@@ -822,6 +835,7 @@ void mainWindow::restartSound(bool inStartUp)
 // cross-platform fallback/diagnostic for whatever the backend does report).
 void mainWindow::recoverSound(const QString &reason)
 {
+  APPLOG("qsstv-tx","recoverSound: %s",qPrintable(reason));
   // Rebuilding the audio device out from under an active PTT-keyed transmission
   // would be actively harmful -- leave it alone and let the user recover manually
   // (Stop/Start) if a transmission genuinely got stuck across a sleep. Not handled
@@ -1094,25 +1108,50 @@ void mainWindow::slotAboutQSSTV()
   temp += "\nhttps://github.com/jbdubbs/QSSTV-Experimental\nJason Weisberger - NT0Y";
   temp += "\n\nBuilt upon the original:\nQSSTV\nVersion 9.5.11\nhttps://www.qsl.net/o/on4qz\nCopyright 2000-2019 - Johan Maes - ON4QZ\nHAMDRM Software based on RX/TXAMADRM - PA0MBO";
   temp += "\n\nLicensed under the GNU GPL v3. Includes code from Dream (DRM), Phil Karn KA9Q, MiXViews, Maia XML-RPC, the Papirus icons and others; see Third-party licenses.";
+  auto showLicenses=[this]()
+  {
+    QFile f(":/THIRD_PARTY_LICENSES.md");
+    QString text;
+    if(f.open(QIODevice::ReadOnly)) text=QString::fromUtf8(f.readAll());
+    QDialog dlg(this);
+    dlg.setWindowTitle(tr("Third-party licenses"));
+    QVBoxLayout *lay=new QVBoxLayout(&dlg);
+    QTextBrowser *tb=new QTextBrowser(&dlg);
+    tb->setOpenExternalLinks(true);
+    tb->setMarkdown(text);
+    lay->addWidget(tb);
+    dlg.resize(900,600);
+    dlg.exec();
+  };
+  if(uiMode::touch())
+    {
+      // Android's own message box ignores the Back key when it has a button of ours, so the About box is a dialog of the program
+      QDialog dlg(this);
+      dlg.setWindowTitle(tr("About..."));
+      QVBoxLayout *lay=new QVBoxLayout(&dlg);
+      QTextBrowser *tb=new QTextBrowser(&dlg);
+      tb->setPlainText(temp);
+      lay->addWidget(tb,1);
+      QHBoxLayout *row=new QHBoxLayout;
+      QPushButton *licButton=new QPushButton(tr("Third-party licenses..."),&dlg);
+      QPushButton *okButton=new QPushButton(tr("OK"),&dlg);
+      bool licenses=false;
+      connect(licButton,&QPushButton::clicked,&dlg,[&dlg,&licenses]{licenses=true;dlg.accept();});
+      connect(okButton,&QPushButton::clicked,&dlg,&QDialog::accept);
+      row->addWidget(licButton);
+      row->addStretch(1);
+      row->addWidget(okButton);
+      lay->addLayout(row);
+      dlg.resize(800,1000);   // the whole screen (prepareTouchWindow)
+      dlg.exec();
+      if(licenses) showLicenses();
+      return;
+    }
   QMessageBox box(QMessageBox::Information,tr("About..."),temp,QMessageBox::Ok,this);
   box.setIconPixmap(QPixmap(":/icons/qsstv.png").scaled(64,64,Qt::KeepAspectRatio,Qt::SmoothTransformation));
   QPushButton *licButton=box.addButton(tr("Third-party licenses..."),QMessageBox::ActionRole);
   box.exec();
-  if(box.clickedButton()==licButton)
-    {
-      QFile f(":/THIRD_PARTY_LICENSES.md");
-      QString text;
-      if(f.open(QIODevice::ReadOnly)) text=QString::fromUtf8(f.readAll());
-      QDialog dlg(this);
-      dlg.setWindowTitle(tr("Third-party licenses"));
-      QVBoxLayout *lay=new QVBoxLayout(&dlg);
-      QTextBrowser *tb=new QTextBrowser(&dlg);
-      tb->setOpenExternalLinks(true);
-      tb->setMarkdown(text);
-      lay->addWidget(tb);
-      dlg.resize(900,600);
-      dlg.exec();
-    }
+  if(box.clickedButton()==licButton) showLicenses();
 }
 
 void mainWindow::slotAboutQt()

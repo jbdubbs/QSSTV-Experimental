@@ -1,8 +1,10 @@
 #ifndef TOUCHPAGE_H
 #define TOUCHPAGE_H
 
+#include <QPalette>
 #include <QProxyStyle>
 #include <QList>
+#include <QPointer>
 #include <QScrollArea>
 #include <QWidget>
 #include <functional>
@@ -49,6 +51,37 @@ public:
   explicit touchStyle(const QString &baseStyle) : QProxyStyle(baseStyle) {}
   QSize sizeFromContents(ContentsType type,const QStyleOption *option,const QSize &size,const QWidget *widget) const override;
   int pixelMetric(PixelMetric metric,const QStyleOption *option=nullptr,const QWidget *widget=nullptr) const override;
+};
+
+/*!
+  The palette of the touch shell, light or dark by the system's setting, complete (Qt on Android fills only a part of the roles
+  for a dark system, the rest stays light: dark text on a dark box). Set again when the system changes between light and dark.
+*/
+QPalette touchPalette(bool dark);
+void applyTouchPalette();
+
+/*!
+  Finger scrolling for the scroll areas made by makeTouchScrollPage(), over every widget in them: a press on a button, a box or
+  a label is held back until it is clear whether it is a tap (then it is delivered, as a press and a release) or the start of a
+  drag (then the page scrolls). Sliders, scroll bars, text areas and lists keep their own drags; a picture (property touchFlick
+  = "pass") gets its press at once and loses the drag to the page when the finger moves; "skip" keeps all of it.
+  Installed once on the application.
+*/
+class touchFlick : public QObject
+{
+  Q_OBJECT
+public:
+  explicit touchFlick(QObject *parent=nullptr) : QObject(parent) {}
+  bool eventFilter(QObject *o,QEvent *e) override;
+private:
+  QScrollArea *areaOf(QWidget *w,bool &passive) const;
+  QPointer<QWidget> target;
+  QPointer<QScrollArea> area;
+  QPointF pressLocal;
+  QPointF pressGlobal;
+  bool passive=false;
+  bool dragging=false;
+  const QEvent *replayEvent=nullptr;   // the press or release being sent again
 };
 
 /*!

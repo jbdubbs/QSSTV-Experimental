@@ -19,6 +19,7 @@
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
 
+#include "applog.h"
 #include "txfunctions.h"
 #include "appglobal.h"
 #include "sstv/sstvtx.h"
@@ -459,6 +460,7 @@ void txFunctions::waitEnd()
 
 void txFunctions::stopAndWait()
 {
+  APPLOG("qsstv-tx","stopAndWait in state %d",int(txState));
   stopDRM=true;
   if(txState==TXSENDTONE) synthesPtr->abortTone=true;
   // abort based on what is actually running, not on the (possibly already changed) mode index
@@ -655,6 +657,7 @@ void txFunctions::forgetTxFileName()
 void txFunctions::switchTxState(etxState newState)
 {
   addToLog(QString("%1 to %2").arg(txStateStr[txState]).arg(txStateStr[newState]),LOGTXFUNC);
+  APPLOG("qsstv-tx","tx state %s -> %s",qPrintable(QString(txStateStr[txState])),qPrintable(QString(txStateStr[newState])));
   txState=newState;
 }
 
