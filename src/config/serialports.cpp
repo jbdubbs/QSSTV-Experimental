@@ -9,7 +9,7 @@
 QList<serialPortChoice> serialPortList(const QString &byIdDir)
 {
   QList<serialPortChoice> ports;
-#ifdef Q_OS_LINUX
+#if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)   // /dev/serial/by-id does not exist on Android
   const QFileInfoList links=QDir(byIdDir).entryInfoList(QDir::AllEntries|QDir::System|QDir::NoDotAndDotDot,QDir::Name);
   for(const QFileInfo &link:links) ports.append({link.absoluteFilePath(),link.symLinkTarget()});
 #else

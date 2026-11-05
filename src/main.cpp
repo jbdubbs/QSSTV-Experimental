@@ -28,7 +28,7 @@
 #ifdef Q_OS_WIN
 #include <windows.h>
 #endif
-#if defined(Q_OS_LINUX)
+#if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)   // Qt defines Q_OS_LINUX on Android too, which has no QtDBus and no desktop portal
 #include <QDBusConnection>
 #include <QDBusConnectionInterface>
 #include <QDir>
@@ -150,7 +150,7 @@ static bool findInputDevice(const QString &wanted,QString &description)
 
 static bool platformThemeAvailable(const QString &name)
 {
-#ifdef Q_OS_LINUX
+#if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)
   QStringList dirs=qEnvironmentVariable("QT_PLUGIN_PATH").split(':',Qt::SkipEmptyParts);
   dirs<<QLibraryInfo::path(QLibraryInfo::PluginsPath);
   for(const QString &d:dirs)
@@ -177,7 +177,7 @@ static bool platformThemeAvailable(const QString &name)
 */
 static void preferPortalTheme()
 {
-#ifdef Q_OS_LINUX
+#if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)
   if(qEnvironmentVariableIsSet("FLATPAK_ID") || qgetenv("QT_QPA_PLATFORM")=="offscreen") return;
   if(qEnvironmentVariableIsSet("QT_QPA_PLATFORMTHEME"))
     {
@@ -206,7 +206,7 @@ static void preferPortalTheme()
 */
 static void applySchemeAwareFusionPalette()
 {
-#ifdef Q_OS_LINUX
+#if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)
   const QString theme=qEnvironmentVariable("QT_QPA_PLATFORMTHEME");
   if(!theme.isEmpty() && theme!="xdgdesktopportal") return;
   if(QApplication::style()->name().compare("fusion",Qt::CaseInsensitive)!=0) return;

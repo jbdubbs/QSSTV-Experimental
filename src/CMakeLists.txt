@@ -6,7 +6,7 @@ project(qsstv LANGUAGES CXX)
 # /home/jbdubbs/.claude/plans/crystalline-sleeping-thompson.md); this file does not yet
 # attempt a Windows configuration.
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)   # Qt 6 requires C++17 and sets it anyway
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
@@ -15,11 +15,15 @@ set(CMAKE_AUTORCC ON)
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
+if(ANDROID AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+  # The source ties the debug oscilloscope (scope/*, Qwt) to a Debug build (no QT_NO_DEBUG), and Qwt does not exist for Android
+  message(FATAL_ERROR "Android builds use Release or RelWithDebInfo (symbols for gdb); Debug would need the desktop-only Qwt oscilloscope")
+endif()
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network Xml SerialPort Multimedia Svg)
-if(UNIX AND NOT APPLE)
+if(UNIX AND NOT APPLE AND NOT ANDROID)
   # only used to probe for xdg-desktop-portal at startup (native file dialogs, see preferPortalTheme())
   find_package(Qt6 REQUIRED COMPONENTS DBus)
 endif()
@@ -77,6 +81,10 @@ if(HAMLIB_ROOT)
   set(_hamlib_extra_libs "")
   if(LIBUSB1_FOUND)
     list(APPEND _hamlib_extra_libs PkgConfig::LIBUSB1)
+  endif()
+  if(ANDROID)
+    # the static archive carries Hamlib's Android sensor rotator backend (ASensor*) and logging
+    list(APPEND _hamlib_extra_libs android log)
   endif()
   if(WIN32)
     # hamlib's network.c uses GetAdaptersAddresses() (IP Helper API) for interface
@@ -364,7 +372,12 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   )
 endif()
 
-add_executable(qsstv ${QSSTV_SOURCES} ${QSSTV_FORMS} qsstv.qrc editor/editor.qrc)
+if(ANDROID)
+  # an Android app is a shared library loaded by the Activity (libqsstv-experimental_<abi>.so), not an executable
+  qt_add_executable(qsstv ${QSSTV_SOURCES} ${QSSTV_FORMS} qsstv.qrc editor/editor.qrc)
+else()
+  add_executable(qsstv ${QSSTV_SOURCES} ${QSSTV_FORMS} qsstv.qrc editor/editor.qrc)
+endif()
 
 if(WIN32)
   # GUI subsystem, not console -- double-clicking qsstv-experimental.exe shouldn't flash a console
@@ -410,8 +423,8 @@ set_target_properties(qsstv PROPERTIES
 
 target_compile_definitions(qsstv PRIVATE QT_DEPRECATED_WARNINGS)
 target_compile_options(qsstv PRIVATE -Wno-implicit-fallthrough)
-if(NOT APPLE)
-  target_compile_options(qsstv PRIVATE -Wno-psabi)   # GCC-only; clang warns about it
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_compile_options(qsstv PRIVATE -Wno-psabi)   # GCC-only; clang (macOS, the Android NDK) warns about it
 endif()
 
 if(APPLE)
@@ -428,7 +441,7 @@ if(APPLE)
               "$<TARGET_BUNDLE_CONTENT_DIR:qsstv>/Resources/userguide")
 endif()
 
-if(UNIX AND NOT APPLE)
+if(UNIX AND NOT APPLE AND NOT ANDROID)
   target_link_libraries(qsstv PRIVATE Qt6::DBus)
 endif()
 
@@ -440,13 +453,18 @@ target_link_libraries(qsstv PRIVATE
 )
 if(LIBAVIF_FOUND)
   target_link_libraries(qsstv PRIVATE PkgConfig::LIBAVIF)
+  if(ANDROID)
+    # tools/build-android-deps.sh builds libavif static, and a static archive does not carry its codec
+    pkg_check_modules(AOM REQUIRED IMPORTED_TARGET aom)
+    target_link_libraries(qsstv PRIVATE PkgConfig::AOM)
+  endif()
   target_compile_definitions(qsstv PRIVATE HAVE_LIBAVIF)
   message(STATUS "libavif found: AVIF over DRM enabled")
 else()
   message(WARNING "libavif not found: AVIF over DRM will be unavailable")
 endif()
 
-if(UNIX AND NOT APPLE)
+if(UNIX AND NOT APPLE AND NOT ANDROID)
   # soundbase.cpp's clock_gettime(), needed on older glibc where it lived in librt before
   # merging into libc (glibc 2.34+); Windows has no -lrt and doesn't need one, and this
   # was wrongly `if(NOT APPLE)` before Phase 7's Windows cross-build caught it (that
@@ -460,7 +478,7 @@ endif()
 
 # Match the qmake build's rpath trick: find libhamlib.so at runtime without needing
 # LD_LIBRARY_PATH, whether it came from HAMLIB_ROOT or system pkg-config.
-if(QSSTV_HAMLIB_LIBDIR)
+if(QSSTV_HAMLIB_LIBDIR AND NOT ANDROID)
   set_target_properties(qsstv PROPERTIES
     BUILD_RPATH "${QSSTV_HAMLIB_LIBDIR}"
     INSTALL_RPATH "${QSSTV_HAMLIB_LIBDIR}")
@@ -475,7 +493,7 @@ if(WIN32)
   # where RPATH/install_name handle this instead, but would silently produce a package
   # that fails to launch with missing-DLL errors on Windows.
   install(TARGETS qsstv RUNTIME DESTINATION .)
-else()
+elseif(NOT ANDROID)   # an Android app is packaged by androiddeployqt from the build tree, not installed
   install(TARGETS qsstv RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} BUNDLE DESTINATION .)
 endif()
 # License and attribution files ship with every binary distribution.
@@ -504,7 +522,7 @@ else()
 endif()
 # Dev-tree fallback so Help > Users Guide works from an uninstalled build
 target_compile_definitions(qsstv PRIVATE QSSTV_USERGUIDE_SRC_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../documentation/userguide")
-if(UNIX AND NOT APPLE)
+if(UNIX AND NOT APPLE AND NOT ANDROID)
   # QSSTV_APPID_NAMES / QSSTV_APP_ID are declared with the license install above.
   set(QSSTV_DESKTOP_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../qsstv-experimental.desktop")
   set(QSSTV_METAINFO_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/linux/${QSSTV_APP_ID}.metainfo.xml")
