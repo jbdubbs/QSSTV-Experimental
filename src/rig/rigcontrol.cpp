@@ -56,6 +56,7 @@ int collect(const rig_caps *caps,rig_ptr_t)
 rigControl::rigControl(int radioIndex)
 {
   rigControlEnabled=false;
+  my_rig=nullptr;   // set by init(); the destructor must not touch an unopened handle
   catParams.configLabel=QString("radio%1").arg(radioIndex);
   rig_set_debug(RIG_DEBUG_NONE);
   getRadioList();
@@ -66,8 +67,11 @@ rigControl::rigControl(int radioIndex)
 
 rigControl::~rigControl()
 {
-  rig_close(my_rig); /* close port */
-  rig_cleanup(my_rig); /* if you care about memory */
+  if(my_rig)   // never initialised when CAT is off: my_rig used to be an uninitialised pointer here
+    {
+      rig_close(my_rig); /* close port */
+      rig_cleanup(my_rig); /* if you care about memory */
+    }
   delete pttSerialPortPtr; // closes the port too, if still open
 }
 
