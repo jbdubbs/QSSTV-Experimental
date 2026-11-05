@@ -228,7 +228,7 @@ cmake --build build -j"$(sysctl -n hw.ncpu)"
 
 This produces `build/qsstv-experimental.app`. To make it self-contained, run `"$(brew --prefix qt@6)/bin/macdeployqt" build/qsstv-experimental.app`
 and sign it ad hoc with `codesign --force --deep --sign - build/qsstv-experimental.app`; `.github/workflows/macos.yml` does exactly
-this, adds the icon, and publishes a `.zip` and `.dmg` as a workflow artifact (Actions > "macOS build" > a run >
+this, adds the icon, and publishes a `.dmg` as a workflow artifact (Actions > "macOS build" > a run >
 Artifacts).
 
 The build is not notarized, so Gatekeeper blocks the first launch of a downloaded copy. Either right-click the app,
