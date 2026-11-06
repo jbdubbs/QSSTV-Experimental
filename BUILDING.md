@@ -243,8 +243,14 @@ because macOS's audio decoder does not handle Vorbis.
 
 An Android build is being developed on the `android-port` branch. It receives and transmits through the phone's own microphone
 and speaker (or a headset or USB audio interface), asks for the microphone permission, keeps receiving with the screen off (a
-foreground service), saves received pictures to the gallery and decodes recordings opened from a file manager ("Open with"). It is not
-released: the window is still the desktop one and does not fit a phone, and USB serial PTT/CAT, GPS and the camera are still to come.
+foreground service), saves received pictures to the gallery and decodes recordings opened from a file manager ("Open with"). The
+window is a touch layout on a phone or tablet (bottom navigation, Settings as a list of pages; `QSSTV_UI=phone` or `tablet` shows it on
+the desktop). USB serial adapters (Digirig, FTDI, CP210x, CH34x, Prolific, CDC) carry the CAT and PTT lines: the Java library
+usb-serial-for-android is bundled (`packaging/android/libs`), Hamlib reaches the rig through a loopback TCP port that
+`CatBridge.java` connects to the adapter, and RTS/DTR PTT is driven by the program itself. The GPS button uses the phone's position
+(Qt Positioning) instead of a serial receiver, and camera pictures are turned and mirrored the way the camera says. It is not
+released, and what needs a phone or a radio interface (the permission boxes, a real adapter, a GPS fix) has only been tried on
+the desktop with stand-ins (`tests/catbridge`, `tests/gps`, `tests/camorient`).
 Android 9 (API 28) or newer, 64-bit ARM (`arm64-v8a`) or `x86_64` for the emulator.
 
 You need JDK 21, the Android SDK with platform 36 and **NDK 27.2.12479018 (r27c)**, and Qt 6.11.2 for Android (the NDK must be
@@ -288,6 +294,5 @@ its software renderer (SwiftShader) needs executable heap memory, which SELinux 
 
 What to look at when something does not work on a phone: `adb logcat -s qsstv-audio qsstv-service qsstv-files` shows the audio devices
 and route that were opened, the microphone level and problems (muted, overloaded), the foreground service, and the files that were
-picked, decoded and added to the gallery. A keyboard (or `adb shell input keyevent`) reaches the User's Guide with F1 and the
-Configuration dialog with F2 until the touch layout has its own navigation. The User's Guide is compiled into the app and shown in the
+picked, decoded and added to the gallery. The User's Guide (More > User's Guide) is compiled into the app and shown in the
 browser from a server on 127.0.0.1; `tests/guideserver/run.sh` checks that server on the desktop.
