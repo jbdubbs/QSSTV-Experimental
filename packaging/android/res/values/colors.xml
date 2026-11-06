@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- the window colour of the program's own palette (widgets/touchpage.cpp, touchPalette), so the start-up window and the
+         program are one colour: light here, dark in values-night -->
+    <color name="splash_background">#efeff4</color>
+</resources>

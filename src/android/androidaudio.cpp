@@ -1,4 +1,5 @@
 #include "androidaudio.h"
+#include "androiddevicetypes.h"
 
 #include <QCoreApplication>
 #include <QJniArray>
@@ -25,6 +26,7 @@ QList<androidAudioDevice> androidAudioDevices(bool inputs)
       androidAudioDevice d;
       d.id=f[0].toInt();
       d.type=f[1].toInt();
+      if(!androidDeviceUsable(d.type,inputs)) continue;   // the call path, the capture of other apps' sound, tuners...
       d.description=f[2];
       d.builtIn=(f[3]=="1");
       d.narrowband=(d.type==7);   // TYPE_BLUETOOTH_SCO

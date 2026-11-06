@@ -561,9 +561,12 @@ int main( int argc, char ** argv )
   QSplashScreen splash(pixmap,Qt::WindowStaysOnTopHint);
 
   splashPtr=&splash;
+#ifdef Q_OS_ANDROID
+  splashPtr=nullptr;   // the start-up screen is the system's and Qt's (res/drawable/splash.xml): no window of ours, no two seconds of waiting
+#endif
   QElapsedTimer splashTime;
   bool splashShown=false;
-#ifdef QT_NO_DEBUG
+#if defined(QT_NO_DEBUG) && !defined(Q_OS_ANDROID)
   if(!batch)
     {
       splash.show();
