@@ -257,6 +257,7 @@ set(QSSTV_SOURCES
     mainwidgets/txfunctions.cpp
     mainwidgets/txwidget.cpp
     rig/rigcontrol.cpp
+    rig/seriallines.cpp
     sstv/modes/modeavt.cpp
     sstv/modes/modebase.cpp
     sstv/modes/modebw.cpp
@@ -324,7 +325,7 @@ set(QSSTV_SOURCES
 
 if(ANDROID)
   # the native sound backend (AAudio through Oboe); the other platforms use soundqtmultimedia.cpp only
-  list(APPEND QSSTV_SOURCES sound/soundandroid.cpp android/openwith.cpp android/androidaudio.cpp)
+  list(APPEND QSSTV_SOURCES sound/soundandroid.cpp android/openwith.cpp android/androidaudio.cpp android/androidusb.cpp)
 endif()
 
 # Video capture used to be Linux/macOS-only V4L2 (excluded on macOS via the original

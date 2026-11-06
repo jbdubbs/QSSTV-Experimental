@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The USB serial adapters the program can use (usb-serial-for-android): by vendor. Plugging one in offers to open the program,
+     and a person who ticks "always" is not asked for permission again. 1027 FTDI, 4292 Silicon Labs (CP210x, the Digirig),
+     6790 WCH (CH340, CH341), 1659 Prolific. -->
+<resources>
+    <usb-device vendor-id="1027" />
+    <usb-device vendor-id="4292" />
+    <usb-device vendor-id="6790" />
+    <usb-device vendor-id="1659" />
+</resources>

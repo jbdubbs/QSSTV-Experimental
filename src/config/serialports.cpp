@@ -1,4 +1,7 @@
 #include "serialports.h"
+#ifdef Q_OS_ANDROID
+#include "androidusb.h"
+#endif
 
 #include <QAbstractItemView>
 #include <QComboBox>
@@ -9,6 +12,12 @@
 QList<serialPortChoice> serialPortList(const QString &byIdDir)
 {
   QList<serialPortChoice> ports;
+#ifdef Q_OS_ANDROID
+  // a phone has no device nodes for USB adapters: the ones that are plugged in, as the program names them
+  for(const androidUsbPort &u:androidUsbPorts())
+    ports.append({u.name,u.permitted ? u.description : u.description+" (the system asks before it is used)"});
+  return ports;
+#endif
 #if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)   // /dev/serial/by-id does not exist on Android
   const QFileInfoList links=QDir(byIdDir).entryInfoList(QDir::AllEntries|QDir::System|QDir::NoDotAndDotDot,QDir::Name);
   for(const QFileInfo &link:links) ports.append({link.absoluteFilePath(),link.symLinkTarget()});

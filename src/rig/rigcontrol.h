@@ -6,6 +6,7 @@
 #include "xmlinterface.h"
 
 #include <QObject>
+#include "seriallines.h"
 #include <QComboBox>
 #include <QSerialPort>
 
@@ -78,7 +79,9 @@ private:
   void errorMessage(int errorCode,QString command);
   void getRadioList();
   scatParams catParams;
-  QSerialPort *pttSerialPortPtr;
+  serialLines *pttLines;   // the RTS and DTR of the serial PTT port, opened when it is first keyed
+  QString catUsbKey;        // Android: the USB adapter whose CAT bridge Hamlib is talking through (usbportname.h), or empty
+  int bridgePtt=0;          // Android: RTS or DTR of that adapter keys the radio (Hamlib has no serial port to set them on): 0 none, 1 RTS, 2 DTR
   void setSerialPTTLines(bool b);
   bool setPTT(bool On);
   QString pttError;       // why the last setPTT() failed

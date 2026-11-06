@@ -33,7 +33,10 @@
 #include <QSplashScreen>
 #include <QMessageBox>
 #include <QApplication>
-#include <QSerialPort>
+#ifdef Q_OS_ANDROID
+#include "androidusb.h"
+#include "usbportname.h"
+#endif
 
 
 #ifndef HAMLIB_FILPATHLEN
@@ -60,7 +63,7 @@ rigControl::rigControl(int radioIndex)
   catParams.configLabel=QString("radio%1").arg(radioIndex);
   rig_set_debug(RIG_DEBUG_NONE);
   getRadioList();
-  pttSerialPortPtr=nullptr;
+  pttLines=nullptr;
   lastFrequency=0.0;
   xmlModes<<"USB"<<"LSB"<<"FM"<<"AM";
 }
@@ -72,12 +75,34 @@ rigControl::~rigControl()
       rig_close(my_rig); /* close port */
       rig_cleanup(my_rig); /* if you care about memory */
     }
-  delete pttSerialPortPtr; // closes the port too, if still open
+  delete pttLines; // closes the port too, if still open
+#ifdef Q_OS_ANDROID
+  if(!catUsbKey.isEmpty()) androidUsbClose(catUsbKey);   // the CAT bridge and the adapter
+#endif
 }
 
 bool rigControl::init()
 {
   int retcode;
+#ifdef Q_OS_ANDROID
+  // a USB adapter for the PTT lines: the system's question (may the program use it) is asked now, not when the first picture is
+  // being sent
+  if(catParams.enableSerialPTT && isUsbPortName(catParams.pttSerialPort) && pttLines==nullptr)
+    {
+      serialLines *lines=serialLines::create(catParams.pttSerialPort);
+      QString why;
+      if(lines->open(why))
+        {
+          pttLines=lines;
+          setSerialPTTLines(false);
+        }
+      else
+        {
+          addToLog(QString("PTT serial port %1: %2").arg(catParams.pttSerialPort,why),LOGALL);
+          delete lines;
+        }
+    }
+#endif
   if(!catParams.enableCAT) return false;
 
   catParams.radioModelNumber=getModelNumber(getRadioModelIndex());
@@ -99,9 +124,34 @@ bool rigControl::init()
           rig_set_conf(my_rig, rig_token_lookup(my_rig, "civaddr"), catParams.civAddress.toLatin1());
         }
     }
-  if(!catParams.serialPort.isEmpty())
+  QString catPath=catParams.serialPort;
+#ifdef Q_OS_ANDROID
+  catUsbKey.clear();
+  bridgePtt=0;
+  if(isUsbPortName(catPath))
     {
-      strncpy(rigport->pathname,(const char *)catParams.serialPort.toLatin1().data(),HAMLIB_FILPATHLEN-1);
+      // a USB adapter has no device node: Hamlib is given a TCP port that is the adapter (it takes "host:port" for a serial radio)
+      QString why;
+      int tcp=0;
+      if(androidUsbAllow(catPath,30,why))
+        {
+          const int parity=(catParams.parity=="Even") ? 2 : (catParams.parity=="Odd") ? 1 : 0;
+          const int flow=(catParams.handshake=="Hardware") ? 1 : (catParams.handshake=="XOn/Xoff") ? 2 : 0;
+          tcp=androidUsbStartBridge(catPath,catParams.baudrate,catParams.databits,catParams.stopbits>=2 ? 2 : 1,parity,flow,why);
+        }
+      if(tcp<=0)
+        {
+          initError=QString("CAT Error: the USB adapter %1 cannot be used (%2)").arg(catPath,why);
+          addToLog(initError,LOGALL);
+          return false;
+        }
+      catUsbKey=catPath;
+      catPath=QString("127.0.0.1:%1").arg(tcp);
+    }
+#endif
+  if(!catPath.isEmpty())
+    {
+      strncpy(rigport->pathname,(const char *)catPath.toLatin1().data(),HAMLIB_FILPATHLEN-1);
     }
   rigport->parm.serial.rate = catParams.baudrate;
   rigport->parm.serial.data_bits=catParams.databits;
@@ -113,6 +163,15 @@ bool rigControl::init()
   if(catParams.handshake=="Hardware") rigport->parm.serial.handshake = RIG_HANDSHAKE_HARDWARE;
   else rigport->parm.serial.handshake = RIG_HANDSHAKE_NONE;
   pttport->type.ptt = catParams.pttType;
+#ifdef Q_OS_ANDROID
+  if(!catUsbKey.isEmpty() && (catParams.pttType==RIG_PTT_SERIAL_RTS || catParams.pttType==RIG_PTT_SERIAL_DTR))
+    {
+      // the lines of the adapter are set by us (Hamlib's are those of a serial port, and the port it has is a TCP one)
+      bridgePtt=(catParams.pttType==RIG_PTT_SERIAL_RTS) ? 1 : 2;
+      pttport->type.ptt=RIG_PTT_NONE;
+      androidUsbSetLines(catUsbKey,bridgePtt==1 ? 0 : -1,bridgePtt==2 ? 0 : -1);   // off until the first transmission
+    }
+#endif
 
   addToLog(QString("rigcontrol:init rigport.pathname: %1").arg(rigport->pathname),LOGRIGCTRL);
   retcode = rig_open(my_rig);
@@ -139,7 +198,8 @@ bool rigControl::init()
   canGetMode=(my_rig->caps->get_mode != NULL);
   canSetPTT=(my_rig->caps->set_ptt != NULL) ||
           (pttport->type.ptt == RIG_PTT_SERIAL_DTR) ||
-          (pttport->type.ptt == RIG_PTT_SERIAL_RTS);
+          (pttport->type.ptt == RIG_PTT_SERIAL_RTS) ||
+          (bridgePtt!=0);
   canGetPTT=(my_rig->caps->get_ptt != NULL);
   double fr;
   getFrequency(fr);
@@ -300,6 +360,14 @@ bool rigControl::setPTT(bool on)
   if(on) ptt=RIG_PTT_ON_DATA; else ptt=RIG_PTT_OFF;
   pttError.clear();
   if(!rigControlEnabled || !canSetPTT) return false;
+#ifdef Q_OS_ANDROID
+  if(bridgePtt!=0)
+    {
+      if(androidUsbSetLines(catUsbKey,bridgePtt==1 ? (on ? 1 : 0) : -1,bridgePtt==2 ? (on ? 1 : 0) : -1)) return true;
+      pttError="The USB adapter did not accept the PTT line (RTS or DTR).";
+      return false;
+    }
+#endif
 
   for(int i=0;i<RIGCMDTRIES;i++)
     {
@@ -397,11 +465,11 @@ bool model_Sort(const rig_caps *caps1,const rig_caps *caps2)
 // A line whose pair is both unset is left untouched, matching the pre-QSerialPort code.
 void rigControl::setSerialPTTLines(bool b)
 {
-  if(catParams.activeDTR) pttSerialPortPtr->setDataTerminalReady(b);
-  else if(catParams.nactiveDTR) pttSerialPortPtr->setDataTerminalReady(!b);
+  if(catParams.activeDTR) pttLines->setDtr(b);
+  else if(catParams.nactiveDTR) pttLines->setDtr(!b);
 
-  if(catParams.activeRTS) pttSerialPortPtr->setRequestToSend(b);
-  else if(catParams.nactiveRTS) pttSerialPortPtr->setRequestToSend(!b);
+  if(catParams.activeRTS) pttLines->setRts(b);
+  else if(catParams.nactiveRTS) pttLines->setRts(!b);
 }
 
 void rigControl::activatePTT(bool b)
@@ -422,22 +490,22 @@ void rigControl::activatePTT(bool b)
         }
       else
         {
-          if(pttSerialPortPtr==nullptr)
+          if(pttLines==nullptr)
             {
-              QSerialPort *port=new QSerialPort(catParams.pttSerialPort,this);
-              if(port->open(QIODevice::ReadWrite))
+              serialLines *lines=serialLines::create(catParams.pttSerialPort);
+              QString why;
+              if(lines->open(why))
                 {
-                  pttSerialPortPtr=port;
+                  pttLines=lines;
                   setSerialPTTLines(false); // idle (PTT-off) state as soon as the port is opened
                 }
               else
                 {
-                  problem=QString("The PTT serial port %1 cannot be opened (%2). Check that you have read and write permission on it, "
-                                  "or switch Serial PTT off if you have no such port.").arg(catParams.pttSerialPort,port->errorString());
-                  delete port;
+                  problem=QString("The PTT serial port %1 cannot be opened (%2). %3").arg(catParams.pttSerialPort,why,lines->advice());
+                  delete lines;
                 }
             }
-          if(pttSerialPortPtr) setSerialPTTLines(b);
+          if(pttLines) setSerialPTTLines(b);
         }
     }
   else if(catParams.enableXMLRPC)

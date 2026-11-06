@@ -62,6 +62,7 @@ license texts ship with the library (Windows: next to the DLLs; AppImage: inside
 | libavif, libaom | BSD 2-clause | <https://github.com/AOMediaCodec/libavif>, <https://aomedia.googlesource.com/aom/> |
 | libwebp | BSD 3-clause | <https://chromium.googlesource.com/webm/libwebp> |
 | Oboe (Android build only: the audio streams) | Apache 2.0 | <https://github.com/google/oboe> |
+| usb-serial-for-android (Android build only: USB serial adapters for CAT and PTT; `packaging/android/libs/usb-serial-for-android-3.9.0.aar`, from JitPack, unmodified) | MIT | <https://github.com/mik3y/usb-serial-for-android> |
 
 For the LGPL libraries, binary releases use dynamic linking, so you may replace them with your own build.
 Corresponding source for the bundled versions is available from the URLs above; contact the maintainer if you

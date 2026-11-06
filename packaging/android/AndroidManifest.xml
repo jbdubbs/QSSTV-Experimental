@@ -27,6 +27,7 @@
 
     <!-- Declared optional, otherwise Google Play hides the app from devices without them (RECORD_AUDIO and CAMERA
          imply a required feature): a tablet without a camera can still receive from a USB audio interface -->
+    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
@@ -57,6 +58,10 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- A USB serial adapter (a radio interface) is plugged in: the program is offered -->
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+            </intent-filter>
             <!-- Open with QSSTV-Experimental, from a file manager or another app: an SSTV or DRM recording is decoded -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -71,6 +76,10 @@
           <meta-data
                 android:name="android.app.background_running"
                 android:value="true" />
+
+          <meta-data
+                android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                android:resource="@xml/device_filter" />
 
           <!-- What Qt shows while the program starts: the icon on the window colour (res/drawable/splash.xml) -->
           <meta-data
