@@ -197,7 +197,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y qt6-base-dev
           (cd tests/jb60_loopback && QT_INCLUDE=/usr/include/x86_64-linux-gnu/qt6 ./build.sh)
-          tests/jb60_loopback/loopback jb --image card --vis --wav "$RUNNER_TEMP/smoke.wav" > /dev/null
+          QT_QPA_PLATFORM=offscreen tests/jb60_loopback/loopback jb --image card --vis --wav "$RUNNER_TEMP/smoke.wav" > /dev/null
           ls -la "$RUNNER_TEMP/smoke.wav"
 
       - uses: actions/download-artifact@v4
