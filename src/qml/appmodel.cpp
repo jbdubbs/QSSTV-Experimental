@@ -9,7 +9,9 @@
 #ifdef Q_OS_ANDROID
 #include "androidaudio.h"
 #endif
+#include "operatorconfig.h"
 #include <QFile>
+#include <QSettings>
 #include <QJSEngine>
 #include <QQmlEngine>
 
@@ -35,6 +37,15 @@ AppModel::AppModel(QObject *parent) : QObject(parent)
   bool ok=false;
   const double fs=qEnvironmentVariable("QSSTV_QML_FONTSCALE").toDouble(&ok);   // the same for the text size
   if(ok && fs>0.5 && fs<4.0) m_fontScale=fs;
+  // the short setup comes once, and not to somebody who has set their call sign already
+  m_firstRun=!QSettings().value("FirstRun/done",false).toBool() && (myCallsign.isEmpty() || myCallsign==QLatin1String("NOCALL"));
+}
+
+void AppModel::setFirstRun(bool on)
+{
+  if(m_firstRun==on) return;
+  m_firstRun=on;
+  emit firstRunChanged();
 }
 
 void AppModel::setScreen(int s)
@@ -98,6 +109,12 @@ QString AppModel::licensesText() const
 void AppModel::openHelp()
 {
   if(mainWindowPtr) QMetaObject::invokeMethod(mainWindowPtr,"slotDocumentation",Qt::QueuedConnection);
+}
+
+void AppModel::finishFirstRun()
+{
+  QSettings().setValue("FirstRun/done",true);
+  if(m_firstRun) {m_firstRun=false; emit firstRunChanged();}
 }
 
 void AppModel::setMicDenied(bool d)

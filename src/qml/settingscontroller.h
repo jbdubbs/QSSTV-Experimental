@@ -44,6 +44,17 @@ class SettingsController : public QObject
   Q_PROPERTY(int micPreset READ micPreset WRITE setMicPreset NOTIFY audioChanged)   //!< 0 automatic, 1 unprocessed, 2 voice recognition, 3 standard
   Q_PROPERTY(int rxGainDb READ rxGainDb WRITE setRxGainDb NOTIFY audioChanged)       //!< 0 to 30
   Q_PROPERTY(QString routeDetail READ routeDetail NOTIFY audioChanged)                //!< what the sound system really opened
+  // radio control (CAT and push to talk through a USB adapter)
+  Q_PROPERTY(QVariantList adapters READ adapters NOTIFY radioChanged)                 //!< [{name, text}] the serial adapters that are attached
+  Q_PROPERTY(QString adapter READ adapter WRITE setAdapter NOTIFY radioChanged)       //!< the name of the one in use, or empty
+  Q_PROPERTY(QString adapterText READ adapterText NOTIFY radioChanged)
+  Q_PROPERTY(QStringList radioModels READ radioModels CONSTANT)
+  Q_PROPERTY(QString radioModel READ radioModel WRITE setRadioModel NOTIFY radioChanged)   //!< a model of the list; empty: no radio control
+  Q_PROPERTY(QString radioModelText READ radioModelText NOTIFY radioChanged)
+  Q_PROPERTY(int pttMode READ pttMode WRITE setPttMode NOTIFY radioChanged)           //!< 0 none (VOX), 1 RTS line, 2 DTR line, 3 CAT command
+  Q_PROPERTY(int baudRate READ baudRate WRITE setBaudRate NOTIFY radioChanged)
+  Q_PROPERTY(QString radioSummary READ radioSummary NOTIFY radioChanged)
+  Q_PROPERTY(bool pttTesting READ pttTesting NOTIFY radioChanged)
 
 public:
   static SettingsController *instance();
@@ -87,6 +98,23 @@ public:
   void setRxGainDb(int db);
   QString routeDetail() const;
 
+  QVariantList adapters() const;
+  QString adapter() const;
+  void setAdapter(const QString &name);
+  QString adapterText() const;
+  QStringList radioModels() const;
+  QString radioModel() const;
+  void setRadioModel(const QString &model);
+  QString radioModelText() const;
+  int pttMode() const;
+  void setPttMode(int mode);
+  int baudRate() const;
+  void setBaudRate(int baud);
+  QString radioSummary() const;
+  bool pttTesting() const {return m_pttTesting;}
+  Q_INVOKABLE void testPtt();         //!< keys the transmitter for a moment
+  Q_INVOKABLE void rescanAdapters();
+
   //! the classic Configuration dialog (its pages first take over what was changed here)
   Q_INVOKABLE void openClassic();
 
@@ -95,11 +123,14 @@ signals:
   void picturesChanged();
   void positionChanged();
   void audioChanged();
+  void radioChanged();
 
 private:
   explicit SettingsController(QObject *parent=nullptr);
   void saveOperator();
   void saveSound(const char *key,const QVariant &value,bool restart);
+  void saveRadio();                 //!< writes the rig parameters and starts the rig controller again
+  bool m_pttTesting=false;
 };
 
 #endif // SETTINGSCONTROLLER_H

@@ -12,10 +12,16 @@
 #include "guiconfig.h"
 #include "nmeaparser.h"
 #include "operatorconfig.h"
+#include "rigcontrol.h"
+#include "serialports.h"
+#ifdef Q_OS_ANDROID
+#include "androidusb.h"
+#endif
 #include "rxwidget.h"
 #include "txcontroller.h"
 #include "txwidget.h"
 #include <QComboBox>
+#include <QVariantMap>
 #include <QJSEngine>
 #include <QQmlEngine>
 #include <QSettings>
@@ -247,4 +253,203 @@ void SettingsController::setRxGainDb(int db)
 void SettingsController::openClassic()
 {
   AppModel::instance()->openClassicSettings();
+}
+
+// ---- radio control ----
+
+QVariantList SettingsController::adapters() const
+{
+  QVariantList l;
+#ifdef Q_OS_ANDROID
+  for(const androidUsbPort &p:androidUsbPorts())
+    {
+      QVariantMap m;
+      m["name"]=p.name;
+      m["text"]=p.description.isEmpty() ? p.name : p.description;
+      l.append(m);
+    }
+#else
+  for(const serialPortChoice &p:serialPortList())
+    {
+      QVariantMap m;
+      m["name"]=p.name;
+      m["text"]=p.info.isEmpty() ? p.name : p.info;
+      l.append(m);
+    }
+#endif
+  return l;
+}
+
+QString SettingsController::adapter() const
+{
+  return rigControllerPtr ? rigControllerPtr->params()->serialPort : QString();
+}
+
+QString SettingsController::adapterText() const
+{
+  const QString a=adapter();
+  for(const QVariant &v:adapters())
+    if(v.toMap().value("name").toString()==a) return v.toMap().value("text").toString();
+  return a.isEmpty() ? QString() : a;
+}
+
+void SettingsController::setAdapter(const QString &name)
+{
+  if(!rigControllerPtr) return;
+  scatParams *cp=rigControllerPtr->params();
+  cp->serialPort=name;
+  cp->pttSerialPort=name;   // the same adapter carries the radio commands and the key line
+  saveRadio();
+}
+
+QStringList SettingsController::radioModels() const
+{
+  static QStringList list;
+  if(list.isEmpty() && rigControllerPtr)
+    {
+      QComboBox tmp;
+      rigControllerPtr->getRadioList(&tmp);
+      for(int i=0;i<tmp.count();i++) list<<tmp.itemText(i);
+    }
+  return list;
+}
+
+QString SettingsController::radioModel() const
+{
+  if(!rigControllerPtr) return QString();
+  const scatParams *cp=rigControllerPtr->params();
+  return cp->enableCAT ? cp->radioModel : QString();
+}
+
+QString SettingsController::radioModelText() const
+{
+  const QString m=radioModel().trimmed();
+  return m;
+}
+
+void SettingsController::setRadioModel(const QString &model)
+{
+  if(!rigControllerPtr) return;
+  scatParams *cp=rigControllerPtr->params();
+  if(model.isEmpty())
+    {
+      cp->enableCAT=false;
+    }
+  else
+    {
+      cp->radioModel=model;
+      cp->enableCAT=true;
+      cp->enableSerialPTT=false;   // the key line of a CAT adapter is driven through the CAT port
+      if(cp->pttType==RIG_PTT_NONE && cp->activeRTS) cp->pttType=RIG_PTT_SERIAL_RTS;
+    }
+  saveRadio();
+}
+
+int SettingsController::pttMode() const
+{
+  if(!rigControllerPtr) return 0;
+  const scatParams *cp=rigControllerPtr->params();
+  if(cp->enableSerialPTT) return cp->activeRTS ? 1 : cp->activeDTR ? 2 : 0;
+  switch(cp->pttType)
+    {
+    case RIG_PTT_SERIAL_RTS: return 1;
+    case RIG_PTT_SERIAL_DTR: return 2;
+    case RIG_PTT_RIG:
+    case RIG_PTT_RIG_MICDATA: return cp->enableCAT ? 3 : 0;   // a CAT command needs a radio to send it to
+    default: return 0;
+    }
+}
+
+void SettingsController::setPttMode(int mode)
+{
+  if(!rigControllerPtr) return;
+  scatParams *cp=rigControllerPtr->params();
+  cp->enableSerialPTT=false;
+  cp->activeRTS=cp->activeDTR=cp->nactiveRTS=cp->nactiveDTR=false;
+  cp->pttType=RIG_PTT_NONE;
+  if(mode==1 || mode==2)
+    {
+      if(cp->enableCAT) cp->pttType=(mode==1) ? RIG_PTT_SERIAL_RTS : RIG_PTT_SERIAL_DTR;   // through the CAT adapter
+      else
+        {
+          cp->enableSerialPTT=true;   // no radio control: the adapter only keys the transmitter
+          cp->pttSerialPort=cp->serialPort;
+          (mode==1 ? cp->activeRTS : cp->activeDTR)=true;
+        }
+    }
+  else if(mode==3) cp->pttType=RIG_PTT_RIG;
+  saveRadio();
+}
+
+int SettingsController::baudRate() const {return rigControllerPtr ? rigControllerPtr->params()->baudrate : 9600;}
+
+void SettingsController::setBaudRate(int baud)
+{
+  if(!rigControllerPtr) return;
+  rigControllerPtr->params()->baudrate=baud;
+  saveRadio();
+}
+
+QString SettingsController::radioSummary() const
+{
+  if(!rigControllerPtr) return tr("Not available");
+  const QString model=radioModel().trimmed();
+  QStringList parts;
+  parts<<(model.isEmpty() ? tr("No radio control") : model);
+  switch(pttMode())
+    {
+    case 1: parts<<tr("RTS line keys the radio"); break;
+    case 2: parts<<tr("DTR line keys the radio"); break;
+    case 3: parts<<tr("CAT keys the radio"); break;
+    default: parts<<tr("VOX or manual"); break;
+    }
+  return parts.join(QStringLiteral(" · "));
+}
+
+// the same keys the CAT page writes, then the rig controller starts again with them
+void SettingsController::saveRadio()
+{
+  scatParams *cp=rigControllerPtr->params();
+  QSettings qSettings;
+  qSettings.beginGroup(cp->configLabel);
+  qSettings.setValue("serialPort",cp->serialPort);
+  qSettings.setValue("radioModel",cp->radioModel);
+  qSettings.setValue("civAddress",cp->civAddress);
+  qSettings.setValue("baudrate",cp->baudrate);
+  qSettings.setValue("parity",cp->parity);
+  qSettings.setValue("stopbits",cp->stopbits);
+  qSettings.setValue("databits",cp->databits);
+  qSettings.setValue("handshake",cp->handshake);
+  qSettings.setValue("enableCAT",cp->enableCAT);
+  qSettings.setValue("enableSerialPTT",cp->enableSerialPTT);
+  qSettings.setValue("pttSerialPort",cp->pttSerialPort);
+  qSettings.setValue("activeRTS",cp->activeRTS);
+  qSettings.setValue("activeDTR",cp->activeDTR);
+  qSettings.setValue("nactiveRTS",cp->nactiveRTS);
+  qSettings.setValue("nactiveDTR",cp->nactiveDTR);
+  qSettings.setValue("pttType",int(cp->pttType));
+  qSettings.endGroup();
+  emit radioChanged();
+  QTimer::singleShot(0,this,[]   // outside the tap that asked for it: opening an adapter may ask the person first
+    {
+      if(!rigControllerPtr) return;
+      rigControllerPtr->disable();
+      if(rigControllerPtr->params()->enableCAT) rigControllerPtr->init();
+    });
+}
+
+void SettingsController::rescanAdapters() {emit radioChanged();}
+
+void SettingsController::testPtt()
+{
+  if(!rigControllerPtr || m_pttTesting) return;
+  m_pttTesting=true;
+  emit radioChanged();
+  rigControllerPtr->activatePTT(true);
+  QTimer::singleShot(1200,this,[this]
+    {
+      if(rigControllerPtr) rigControllerPtr->activatePTT(false);
+      m_pttTesting=false;
+      emit radioChanged();
+    });
 }

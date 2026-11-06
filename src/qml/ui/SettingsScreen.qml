@@ -12,7 +12,11 @@ Rectangle {
     z: 45
     property real topInset: 0
     property real bottomInset: 0
-    property int page: 0          // 0 overview, 1 operator, 2 pictures, 3 position, 4 advanced, 5 audio and radio
+    property int page: 0          // 0 overview, 1 operator, 2 pictures, 3 position, 4 advanced, 5 audio and radio, 6 the radio list
+    onPageChanged: {
+        if (page === 5) SettingsController.rescanAdapters()   // an adapter may have been plugged in
+        if (page !== 6) { search.text = ""; search.focus = false; Qt.inputMethod.hide() }   // the radio search is over
+    }
     signal showAbout()
     MouseArea { anchors.fill: parent }
 
@@ -25,11 +29,15 @@ Rectangle {
         else if (micDialog.open) micDialog.open = false
         else if (speakerDialog.open) speakerDialog.open = false
         else if (presetDialog.open) presetDialog.open = false
+        else if (adapterDialog.open) adapterDialog.open = false
+        else if (pttDialog.open) pttDialog.open = false
+        else if (baudDialog.open) baudDialog.open = false
+        else if (page === 6) page = 5
         else if (page !== 0) page = 0
         else close()
         return true
     }
-    onVisibleChanged: { formatDialog.open = false; coordDialog.open = false; micDialog.open = false; speakerDialog.open = false; presetDialog.open = false; if (visible) page = 0 }
+    onVisibleChanged: { formatDialog.open = false; coordDialog.open = false; micDialog.open = false; speakerDialog.open = false; presetDialog.open = false; adapterDialog.open = false; pttDialog.open = false; baudDialog.open = false; if (visible) page = 0 }
     function openFormat() { formatDialog.open = true }   // the screenshots
     function openMic() { presetDialog.open = true }
 
@@ -182,8 +190,96 @@ Rectangle {
             }
             PrefGroup { text: qsTr("Radio control") }
             PreferenceRow {
-                icon: Icons.usb; title: qsTr("USB interface, radio and push to talk"); summary: qsTr("Opens the classic settings for now"); chevron: true
-                onClicked: SettingsController.openClassic()
+                icon: Icons.usb; title: qsTr("USB interface"); chevron: true
+                summary: SettingsController.adapters.length === 0 ? qsTr("None found. Plug in the adapter.") : (SettingsController.adapterText !== "" ? SettingsController.adapterText : qsTr("Not chosen"))
+                enabledRow: SettingsController.adapters.length > 0
+                onClicked: adapterDialog.open = true
+            }
+            PreferenceRow {
+                icon: Icons.settings; title: qsTr("Radio"); chevron: true
+                summary: SettingsController.radioModelText !== "" ? SettingsController.radioModelText : qsTr("No radio control")
+                onClicked: screen.page = 6
+            }
+            PreferenceRow {
+                icon: Icons.send; title: qsTr("Push to talk"); chevron: true
+                summary: SettingsController.pttMode === 1 ? qsTr("RTS line") : SettingsController.pttMode === 2 ? qsTr("DTR line")
+                       : SettingsController.pttMode === 3 ? qsTr("CAT command") : qsTr("None (VOX or by hand)")
+                onClicked: pttDialog.open = true
+            }
+            PreferenceRow {
+                icon: Icons.tune; title: qsTr("Speed"); chevron: true
+                summary: SettingsController.radioModel === "" ? qsTr("Choose a radio first") : qsTr("%1 baud").arg(SettingsController.baudRate)
+                enabledRow: SettingsController.radioModel !== ""
+                onClicked: baudDialog.open = true
+            }
+            Item {
+                width: parent.width; height: 64
+                Button {
+                    x: 24; anchors.verticalCenter: parent.verticalCenter
+                    text: SettingsController.pttTesting ? qsTr("Keying...") : qsTr("Test push to talk")
+                    enabled: SettingsController.pttMode !== 0 && !SettingsController.pttTesting && !TxController.sending
+                    Material.accent: Theme.primary
+                    onClicked: SettingsController.testPtt()
+                    Accessible.name: qsTr("Key the transmitter for a moment")
+                }
+            }
+            Text {
+                width: parent.width; leftPadding: 24; rightPadding: 24; bottomPadding: 12
+                text: qsTr("Keys the transmitter for a second. Turn the radio's power down or disconnect the antenna first.")
+                color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(13); wrapMode: Text.WordWrap
+            }
+        }
+
+        // ---- the radio list: hundreds of models, so a search first ----
+        Item {
+            id: radioPage
+            property string filter: ""
+            readonly property var models: {
+                const all = SettingsController.radioModels
+                const f = filter.trim().toLowerCase()
+                return f === "" ? all : all.filter(m => m.toLowerCase().indexOf(f) >= 0)
+            }
+            Item {
+                id: radioBar
+                y: screen.topInset; width: parent.width; height: Theme.appBarHeight
+                Item {
+                    x: 4; width: Theme.tap; height: parent.height
+                    Icon { anchors.centerIn: parent; path: Icons.back; color: Theme.surfaceOn }
+                    TapHandler { onTapped: screen.page = 5 }
+                    Accessible.role: Accessible.Button
+                    Accessible.name: qsTr("Back")
+                }
+                Text { x: 64; height: parent.height; verticalAlignment: Text.AlignVCenter; text: qsTr("Radio"); color: Theme.surfaceOn; font.pixelSize: Theme.sp(22); Accessible.role: Accessible.Heading }
+            }
+            TextField {
+                id: search
+                anchors.top: radioBar.bottom; anchors.topMargin: 4
+                x: 16; width: parent.width - 32
+                placeholderText: qsTr("Search: Kenwood, TS-480, IC-7300 ...")
+                color: Theme.surfaceOn; placeholderTextColor: Theme.outline
+                Material.accent: Theme.primary
+                inputMethodHints: Qt.ImhNoPredictiveText
+                onTextChanged: radioPage.filter = text
+                Accessible.name: qsTr("Search the radios")
+            }
+            ListView {
+                anchors.top: search.bottom; anchors.topMargin: 4
+                anchors.bottom: parent.bottom; anchors.horizontalCenter: parent.horizontalCenter
+                width: Math.min(parent.width, 640)
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollIndicator.vertical: ScrollIndicator {}
+                header: PreferenceRow {
+                    title: qsTr("No radio control"); summary: qsTr("Use VOX, or the key line of the adapter")
+                    onClicked: { SettingsController.radioModel = ""; screen.page = 5 }
+                }
+                model: radioPage.models
+                delegate: PreferenceRow {
+                    required property string modelData
+                    title: modelData.trim()
+                    onClicked: { SettingsController.radioModel = modelData; screen.page = 5 }
+                }
+                footer: Item { width: 1; height: screen.bottomInset + 24 }
             }
         }
     }
@@ -219,6 +315,32 @@ Rectangle {
             {text: qsTr("Standard"), hint: qsTr("The phone may level and filter the sound")}]
         current: SettingsController.micPreset
         onPicked: (i) => SettingsController.micPreset = i
+    }
+    ChoiceDialog {
+        id: adapterDialog
+        title: qsTr("USB interface")
+        options: SettingsController.adapters.map(a => ({text: a.text}))
+        current: { const a = SettingsController.adapters; for (let i = 0; i < a.length; i++) if (a[i].name === SettingsController.adapter) return i; return -1 }
+        onPicked: (i) => SettingsController.adapter = SettingsController.adapters[i].name
+    }
+    ChoiceDialog {
+        id: pttDialog
+        title: qsTr("Push to talk")
+        options: [
+            {text: qsTr("None"), hint: qsTr("The radio uses VOX, or you key it by hand")},
+            {text: qsTr("RTS line"), hint: qsTr("Digirig and most radio cables")},
+            {text: qsTr("DTR line"), hint: qsTr("Some cables use this one instead")},
+            {text: qsTr("CAT command"), hint: qsTr("The radio keys itself on a command")}]
+        current: SettingsController.pttMode
+        onPicked: (i) => SettingsController.pttMode = i
+    }
+    ChoiceDialog {
+        id: baudDialog
+        readonly property var rates: [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200]
+        title: qsTr("Speed")
+        options: rates.map(r => ({text: qsTr("%1 baud").arg(r)}))
+        current: rates.indexOf(SettingsController.baudRate)
+        onPicked: (i) => SettingsController.baudRate = rates[i]
     }
     ChoiceDialog {
         id: coordDialog

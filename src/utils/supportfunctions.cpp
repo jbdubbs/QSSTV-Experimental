@@ -33,6 +33,8 @@
 #include <QHash>
 #include <stdarg.h>
 #include "dirdialog.h"
+#include "uimode.h"
+#include "qmlui.h"
 
 
 QString lastPath("");
@@ -44,6 +46,11 @@ QString lastPath("");
 */
 void showProblem(const QString &title,const QString &text)
 {
+  if(uiMode::qml())
+    {
+      qmlUi::problem(title,text);   // the Qt Quick interface says it in a dialog of its own
+      return;
+    }
   static QHash<QString,QPointer<QMessageBox> > shown;
   QPointer<QMessageBox> &box=shown[title+QLatin1Char('\n')+text];
   if(box)

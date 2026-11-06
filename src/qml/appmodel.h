@@ -26,6 +26,7 @@ class AppModel : public QObject
   Q_PROPERTY(bool mediaVolumeAvailable READ mediaVolumeAvailable CONSTANT)                    //!< there is a media volume to set (Android)
   Q_PROPERTY(QString versionText READ versionText CONSTANT)                                   //!< "10.1.1"
   Q_PROPERTY(bool startListening READ startListening CONSTANT)                            //!< the receiver starts with the program
+  Q_PROPERTY(bool firstRun READ firstRun NOTIFY firstRunChanged)                       //!< the first start: the short setup shows
   Q_PROPERTY(bool micDenied READ micDenied NOTIFY micDeniedChanged)                     //!< the microphone permission was refused: the receiver cannot listen
   Q_PROPERTY(bool settingsOpen READ settingsOpen WRITE setSettingsOpen NOTIFY settingsOpenChanged)   //!< the settings pages are showing
 
@@ -45,8 +46,10 @@ public:
   bool mediaVolumeAvailable() const;
   bool startListening() const {return true;}
   QString versionText() const;
+  bool firstRun() const {return m_firstRun;}
   bool micDenied() const {return m_micDenied;}
   void setMicDenied(bool d);
+  void setFirstRun(bool on);   //!< for the tests
   bool settingsOpen() const {return m_settingsOpen;}
   void setSettingsOpen(bool on);
 
@@ -64,6 +67,8 @@ public:
   Q_INVOKABLE QString licensesText() const;
   //! the User's Guide, in the browser
   Q_INVOKABLE void openHelp();
+  //! the setup is over (or skipped): it does not come again
+  Q_INVOKABLE void finishFirstRun();
   //! the settings pages
   Q_INVOKABLE void openSettings();
   //! the classic Configuration dialog (Widgets), for what the new pages do not have yet
@@ -80,6 +85,8 @@ signals:
   void mediaVolumeChanged();
   void settingsOpenChanged();
   void micDeniedChanged();
+  void firstRunChanged();
+  void problemShown(const QString &title,const QString &text);   //!< a dialog with this text
 
 private:
   explicit AppModel(QObject *parent=nullptr);
@@ -89,6 +96,7 @@ private:
   int m_volume=70;
   bool m_settingsOpen=false;
   bool m_micDenied=false;
+  bool m_firstRun=false;
 };
 
 #endif // APPMODEL_H

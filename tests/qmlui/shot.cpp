@@ -143,6 +143,7 @@ int main(int argc, char **argv)
     qs.setValue("update/asked", true);
     qs.setValue("update/autoCheck", false);
     qs.setValue("appimage/integrationAsked", true);
+    qs.setValue("FirstRun/done", true);
   }
   QDir().mkpath(outDir);
   globalInit();
@@ -174,6 +175,8 @@ int main(int argc, char **argv)
       GalleryModel::instance()->closeViewer();
       AppModel::instance()->setSettingsOpen(false);
       AppModel::instance()->setMicDenied(scene == "mic-denied");
+      AppModel::instance()->setFirstRun(scene.startsWith("firstrun"));
+      if (QQuickItem *fr = findItem(win->contentItem(), "firstRunScreen")) fr->setProperty("step", scene == "firstrun-2" ? 1 : scene == "firstrun-3" ? 2 : 0);
       GalleryModel::instance()->clearSelection();
       app_->setScreen(0);
       app_->setDigital(scene == "digital" || scene.startsWith("tx-digital"));
@@ -212,7 +215,7 @@ int main(int argc, char **argv)
           app_->setScreen(0);
           AppModel::instance()->setSettingsOpen(true);
           QQuickItem *st = findItem(win->contentItem(), "settingsScreen");
-          const int page = scene == "settings-operator" ? 1 : scene == "settings-pictures" || scene == "settings-format" ? 2 : scene == "settings-position" ? 3 : scene == "settings-advanced" ? 4 : scene == "settings-audio" || scene == "settings-mic" ? 5 : 0;
+          const int page = scene == "settings-operator" ? 1 : scene == "settings-pictures" || scene == "settings-format" ? 2 : scene == "settings-position" ? 3 : scene == "settings-advanced" ? 4 : scene == "settings-audio" || scene == "settings-mic" ? 5 : scene == "settings-radios" ? 6 : 0;
           if (st) st->setProperty("page", page);
           if (scene == "settings-format" && st) QMetaObject::invokeMethod(st, "openFormat");
           if (scene == "settings-mic" && st) QMetaObject::invokeMethod(st, "openMic");

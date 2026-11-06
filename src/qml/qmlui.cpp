@@ -32,6 +32,7 @@ void notifyModeChanged() {if(uiMode::qml()) AppModel::instance()->modeChanged();
 void rxImageStarted(int w,int h) {if(uiMode::qml()) RxController::instance()->imageStarted(w,h);}
 void rxLine(int line) {if(uiMode::qml()) RxController::instance()->lineDrawn(line);}
 void rxImageSaved(const QString &file) {if(uiMode::qml()) RxController::instance()->imageSaved(file);}
+void problem(const QString &title,const QString &text) {if(uiMode::qml()) emit AppModel::instance()->problemShown(title,text);}
 void micDenied(bool d) {if(uiMode::qml()) AppModel::instance()->setMicDenied(d);}
 void rxImageEnded() {if(uiMode::qml()) RxController::instance()->imageEnded();}
 void rxImageShown() {if(uiMode::qml()) RxController::instance()->imageShown();}

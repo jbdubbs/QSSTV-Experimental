@@ -134,6 +134,19 @@ ApplicationWindow {
             bottomInset: root.inset.bottom
             onShowAbout: about.open = true
         }
+        FirstRunScreen {
+            id: firstRun
+            objectName: "firstRunScreen"
+            anchors.fill: parent
+            topInset: root.inset.top
+            bottomInset: root.inset.bottom
+            onSetUpRadio: { AppModel.settingsOpen = true; Qt.callLater(function() { settings.page = 5 }) }
+        }
+        ProblemDialog { id: problemDialog }
+        Connections {
+            target: AppModel
+            function onProblemShown(title, text) { problemDialog.show(title, text) }
+        }
         AboutSheet { id: about }
         SendingOverlay {
             anchors.fill: parent
@@ -158,7 +171,9 @@ ApplicationWindow {
     onClosing: (close) => {
         if (Qt.platform.os === "android") {
             close.accepted = false
-            if (settings.goBack()) {}
+            if (problemDialog.open) problemDialog.open = false
+            else if (firstRun.goBack()) {}
+            else if (settings.goBack()) {}
             else if (viewer.infoOpen) viewer.infoOpen = false
             else if (GalleryModel.viewerIndex >= 0) GalleryModel.closeViewer()
             else if (AppModel.screen === 2 && GalleryModel.selecting) GalleryModel.clearSelection()
