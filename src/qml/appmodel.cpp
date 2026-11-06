@@ -100,7 +100,19 @@ void AppModel::openHelp()
   if(mainWindowPtr) QMetaObject::invokeMethod(mainWindowPtr,"slotDocumentation",Qt::QueuedConnection);
 }
 
+void AppModel::setSettingsOpen(bool on)
+{
+  if(m_settingsOpen==on) return;
+  m_settingsOpen=on;
+  emit settingsOpenChanged();
+}
+
 void AppModel::openSettings()
+{
+  setSettingsOpen(true);
+}
+
+void AppModel::openClassicSettings()
 {
   // the dialog fills the screen (and keeps clear of the system bars: widgetWindows), like a page of its own
   QMetaObject::invokeMethod(qApp,[]
@@ -108,6 +120,7 @@ void AppModel::openSettings()
       if(!mainWindowPtr) return;
       if(configDialogPtr)
         {
+          configDialogPtr->readSettings();   // its pages take over what the new pages saved meanwhile (OK writes them all back)
           configDialogPtr->setProperty("touchMaximized",true);
           configDialogPtr->setWindowState(configDialogPtr->windowState()|Qt::WindowMaximized);
         }

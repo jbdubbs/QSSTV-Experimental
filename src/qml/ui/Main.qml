@@ -126,6 +126,14 @@ ApplicationWindow {
             topInset: root.inset.top
             bottomInset: root.inset.bottom
         }
+        SettingsScreen {
+            id: settings
+            objectName: "settingsScreen"
+            anchors.fill: parent
+            topInset: root.inset.top
+            bottomInset: root.inset.bottom
+            onShowAbout: about.open = true
+        }
         AboutSheet { id: about }
         SendingOverlay {
             anchors.fill: parent
@@ -150,7 +158,8 @@ ApplicationWindow {
     onClosing: (close) => {
         if (Qt.platform.os === "android") {
             close.accepted = false
-            if (viewer.infoOpen) viewer.infoOpen = false
+            if (settings.goBack()) {}
+            else if (viewer.infoOpen) viewer.infoOpen = false
             else if (GalleryModel.viewerIndex >= 0) GalleryModel.closeViewer()
             else if (AppModel.screen === 2 && GalleryModel.selecting) GalleryModel.clearSelection()
             else if (TxController.cameraOpen) TxController.cameraOpen = false

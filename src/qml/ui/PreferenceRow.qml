@@ -9,13 +9,23 @@ Item {
     property bool checkable: false
     property bool checked: false
     property bool chevron: false
+    property string icon              // a Icons.* path: the picture at the start of the row
+    property bool enabledRow: true
     signal toggled(bool checked)
     signal clicked()
     width: parent ? parent.width : 360
     implicitHeight: Math.max(56, text.implicitHeight + 24)
+    Icon {
+        visible: row.icon !== ""
+        path: row.icon
+        color: Theme.surfaceVariantOn
+        anchors.left: parent.left; anchors.leftMargin: 24
+        anchors.verticalCenter: parent.verticalCenter
+    }
+    opacity: enabledRow ? 1 : 0.5
     Column {
         id: text
-        anchors.left: parent.left; anchors.leftMargin: 24
+        anchors.left: parent.left; anchors.leftMargin: row.icon !== "" ? 72 : 24
         anchors.right: trailing.left; anchors.rightMargin: 12
         anchors.verticalCenter: parent.verticalCenter
         Text { text: row.title; color: Theme.surfaceOn; font.pixelSize: Theme.sp(16); width: parent.width; wrapMode: Text.WordWrap }
@@ -27,12 +37,12 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         width: row.checkable ? sw.implicitWidth : (row.chevron ? 24 : 0)
         height: Theme.tap
-        Switch { id: sw; visible: row.checkable; anchors.centerIn: parent; checked: row.checked; onToggled: row.toggled(checked)
+        Switch { id: sw; visible: row.checkable; enabled: row.enabledRow; anchors.centerIn: parent; checked: row.checked; onToggled: row.toggled(checked)
             Accessible.name: row.title }
         Icon { visible: row.chevron; anchors.centerIn: parent; path: Icons.chevron }
     }
-    TapHandler { enabled: !row.checkable; onTapped: row.clicked() }
-    TapHandler { enabled: row.checkable; onTapped: { sw.toggle(); row.toggled(sw.checked) } }
+    TapHandler { enabled: !row.checkable && row.enabledRow; onTapped: row.clicked() }
+    TapHandler { enabled: row.checkable && row.enabledRow; onTapped: { sw.toggle(); row.toggled(sw.checked) } }
     Accessible.role: checkable ? Accessible.CheckBox : Accessible.Button
     Accessible.name: summary !== "" ? title + ", " + summary : title
 }

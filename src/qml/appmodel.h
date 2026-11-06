@@ -26,6 +26,7 @@ class AppModel : public QObject
   Q_PROPERTY(bool mediaVolumeAvailable READ mediaVolumeAvailable CONSTANT)                    //!< there is a media volume to set (Android)
   Q_PROPERTY(QString versionText READ versionText CONSTANT)                                   //!< "10.1.1"
   Q_PROPERTY(bool startListening READ startListening CONSTANT)                            //!< the receiver starts with the program
+  Q_PROPERTY(bool settingsOpen READ settingsOpen WRITE setSettingsOpen NOTIFY settingsOpenChanged)   //!< the settings pages are showing
 
 public:
   static AppModel *instance();
@@ -43,6 +44,8 @@ public:
   bool mediaVolumeAvailable() const;
   bool startListening() const {return true;}
   QString versionText() const;
+  bool settingsOpen() const {return m_settingsOpen;}
+  void setSettingsOpen(bool on);
 
   //! the program's own analog / digital mode changed, whoever changed it
   void modeChanged() {emit digitalChanged();}
@@ -58,8 +61,10 @@ public:
   Q_INVOKABLE QString licensesText() const;
   //! the User's Guide, in the browser
   Q_INVOKABLE void openHelp();
-  //! the settings: until the new settings pages are there, the program's own (Widgets) dialog
+  //! the settings pages
   Q_INVOKABLE void openSettings();
+  //! the classic Configuration dialog (Widgets), for what the new pages do not have yet
+  Q_INVOKABLE void openClassicSettings();
   Q_INVOKABLE void moveToBackground();
   //! the window was closed (not Android): the program ends like the menu's Exit does
   Q_INVOKABLE void quit();
@@ -70,6 +75,7 @@ signals:
   void routeChanged();
   void fontScaleChanged();
   void mediaVolumeChanged();
+  void settingsOpenChanged();
 
 private:
   explicit AppModel(QObject *parent=nullptr);
@@ -77,6 +83,7 @@ private:
   int m_colorScheme=0;
   qreal m_fontScale=1.0;
   int m_volume=70;
+  bool m_settingsOpen=false;
 };
 
 #endif // APPMODEL_H

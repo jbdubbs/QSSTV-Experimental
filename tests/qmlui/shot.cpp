@@ -25,6 +25,7 @@
 #include "rxwidget.h"
 #include "spectrumwidget.h"
 #include "gallerymodel.h"
+#include "settingscontroller.h"
 #include "directoriesconfig.h"
 
 static QQuickWindow *theWindow()
@@ -171,6 +172,7 @@ int main(int argc, char **argv)
       TxController::instance()->setTestSending(-1);
       if (QQuickItem *v = findItem(win->contentItem(), "viewerScreen")) v->setProperty("infoOpen", false);
       GalleryModel::instance()->closeViewer();
+      AppModel::instance()->setSettingsOpen(false);
       GalleryModel::instance()->clearSelection();
       app_->setScreen(0);
       app_->setDigital(scene == "digital" || scene.startsWith("tx-digital"));
@@ -203,6 +205,15 @@ int main(int argc, char **argv)
             }
           if (scene == "tx-sending") tx->setTestSending(0.38);
           if (scene == "tx-sending-tool") tx->setTestSending(0.4, "Test tone, 1000 Hz", 5);
+        }
+      else if (scene.startsWith("settings"))
+        {
+          app_->setScreen(0);
+          AppModel::instance()->setSettingsOpen(true);
+          QQuickItem *st = findItem(win->contentItem(), "settingsScreen");
+          const int page = scene == "settings-operator" ? 1 : scene == "settings-pictures" || scene == "settings-format" ? 2 : scene == "settings-position" ? 3 : scene == "settings-advanced" ? 4 : 0;
+          if (st) st->setProperty("page", page);
+          if (scene == "settings-format" && st) QMetaObject::invokeMethod(st, "openFormat");
         }
       else if (scene == "saved")
         {
