@@ -136,6 +136,41 @@ int main(int argc, char **argv)
           cd->hide();
           continue;
         }
+      if (page == "gallerytabs")
+        {
+          // the Gallery on a phone: one box names the page, and a page is built when it is first looked at
+          if (!tabs || tabs->count() < 3 || shell == "desktop") {printf("  gallerytabs (not in this shell)\n"); continue;}
+          auto check = [&](bool ok, const char *what) {printf("  %s  %s\n", ok ? "ok  " : "FAIL", what); if (!ok) exitCode = 1;};
+          tabs->setCurrentIndex(2);
+          QTest::qWait(400);
+          QComboBox *selector = galleryWidgetPtr->findChild<QComboBox *>("gallerySelector");
+          QTabWidget *gtabs = galleryWidgetPtr->findChild<QTabWidget *>("tabWidget");
+          check(selector && gtabs, "a page selector in the Gallery");
+          if (!selector || !gtabs) continue;
+          check(selector->count() == 6 && selector->isVisible(), "naming the six pages");
+          check(!gtabs->tabBar()->isVisible(), "instead of the tabs");
+          const int perPage = galleryRows * galleryColumns;
+          auto viewers = [&]() {return galleryWidgetPtr->findChildren<imageViewer *>().count();};
+          const int start = viewers();
+          printf("        (%d pictures built at the start, %d to a page)\n", start, perPage);
+          check(start == 2 * perPage, "only the first page and the templates are built at the start");
+          galleryWidgetPtr->changedMatrix(imageViewer::TXSTOCKTHUMB);   // a page nobody has looked at: nothing to build yet
+          galleryWidgetPtr->txStockImageChanged();
+          check(viewers() == start, "a change to a page that was not built builds nothing (and does no harm)");
+          selector->setCurrentIndex(3);
+          QTest::qWait(300);
+          check(gtabs->currentIndex() == 3 && viewers() == start + perPage, "choosing a page shows it and builds it");
+          selector->setCurrentIndex(3);
+          gtabs->setCurrentIndex(4);
+          QTest::qWait(300);
+          check(selector->currentIndex() == 4 && viewers() == start + 2 * perPage, "the box follows the page, and the next page is built too");
+          gtabs->setCurrentIndex(3);
+          QTest::qWait(200);
+          check(viewers() == start + 2 * perPage, "a page that was built is not built again");
+          mainWindowPtr->grab().save(QString("%1/%2-%3x%4-gallerytabs.png").arg(outDir, shell).arg(width).arg(height));
+          gtabs->setCurrentIndex(0);
+          continue;
+        }
       if (page == "galleryselect")
         {
           // the Gallery's Select mode (touch shells): six pictures, choose two by tapping, All, then Back turns Select off

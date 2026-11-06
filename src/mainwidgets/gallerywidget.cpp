@@ -9,6 +9,10 @@
 #include <QFileInfo>
 #include <QStatusBar>
 #include "txwidget.h"
+#include "uimode.h"
+#include "imagematrix.h"
+#include <QComboBox>
+#include <QTabBar>
 
 
 
@@ -19,7 +23,79 @@ galleryWidget::galleryWidget(QWidget *parent) :
   ui->setupUi(this);
   ui->tabWidget->setCurrentIndex(0);
   ui->templateMatrix->setSortFlag(QDir::Name);
+  if(uiMode::touch())
+    {
+      // six tabs with scroll arrows are no way to choose on a phone: one box that names the page, and the pages built when asked for
+      m_lazy=true;
+      ui->tabWidget->tabBar()->hide();
+      ui->tabWidget->setDocumentMode(true);
+      QComboBox *selector=new QComboBox(this);
+      selector->setObjectName("gallerySelector");
+      for(int i=0;i<ui->tabWidget->count();i++) selector->addItem(ui->tabWidget->tabText(i));
+      ui->verticalLayout->insertWidget(0,selector);
+      connect(selector,QOverload<int>::of(&QComboBox::currentIndexChanged),ui->tabWidget,&QTabWidget::setCurrentIndex);
+      connect(ui->tabWidget,&QTabWidget::currentChanged,this,[selector](int i)
+        {
+          QSignalBlocker block(selector);
+          selector->setCurrentIndex(i);
+        });
+      connect(ui->tabWidget,&QTabWidget::currentChanged,this,&galleryWidget::slotTabShown);
+    }
+}
 
+imageMatrix *galleryWidget::matrixAt(int index) const
+{
+  switch(index)
+    {
+    case 0: return ui->rxSSTVMatrix;
+    case 1: return ui->rxDRMMatrix;
+    case 2: return ui->txSSTVMatrix;
+    case 3: return ui->txDRMMatrix;
+    case 4: return ui->txStockMatrix;
+    default: return ui->templateMatrix;
+    }
+}
+
+imageViewer::thumbType galleryWidget::typeAt(int index) const
+{
+  static const imageViewer::thumbType types[6]={imageViewer::RXSSTVTHUMB,imageViewer::RXDRMTHUMB,imageViewer::TXSSTVTHUMB,
+                                                imageViewer::TXDRMTHUMB,imageViewer::TXSTOCKTHUMB,imageViewer::TEMPLATETHUMB};
+  return types[qBound(0,index,5)];
+}
+
+QString galleryWidget::pathAt(int index) const
+{
+  switch(index)
+    {
+    case 0: return rxSSTVImagesPath;
+    case 1: return rxDRMImagesPath;
+    case 2: return txSSTVImagesPath;
+    case 3: return txDRMImagesPath;
+    case 4: return txStockImagesPath;
+    default: return templatesPath;
+    }
+}
+
+int galleryWidget::indexOf(imageViewer::thumbType itype) const
+{
+  for(int i=0;i<6;i++) if(typeAt(i)==itype) return i;
+  return -1;
+}
+
+void galleryWidget::buildMatrix(int index)
+{
+  matrixAt(index)->init(galleryRows,galleryColumns,pathAt(index),typeAt(index));
+  m_ready[index]=true;
+}
+
+void galleryWidget::slotTabShown(int index)
+{
+  if(index>=0 && index<6 && !m_ready[index]) buildMatrix(index);
+}
+
+void galleryWidget::matrixListChanged(int index)
+{
+  if(m_ready[index]) matrixAt(index)->changed();   // a page that has not been built is scanned when it is
 }
 
 galleryWidget::~galleryWidget()
@@ -53,11 +129,11 @@ void galleryWidget::slotDirChanged(QString dn)
   }
   if(dn.startsWith(txStockImagesPath))
     {
-      ui->txStockMatrix->changed();
+      matrixListChanged(4);
     }
   if(dn.startsWith(templatesPath))
     {
-      ui->templateMatrix->changed();
+      matrixListChanged(5);
       txWidgetPtr->setupTemplatesComboBox();
     }
 }
@@ -65,29 +141,11 @@ void galleryWidget::slotDirChanged(QString dn)
 
 void galleryWidget::changedMatrix(imageViewer::thumbType itype)
 {
-  switch(itype)
-    {
-    case imageViewer::RXSSTVTHUMB:
-      ui->rxSSTVMatrix->init(galleryRows,galleryColumns,rxSSTVImagesPath,imageViewer::RXSSTVTHUMB);
-      break;
-    case imageViewer::RXDRMTHUMB:
-      ui->rxDRMMatrix->init(galleryRows,galleryColumns,rxDRMImagesPath,imageViewer::RXDRMTHUMB);
-      break;
-    case imageViewer::TXSSTVTHUMB:
-      ui->txSSTVMatrix->init(galleryRows,galleryColumns,txSSTVImagesPath,imageViewer::TXSSTVTHUMB);
-      break;
-    case imageViewer::TXDRMTHUMB:
-      ui->txDRMMatrix->init(galleryRows,galleryColumns,txDRMImagesPath,imageViewer::TXDRMTHUMB);
-      break;
-    case imageViewer::TXSTOCKTHUMB:
-      ui->txStockMatrix->init(galleryRows,galleryColumns,txStockImagesPath,imageViewer::TXSTOCKTHUMB);
-      break;
-    case imageViewer::TEMPLATETHUMB:
-      ui->templateMatrix->init(galleryRows,galleryColumns,templatesPath,imageViewer::TEMPLATETHUMB);
-      break;
-    default:
-      break;
-    }
+  const int i=indexOf(itype);
+  if(i<0) return;
+  // a page nobody has looked at is built when somebody does (with the settings that are then current)
+  if(m_lazy && !m_ready[i] && i!=ui->tabWidget->currentIndex() && i!=5) return;
+  buildMatrix(i);
 }
 
 
@@ -103,17 +161,23 @@ void galleryWidget::readSettings()
 
   splashMessage(QString( "Loading RX images" ));
   qApp->processEvents();
-  ui->rxSSTVMatrix->init(galleryRows,galleryColumns,rxSSTVImagesPath,imageViewer::RXSSTVTHUMB);
-  ui->rxDRMMatrix->init(galleryRows,galleryColumns,rxDRMImagesPath,imageViewer::RXDRMTHUMB);
+  if(m_lazy)
+    {
+      buildMatrix(0);   // the page that is shown first, and the templates (the Transmit page lists them)
+      buildMatrix(5);
+      return;
+    }
+  buildMatrix(0);
+  buildMatrix(1);
 
   splashMessage(QString( "Loading TX images" ));
   qApp->processEvents();
-  ui->txSSTVMatrix->init(galleryRows,galleryColumns,txSSTVImagesPath,imageViewer::TXSSTVTHUMB);
-  ui->txDRMMatrix->init(galleryRows,galleryColumns,txDRMImagesPath,imageViewer::TXDRMTHUMB);
-  ui->txStockMatrix->init(galleryRows,galleryColumns,txStockImagesPath,imageViewer::TXSTOCKTHUMB);
+  buildMatrix(2);
+  buildMatrix(3);
+  buildMatrix(4);
 
   splashMessage(QString( "Loading Templates" ));
-  ui->templateMatrix->init(galleryRows,galleryColumns,templatesPath,imageViewer::TEMPLATETHUMB);
+  buildMatrix(5);
 }
 
 /*!
@@ -188,30 +252,24 @@ void galleryWidget::putRxImage ( QString fn )
   if(transmissionModeIndex==TRXSSTV)
     {
       statusBarPtr->showMessage ( "Saved: "+fn );
-      ui->rxSSTVMatrix->changed();
+      matrixListChanged(0);
     }
   else
     {
       statusBarPtr->showMessage ( "Saved: "+fn+QString("  (%1dB)").arg(lastAvgMER,0,'f',0) );
-      ui->rxDRMMatrix->changed();
+      matrixListChanged(1);
     }
 }
 
 void galleryWidget::txImageChanged()
 {
-  if(transmissionModeIndex==TRXSSTV)
-    {
-      ui->txSSTVMatrix->changed();
-    }
-  else
-    {
-      ui->txDRMMatrix->changed();
-    }
+  if(transmissionModeIndex==TRXSSTV) matrixListChanged(2);
+  else matrixListChanged(3);
 }
 
 void galleryWidget::txStockImageChanged()
 {
-  ui->txStockMatrix->changed();
+  matrixListChanged(4);
 }
 
 
