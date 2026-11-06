@@ -204,6 +204,11 @@ int main(int argc, char **argv)
           if (scene == "tx-sending") tx->setTestSending(0.38);
           if (scene == "tx-sending-tool") tx->setTestSending(0.4, "Test tone, 1000 Hz", 5);
         }
+      else if (scene == "saved")
+        {
+          const QDir dir(rxSSTVImagesPath);
+          qmlUi::rxImageSaved(dir.entryInfoList(QDir::Files).first().absoluteFilePath());   // "Saved to Gallery" with View
+        }
       else if (scene.startsWith("gallery"))
         {
           app_->setScreen(2);
