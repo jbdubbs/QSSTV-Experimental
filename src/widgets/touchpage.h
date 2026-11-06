@@ -5,6 +5,9 @@
 #include <QProxyStyle>
 #include <QList>
 #include <QPointer>
+#include <QTimer>
+#include <QElapsedTimer>
+#include <QAbstractScrollArea>
 #include <QScrollArea>
 #include <QWidget>
 #include <functional>
@@ -61,6 +64,55 @@ QPalette touchPalette(bool dark);
 void applyTouchPalette();
 
 /*!
+  What the touch shell's scroll areas show at the end of the content, as Android's own do (before Android 12): the content stops
+  there and a soft glow in the highlight colour comes up along the edge and fades. It comes up as the finger keeps pulling on
+  (pull()), or when a fling reaches the end (absorb(), found from the scroll bars: a fling that arrives with speed), and goes
+  when the finger is lifted or turns back (letGo()). The content never moves past its end: nothing bounces back.
+*/
+class edgeGlow : public QWidget
+{
+  Q_OBJECT
+public:
+  enum Edge {Top,Bottom,Left,Right};
+  explicit edgeGlow(QAbstractScrollArea *area);
+  //! the finger moves on past \a edge by \a pixels more
+  void pull(Edge edge,double pixels);
+  //! the finger is lifted or has turned back: what is showing fades
+  void letGo();
+  //! a fling arrived at \a edge at \a pixelsPerSecond
+  void absorb(Edge edge,double pixelsPerSecond);
+  //! the finger was lifted with a flick: when it comes to rest at the end it was heading for, the glow shows it (\a velocity: m/s, QScroller's)
+  void flung(const QPointF &velocity);
+  //! 0 to 1: how much of the glow shows at the edge (tests/uishots)
+  double strength(Edge edge) const {return level[edge];}
+protected:
+  void paintEvent(QPaintEvent *e) override;
+  bool eventFilter(QObject *o,QEvent *e) override;
+private:
+  void tick();
+  void scrolled(Qt::Orientation orientation,int value);
+  void start();
+  QAbstractScrollArea *area;
+  double level[4]={0,0,0,0};
+  double pulled[4]={0,0,0,0};
+  bool holding[4]={false,false,false,false};
+  QTimer timer;
+  QElapsedTimer clock;
+  qint64 lastTick=0;
+  int lastValue[2]={0,0};
+  qint64 lastTime[2]={0,0};
+  double speed[2]={0,0};
+  int flingEdge=-1;          // the end a flick is heading for, or -1
+  double flingSpeed=0;
+};
+
+/*!
+  A scroll area for a finger: scrolled by touchFlick (a press on any widget in it), no rubber band at the ends (the content stops
+  and an edgeGlow shows it), a flick that slows down like Android's. \a sideways: also in the horizontal direction.
+*/
+void setupTouchScrolling(QAbstractScrollArea *area,bool sideways);
+
+/*!
   Finger scrolling for the scroll areas made by makeTouchScrollPage(), over every widget in them: a press on a button, a box or
   a label is held back until it is clear whether it is a tap (then it is delivered, as a press and a release) or the start of a
   drag (then the page scrolls). Sliders, scroll bars, text areas and lists keep their own drags; a picture (property touchFlick
@@ -74,9 +126,10 @@ public:
   explicit touchFlick(QObject *parent=nullptr) : QObject(parent) {}
   bool eventFilter(QObject *o,QEvent *e) override;
 private:
-  QScrollArea *areaOf(QWidget *w,bool &passive) const;
+  QAbstractScrollArea *areaOf(QWidget *w,bool &passive) const;
   QPointer<QWidget> target;
-  QPointer<QScrollArea> area;
+  QPointer<QAbstractScrollArea> area;
+  QPointF lastGlobal;
   QPointF pressLocal;
   QPointF pressGlobal;
   bool passive=false;

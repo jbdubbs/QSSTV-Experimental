@@ -21,6 +21,8 @@
 #include "reflow.h"
 #include "gallerywidget.h"
 #include "imagematrix.h"
+#include <QScroller>
+#include <QScrollerProperties>
 #include "spectrumwidget.h"
 
 int main(int argc, char **argv)
@@ -101,6 +103,17 @@ int main(int argc, char **argv)
           QTest::qWait(300);
           QTabWidget *ct = cd->findChild<QTabWidget *>("configTabWidget");
           if (!ct) {printf("  settings (not in this shell)\n"); continue;}
+          // the list of sections is dragged like the pages: a tap on an entry (held until the finger is lifted, then delivered) opens it
+          if (QListWidget *lw = cd->findChild<QListWidget *>())
+            if (QStackedWidget *st = qobject_cast<QStackedWidget *>(ct->parentWidget()))
+              {
+                st->setCurrentIndex(0);
+                QTest::qWait(200);
+                QTest::mouseClick(lw->viewport(), Qt::LeftButton, Qt::NoModifier, lw->visualItemRect(lw->item(3)).center());
+                QTest::qWait(200);
+                printf("  %s  a tap on the fourth entry of the list opens that section\n", (st->currentIndex() == 1 && ct->currentIndex() == 3) ? "ok  " : "FAIL");
+                if (!(st->currentIndex() == 1 && ct->currentIndex() == 3)) exitCode = 1;
+              }
           if (QStackedWidget *st = qobject_cast<QStackedWidget *>(ct->parentWidget())) st->setCurrentIndex(1);   // a section, not the list
           QTest::qWait(200);
           printf("  settings dialog %dx%d (minimum %dx%d)\n", cd->width(), cd->height(), cd->minimumSizeHint().width(), cd->minimumSizeHint().height());
@@ -174,6 +187,64 @@ int main(int argc, char **argv)
           check(galleryWidgetPtr->leaveSelectMode(), "Back (leaveSelectMode) turns Select off");
           QTest::qWait(60);
           check(!m->selecting() && selectedCount() == 0, "and drops the choice");
+          continue;
+        }
+      if (page == "overscroll")
+        {
+          // the end of a page (touch shells): the content stops, the glow comes up while the finger pulls on and fades after
+          if (!tabs || shell == "desktop") {printf("  overscroll (not in this shell)\n"); continue;}
+          tabs->setCurrentIndex(0);
+          QTest::qWait(400);
+          QScrollArea *sa = nullptr;
+          for (QScrollArea *a : tabs->widget(0)->findChildren<QScrollArea *>()) if (a->isVisible() && a->property("touchScroll").toBool()) sa = a;
+          auto check = [&](bool ok, const char *what) {printf("  %s  %s\n", ok ? "ok  " : "FAIL", what); if (!ok) exitCode = 1;};
+          check(sa != nullptr, "the Receive page is a touch scroll area");
+          if (!sa) continue;
+          QScrollBar *vb = sa->verticalScrollBar();
+          edgeGlow *glow = sa->findChild<edgeGlow *>();
+          check(glow != nullptr, "with an edge glow");
+          if (vb->maximum() <= vb->minimum()) {printf("        (the page fits this screen: nothing to scroll)\n"); continue;}
+          if (!glow) continue;
+          QScroller *sc = QScroller::scroller(sa->viewport());
+          check(sc->scrollerProperties().scrollMetric(QScrollerProperties::VerticalOvershootPolicy).toInt() == QScrollerProperties::OvershootAlwaysOff,
+                "no rubber band at the end");
+          QWidget *vp = sa->viewport();
+          const QPoint mid(vp->width() / 2, vp->height() / 2);
+          // the finger goes up (the content on): at the bottom the glow comes up and the content stays
+          vb->setValue(vb->maximum());
+          QTest::qWait(700);
+          check(glow->strength(edgeGlow::Bottom) == 0, "no glow while nobody pulls");
+          QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, mid);
+          for (int i = 1; i <= 14; i++) {QTest::mouseMove(vp, mid - QPoint(0, i * 10)); QTest::qWait(16);}
+          check(vb->value() == vb->maximum(), "the content stays at its end under a finger that goes on");
+          check(glow->strength(edgeGlow::Bottom) > 0.15, "the glow at the bottom comes up");
+          check(glow->strength(edgeGlow::Top) == 0, "and none at the top");
+          mainWindowPtr->grab().save(QString("%1/%2-%3x%4-overscroll-bottom.png").arg(outDir, shell).arg(width).arg(height));
+          QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, mid - QPoint(0, 140));
+          QTest::qWait(800);
+          check(glow->strength(edgeGlow::Bottom) == 0, "it fades when the finger is lifted");
+          // and the top, the finger going down
+          vb->setValue(vb->minimum());
+          QTest::qWait(700);
+          QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, mid);
+          for (int i = 1; i <= 14; i++) {QTest::mouseMove(vp, mid + QPoint(0, i * 10)); QTest::qWait(16);}
+          check(vb->value() == vb->minimum(), "the same at the top");
+          check(glow->strength(edgeGlow::Top) > 0.15, "with the glow at the top");
+          QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, mid + QPoint(0, 140));
+          QTest::qWait(800);
+          // a flick (fast, short moves, finger lifted while it moves) from 100 px short of the bottom: it runs on to the end
+          vb->setValue(vb->maximum() - 100);
+          QTest::qWait(300);
+          QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, mid + QPoint(0, 150));
+          for (int i = 1; i <= 8; i++) {QTest::mouseMove(vp, mid + QPoint(0, 150 - i * 20)); QTest::qWait(10);}
+          QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, mid + QPoint(0, -10));
+          double most = 0;
+          for (int i = 0; i < 60; i++) {QTest::qWait(20); most = std::max(most, glow->strength(edgeGlow::Bottom));}
+          printf("        (the flick got to value %d of %d, the glow reached %.2f)\n", vb->value(), vb->maximum(), most);
+          check(vb->value() == vb->maximum(), "a flick runs on to the end of the content and stops there");
+          check(most > 0.1, "and the glow shows that it arrived");
+          QTest::qWait(900);
+          check(glow->strength(edgeGlow::Bottom) == 0, "and fades");
           continue;
         }
       const QStringList names = {"rx", "tx", "gallery", "more"};

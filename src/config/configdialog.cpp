@@ -76,7 +76,7 @@ void configDialog::setupTouch()
       QListWidgetItem *item=new QListWidgetItem(tabs->tabText(i),list);
       item->setSizeHint(QSize(0,uiMode::tapSize+12));
     }
-  QScroller::grabGesture(list->viewport(),QScroller::LeftMouseButtonGesture);   // the list is dragged with a finger
+  setupTouchScrolling(list,false);   // the list is dragged with a finger, like the pages (touchFlick), and stops at its ends
   levels=new QStackedWidget(this);
   levels->addWidget(list);
   ui->verticalLayout->replaceWidget(tabs,levels);
