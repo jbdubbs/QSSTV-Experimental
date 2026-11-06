@@ -1,0 +1,31 @@
+#!/bin/bash
+# Screenshots of the Qt Quick interface (src/qml) on the desktop, offscreen, with the software scene graph (tests/qmlui/shot.cpp).
+#   tests/qmlui/app.sh [build-dir] [out-dir]     build-dir default build-qml (cmake -S src -B build-qml -DQSSTV_QML_UI=ON)
+# Sizes: a phone upright, a small phone, a phone on its side, a tablet; light and dark. The pictures are kept for looking at.
+set -e
+HERE=$(cd "$(dirname "$0")" && pwd)
+B=${1:-$HERE/../../build-qml}
+OUT=${2:-}
+cd "$B"
+SCRATCH=$(mktemp -d); trap 'rm -rf "${SCRATCH:?}"' EXIT
+[ -n "$OUT" ] || OUT=$(mktemp -d -t qsstv-qmlui-XXXXXX)
+FLAGS=$(grep '^CXX_DEFINES' CMakeFiles/qsstv.dir/flags.make | cut -d= -f2-)
+INCS=$(grep '^CXX_INCLUDES' CMakeFiles/qsstv.dir/flags.make | cut -d= -f2-)
+CXXF=$(grep '^CXX_FLAGS' CMakeFiles/qsstv.dir/flags.make | cut -d= -f2-)
+eval /usr/bin/c++ $CXXF $FLAGS $INCS -isystem /usr/include/qt6/QtTest -fPIC -c "$HERE/shot.cpp" -o "$SCRATCH/shot.o"
+LINK=$(sed "s# CMakeFiles/qsstv.dir/main.cpp.o # $SCRATCH/shot.o #; s#-o qsstv-experimental#-o $SCRATCH/shot#; s#-Wl,--dependency-file=CMakeFiles/qsstv.dir/link.d##" CMakeFiles/qsstv.dir/link.txt)
+eval $LINK /usr/lib64/libQt6Test.so
+rc=0
+run() {   # theme width height scenes...
+  local theme=$1 w=$2 h=$3; shift 3
+  mkdir -p "$SCRATCH/home-$theme-$w"
+  QSSTV_QML_THEME=$theme timeout 120 "$SCRATCH/shot" "$SCRATCH/home-$theme-$w" "$OUT/$theme" "$w" "$h" "$@" || rc=1
+}
+SCENES="idle receiving options digital stopped quiet tx gallery"
+run light 411 800 $SCENES
+run dark 411 800 $SCENES
+run light 360 640 idle receiving
+run light 850 411 idle receiving
+run light 800 1200 idle receiving
+echo "screenshots: $OUT"
+exit $rc

@@ -41,6 +41,7 @@
 #include <QPluginLoader>
 #endif
 #include "uimode.h"
+#include "qmlui.h"
 #include "touchpage.h"
 #include "appglobal.h"
 #include "mainwindow.h"
@@ -743,8 +744,16 @@ int main( int argc, char ** argv )
   else
     {
       holdSplash();
-      mainWindowPtr->show();
-      splash.finish(mainWindowPtr);
+      if(uiMode::qml())
+        {
+          qmlUi::show();   // the Qt Quick screens are the program's window; mainWindow stays hidden and holds the state
+          splash.close();
+        }
+      else
+        {
+          mainWindowPtr->show();
+          splash.finish(mainWindowPtr);
+        }
     }
   mainWindowPtr->startRunning(files.isEmpty() && !listen);   // decoding files replaces the sound card receiver until it is done
 #ifdef Q_OS_ANDROID

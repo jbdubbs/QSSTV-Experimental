@@ -26,6 +26,7 @@ It also starts, stops and synchronizes the threads.
 */
 #include "applog.h"
 #include "dispatcher.h"
+#include "qmlui.h"
 #include "platformfiles.h"
 #include "appglobal.h"
 #include "configparams.h"
@@ -164,20 +165,26 @@ void dispatcher::customEvent( QEvent * e )
       uint s;
       ((displaySyncEvent*)e)->getInfo(s);
       rxWidgetPtr->sMeterPtr()->setValue((double)s);
+      qmlUi::rxSync(int(s));
       break;
     case rxSSTVStatus:
       rxWidgetPtr->setSSTVStatusText(((rxSSTVStatusEvent*)e)->getStr());
+      qmlUi::rxStatus(false,((rxSSTVStatusEvent*)e)->getStr());
       break;
 
     case startImageRX:
       addToLog("dispatcher: clearing RxImage",LOGDISPATCH);
       //      rxWidgetPtr->getImageViewerPtr()->createImage( ((startImageRXEvent*)e)->getSize(),QColor(0,0,128),imageStretch);
       rxWidgetPtr->getImageViewerPtr()->createImage( ((startImageRXEvent*)e)->getSize(),imageBackGroundColor,imageStretch);
+      qmlUi::rxImageStarted(((startImageRXEvent*)e)->getSize().width(),((startImageRXEvent*)e)->getSize().height());
       lastCallsign="";
       break;
     case lineDisplay:
       {
         rxWidgetPtr->getImageViewerPtr()->displayImage();
+        uint lineNbr=0;
+        ((lineDisplayEvent*)e)->getInfo(lineNbr);
+        qmlUi::rxLine(int(lineNbr));
         if(calibrationRx) emit sstvLineReceived();
       }
       break;
@@ -197,10 +204,12 @@ void dispatcher::customEvent( QEvent * e )
           addToLog("dispatcher:endImage savingRxImage",LOGDISPATCH);
           saveRxSSTVImage(((endImageSSTVRXEvent*)e)->getMode());
         }
+      qmlUi::rxImageEnded();
       break;
 
     case rxDRMStatus:
       rxWidgetPtr->setDRMStatusText(((rxDRMStatusEvent*)e)->getStr());
+      qmlUi::rxStatus(true,((rxDRMStatusEvent*)e)->getStr());
 
       break;
 
@@ -280,6 +289,7 @@ void dispatcher::customEvent( QEvent * e )
       {
         // live preview of a DRM image that is still being received; the finished file replaces it later
         rxWidgetPtr->getImageViewerPtr()->openImage(((previewDRMImageEvent*)e)->getImage());
+        qmlUi::rxImageShown();
       }
       break;
     case saveDRMImage:
@@ -305,6 +315,7 @@ void dispatcher::customEvent( QEvent * e )
             break;
           }
         saveImage(fn, info);
+        qmlUi::rxImageShown();
         if(fileDecoderPtr && fileDecoderPtr->isActive()) fileDecoderPtr->drmImageShown();
         if(repeaterEnabled)
           {

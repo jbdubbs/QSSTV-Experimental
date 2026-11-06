@@ -53,6 +53,7 @@
 #include "platformpermissions.h"
 #include "platformservice.h"
 #include "uimode.h"
+#include "qmlui.h"
 #include "touchpage.h"
 #ifdef Q_OS_ANDROID
 #include "qtlocationsource.h"
@@ -148,7 +149,7 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
   beaconCountdownLabel->hide();
   ui->statusBar->addWidget(beaconCountdownLabel);
   spectrumFramePtr=ui->spectrumFrame;
-  if(uiMode::touch()) setupTouchShell();
+  if(uiMode::touch() && !uiMode::qml()) setupTouchShell();   // the Qt Quick shell (src/qml) shows its own screens
 
 
   // setting up pointers
@@ -1251,6 +1252,7 @@ void mainWindow::slotModeChange(int rxtxMode)
     }
   txWidgetPtr->changeTransmissionMode(rxtxMode);
   rxWidgetPtr->changeTransmissionMode(rxtxMode);
+  qmlUi::notifyModeChanged();
   lastReceivedCall.clear();
   if(!fileDecoderPtr->isBatch() && !headlessEncode)
     {

@@ -4,6 +4,7 @@
 #include "supportfunctions.h"
 #include "logging.h"
 #include "markerwidget.h"
+#include "qmlui.h"
 
 spectrumWidget::spectrumWidget(QWidget *parent) : QFrame(parent),  ui(new Ui::spectrumWidget)
 {
@@ -24,6 +25,7 @@ void spectrumWidget::init(int length,int numBlocks,int isamplingrate)
 {
 //  addToLog(QString("Size: %1, Number of blocks %2, Samplingrate %3").arg(length).arg(numBlocks).arg(isamplingrate),LOGFFT);
   fftFunc.init(length,numBlocks,isamplingrate);
+  qmlUi::rxFftInit(length*numBlocks,isamplingrate);
   ui->spectrWidget->init(length,numBlocks,isamplingrate);
   ui->waterfallWidget->init(length,numBlocks,isamplingrate);
 }
@@ -32,6 +34,7 @@ void spectrumWidget::init(int length,int numBlocks,int isamplingrate)
 void spectrumWidget::realFFT(double *iBuffer)
 {
     fftFunc.realFFT(iBuffer);
+    qmlUi::rxFft(fftFunc.out);
      ui->spectrWidget->showFFT(fftFunc.out);
     ui->waterfallWidget->showFFT(fftFunc.out);
 }

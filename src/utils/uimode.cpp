@@ -16,9 +16,21 @@ bool touch()
   static const bool t=[]
     {
       const QByteArray v=qgetenv("QSSTV_UI");
-      return v=="phone" || v=="tablet";
+      return v=="phone" || v=="tablet" || v=="qml";
     }();
   return t;
+#endif
+}
+
+bool qml()
+{
+#ifndef QSSTV_QML_UI
+  return false;
+#elif defined(Q_OS_ANDROID)
+  return true;
+#else
+  static const bool q=qgetenv("QSSTV_UI")=="qml";
+  return q;
 #endif
 }
 

@@ -24,6 +24,13 @@ namespace uiMode
   //! the touch shell is in use
   bool touch();
 
+  /*!
+    The touch shell is the Qt Quick one (src/qml) instead of the Widgets one: Android builds made with QSSTV_QML_UI, and on the
+    desktop QSSTV_UI=qml (a development build with -DQSSTV_QML_UI=ON). The Widgets pages are then still built, but never shown: they
+    hold the receiver and transmitter state the Qt Quick screens read.
+  */
+  bool qml();
+
   //! the width a page has, or is about to be given, is a narrow one
   bool narrow(int width);
   bool narrow(const QWidget *w);

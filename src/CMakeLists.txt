@@ -26,6 +26,12 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network Xml SerialPort Mul
 if(ANDROID)
   find_package(Qt6 6.5 REQUIRED COMPONENTS Positioning)   # the phone's own location (android/qtlocationsource.cpp)
 endif()
+# The Qt Quick user interface for phones and tablets (src/qml): on for Android, and for a development build on the desktop (run with
+# QSSTV_UI=qml). Off, the Android build keeps the Widgets touch shell.
+option(QSSTV_QML_UI "Build the Qt Quick user interface for phones and tablets (src/qml)" ${ANDROID})
+if(QSSTV_QML_UI)
+  find_package(Qt6 6.9 REQUIRED COMPONENTS Qml Quick QuickControls2)   # 6.9 for the SafeArea attached type
+endif()
 if(UNIX AND NOT APPLE AND NOT ANDROID)
   # only used to probe for xdg-desktop-portal at startup (native file dialogs, see preferPortalTheme())
   find_package(Qt6 REQUIRED COMPONENTS DBus)
@@ -424,7 +430,7 @@ endif()
 
 target_include_directories(qsstv PRIVATE
     config dispatch drmrx drmtx dsp editor gps logbook mainwidgets
-    rig scope sound sstv template utils widgets xmlrpc videocapt android
+    rig scope sound sstv template utils widgets xmlrpc videocapt android qml
 )
 
 # Unlike qmake's uic (which resolves all FORMS into one shared include path), CMake's
@@ -471,6 +477,22 @@ target_link_libraries(qsstv PRIVATE
 )
 if(ANDROID)
   target_link_libraries(qsstv PRIVATE Qt6::Positioning)
+endif()
+if(QSSTV_QML_UI)
+  target_compile_definitions(qsstv PRIVATE QSSTV_QML_UI)
+  target_link_libraries(qsstv PRIVATE Qt6::Qml Qt6::Quick Qt6::QuickControls2)
+  set(QSSTV_QML_FILES Main.qml Theme.qml Icons.qml Icon.qml Chip.qml ModeStrip.qml AppBar.qml NavItem.qml NavBar.qml NavRail.qml
+      ExtendedFab.qml LevelMeter.qml BottomSheet.qml PreferenceRow.qml PictureCanvas.qml SpectrumStrip.qml StatusRow.qml
+      ProgressLine.qml ReceiveScreen.qml PlaceholderScreen.qml)
+  list(TRANSFORM QSSTV_QML_FILES PREPEND "qml/ui/" OUTPUT_VARIABLE QSSTV_QML_PATHS)
+  foreach(f IN LISTS QSSTV_QML_FILES)   # the files sit flat in the module: its types are found by name
+    set_source_files_properties("qml/ui/${f}" PROPERTIES QT_RESOURCE_ALIAS "${f}")
+  endforeach()
+  set_source_files_properties(qml/ui/Theme.qml qml/ui/Icons.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+  qt_add_qml_module(qsstv URI QSSTV VERSION 1.0 RESOURCE_PREFIX /qt/qml
+      QML_FILES ${QSSTV_QML_PATHS}
+      SOURCES qml/qmlui.cpp qml/appmodel.cpp qml/rxcontroller.cpp qml/imagesurface.cpp qml/waterfall.cpp)
+  set_target_properties(qsstv PROPERTIES QT_QML_ROOT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/qml/ui")   # androiddeployqt: which QML plugins to package
 endif()
 if(ANDROID)
   # The User's Guide is compiled into the app (documentation/userguide stays the one source, see BUILDING.md): an Android app
