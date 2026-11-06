@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Android - QSSTV-Experimental User&#x27;s Guide</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html">Install and first run</a></li><li><a href="main-window.html">Main window tour</a></li><li><a href="receive.html">Receiving</a></li><li><a href="transmit.html">Transmitting</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="template-editor.html">Template editor</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="sstv-modes.html">SSTV modes</a></li><li><a href="drm.html">Digital SSTV (DRM)</a></li><li><a href="calibration.html">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="android.html" aria-current="page">Android</a></li><li><a href="privacy.html">Privacy policy</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
+<main>
+
+<h1>Android</h1>
+<p class="lead">QSSTV-Experimental runs on Android phones and tablets. It receives and sends pictures through the phone&#x27;s own microphone and speaker, a headset cable
+or a USB audio interface, and it can key a transmitter and read its frequency through a USB serial interface (Digirig and similar). Everything else works as described in the
+rest of this guide; this page covers what is different on Android.</p>
+
+<h2>Requirements and installation</h2>
+<ul>
+<li>Android 9 or newer. The phone version is for 64-bit ARM processors, which is nearly every current phone. There is also a build for Android on x86_64 (the emulator, some Chromebooks).</li>
+<li>Install it from Google Play, or download the <code>.apk</code> file from the <a href="https://github.com/jbdubbs/QSSTV-Experimental/releases">releases page</a> and open it (Android asks once to allow installing from your browser or file manager).</li>
+<li>The first time you start it asks to use the <strong>microphone</strong> (needed to receive) and, on Android 13 and newer, to show <strong>notifications</strong> (the one that tells you the program is receiving). The camera, the location and a USB adapter ask for permission when you first use them.</li>
+</ul>
+
+<h2>The screen</h2>
+<p>The bar at the bottom has <span class="ui">Receive</span>, <span class="ui">Transmit</span>, <span class="ui">Gallery</span> and <span class="ui">More</span>. <span class="ui">More</span> holds the actions that the menu bar has on the desktop:
+decode a recording, the test pattern and the waterfall and CW identification buttons, <span class="ui">Settings</span>, this guide, <span class="ui">About</span> and <span class="ui">Exit</span>. On a phone held sideways the bar moves to the left edge.</p>
+<p>The <strong>Back</strong> button (or gesture) closes the dialog or picture in front, goes one level up in Settings, and from <span class="ui">More</span>, <span class="ui">Gallery</span> or <span class="ui">Transmit</span> returns to <span class="ui">Receive</span>.
+On <span class="ui">Receive</span> it sends the program to the background and <em>keeps it receiving</em>; use <span class="ui">More &gt; Exit</span> to stop it for good.</p>
+<p><span class="ui">Settings</span> is a list of pages; tap one to open it. The repeater and FTP pages are not on the phone version.</p>
+
+<h2>The microphone and speaker of the phone</h2>
+<p>Hold or place the phone next to the radio&#x27;s speaker to receive, and next to the radio&#x27;s microphone to send: nothing else is needed. This works, but it picks up room noise, so expect pictures to need a stronger signal than with a cable; a headset cable or a USB audio interface is better.</p>
+<ul>
+<li><strong>Receiving.</strong> Phones normally clean up what the microphone hears (gain control, noise suppression), which distorts the tones. <span class="ui">Settings &gt; Sound &gt; Phone audio &gt; Microphone</span> chooses what the phone may do: <em>Automatic</em> uses the unprocessed signal when the phone offers it. <span class="ui">Receive gain</span> adds up to 30 dB when the microphone is too quiet. If the signal is too strong the receiver says so.</li>
+<li><strong>Sending.</strong> The loudness of a transmission is the phone&#x27;s <strong>media volume</strong>: use the volume keys of the phone while the program is in front, or the <span class="ui">Media volume</span> slider on the same page. Around 70 to 80% is a good start; a speaker driven to the maximum distorts. The program warns when the media volume is low. Other apps stop playing while a picture is sent, so a notification does not sound over it.</li>
+<li>The phone speaker plays one channel, so a PTT tone on the second audio channel cannot be used with it (the program says so). Transmitting through the speaker has no PTT line: use a radio with VOX, or key the radio by hand.</li>
+<li>The microphone is only open while the program receives or transmits. After a few seconds of neither it is released (so Android&#x27;s microphone indicator goes out).</li>
+</ul>
+
+<h2>Receiving with the screen off</h2>
+<p>While the program is receiving it runs as a foreground service, with a notification. Receiving goes on with the screen off or with another app in front. Android may still stop apps in the background on phones with aggressive battery savers: if reception stops after a while, set the battery use of the program to <em>unrestricted</em> in the Android settings.</p>
+
+<h2>Pictures</h2>
+<ul>
+<li>Received pictures appear in the <span class="ui">Gallery</span> and are also saved to the phone&#x27;s own picture library, in the folder <code>Pictures/QSSTV-Experimental</code>.</li>
+<li>In the gallery, <strong>touch and hold</strong> a picture for the menu (the equivalent of the right mouse button), or tap <span class="ui">Select</span> to mark several pictures for <span class="ui">To TX</span> or <span class="ui">Delete</span>. A box at the top chooses the page (received SSTV, received DRM, transmitted, templates).</li>
+<li>In the picture viewer, pinch to zoom and drag to move; double-tap zooms in and out. The menu has <span class="ui">Share</span> to send a picture to another app.</li>
+<li>To send a picture from the phone, use the button that loads a picture on the <span class="ui">Transmit</span> tab; Android&#x27;s picker lists your photos and files. A photo that was taken with the phone held sideways is turned the right way up. The camera button on the same tab takes a picture to send.</li>
+<li>To decode a recording, use <span class="ui">More &gt; Decode a recording...</span>, or open a sound file from a file manager with <em>Open with</em> and choose this program.</li>
+</ul>
+
+<h2>A radio interface on USB (CAT and PTT)</h2>
+<p>A USB serial adapter or interface with a CP210x, FTDI, CH340/CH341, Prolific or CDC chip (the Digirig is one) is used instead of a serial port. Plug it in through an OTG adapter or a USB-C cable; Android offers to open this program, and asks once, from a box, whether the program may use that device.</p>
+<ul>
+<li><span class="ui">Settings &gt; CAT</span> lists the connected adapters by name where the serial port would be chosen on a computer. Pick the radio, its speed and the other values as usual; the program talks to the adapter itself. Only one program can use the adapter at a time.</li>
+<li>PTT through the <em>RTS</em> or <em>DTR</em> line of the adapter works the same way: tick <span class="ui">Enable PTT serial Interface</span>, choose the adapter and the line (<em>+RTS</em>, <em>-DTR</em> and so on) on the same page.</li>
+<li>Many such interfaces (the Digirig for one) also carry the audio: choose <em>USB audio</em> as the sound device on the <span class="ui">Sound</span> page.</li>
+<li>A radio with its own USB socket usually shows up as such an adapter. A radio that is only reached through a program on a computer (a network rig server) is not supported on the phone.</li>
+</ul>
+
+<h2>Position (GPS)</h2>
+<p>The phone&#x27;s own location is used: there is no port or speed to set on <span class="ui">Settings &gt; GPS</span>. Switch the GPS button on the <span class="ui">Transmit</span> tab on, and the <em>Lat</em> and <em>Long</em> boxes follow the phone (the button is <strong>green</strong> while a position arrives, <strong>amber</strong> while there is none, plain when it is off). The first time Android asks for permission to use the precise location while the program is in use; allow it. Nothing leaves the phone unless you also switch on the city and state lookup, see the <a href="privacy.html">privacy policy</a>.</p>
+
+<h2>What is not on the phone</h2>
+<p>The template editor, the repeater and unattended beacon, FTP upload, the XML-RPC interface, the command line options, calibration, the update check (Google Play updates the program) and the AppImage and Windows installers are desktop features.</p>
+
+<h2>If something does not work</h2>
+<ul>
+<li><strong>No reception.</strong> <span class="ui">More &gt; Settings &gt; Sound &gt; Phone audio</span> shows what is open (<em>In use</em>). Check that the microphone permission is given (Android settings &gt; Apps &gt; QSSTV-Experimental &gt; Permissions) and that no phone call or other app holds the microphone. A muted or blocked microphone is reported by the program.</li>
+<li><strong>Too quiet or distorted transmission.</strong> Set the media volume (see above). Bluetooth audio is not suitable for receiving: Android gives it a narrow band.</li>
+<li><strong>The adapter does not show up.</strong> Unplug it and plug it in again, and answer the permission box. Cheap cables that only charge do not carry data. If it still is not listed, report the chip name and the model in an <a href="https://github.com/jbdubbs/QSSTV-Experimental/issues">issue</a>.</li>
+<li>A problem report helps most with the version (<span class="ui">More &gt; About</span>), the phone model, the Android version and, for audio, the line starting <em>In use</em> of the Sound page.</li>
+</ul>
+
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="troubleshooting.html" rel="prev">&larr; Troubleshooting and FAQ</a><a class="next" href="privacy.html" rel="next">Privacy policy &rarr;</a></nav>
+</main>
+<footer class="site-footer"><p>QSSTV-Experimental is based on QSSTV by Johan Maes, ON4QZ, and is released under the GNU GPL v3.</p></footer>
+</body>
+</html>

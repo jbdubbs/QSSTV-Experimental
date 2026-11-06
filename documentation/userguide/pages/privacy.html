@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Privacy policy - QSSTV-Experimental User&#x27;s Guide</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html">Install and first run</a></li><li><a href="main-window.html">Main window tour</a></li><li><a href="receive.html">Receiving</a></li><li><a href="transmit.html">Transmitting</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="template-editor.html">Template editor</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="sstv-modes.html">SSTV modes</a></li><li><a href="drm.html">Digital SSTV (DRM)</a></li><li><a href="calibration.html">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="android.html">Android</a></li><li><a href="privacy.html" aria-current="page">Privacy policy</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
+<main>
+
+<h1>Privacy policy</h1>
+<p class="lead">QSSTV-Experimental does not collect, store on a server or share any personal data. There is no account, no advertising, no analytics and no crash reporting. This
+page says what the program does with the things it asks Android for. It applies to the Android app and the other versions alike. Last updated 6 November 2026.</p>
+
+<h2>What the program uses, and for what</h2>
+<table>
+<thead><tr><th>Android permission</th><th>Used for</th><th>Where the data goes</th></tr></thead>
+<tbody>
+<tr><td>Microphone</td><td>Receiving: the sound is decoded into pictures while the program receives.</td><td>It stays in the phone. The sound itself is not saved, only the pictures that are decoded from it.</td></tr>
+<tr><td>Camera</td><td>Taking a picture to transmit.</td><td>The picture stays in the phone until you transmit it (as radio sound) or delete it.</td></tr>
+<tr><td>Location (precise and approximate)</td><td>Filling the position into the picture you send (the latitude and longitude boxes and the template macros), when you switch the GPS button on.</td><td>It stays in the phone, and is part of a picture only if you put it there. See below for the one optional lookup.</td></tr>
+<tr><td>Notifications, foreground service</td><td>Showing that the program is receiving, and keeping it receiving with the screen off.</td><td>Nothing is sent.</td></tr>
+<tr><td>USB devices</td><td>Talking to a radio interface (CAT and PTT lines) that you plug in.</td><td>Only to that device.</td></tr>
+<tr><td>Internet</td><td>Only the optional city and state lookup, below.</td><td>See below.</td></tr>
+</tbody></table>
+
+<h2>The one thing that can leave the phone</h2>
+<p>Under <span class="ui">Settings &gt; GPS</span> there is a switch for the <strong>city and state lookup</strong>. It is off until you switch it on. When it is on, the program sends the latitude and longitude of the phone to the Nominatim service of
+<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> (<code>nominatim.openstreetmap.org</code>) to learn the name of the place, which the <code>%g</code> template macro puts into your picture. Nothing else is sent, and the service is run by the OpenStreetMap Foundation, whose
+<a href="https://wiki.osmfoundation.org/wiki/Privacy_Policy">privacy policy</a> applies to what it does with the request. Leave the switch off and the program makes no network request of its own.</p>
+
+<h2>What you transmit is public</h2>
+<p>A picture you send by radio can be received by anyone with a receiver. Whatever you put in it (your call sign, name, position, a photo) is published by that. The program does not add anything you did not choose.</p>
+
+<h2>Files on the phone</h2>
+<p>The pictures and the settings are stored in the program&#x27;s own storage, and received pictures are also copied to <code>Pictures/QSSTV-Experimental</code> in the phone&#x27;s picture library, where other apps with access to your photos can see them. Uninstalling the program removes its own storage; the copies in the picture library stay until you delete them. The program does not use Android&#x27;s cloud backup.</p>
+
+<h2>Children, changes, contact</h2>
+<p>The program is for licensed radio amateurs and anyone interested in radio, and does not knowingly collect anything from anybody. Changes to this policy are shown here with a new date. Questions go to the
+<a href="https://github.com/jbdubbs/QSSTV-Experimental/issues">issue tracker</a> of the project; the source code, which shows exactly what the program does, is at
+<a href="https://github.com/jbdubbs/QSSTV-Experimental">github.com/jbdubbs/QSSTV-Experimental</a>.</p>
+
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="android.html" rel="prev">&larr; Android</a><a class="next" href="credits.html" rel="next">Credits and licenses &rarr;</a></nav>
+</main>
+<footer class="site-footer"><p>QSSTV-Experimental is based on QSSTV by Johan Maes, ON4QZ, and is released under the GNU GPL v3.</p></footer>
+</body>
+</html>
