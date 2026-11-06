@@ -70,6 +70,12 @@ void androidVolumeKeysChangeMedia()
   if(ctx.isValid()) QJniObject::callStaticMethod<void>(helper,"volumeKeysChangeMedia","(Landroid/content/Context;)V",ctx.object<jobject>());
 }
 
+void androidKeepScreenOn(bool on)
+{
+  const QJniObject ctx=context();
+  if(ctx.isValid()) QJniObject::callStaticMethod<void>(helper,"keepScreenOn","(Landroid/content/Context;Z)V",ctx.object<jobject>(),jboolean(on));
+}
+
 QString androidVolumeSummary()
 {
   const QJniObject ctx=context();

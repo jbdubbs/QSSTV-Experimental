@@ -19,6 +19,8 @@
 #include "qmlui.h"
 #include "appmodel.h"
 #include "rxcontroller.h"
+#include "txcontroller.h"
+#include "txwidget.h"
 #include "imageviewer.h"
 #include "rxwidget.h"
 #include "spectrumwidget.h"
@@ -27,6 +29,15 @@ static QQuickWindow *theWindow()
 {
   for (QWindow *w : QGuiApplication::allWindows())
     if (QQuickWindow *q = qobject_cast<QQuickWindow *>(w)) return q;
+  return nullptr;
+}
+
+// an item by objectName, through the visual tree (the QObject tree of QML items is not the one that holds them)
+static QQuickItem *findItem(QQuickItem *root, const QString &name)
+{
+  if (root->objectName() == name) return root;
+  for (QQuickItem *c : root->childItems())
+    if (QQuickItem *f = findItem(c, name)) return f;
   return nullptr;
 }
 
@@ -113,6 +124,12 @@ int main(int argc, char **argv)
       const QString scene = argv[i];
       AppModel *app_ = AppModel::instance();
       RxController *rx = RxController::instance();
+      // nothing is left open from the scene before
+      for (const char *screenName : {"receiveScreen", "transmitScreen"})
+        if (QQuickItem *s = findItem(win->contentItem(), screenName))
+          for (const char *prop : {"optionsOpen", "modesOpen", "detailsOpen"})
+            if (s->property(prop).isValid()) s->setProperty(prop, false);
+      TxController::instance()->setTestSending(-1);
       app_->setScreen(0);
       app_->setDigital(scene == "digital");
       // the receiver does not run here: tell the screens what a running one would
@@ -131,13 +148,32 @@ int main(int argc, char **argv)
           qmlUi::rxSync(20);
           if (scene == "done") qmlUi::rxStatus(false, "Saved");
         }
-      else if (scene == "tx") app_->setScreen(1);
+      else if (scene.startsWith("tx"))
+        {
+          app_->setScreen(1);
+          TxController *tx = TxController::instance();
+          if (scene != "tx")   // tx-picture, tx-modes, tx-sending, tx-details: a picture is loaded
+            {
+              const QString picFile = scratch + "/tx-test.png";
+              testPicture(320, 256, 256).save(picFile);
+              txWidgetPtr->setImage(picFile);
+              QTest::qWait(300);
+            }
+          if (scene == "tx-sending") tx->setTestSending(0.38);
+        }
       else if (scene == "gallery") app_->setScreen(2);
       QTest::qWait(400);
       QQuickItem *content = win->contentItem();
+      if (scene == "tx-modes" || scene == "tx-details")
+        {
+          QQuickItem *t = findItem(content, "transmitScreen");
+          if (!t) fprintf(stderr, "no transmitScreen item\n");
+          else if (!t->setProperty(scene == "tx-modes" ? "modesOpen" : "detailsOpen", true)) fprintf(stderr, "cannot set the sheet property\n");
+          QTest::qWait(500);
+        }
       if (scene == "options")
         {
-          QQuickItem *r = content->findChild<QQuickItem *>("receiveScreen");
+          QQuickItem *r = findItem(content, "receiveScreen");
           if (r) r->setProperty("optionsOpen", true);
           QTest::qWait(500);
         }

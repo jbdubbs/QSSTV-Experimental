@@ -53,9 +53,14 @@ ApplicationWindow {
                 height: parent.height - bar.height
                 currentIndex: AppModel.screen
                 ReceiveScreen { id: receive; objectName: "receiveScreen" }
-                PlaceholderScreen { title: qsTr("Transmit") }
+                TransmitScreen { id: transmit; objectName: "transmitScreen" }
                 PlaceholderScreen { title: qsTr("Gallery") }
             }
+        }
+        SendingOverlay {
+            anchors.fill: parent
+            topInset: root.inset.top
+            bottomInset: root.inset.bottom
         }
         NavBar {
             id: nav
@@ -75,7 +80,10 @@ ApplicationWindow {
     onClosing: (close) => {
         if (Qt.platform.os === "android") {
             close.accepted = false
-            if (receive.optionsOpen) receive.optionsOpen = false
+            if (TxController.sending) TxController.stop()
+            else if (receive.optionsOpen) receive.optionsOpen = false
+            else if (transmit.modesOpen) transmit.modesOpen = false
+            else if (transmit.detailsOpen) transmit.detailsOpen = false
             else if (AppModel.screen !== 0) AppModel.screen = 0
             else AppModel.moveToBackground()
         } else {

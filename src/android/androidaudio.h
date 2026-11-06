@@ -24,6 +24,8 @@ int androidMediaVolumePercent();
 void androidSetMediaVolumePercent(int percent);
 //! The volume keys of the phone change the media volume while the program is in front (otherwise the ringer's, when nothing plays)
 void androidVolumeKeysChangeMedia();
+//! The screen stays on while a picture is sent (and may go off again afterwards)
+void androidKeepScreenOn(bool on);
 //! "media 7/15, ring 4/7", for the log
 QString androidVolumeSummary();
 void androidRequestTransmitFocus();

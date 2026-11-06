@@ -1079,6 +1079,7 @@ void txWidget::updateTxTime()
   // background encode: that froze the GUI until the encode was done (#164). slotCompressionReady() calls this again.
   if(imageViewerPtr->encodePending()) return;
   seconds=txFunctionsPtr->calcTxTime(false,0);
+  lastTxSeconds=seconds;
   minutes=seconds/60;
   seconds=seconds-minutes*60;
   if(minutes==0)
@@ -1091,6 +1092,7 @@ void txWidget::updateTxTime()
     }
   sizeKb=round((double)imageViewerPtr->getFileSize()/1000.);
   ui->sizeKbLabel->setText( QString::number(sizeKb)+"KB");
+  emit txTimeChanged();
 }
 
 

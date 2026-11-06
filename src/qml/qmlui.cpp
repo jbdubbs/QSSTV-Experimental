@@ -1,6 +1,7 @@
 #include "qmlui.h"
 #include "appmodel.h"
 #include "rxcontroller.h"
+#include "txcontroller.h"
 #include "uimode.h"
 
 #include <QGuiApplication>
@@ -21,6 +22,7 @@ void show()
 }
 
 // the hooks do nothing while the Widgets interface is the one in use (a development build with the Qt Quick one compiled in)
+void sendPicture(const QString &file) {TxController::instance()->showPicture(file);}
 void notifyModeChanged() {if(uiMode::qml()) AppModel::instance()->modeChanged();}
 void rxImageStarted(int w,int h) {if(uiMode::qml()) RxController::instance()->imageStarted(w,h);}
 void rxLine(int line) {if(uiMode::qml()) RxController::instance()->lineDrawn(line);}

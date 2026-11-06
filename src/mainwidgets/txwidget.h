@@ -70,6 +70,7 @@ public:
   int txGridSegments() const;
   void setImages(const QStringList &files);   // multi-select from the gallery: fills the TX grid segments
   void setProgress(uint prg);
+  int txSeconds() const {return lastTxSeconds;}   //!< what the picture takes to send, in seconds (0: no picture yet)
   void setupTemplatesComboBox();
   void setPreviewWidget(QString fn);
   void refreshReplay();
@@ -163,6 +164,7 @@ signals:
   void modeSwitch(int);
   void txStopped();
   void progressChanged(int percent); //!< TX progress 0..100 (calibration dialog)
+  void txTimeChanged();              //!< the time the picture takes (txSeconds()) or the picture itself changed (Qt Quick screen)
   void calibrationTxFinished();
   void calibrationTxFailed(const QString &why); //!< a calibration / --encode transmission could not start or went wrong; calibrationTxFinished() follows
   void beaconCountdownChanged(const QString &text,bool error); //!< status bar text for the running webcam beacon (countdown, or the reason it is not transmitting); empty: not running
@@ -250,6 +252,7 @@ private:
   QImage resultImage;
 
   imageViewer *imageViewerPtr;
+  int lastTxSeconds=0;
   uint maxSize;
   uint compressedSize;
   uint sizeWanted=5000;          // the size the user chose (saved as TX/compressedSize): the slider shows it, held down by the picture

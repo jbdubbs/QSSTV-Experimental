@@ -97,6 +97,17 @@ public class AudioHelper
         activity.runOnUiThread(() -> activity.setVolumeControlStream(AudioManager.STREAM_MUSIC));
     }
 
+    /** The screen stays on (true) or may go off again (false): while a picture is sent the phone must not sleep next to the radio */
+    public static void keepScreenOn(Context context, final boolean on)
+    {
+        if (!(context instanceof Activity)) return;
+        final Activity activity = (Activity) context;
+        activity.runOnUiThread(() -> {
+            if (on) activity.getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            else activity.getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        });
+    }
+
     /** For the log: the volumes as the system holds them, "media 7/15, ring 4/7" */
     public static String volumeSummary(Context context)
     {

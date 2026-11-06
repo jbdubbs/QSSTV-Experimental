@@ -12,6 +12,7 @@
 */
 namespace qmlUi
 {
+
 #ifdef QSSTV_QML_UI
   //! load the main QML page: its window is the program's visible window (call once, after mainWindow::init())
   void show();
@@ -22,6 +23,7 @@ namespace qmlUi
   void rxLine(int line);                       //!< another line of it has been drawn
   void rxImageEnded();                         //!< the picture is complete (or given up)
   void rxImageShown();                         //!< a finished picture (DRM) was put on the canvas
+  void sendPicture(const QString &file);       //!< a picture came from outside (shared, opened with): it goes on the Transmit screen
   void rxStatus(bool drm,const QString &text); //!< the receiver's status line
   void rxSync(int quality);                    //!< sync quality, 0 to 25
   void rxFftInit(int fftLength,int samplingRate);   //!< the spectrum display was set up
@@ -33,6 +35,7 @@ namespace qmlUi
   inline void rxLine(int) {}
   inline void rxImageEnded() {}
   inline void rxImageShown() {}
+  inline void sendPicture(const QString &) {}
   inline void rxStatus(bool,const QString &) {}
   inline void rxSync(int) {}
   inline void rxFftInit(int,int) {}

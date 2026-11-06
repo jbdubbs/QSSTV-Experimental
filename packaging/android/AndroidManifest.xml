@@ -51,7 +51,7 @@
         android:allowBackup="false"
         android:fullBackupOnly="false">
         <activity
-            android:name="org.qtproject.qt.android.bindings.QtActivity"
+            android:name="io.github.jbdubbs.qsstv_experimental.MainActivity"
             android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
             android:label="-- %%INSERT_APP_NAME%% --"
             android:launchMode="singleTop"
@@ -65,6 +65,17 @@
             <!-- A USB serial adapter (a radio interface) is plugged in: the program is offered -->
             <intent-filter>
                 <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+            </intent-filter>
+            <!-- Share to QSSTV-Experimental, or Open with it, from the photos app or a file manager: a picture is put on the Transmit screen -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
             </intent-filter>
             <!-- Open with QSSTV-Experimental, from a file manager or another app: an SSTV or DRM recording is decoded -->
             <intent-filter>

@@ -22,6 +22,8 @@ class AppModel : public QObject
   Q_PROPERTY(int colorScheme READ colorScheme CONSTANT)                                   //!< 0 follow the system, 1 light, 2 dark
   Q_PROPERTY(QString routeText READ routeText NOTIFY routeChanged)                        //!< "Phone speaker", "USB: Digirig"
   Q_PROPERTY(qreal fontScale READ fontScale NOTIFY fontScaleChanged)                      //!< the system's text size setting, 1 = normal
+  Q_PROPERTY(int mediaVolume READ mediaVolume WRITE setMediaVolume NOTIFY mediaVolumeChanged)   //!< the phone's media volume, 0 to 100: how loud a picture is sent
+  Q_PROPERTY(bool mediaVolumeAvailable READ mediaVolumeAvailable CONSTANT)                    //!< there is a media volume to set (Android)
   Q_PROPERTY(bool startListening READ startListening CONSTANT)                            //!< the receiver starts with the program
 
 public:
@@ -35,12 +37,19 @@ public:
   int colorScheme() const {return m_colorScheme;}
   QString routeText() const;
   qreal fontScale() const {return m_fontScale;}
+  int mediaVolume() const;
+  void setMediaVolume(int percent);
+  bool mediaVolumeAvailable() const;
   bool startListening() const {return true;}
 
   //! the program's own analog / digital mode changed, whoever changed it
   void modeChanged() {emit digitalChanged();}
 
   //! Back was pressed on the first screen with nothing open: the app goes to the background and keeps receiving
+  //! look at the media volume again (the volume keys change it behind our back); a Timer on the screen that shows it calls this
+  Q_INVOKABLE void refreshVolume();
+  //! the screen stays on (true) while a picture is sent
+  Q_INVOKABLE void keepScreenOn(bool on);
   Q_INVOKABLE void moveToBackground();
   //! the window was closed (not Android): the program ends like the menu's Exit does
   Q_INVOKABLE void quit();
@@ -50,12 +59,14 @@ signals:
   void digitalChanged();
   void routeChanged();
   void fontScaleChanged();
+  void mediaVolumeChanged();
 
 private:
   explicit AppModel(QObject *parent=nullptr);
   int m_screen=0;
   int m_colorScheme=0;
   qreal m_fontScale=1.0;
+  int m_volume=70;
 };
 
 #endif // APPMODEL_H

@@ -1,5 +1,6 @@
 #include "imagesurface.h"
 #include "rxcontroller.h"
+#include "txcontroller.h"
 
 #include <QPainter>
 
@@ -11,6 +12,7 @@ ImageSurface::ImageSurface(QQuickItem *parent) : QQuickPaintedItem(parent)
 
 const QImage &ImageSurface::image() const
 {
+  if(m_source==2) return TxController::instance()->picture();
   return m_source==1 ? RxController::instance()->waterfall() : RxController::instance()->picture();
 }
 

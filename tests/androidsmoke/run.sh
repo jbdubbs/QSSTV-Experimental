@@ -10,7 +10,7 @@ set -u
 APK=$1; WAV=$2; OUT=${3:-$(mktemp -d)}
 ADB=${ADB:-adb}
 PKG=io.github.jbdubbs.qsstv_experimental
-ACT=org.qtproject.qt.android.bindings.QtActivity
+ACT=io.github.jbdubbs.qsstv_experimental.MainActivity
 mkdir -p "$OUT"
 fails=0
 ok()  { echo "  ok   $1"; }

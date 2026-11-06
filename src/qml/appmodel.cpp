@@ -5,6 +5,9 @@
 #include "soundbase.h"
 #include "soundconfig.h"
 
+#ifdef Q_OS_ANDROID
+#include "androidaudio.h"
+#endif
 #include <QJSEngine>
 #include <QQmlEngine>
 
@@ -49,6 +52,51 @@ void AppModel::setDigital(bool on)
   if((transmissionModeIndex==TRXDRM)==on) return;
   if(mainWindowPtr) mainWindowPtr->switchMode(on ? TRXDRM : TRXSSTV);   // both pages, the saved tab, the frequency list ...
   emit digitalChanged();   // also when a running transmission or reception refused the change: the strip shows what is
+}
+
+bool AppModel::mediaVolumeAvailable() const
+{
+#ifdef Q_OS_ANDROID
+  return true;
+#else
+  return false;
+#endif
+}
+
+int AppModel::mediaVolume() const
+{
+#ifdef Q_OS_ANDROID
+  return m_volume;
+#else
+  return 70;
+#endif
+}
+
+void AppModel::setMediaVolume(int percent)
+{
+#ifdef Q_OS_ANDROID
+  androidSetMediaVolumePercent(qBound(0,percent,100));
+  refreshVolume();
+#else
+  Q_UNUSED(percent);
+#endif
+}
+
+void AppModel::keepScreenOn(bool on)
+{
+#ifdef Q_OS_ANDROID
+  androidKeepScreenOn(on);
+#else
+  Q_UNUSED(on);
+#endif
+}
+
+void AppModel::refreshVolume()
+{
+#ifdef Q_OS_ANDROID
+  const int v=androidMediaVolumePercent();
+  if(v!=m_volume) {m_volume=v; emit mediaVolumeChanged();}
+#endif
 }
 
 QString AppModel::routeText() const

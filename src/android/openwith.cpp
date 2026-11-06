@@ -6,6 +6,11 @@
 
 #include <QDesktopServices>
 #include <QFileInfo>
+#include <QImageReader>
+#include "qmlui.h"
+#include "mainwindow.h"
+#include "txwidget.h"
+#include "uimode.h"
 
 #include <android/log.h>
 
@@ -23,6 +28,12 @@ openWith::~openWith()
   for(const char *s:schemes) QDesktopServices::unsetUrlHandler(s);
 }
 
+static bool looksLikeImage(const QString &path)
+{
+  static const QStringList suffixes={"png","jpg","jpeg","webp","gif","bmp","heic","heif","avif","jp2","tif","tiff"};
+  return suffixes.contains(QFileInfo(path).suffix().toLower());
+}
+
 static bool looksLikeRecording(const QString &path)
 {
   static const QStringList suffixes={"wav","mp3","ogg","oga","opus","flac","aac","m4a","3gp","amr"};
@@ -34,7 +45,7 @@ void openWith::open(const QUrl &url)
   const bool local=url.isLocalFile();
   const QString what=local ? url.toLocalFile() : url.toString();
   ALOG("open with: %s",qPrintable(what));
-  if(local && !looksLikeRecording(what))
+  if(local && !looksLikeRecording(what) && !looksLikeImage(what))
     {
       // somebody else's file URL (not from the intent): the system gets it, as it would without this handler
       for(const char *s:schemes) QDesktopServices::unsetUrlHandler(s);
@@ -56,7 +67,20 @@ void openWith::windowIsUp()
 void openWith::decode(const QString &what)
 {
   const QString local=platformFiles::importPicked(what);
-  ALOG("decoding %s (readable %d)",qPrintable(local),int(QFileInfo(local).isReadable()));
-  if(local.isEmpty() || !fileDecoderPtr) return;
+  ALOG("opening %s (readable %d)",qPrintable(local),int(QFileInfo(local).isReadable()));
+  if(local.isEmpty()) return;
+  if(looksLikeImage(local) || QImageReader(local).canRead())
+    {
+      // a picture shared to the program, or opened with it: it is what is going to be sent next
+      ALOG("a picture to send: %s",qPrintable(local));
+      if(uiMode::qml()) qmlUi::sendPicture(local);
+      else if(txWidgetPtr && mainWindowPtr)
+        {
+          txWidgetPtr->setImage(local);
+          mainWindowPtr->showTransmitPage();
+        }
+      return;
+    }
+  if(!fileDecoderPtr) return;
   fileDecoderPtr->decodeFiles(QStringList(local));
 }

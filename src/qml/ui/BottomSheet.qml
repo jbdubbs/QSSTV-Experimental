@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 
 // A modal bottom sheet: the content slides up over a scrim. open it with open = true; Back and a tap on the scrim close it.
 Item {
@@ -6,6 +7,7 @@ Item {
     property bool open: false
     property string title
     default property alias content: body.data
+    parent: Overlay.overlay          // over the whole window, the navigation bar too
     anchors.fill: parent
     visible: open || panel.y < height
     z: 10

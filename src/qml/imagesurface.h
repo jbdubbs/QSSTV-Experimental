@@ -12,7 +12,7 @@ class ImageSurface : public QQuickPaintedItem
 {
   Q_OBJECT
   QML_ELEMENT
-  Q_PROPERTY(int source READ source WRITE setSource NOTIFY sourceChanged)        //!< 0 the received picture, 1 the waterfall
+  Q_PROPERTY(int source READ source WRITE setSource NOTIFY sourceChanged)        //!< 0 the received picture, 1 the waterfall, 2 the picture to transmit
   Q_PROPERTY(int revision READ revision WRITE setRevision NOTIFY revisionChanged)
   Q_PROPERTY(bool fill READ fill WRITE setFill NOTIFY fillChanged)               //!< cover the item (crop) instead of fitting inside it
   Q_PROPERTY(bool empty READ empty NOTIFY revisionChanged)                       //!< there is nothing to paint
