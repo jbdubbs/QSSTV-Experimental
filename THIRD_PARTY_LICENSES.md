@@ -51,7 +51,7 @@ license texts ship with the library (Windows: next to the DLLs; AppImage: inside
 
 | Library | License | Source |
 |---|---|---|
-| Qt 6 (Core, Widgets, Network, Xml, SerialPort, Multimedia, Svg, Qt Image Formats) | LGPL v3 | <https://www.qt.io/> |
+| Qt 6 (Core, Widgets, Network, Xml, SerialPort, Multimedia, Svg, Qt Image Formats; Positioning on Android) | LGPL v3 | <https://www.qt.io/> |
 | Hamlib | LGPL v2.1 | <https://hamlib.github.io/> (Windows build vendored from commit in `third_party/hamlib-win64/VENDORED_COMMIT.txt`) |
 | FFTW 3 | GPL v2 or later | <https://www.fftw.org/> |
 | OpenJPEG | BSD 2-clause | <https://www.openjpeg.org/> |
@@ -63,8 +63,12 @@ license texts ship with the library (Windows: next to the DLLs; AppImage: inside
 | libwebp | BSD 3-clause | <https://chromium.googlesource.com/webm/libwebp> |
 | Oboe (Android build only: the audio streams) | Apache 2.0 | <https://github.com/google/oboe> |
 | usb-serial-for-android (Android build only: USB serial adapters for CAT and PTT; `packaging/android/libs/usb-serial-for-android-3.9.0.aar`, from JitPack, unmodified) | MIT | <https://github.com/mik3y/usb-serial-for-android> |
+| FFmpeg libraries (Android build only: libavcodec, libavformat, libavutil, libswresample, libswscale, the sound and video back end of Qt Multimedia, built by The Qt Company) | LGPL v2.1 or later | <https://ffmpeg.org/> |
+| AndroidX libraries (Android build only: used by Qt's Android activity and the file provider) | Apache 2.0 | <https://developer.android.com/jetpack/androidx> |
 
 For the LGPL libraries, binary releases use dynamic linking, so you may replace them with your own build.
+On Android and in the Windows build, Hamlib and the other native libraries are linked into the program itself; the source of the whole program is under
+the GPL and `tools/build-android-deps.sh` (Android) and `tools/build-hamlib-win64.sh` (Windows) build them, so a modified library can be put in by rebuilding.
 Corresponding source for the bundled versions is available from the URLs above; contact the maintainer if you
 cannot obtain it.
 
