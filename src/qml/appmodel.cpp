@@ -100,6 +100,13 @@ void AppModel::openHelp()
   if(mainWindowPtr) QMetaObject::invokeMethod(mainWindowPtr,"slotDocumentation",Qt::QueuedConnection);
 }
 
+void AppModel::setMicDenied(bool d)
+{
+  if(m_micDenied==d) return;
+  m_micDenied=d;
+  emit micDeniedChanged();
+}
+
 void AppModel::setSettingsOpen(bool on)
 {
   if(m_settingsOpen==on) return;

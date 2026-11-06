@@ -173,6 +173,7 @@ int main(int argc, char **argv)
       if (QQuickItem *v = findItem(win->contentItem(), "viewerScreen")) v->setProperty("infoOpen", false);
       GalleryModel::instance()->closeViewer();
       AppModel::instance()->setSettingsOpen(false);
+      AppModel::instance()->setMicDenied(scene == "mic-denied");
       GalleryModel::instance()->clearSelection();
       app_->setScreen(0);
       app_->setDigital(scene == "digital" || scene.startsWith("tx-digital"));

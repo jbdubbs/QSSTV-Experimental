@@ -26,6 +26,7 @@ class AppModel : public QObject
   Q_PROPERTY(bool mediaVolumeAvailable READ mediaVolumeAvailable CONSTANT)                    //!< there is a media volume to set (Android)
   Q_PROPERTY(QString versionText READ versionText CONSTANT)                                   //!< "10.1.1"
   Q_PROPERTY(bool startListening READ startListening CONSTANT)                            //!< the receiver starts with the program
+  Q_PROPERTY(bool micDenied READ micDenied NOTIFY micDeniedChanged)                     //!< the microphone permission was refused: the receiver cannot listen
   Q_PROPERTY(bool settingsOpen READ settingsOpen WRITE setSettingsOpen NOTIFY settingsOpenChanged)   //!< the settings pages are showing
 
 public:
@@ -44,6 +45,8 @@ public:
   bool mediaVolumeAvailable() const;
   bool startListening() const {return true;}
   QString versionText() const;
+  bool micDenied() const {return m_micDenied;}
+  void setMicDenied(bool d);
   bool settingsOpen() const {return m_settingsOpen;}
   void setSettingsOpen(bool on);
 
@@ -76,6 +79,7 @@ signals:
   void fontScaleChanged();
   void mediaVolumeChanged();
   void settingsOpenChanged();
+  void micDeniedChanged();
 
 private:
   explicit AppModel(QObject *parent=nullptr);
@@ -84,6 +88,7 @@ private:
   qreal m_fontScale=1.0;
   int m_volume=70;
   bool m_settingsOpen=false;
+  bool m_micDenied=false;
 };
 
 #endif // APPMODEL_H

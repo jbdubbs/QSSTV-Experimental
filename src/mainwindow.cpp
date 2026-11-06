@@ -532,14 +532,21 @@ void mainWindow::init()
           else
             {
               micDenied=true;
-              QMessageBox *box=new QMessageBox(QMessageBox::Warning,tr("Microphone"),
-                                               tr("QSSTV-Experimental needs the microphone permission to receive. Allow it in the system settings "
-                                                  "(Permissions, Microphone); the receiver starts when you come back."),QMessageBox::Ok,this);
-              QPushButton *settings=box->addButton(tr("Open settings"),QMessageBox::ActionRole);
-              connect(settings,&QPushButton::clicked,this,[]{androidOpenAppSettings();});
-              box->setAttribute(Qt::WA_DeleteOnClose);
-              box->setWindowModality(Qt::NonModal);
-              box->show();
+              if(uiMode::qml())
+                {
+                  qmlUi::micDenied(true);   // the Receive screen says so, with a button to the system settings
+                }
+              else
+                {
+                  QMessageBox *box=new QMessageBox(QMessageBox::Warning,tr("Microphone"),
+                                                   tr("QSSTV-Experimental needs the microphone permission to receive. Allow it in the system settings "
+                                                      "(Permissions, Microphone); the receiver starts when you come back."),QMessageBox::Ok,this);
+                  QPushButton *settings=box->addButton(tr("Open settings"),QMessageBox::ActionRole);
+                  connect(settings,&QPushButton::clicked,this,[]{androidOpenAppSettings();});
+                  box->setAttribute(Qt::WA_DeleteOnClose);
+                  box->setWindowModality(Qt::NonModal);
+                  box->show();
+                }
             }
         });
     }
@@ -591,6 +598,7 @@ void mainWindow::init()
       if(state==Qt::ApplicationActive && micDenied && platformPermissions::microphoneGranted())
         {
           micDenied=false;   // given in the system settings since: the receiver was waiting for it
+          qmlUi::micDenied(false);
           rxWantedActive=true;
           restartSound(false);
         }

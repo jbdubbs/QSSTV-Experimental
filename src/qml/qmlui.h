@@ -23,6 +23,7 @@ namespace qmlUi
   void rxLine(int line);                       //!< another line of it has been drawn
   void rxImageEnded();                         //!< the picture is complete (or given up)
   void rxImageSaved(const QString &file);      //!< a received picture was saved to the gallery
+  void micDenied(bool denied);                 //!< the microphone permission was refused (or given later in the system settings)
   void rxImageShown();                         //!< a finished picture (DRM) was put on the canvas
   void sendPicture(const QString &file);       //!< a picture came from outside (shared, opened with): it goes on the Transmit screen
   void rxStatus(bool drm,const QString &text); //!< the receiver's status line
@@ -36,6 +37,7 @@ namespace qmlUi
   inline void rxLine(int) {}
   inline void rxImageEnded() {}
   inline void rxImageSaved(const QString &) {}
+  inline void micDenied(bool) {}
   inline void rxImageShown() {}
   inline void sendPicture(const QString &) {}
   inline void rxStatus(bool,const QString &) {}

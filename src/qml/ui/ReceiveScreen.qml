@@ -16,10 +16,20 @@ Item {
         width: parent.width - 2 * Theme.margin
     }
 
+    InlineBanner {
+        id: micBanner
+        visible: AppModel.micDenied
+        x: Theme.margin; width: parent.width - 2 * Theme.margin
+        y: strip.y + strip.height + 6
+        text: qsTr("The microphone is blocked, so nothing can be received.")
+        actionText: qsTr("Allow")
+        onAction: AppModel.openAppSettings()
+    }
+
     // narrow: the picture, the status and the meters stacked; wide: the picture on the left, the meters and options on the right
     Item {
         id: body
-        anchors.top: strip.bottom; anchors.topMargin: 6
+        anchors.top: micBanner.visible ? micBanner.bottom : strip.bottom; anchors.topMargin: 6
         anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
         anchors.bottomMargin: 80    // room for the button
 
