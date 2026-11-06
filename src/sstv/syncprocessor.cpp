@@ -1104,7 +1104,13 @@ bool syncProcessor::adoptChain()
   double d=(double)chainPosition-visStart;
   double n=round(d/samplesPerLine);
   double tolerance=VISADOPTMS*SAMPLERATE/1000.;       // the code is good to a few ms: a chain that is further off is noise
-  if(n<0 || fabs(d-n*samplesPerLine)>tolerance || n*samplesPerLine>=SSTVTable[currentMode].imageTime*modifiedClock)
+  // QSSTV sends a PD picture without the sync pulse and porch that start its first line, every other program sends them (issue #167):
+  // the VIS code of such a picture is followed by 20 ms of 1200 Hz that run into the stop bit, so its pulses are one sync pulse
+  // later than the code says (VISTOSTARTMS was measured on QSSTV's own transmissions). Both are the right place for a PD picture.
+  double off=d-n*samplesPerLine;
+  bool fits=fabs(off)<=tolerance;
+  if(!fits && currentMode>=PD50 && currentMode<=PD290) fits=fabs(off-syncWidth)<=tolerance;
+  if(n<0 || !fits || n*samplesPerLine>=SSTVTable[currentMode].imageTime*modifiedClock)
   {
     if(rxTraceOn()) rxTrace("ADOPT",QString("%1\tproc=%2\tmode=%3\taccepted=0\toff_lines=%4").arg(traceTime(sampleCounter)).arg(detectNarrow?"N":"W").arg(getSSTVModeNameShort(currentMode)).arg(d/samplesPerLine,0,'f',3));
     dropChains();

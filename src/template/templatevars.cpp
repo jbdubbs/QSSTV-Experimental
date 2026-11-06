@@ -38,7 +38,7 @@ const QVector<MacroInfo> &macroTable()
     {'d', tr("Date"), tr("Current UTC date, yyyy/MM/dd"), QStringLiteral("2026/10/22")},
     {'D', tr("Local date"), tr("Local date, yyyy/MM/dd (computer time zone)"), QStringLiteral("2026/10/22")},
     {'U', tr("Local time"), tr("Local time, hh:mm (computer time zone)"), QStringLiteral("14:34")},
-    {'v', tr("Version"), tr("QSSTV version"), QStringLiteral("10.1")},
+    {'v', tr("Version"), tr("QSSTV version"), QStringLiteral("10.1.1")},
     {'x', tr("Comment 1"), tr("First comment line (TX tab)"), QStringLiteral("Comment 1")},
     {'y', tr("Comment 2"), tr("Second comment line (TX tab)"), QStringLiteral("Comment 2")},
     {'z', tr("Comment 3"), tr("Third comment line (TX tab)"), QStringLiteral("Comment 3")},

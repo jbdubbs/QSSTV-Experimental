@@ -15,6 +15,11 @@
       Drop the first S seconds, for example the header with the VIS code: the receiver then finds the picture by its sync
       pulses alone and may start on either line of a Robot 36 line pair.
 
+  wavtool.py pdlead in.wav out.wav [--at S]
+      Make a PD transmission of ours look like one from any other program (issue #167): QSSTV leaves the sync pulse (20 ms,
+      1200 Hz) and porch (2.08 ms, 1500 Hz) that start the first line out, the others send them right after the stop bit of the
+      VIS code. They are put in at S seconds (default 1.710, where the stop bit of our header ends). The rest is the same.
+
   wavtool.py rows clean.png decoded.png TOP BOTTOM [--rows N] [--px N]
       Compare two pictures row by row; print the share of rows that agree in the top TOP and the bottom BOTTOM
       fraction of the picture ("top 1.00 bottom 0.98"). Each end may be moved up to --px pixels sideways (8) and --rows rows (0) to fit.
@@ -91,6 +96,15 @@ def cmd_fade(a):
 def cmd_cut(a):
     x, rate = read_wav(a.infile)
     write_wav(a.outfile, x[int(a.start * rate):], rate)
+
+
+def cmd_pdlead(a):
+    x, rate = read_wav(a.infile)
+    at = int(round(a.at * rate))
+    amp = np.abs(x[int(0.8 * rate):at]).max()                 # as loud as the tones of the header
+    sync = amp * np.sin(2 * np.pi * 1200 * np.arange(int(round(0.020 * rate))) / rate)
+    porch = amp * np.sin(2 * np.pi * 1500 * np.arange(int(round(0.00208 * rate))) / rate)
+    write_wav(a.outfile, np.concatenate([x[:at], sync, porch, x[at:]]), rate)
 
 
 def cmd_join(a):
@@ -173,6 +187,11 @@ def main():
     c.add_argument('outfile')
     c.add_argument('--start', type=float, required=True, help='seconds to drop from the start')
     c.set_defaults(fn=cmd_cut)
+    pl = sub.add_parser('pdlead')
+    pl.add_argument('infile')
+    pl.add_argument('outfile')
+    pl.add_argument('--at', type=float, default=1.710, help='seconds into the file where the stop bit of the VIS code ends (default 1.710)')
+    pl.set_defaults(fn=cmd_pdlead)
     r = sub.add_parser('rows')
     r.add_argument('clean')
     r.add_argument('decoded')

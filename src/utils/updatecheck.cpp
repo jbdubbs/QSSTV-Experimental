@@ -40,20 +40,24 @@ void updateChecker::start()
 
 int updateChecker::compareVersions(const QString &a,const QString &b)
 {
-  // "<major>.<minor>[-Pre<n>]", optional leading v; a missing -Pre ranks above any -PreN
-  auto parse=[](const QString &s,int &maj,int &min,int &pre)
+  // "<major>.<minor>[.<patch>][-Pre<n>]", optional leading v; a missing patch is 0, a missing -Pre ranks above any -PreN
+  // (10.1-Pre3 < 10.1 < 10.1.1-Pre1 < 10.1.1 < 10.2). The patch is read since 10.1.1: 10.1 and older ignore it, so they see
+  // 10.1.1 as 10.1 and never offer it.
+  auto parse=[](const QString &s,int &maj,int &min,int &pat,int &pre)
   {
-    static const QRegularExpression re("^v?(\\d+)(?:\\.(\\d+))?(-?[Pp]re(\\d*))?");
+    static const QRegularExpression re("^v?(\\d+)(?:\\.(\\d+))?(?:\\.(\\d+))?(-?[Pp]re(\\d*))?");
     QRegularExpressionMatch m=re.match(s.trimmed());
     maj=m.captured(1).toInt();
     min=m.captured(2).toInt();
-    pre=m.captured(3).isEmpty()?INT_MAX:m.captured(4).toInt();
+    pat=m.captured(3).toInt();
+    pre=m.captured(4).isEmpty()?INT_MAX:m.captured(5).toInt();
   };
-  int am,an,ap,bm,bn,bp;
-  parse(a,am,an,ap);
-  parse(b,bm,bn,bp);
+  int am,an,at,ap,bm,bn,bt,bp;
+  parse(a,am,an,at,ap);
+  parse(b,bm,bn,bt,bp);
   if(am!=bm) return am<bm?-1:1;
   if(an!=bn) return an<bn?-1:1;
+  if(at!=bt) return at<bt?-1:1;
   if(ap!=bp) return ap<bp?-1:1;
   return 0;
 }
