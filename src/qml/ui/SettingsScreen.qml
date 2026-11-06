@@ -12,7 +12,7 @@ Rectangle {
     z: 45
     property real topInset: 0
     property real bottomInset: 0
-    property int page: 0          // 0 overview, 1 operator, 2 pictures, 3 position, 4 advanced, 5 audio and radio, 6 the radio list
+    property int page: 0          // 0 overview, 1 operator, 2 pictures, 3 position, 4 advanced, 5 audio and radio, 6 the radio list, 7 receive, 8 identification
     onPageChanged: {
         if (page === 5) SettingsController.rescanAdapters()   // an adapter may have been plugged in
         if (page !== 6) { search.text = ""; search.focus = false; Qt.inputMethod.hide() }   // the radio search is over
@@ -32,12 +32,14 @@ Rectangle {
         else if (adapterDialog.open) adapterDialog.open = false
         else if (pttDialog.open) pttDialog.open = false
         else if (baudDialog.open) baudDialog.open = false
+        else if (sensitivityDialog.open) sensitivityDialog.open = false
         else if (page === 6) page = 5
+        else if (page === 7 || page === 8) page = 4
         else if (page !== 0) page = 0
         else close()
         return true
     }
-    onVisibleChanged: { formatDialog.open = false; coordDialog.open = false; micDialog.open = false; speakerDialog.open = false; presetDialog.open = false; adapterDialog.open = false; pttDialog.open = false; baudDialog.open = false; if (visible) page = 0 }
+    onVisibleChanged: { formatDialog.open = false; coordDialog.open = false; micDialog.open = false; speakerDialog.open = false; presetDialog.open = false; adapterDialog.open = false; pttDialog.open = false; baudDialog.open = false; sensitivityDialog.open = false; if (visible) page = 0 }
     function openFormat() { formatDialog.open = true }   // the screenshots
     function openMic() { presetDialog.open = true }
 
@@ -134,12 +136,12 @@ Rectangle {
             onBack: screen.page = 0
             Text {
                 width: parent.width; leftPadding: 24; rightPadding: 24; topPadding: 8; bottomPadding: 8
-                text: qsTr("These open the classic settings, which have every option. They will move here one by one.")
+                text: qsTr("Some of these open the classic settings, which have every option. They will move here one by one.")
                 color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(14); wrapMode: Text.WordWrap
             }
-            PreferenceRow { icon: Icons.tune; title: qsTr("Receive"); summary: qsTr("Sensitivity, save rules, slant, sync"); chevron: true; onClicked: SettingsController.openClassic() }
+            PreferenceRow { icon: Icons.tune; title: qsTr("Receive"); summary: qsTr("Sensitivity, when a picture is kept"); chevron: true; onClicked: screen.page = 7 }
             PreferenceRow { icon: Icons.send; title: qsTr("Digital (DRM) profiles"); summary: qsTr("Saved settings for digital pictures"); chevron: true; onClicked: SettingsController.openClassic() }
-            PreferenceRow { icon: Icons.mic; title: qsTr("CW and waterfall identification"); summary: qsTr("Text, speed, tone"); chevron: true; onClicked: SettingsController.openClassic() }
+            PreferenceRow { icon: Icons.mic; title: qsTr("CW and waterfall identification"); summary: qsTr("Text, speed, tone"); chevron: true; onClicked: screen.page = 8 }
             PreferenceRow { icon: Icons.pin; title: qsTr("Frequencies"); summary: qsTr("SSTV and DRM calling frequencies"); chevron: true; onClicked: SettingsController.openClassic() }
             PreferenceRow { icon: Icons.volume; title: qsTr("Calibration"); summary: qsTr("Sound card clock: NTP or WWV"); chevron: true; onClicked: SettingsController.openClassic() }
             PreferenceRow { icon: Icons.image; title: qsTr("Templates"); summary: qsTr("The overlays used on your pictures"); chevron: true; onClicked: SettingsController.openClassic() }
@@ -297,6 +299,75 @@ Rectangle {
                 footer: Item { width: 1; height: screen.bottomInset + 24 }
             }
         }
+
+        // ---- receive ----
+        SettingsPage {
+            title: qsTr("Receive"); topInset: screen.topInset; bottomInset: screen.bottomInset
+            onBack: screen.page = 4
+            PreferenceRow {
+                icon: Icons.mic; title: qsTr("Sensitivity"); chevron: true
+                summary: RxController.sensitivity === 0 ? qsTr("Low") : RxController.sensitivity === 2 ? qsTr("High") : RxController.sensitivity === 3 ? qsTr("DX (weak signals)") : qsTr("Normal")
+                onClicked: sensitivityDialog.open = true
+            }
+            SliderRow {
+                title: qsTr("Keep a picture when this much came in"); summary: qsTr("A picture that stops early is still kept when it reached this share")
+                from: 0; to: 100; stepSize: 5; value: RxController.minCompletion
+                valueText: RxController.minCompletion + " %"
+                onCommitted: (v) => RxController.minCompletion = v
+            }
+            PreferenceRow {
+                icon: Icons.image; title: qsTr("Save pictures automatically"); summary: qsTr("When one is complete")
+                checkable: true; checked: RxController.autoSave
+                onToggled: (on) => RxController.autoSave = on
+            }
+            PreferenceRow {
+                icon: Icons.tune; title: qsTr("Correct slant"); summary: qsTr("Straighten pictures from a radio whose clock is off")
+                checkable: true; checked: RxController.autoSlant
+                onToggled: (on) => RxController.autoSlant = on
+            }
+        }
+
+        // ---- identification ----
+        SettingsPage {
+            title: qsTr("CW and waterfall"); topInset: screen.topInset; bottomInset: screen.bottomInset
+            onBack: screen.page = 4
+            PrefGroup { text: qsTr("CW") }
+            TextRow { label: qsTr("Text sent as CW"); hint: qsTr("Text sent as CW"); text: SettingsController.cwText; onCommitted: (t) => SettingsController.cwText = t }
+            SliderRow {
+                title: qsTr("Tone"); from: 300; to: 1500; stepSize: 10; value: SettingsController.cwTone
+                valueText: SettingsController.cwTone + " Hz"
+                onCommitted: (v) => SettingsController.cwTone = v
+            }
+            SliderRow {
+                title: qsTr("Speed"); from: 5; to: 40; stepSize: 1; value: SettingsController.cwSpeed
+                valueText: SettingsController.cwSpeed + " WPM"
+                onCommitted: (v) => SettingsController.cwSpeed = v
+            }
+            PrefGroup { text: qsTr("Waterfall text") }
+            SliderRow {
+                title: qsTr("Letter size"); from: 8; to: 32; stepSize: 1; value: SettingsController.wfFontSize
+                valueText: SettingsController.wfFontSize + " pt"
+                onCommitted: (v) => SettingsController.wfFontSize = v
+            }
+            PreferenceRow {
+                icon: Icons.mic; title: qsTr("Bold letters"); checkable: true; checked: SettingsController.wfBold
+                onToggled: (on) => SettingsController.wfBold = on
+            }
+            PrefGroup { text: qsTr("Markers in the waterfall") }
+            Repeater {
+                model: [
+                    {key: "startPic", label: qsTr("Before a picture")}, {key: "endPic", label: qsTr("After a picture")},
+                    {key: "fix", label: qsTr("Repair request: fix")}, {key: "bsr", label: qsTr("Repair request: BSR")},
+                    {key: "startBin", label: qsTr("Before a file")}, {key: "endBin", label: qsTr("After a file")},
+                    {key: "startRepeater", label: qsTr("Before a repeater message")}, {key: "endRepeater", label: qsTr("After a repeater message")}]
+                delegate: TextRow {
+                    required property var modelData
+                    label: modelData.label; hint: modelData.label
+                    text: { SettingsController.wfFontSize; return SettingsController.waterfallText(modelData.key) }
+                    onCommitted: (t) => SettingsController.setWaterfallText(modelData.key, t)
+                }
+            }
+        }
     }
 
     ChoiceDialog {
@@ -356,6 +427,17 @@ Rectangle {
         options: rates.map(r => ({text: qsTr("%1 baud").arg(r)}))
         current: rates.indexOf(SettingsController.baudRate)
         onPicked: (i) => SettingsController.baudRate = rates[i]
+    }
+    ChoiceDialog {
+        id: sensitivityDialog
+        title: qsTr("Sensitivity")
+        options: [
+            {text: qsTr("Low"), hint: qsTr("Fewer false starts, needs a clean signal")},
+            {text: qsTr("Normal"), hint: qsTr("The usual choice")},
+            {text: qsTr("High"), hint: qsTr("Starts on weaker signals")},
+            {text: qsTr("DX (weak signals)"), hint: qsTr("Weakest signals, more false starts")}]
+        current: RxController.sensitivity
+        onPicked: (i) => RxController.sensitivity = i
     }
     ChoiceDialog {
         id: coordDialog

@@ -5,7 +5,9 @@
 #include "configparams.h"
 #include "directoriesconfig.h"
 #include "gpsconfig.h"
+#include "cwconfig.h"
 #include "gpsreader.h"
+#include "waterfallconfig.h"
 #include "mainwindow.h"
 #include "soundbase.h"
 #include "soundconfig.h"
@@ -499,4 +501,54 @@ void SettingsController::testPtt()
       m_pttTesting=false;
       emit radioChanged();
     });
+}
+
+// ---- identification: CW and the waterfall text ----
+
+static void saveKey(const char *group,const char *key,const QVariant &value)
+{
+  QSettings qSettings;
+  qSettings.beginGroup(group);
+  qSettings.setValue(key,value);
+  qSettings.endGroup();
+}
+
+QString SettingsController::cwText() const {return ::cwText;}
+int SettingsController::cwTone() const {return ::cwTone;}
+int SettingsController::cwSpeed() const {return ::cwWPM;}
+int SettingsController::wfFontSize() const {return ::wfFontSize;}
+bool SettingsController::wfBold() const {return ::wfBold;}
+
+void SettingsController::setCwText(const QString &t) {::cwText=t.trimmed(); saveKey("CW","cwtext",::cwText); emit identChanged();}
+void SettingsController::setCwTone(int hz) {::cwTone=qBound(200,hz,2000); saveKey("CW","cwtone",::cwTone); emit identChanged();}
+void SettingsController::setCwSpeed(int wpm) {::cwWPM=qBound(5,wpm,40); saveKey("CW","cwWPM",::cwWPM); emit identChanged();}
+void SettingsController::setWfFontSize(int size) {::wfFontSize=qBound(6,size,48); saveKey("WATERFALL","wfFontSize",::wfFontSize); emit identChanged();}
+void SettingsController::setWfBold(bool on) {::wfBold=on; saveKey("WATERFALL","wfBold",on); emit identChanged();}
+
+static QString *waterfallMarker(const QString &key)
+{
+  if(key=="startPic") return &::startPicWF;
+  if(key=="endPic") return &::endPicWF;
+  if(key=="fix") return &::fixWF;
+  if(key=="bsr") return &::bsrWF;
+  if(key=="startBin") return &::startBinWF;
+  if(key=="endBin") return &::endBinWF;
+  if(key=="startRepeater") return &::startRepeaterWF;
+  if(key=="endRepeater") return &::endRepeaterWF;
+  return nullptr;
+}
+
+QString SettingsController::waterfallText(const QString &key) const
+{
+  const QString *s=waterfallMarker(key);
+  return s ? *s : QString();
+}
+
+void SettingsController::setWaterfallText(const QString &key,const QString &text)
+{
+  QString *s=waterfallMarker(key);
+  if(!s) return;
+  *s=text;
+  saveKey("WATERFALL",(key+"WF").toLatin1().constData(),text);   // startPicWF, endPicWF ... the keys of the classic page
+  emit identChanged();
 }

@@ -42,10 +42,17 @@ class RxController : public QObject
   Q_PROPERTY(int fftHigh READ fftHigh CONSTANT)
   Q_PROPERTY(bool autoSave READ autoSave WRITE setAutoSave NOTIFY optionsChanged)     //!< save a picture when it is complete
   Q_PROPERTY(bool autoSlant READ autoSlant WRITE setAutoSlant NOTIFY optionsChanged)  //!< straighten pictures from an off clock
+  Q_PROPERTY(int sensitivity READ sensitivity WRITE setSensitivity NOTIFY optionsChanged)     //!< 0 low, 1 normal, 2 high, 3 DX: how readily a signal starts a picture
+  Q_PROPERTY(int minCompletion READ minCompletion WRITE setMinCompletion NOTIFY optionsChanged)   //!< a picture is saved when this many percent of it came in (0 to 100)
 
 public:
   static RxController *instance();
   static RxController *create(QQmlEngine *,QJSEngine *);
+
+  int sensitivity() const;
+  void setSensitivity(int s);
+  int minCompletion() const;
+  void setMinCompletion(int percent);
 
   bool listening() const {return m_listening;}
   bool receiving() const {return m_receiving;}

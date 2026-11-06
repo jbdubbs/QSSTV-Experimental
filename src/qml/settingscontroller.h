@@ -47,6 +47,12 @@ class SettingsController : public QObject
   Q_PROPERTY(int micPreset READ micPreset WRITE setMicPreset NOTIFY audioChanged)   //!< 0 automatic, 1 unprocessed, 2 voice recognition, 3 standard
   Q_PROPERTY(int rxGainDb READ rxGainDb WRITE setRxGainDb NOTIFY audioChanged)       //!< 0 to 30
   Q_PROPERTY(QString routeDetail READ routeDetail NOTIFY audioChanged)                //!< what the sound system really opened
+  // identification: CW and the text sent into the waterfall
+  Q_PROPERTY(QString cwText READ cwText WRITE setCwText NOTIFY identChanged)
+  Q_PROPERTY(int cwTone READ cwTone WRITE setCwTone NOTIFY identChanged)           //!< Hz
+  Q_PROPERTY(int cwSpeed READ cwSpeed WRITE setCwSpeed NOTIFY identChanged)        //!< words per minute
+  Q_PROPERTY(int wfFontSize READ wfFontSize WRITE setWfFontSize NOTIFY identChanged)
+  Q_PROPERTY(bool wfBold READ wfBold WRITE setWfBold NOTIFY identChanged)
   // radio control (CAT and push to talk through a USB adapter)
   Q_PROPERTY(QVariantList adapters READ adapters NOTIFY radioChanged)                 //!< [{name, text}] the serial adapters that are attached
   Q_PROPERTY(QString adapter READ adapter WRITE setAdapter NOTIFY radioChanged)       //!< the name of the one in use, or empty
@@ -104,6 +110,20 @@ public:
   void setRxGainDb(int db);
   QString routeDetail() const;
 
+  QString cwText() const;
+  void setCwText(const QString &t);
+  int cwTone() const;
+  void setCwTone(int hz);
+  int cwSpeed() const;
+  void setCwSpeed(int wpm);
+  int wfFontSize() const;
+  void setWfFontSize(int size);
+  bool wfBold() const;
+  void setWfBold(bool on);
+  //! the text of one marker sent in the waterfall: startPic, endPic, fix, bsr, startBin, endBin, startRepeater, endRepeater
+  Q_INVOKABLE QString waterfallText(const QString &key) const;
+  Q_INVOKABLE void setWaterfallText(const QString &key,const QString &text);
+
   QVariantList adapters() const;
   QString adapter() const;
   void setAdapter(const QString &name);
@@ -129,6 +149,7 @@ signals:
   void picturesChanged();
   void positionChanged();
   void audioChanged();
+  void identChanged();
   void radioChanged();
 
 private:

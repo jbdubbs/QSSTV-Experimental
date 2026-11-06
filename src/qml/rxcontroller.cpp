@@ -10,6 +10,8 @@
 #include "sstvrx.h"
 
 #include <QCheckBox>
+#include <QComboBox>
+#include <QSpinBox>
 #include <QGuiApplication>
 #include <QJSEngine>
 #include <QQmlEngine>
@@ -89,6 +91,23 @@ void RxController::setAutoSave(bool on)
 void RxController::setAutoSlant(bool on)
 {
   clickBox("autoSlantAdjustCheckBox",on,::autoSlantAdjust);
+  emit optionsChanged();
+}
+
+int RxController::sensitivity() const {return ::sensitivity;}
+int RxController::minCompletion() const {return ::minCompletion;}
+
+void RxController::setSensitivity(int s)
+{
+  if(rxWidgetPtr && s>=0 && s<=3)
+    if(QComboBox *box=rxWidgetPtr->findChild<QComboBox *>("sensitivityComboBox")) box->setCurrentIndex(s);   // the page saves it
+  emit optionsChanged();
+}
+
+void RxController::setMinCompletion(int percent)
+{
+  if(rxWidgetPtr)
+    if(QSpinBox *box=rxWidgetPtr->findChild<QSpinBox *>("completeSpinBox")) box->setValue(qBound(0,percent,100));
   emit optionsChanged();
 }
 
