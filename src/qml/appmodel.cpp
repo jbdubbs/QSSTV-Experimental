@@ -115,6 +115,12 @@ void AppModel::finishFirstRun()
 {
   QSettings().setValue("FirstRun/done",true);
   if(m_firstRun) {m_firstRun=false; emit firstRunChanged();}
+  askMicrophone();   // skipped before the sound step: ask now
+}
+
+void AppModel::askMicrophone()
+{
+  if(mainWindowPtr) QMetaObject::invokeMethod(mainWindowPtr,[]{mainWindowPtr->askMicrophone();},Qt::QueuedConnection);
 }
 
 void AppModel::setMicDenied(bool d)

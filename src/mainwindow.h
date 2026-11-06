@@ -38,6 +38,7 @@ public:
   void switchMode(int rxtxMode) {slotModeChange(rxtxMode);}
   //! true once the quit is confirmed: settings are written for the last time and nothing may open a message box
   bool isQuitting() const {return quitting;}
+  void askMicrophone();   //!< Android: the system asks for the microphone (once); the receiver starts when it is given
   void soundSettingsChanged() {restartSound(false);}   //!< the Qt Quick settings pages changed the device or the microphone setting
   //! --encode (set before init()): the SSTV / DRM tab it switches to is not remembered, the next start (or the next --encode)
   //! must not begin in it, and no first-run question box is armed
@@ -107,6 +108,7 @@ private:
   bool recovering=false;      // guards recoverSound() against re-entry (issue #73)
   bool rxWantedActive=false;  // RX was running when the sound device was last torn down
 #ifdef Q_OS_ANDROID
+  bool micAsked=false;               // the system has been asked for the microphone in this run
   bool micDenied=false;              // the user refused the microphone: start the receiver when it is given later, in the settings
   QString inputProblemShown;         // the microphone problem now in the status bar
 #endif

@@ -27,6 +27,7 @@ It also starts, stops and synchronizes the threads.
 #include "applog.h"
 #include "dispatcher.h"
 #include "qmlui.h"
+#include "uimode.h"
 #include "platformfiles.h"
 #include "appglobal.h"
 #include "configparams.h"
@@ -306,6 +307,11 @@ void dispatcher::customEvent( QEvent * e )
         if(!rxWidgetPtr->getImageViewerPtr()->openImage(fn,false,false,false,false))
           {
             // simply save the file if it is not an image file
+            if(uiMode::qml())
+              {
+                qmlUi::notice(QString("Saved file %1").arg(fn));
+                break;
+              }
             if(mbox==NULL) delete mbox;
             mbox = new QMessageBox(mainWindowPtr);
             mbox->setWindowTitle("Received file");
@@ -339,6 +345,11 @@ void dispatcher::customEvent( QEvent * e )
       if(fileDecoderPtr && fileDecoderPtr->isBatch())
         {
           fileDecoderPtr->reportError(((displayMBoxEvent*)e)->getTitle(),((displayMBoxEvent*)e)->getStr());
+          break;
+        }
+      if(uiMode::qml())
+        {
+          qmlUi::notice(((displayMBoxEvent*)e)->getTitle()+": "+((displayMBoxEvent*)e)->getStr());
           break;
         }
       if(mbox==NULL) delete mbox;

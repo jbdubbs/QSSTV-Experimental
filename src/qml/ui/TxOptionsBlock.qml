@@ -219,6 +219,15 @@ Column {
                 Accessible.name: qsTr("Media volume")
             }
             Text {
+                visible: AppModel.mediaVolumeAvailable && AppModel.mediaVolume === 0
+                width: parent.width
+                wrapMode: Text.WordWrap
+                text: qsTr("The volume is off: the picture would be sent in silence. Turn it up with the slider or the volume keys.")
+                color: Theme.error
+                font.pixelSize: Theme.sp(13)
+                Accessible.role: Accessible.AlertMessage
+            }
+            Text {
                 visible: !AppModel.mediaVolumeAvailable
                 width: parent.width
                 wrapMode: Text.WordWrap

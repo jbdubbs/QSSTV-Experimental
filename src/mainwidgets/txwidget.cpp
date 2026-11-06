@@ -1913,6 +1913,19 @@ void txWidget::slotGpsToggle()
   scheduleSettingsSave();
 }
 
+void txWidget::setGpsTracking(bool on)
+{
+  if(on && !gpsUsable()) return;
+  if(gpsTracking==on) return;
+  gpsTracking=on;
+  gpsTrackState=-1;
+  gpsTrackReason.clear();
+  if(gpsTracking) gpsReaderPtr->startTracking();
+  else gpsReaderPtr->stopTracking();
+  updateGpsButton();
+  scheduleSettingsSave();
+}
+
 // Configuration > GPS was closed with OK, or the program has started: the tracking runs with the settings now in force
 void txWidget::gpsSettingsChanged()
 {

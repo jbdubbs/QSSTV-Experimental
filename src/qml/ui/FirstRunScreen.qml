@@ -25,6 +25,7 @@ Rectangle {
     }
     function next() { if (step >= lastStep) AppModel.finishFirstRun(); else step++ }
     onVisibleChanged: if (visible) step = 0
+    onStepChanged: if (step === 1) AppModel.askMicrophone()   // the sound step: the microphone is asked for here, with its reason on the screen
 
     // the three dots
     Row {
@@ -67,7 +68,7 @@ Rectangle {
                 width: parent.width; visible: first.step === 1
                 Text { width: parent.width; leftPadding: 24; rightPadding: 24; topPadding: 16; text: qsTr("Where does the sound come from?"); color: Theme.surfaceOn; font.pixelSize: Theme.sp(28); wrapMode: Text.WordWrap; Accessible.role: Accessible.Heading }
                 Text { width: parent.width; leftPadding: 24; rightPadding: 24; topPadding: 12; bottomPadding: 8
-                       text: qsTr("Start with the phone's own microphone and speaker: hold the phone near the radio. Change it here if you use a cable.")
+                       text: qsTr("The program listens to the radio through the microphone, so the system asks to allow it. Start with the phone's own microphone and speaker: hold the phone near the radio. Change it here if you use a cable.")
                        color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(15); wrapMode: Text.WordWrap }
                 PreferenceRow {
                     icon: Icons.mic; title: qsTr("Microphone"); chevron: true

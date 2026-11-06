@@ -101,6 +101,21 @@ Rectangle {
                 checkable: true; checked: SettingsController.gpsOn
                 onToggled: (on) => SettingsController.gpsOn = on
             }
+            InlineBanner {
+                visible: SettingsController.gpsState === 3
+                x: 16; width: parent.width - 32
+                text: SettingsController.gpsReason
+                actionText: SettingsController.gpsReason.indexOf("may not") >= 0 ? qsTr("Allow") : ""
+                onAction: AppModel.openAppSettings()
+            }
+            PreferenceRow {
+                visible: SettingsController.gpsState === 2
+                icon: Icons.pin; title: qsTr("Position now"); summary: SettingsController.positionText
+            }
+            PreferenceRow {
+                visible: SettingsController.gpsState === 1
+                icon: Icons.pin; title: qsTr("Position now"); summary: qsTr("Waiting for the phone to find where it is")
+            }
             PreferenceRow {
                 icon: Icons.pin; title: qsTr("Look up city and state"); summary: SettingsController.placeLookup ? qsTr("The position is sent to OpenStreetMap") : qsTr("Off: the position stays on the phone")
                 checkable: true; checked: SettingsController.placeLookup; enabledRow: SettingsController.gpsOn

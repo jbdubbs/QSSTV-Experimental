@@ -35,6 +35,9 @@ class SettingsController : public QObject
   Q_PROPERTY(bool placeLookup READ placeLookup WRITE setPlaceLookup NOTIFY positionChanged)   //!< the position is sent to OpenStreetMap to find city and state
   Q_PROPERTY(int coordFormat READ coordFormat WRITE setCoordFormat NOTIFY positionChanged)    //!< 0 decimal degrees, 1 degrees and minutes
   Q_PROPERTY(QString positionSummary READ positionSummary NOTIFY positionChanged)
+  Q_PROPERTY(int gpsState READ gpsState NOTIFY positionChanged)                        //!< 0 off, 1 waiting for a position, 2 position known, 3 cannot get one
+  Q_PROPERTY(QString gpsReason READ gpsReason NOTIFY positionChanged)                  //!< why not (permission, service off ...)
+  Q_PROPERTY(QString positionText READ positionText NOTIFY positionChanged)            //!< the position now, in the chosen format
   // audio and radio
   Q_PROPERTY(QString audioSummary READ audioSummary NOTIFY audioChanged)
   Q_PROPERTY(QStringList inputDevices READ inputDevices NOTIFY audioChanged)
@@ -84,6 +87,9 @@ public:
   int coordFormat() const;
   void setCoordFormat(int f);
   QString positionSummary() const;
+  int gpsState() const;
+  QString gpsReason() const {return m_gpsReason;}
+  QString positionText() const;
 
   QString audioSummary() const;
   QStringList inputDevices() const;
@@ -131,6 +137,10 @@ private:
   void saveSound(const char *key,const QVariant &value,bool restart);
   void saveRadio();                 //!< writes the rig parameters and starts the rig controller again
   bool m_pttTesting=false;
+  int m_trackState=-1;           //!< gpsReader::trackState, or -1 before the first report
+  QString m_gpsReason;
+  bool m_haveFix=false;
+  double m_lat=0,m_lon=0;
 };
 
 #endif // SETTINGSCONTROLLER_H

@@ -505,6 +505,42 @@ void mainWindow::applySafeArea()
   if(uiMode::touch() && windowHandle()) setContentsMargins(windowHandle()->safeAreaMargins());
 }
 
+void mainWindow::askMicrophone()
+{
+#ifdef Q_OS_ANDROID
+  if(micAsked || platformPermissions::microphoneGranted()) return;
+  micAsked=true;
+  platformPermissions::requestMicrophone(this,[this](bool granted)
+    {
+      if(granted)
+        {
+          rxWantedActive=true;
+          restartSound(false);
+          QTimer::singleShot(2000,this,[]{askForNotifications();});
+        }
+      else
+        {
+          micDenied=true;
+          if(uiMode::qml())
+            {
+              qmlUi::micDenied(true);   // the Receive screen says so, with a button to the system settings
+            }
+          else
+            {
+              QMessageBox *box=new QMessageBox(QMessageBox::Warning,tr("Microphone"),
+                                               tr("QSSTV-Experimental needs the microphone permission to receive. Allow it in the system settings "
+                                                  "(Permissions, Microphone); the receiver starts when you come back."),QMessageBox::Ok,this);
+              QPushButton *settings=box->addButton(tr("Open settings"),QMessageBox::ActionRole);
+              connect(settings,&QPushButton::clicked,this,[]{androidOpenAppSettings();});
+              box->setAttribute(Qt::WA_DeleteOnClose);
+              box->setWindowModality(Qt::NonModal);
+              box->show();
+            }
+        }
+    });
+#endif
+}
+
 void mainWindow::init()
 {
   if(!fileDecoderPtr->isBatch()) // a headless decode must not prune the user's image caches
@@ -520,35 +556,9 @@ void mainWindow::init()
 #ifdef Q_OS_ANDROID
   if(!platformPermissions::microphoneGranted())
     {
-      // Android asks the user first; the receiver starts as soon as the answer is yes (rxWantedActive is what restartSound() reads)
-      platformPermissions::requestMicrophone(this,[this](bool granted)
-        {
-          if(granted)
-            {
-              rxWantedActive=true;
-              restartSound(false);
-              QTimer::singleShot(2000,this,[]{askForNotifications();});
-            }
-          else
-            {
-              micDenied=true;
-              if(uiMode::qml())
-                {
-                  qmlUi::micDenied(true);   // the Receive screen says so, with a button to the system settings
-                }
-              else
-                {
-                  QMessageBox *box=new QMessageBox(QMessageBox::Warning,tr("Microphone"),
-                                                   tr("QSSTV-Experimental needs the microphone permission to receive. Allow it in the system settings "
-                                                      "(Permissions, Microphone); the receiver starts when you come back."),QMessageBox::Ok,this);
-                  QPushButton *settings=box->addButton(tr("Open settings"),QMessageBox::ActionRole);
-                  connect(settings,&QPushButton::clicked,this,[]{androidOpenAppSettings();});
-                  box->setAttribute(Qt::WA_DeleteOnClose);
-                  box->setWindowModality(Qt::NonModal);
-                  box->show();
-                }
-            }
-        });
+      // Android asks the user first; the receiver starts as soon as the answer is yes (rxWantedActive is what restartSound() reads).
+      // On the very first start the Qt Quick setup explains the sound first and asks then (AppModel::askMicrophone)
+      if(!qmlUi::firstRunPending()) askMicrophone();
     }
   else
     {
@@ -833,7 +843,8 @@ void mainWindow::restartSound(bool inStartUp)
         }
       else
         {
-          QMessageBox::critical(this, tr("Soundcard error"),soundIOPtr->getLastError());
+          if(uiMode::qml()) qmlUi::problem(tr("Soundcard error"),soundIOPtr->getLastError());
+          else QMessageBox::critical(this, tr("Soundcard error"),soundIOPtr->getLastError());
         }
     }
   soundIOPtr->start();
@@ -1116,7 +1127,8 @@ void mainWindow::openUserGuide(const QString &page)
           return;
         }
     }
-  QMessageBox::warning(this,tr("Users Guide"),tr("The built-in Users Guide was not found.\nSee https://github.com/jbdubbs/QSSTV-Experimental"));
+  if(uiMode::qml()) qmlUi::problem(tr("Users Guide"),tr("The built-in Users Guide was not found.\nSee https://github.com/jbdubbs/QSSTV-Experimental"));
+  else QMessageBox::warning(this,tr("Users Guide"),tr("The built-in Users Guide was not found.\nSee https://github.com/jbdubbs/QSSTV-Experimental"));
 }
 
 

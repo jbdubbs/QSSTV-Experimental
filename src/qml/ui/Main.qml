@@ -146,6 +146,7 @@ ApplicationWindow {
         Connections {
             target: AppModel
             function onProblemShown(title, text) { problemDialog.show(title, text) }
+            function onNoticeShown(text) { snack.show(text, "") }
         }
         AboutSheet { id: about }
         SendingOverlay {

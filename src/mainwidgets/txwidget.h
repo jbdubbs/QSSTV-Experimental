@@ -62,6 +62,7 @@ public:
   void gpsSettingsChanged();
   //! the GPS button is on: the GPS is read all the time and the Lat and Long boxes follow it
   bool gpsTracks() const {return gpsTracking;}
+  void setGpsTracking(bool on);   //!< the GPS button, set from the Qt Quick settings: the same as pressing it, without the box
   //  void repeat(QImage *im,esstvMode sm);
   void sendRepeaterImage(esstvMode rxMode=NOTVALID);
   void setImage(QImage *ima);

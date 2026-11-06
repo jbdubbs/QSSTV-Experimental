@@ -23,7 +23,9 @@ namespace qmlUi
   void rxLine(int line);                       //!< another line of it has been drawn
   void rxImageEnded();                         //!< the picture is complete (or given up)
   void rxImageSaved(const QString &file);      //!< a received picture was saved to the gallery
+  void notice(const QString &text);            //!< a short message that goes away by itself
   void problem(const QString &title,const QString &text);   //!< something went wrong that the person has to be told (showProblem())
+  bool firstRunPending();                      //!< the first-start setup is still to be shown (it asks for the microphone itself)
   void micDenied(bool denied);                 //!< the microphone permission was refused (or given later in the system settings)
   void rxImageShown();                         //!< a finished picture (DRM) was put on the canvas
   void sendPicture(const QString &file);       //!< a picture came from outside (shared, opened with): it goes on the Transmit screen
@@ -38,7 +40,9 @@ namespace qmlUi
   inline void rxLine(int) {}
   inline void rxImageEnded() {}
   inline void rxImageSaved(const QString &) {}
+  inline void notice(const QString &) {}
   inline void problem(const QString &,const QString &) {}
+  inline bool firstRunPending() {return false;}
   inline void micDenied(bool) {}
   inline void rxImageShown() {}
   inline void sendPicture(const QString &) {}

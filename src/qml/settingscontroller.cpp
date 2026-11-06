@@ -5,6 +5,7 @@
 #include "configparams.h"
 #include "directoriesconfig.h"
 #include "gpsconfig.h"
+#include "gpsreader.h"
 #include "mainwindow.h"
 #include "soundbase.h"
 #include "soundconfig.h"
@@ -29,7 +30,23 @@
 
 static SettingsController *theSettings=nullptr;
 
-SettingsController::SettingsController(QObject *parent):QObject(parent) {}
+SettingsController::SettingsController(QObject *parent):QObject(parent)
+{
+  if(gpsReaderPtr)
+    {
+      connect(gpsReaderPtr,&gpsReader::positionUpdated,this,[this](double lat,double lon)
+        {
+          m_lat=lat; m_lon=lon; m_haveFix=true; m_trackState=gpsReader::TRACKFIXED; m_gpsReason.clear();
+          emit positionChanged();
+        });
+      connect(gpsReaderPtr,&gpsReader::trackingState,this,[this](int state,const QString &reason)
+        {
+          m_trackState=state; m_gpsReason=reason;
+          if(state!=gpsReader::TRACKFIXED) m_haveFix=false;
+          emit positionChanged();
+        });
+    }
+}
 
 SettingsController *SettingsController::instance()
 {
@@ -141,7 +158,7 @@ QString SettingsController::picturesSummary() const
 
 // ---- position ----
 
-bool SettingsController::gpsOn() const {return ::gpsEnabled;}
+bool SettingsController::gpsOn() const {return ::gpsEnabled && txWidgetPtr && txWidgetPtr->gpsTracks();}
 
 void SettingsController::setGpsOn(bool on)
 {
@@ -150,7 +167,11 @@ void SettingsController::setGpsOn(bool on)
   qSettings.beginGroup("GPS");
   qSettings.setValue("enabled",on);
   qSettings.endGroup();
-  if(txWidgetPtr) txWidgetPtr->gpsSettingsChanged();   // starts or stops the reader (the system asks for the permission)
+  if(txWidgetPtr)
+    {
+      txWidgetPtr->gpsSettingsChanged();
+      txWidgetPtr->setGpsTracking(on);   // the GPS button of the Transmit tab: the reader runs (the system asks for the permission) or stops
+    }
   emit positionChanged();
 }
 
@@ -179,9 +200,35 @@ void SettingsController::setCoordFormat(int f)
   emit positionChanged();
 }
 
+int SettingsController::gpsState() const
+{
+  if(!gpsOn()) return 0;
+  if(m_trackState==gpsReader::TRACKFAILED) return 3;
+  if(m_haveFix && m_trackState==gpsReader::TRACKFIXED) return 2;
+  return 1;
+}
+
+QString SettingsController::positionText() const
+{
+  if(!m_haveFix) return QString();
+  if(::gpsCoordFormat==COORDDEGMIN)
+    {
+      auto dm=[](double v,char pos,char neg)
+        {
+          const char hemi=v>=0 ? pos : neg;
+          v=qAbs(v);
+          const int deg=int(v);
+          return QStringLiteral("%1° %2' %3").arg(deg).arg((v-deg)*60.0,0,'f',2).arg(QLatin1Char(hemi));
+        };
+      return dm(m_lat,'N','S')+QStringLiteral(", ")+dm(m_lon,'E','W');
+    }
+  return QStringLiteral("%1, %2").arg(m_lat,0,'f',5).arg(m_lon,0,'f',5);
+}
+
 QString SettingsController::positionSummary() const
 {
-  if(!::gpsEnabled) return tr("GPS off");
+  if(!gpsOn()) return tr("GPS off");
+  if(gpsState()==3) return tr("GPS on · no position");
   return ::gpsPlaceLookup ? tr("GPS on · city and state looked up") : tr("GPS on · from the phone");
 }
 

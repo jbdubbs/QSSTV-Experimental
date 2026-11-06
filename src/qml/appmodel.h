@@ -69,6 +69,8 @@ public:
   Q_INVOKABLE void openHelp();
   //! the setup is over (or skipped): it does not come again
   Q_INVOKABLE void finishFirstRun();
+  //! the system asks for the microphone (once): the setup does it when it comes to the sound
+  Q_INVOKABLE void askMicrophone();
   //! the settings pages
   Q_INVOKABLE void openSettings();
   //! the classic Configuration dialog (Widgets), for what the new pages do not have yet
@@ -86,6 +88,7 @@ signals:
   void settingsOpenChanged();
   void micDeniedChanged();
   void firstRunChanged();
+  void noticeShown(const QString &text);                           //!< a short message for the snackbar
   void problemShown(const QString &title,const QString &text);   //!< a dialog with this text
 
 private:
