@@ -215,6 +215,17 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: bash tests/androidsmoke/run.sh apk/QSSTV-Experimental-android-x86_64-debug.apk "$RUNNER_TEMP/smoke.wav" smoke-out
 
+      # the same again with the guest's own software GL: tells a drawing problem of the emulator's GL translator from one of the program
+      - name: Run the smoke test again with another GPU mode
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu guest -no-snapshot -noaudio -no-boot-anim
+          script: bash tests/androidsmoke/run.sh apk/QSSTV-Experimental-android-x86_64-debug.apk "$RUNNER_TEMP/smoke.wav" smoke-out/guest-gpu
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:

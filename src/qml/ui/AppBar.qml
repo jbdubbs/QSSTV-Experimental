@@ -19,19 +19,23 @@ Item {
         anchors.leftMargin: Theme.margin
         spacing: 6
         Text {
+            id: titleText
             text: bar.title
             color: Theme.surfaceOn
             font.pixelSize: Theme.sp(22)
             Layout.fillWidth: true
+            Layout.minimumWidth: Math.min(implicitWidth, bar.width * 0.4)
             elide: Text.ElideRight
             Accessible.role: Accessible.Heading
             Accessible.name: bar.title
         }
         Rectangle {
+            id: routeChip
             visible: bar.routeText !== ""
             implicitHeight: 32
             implicitWidth: routeRow.implicitWidth + 20
-            Layout.maximumWidth: bar.width * 0.5
+            Layout.maximumWidth: routeRow.implicitWidth + 20
+            Layout.minimumWidth: 56
             radius: 8
             color: "transparent"
             border.width: 1
@@ -47,6 +51,7 @@ Item {
                     font.pixelSize: Theme.sp(13)
                     font.weight: Font.Medium
                     elide: Text.ElideRight
+                    width: Math.min(implicitWidth, Math.max(0, routeChip.width - 20 - 24))
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }

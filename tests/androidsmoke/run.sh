@@ -51,7 +51,13 @@ echo "== decode a recording opened from another app"
 "$ADB" shell am start -a android.intent.action.VIEW -t audio/wav -d file:///data/local/tmp/smoke.wav -n "$PKG/$ACT" >/dev/null
 wait_for 240 "the picture is in the picture library (Pictures/QSSTV-Experimental)" library_has
 "$ADB" exec-out screencap -p > "$OUT/smoke.png" 2>/dev/null
+sleep 3; "$ADB" exec-out screencap -p > "$OUT/smoke-b.png" 2>/dev/null   # a second and third look: a half-drawn frame is not what the screen shows later
+sleep 3; "$ADB" exec-out screencap -p > "$OUT/smoke-c.png" 2>/dev/null
 alive && ok "still running after the decode" || bad "the program died during the decode"
+# Back on the first screen puts the program in the background and keeps it (and the receiver) running
+"$ADB" shell input keyevent KEYCODE_BACK
+sleep 3
+alive && ok "still running after Back" || bad "the program died on Back"
 
 echo "== log"
 "$ADB" logcat -d > "$OUT/logcat.txt" 2>&1

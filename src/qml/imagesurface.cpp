@@ -6,7 +6,7 @@
 ImageSurface::ImageSurface(QQuickItem *parent) : QQuickPaintedItem(parent)
 {
   setOpaquePainting(false);
-  setRenderTarget(QQuickPaintedItem::FramebufferObject);
+  setRenderTarget(QQuickPaintedItem::Image);   // painted with the CPU and uploaded as a texture: no framebuffer objects needed
 }
 
 const QImage &ImageSurface::image() const

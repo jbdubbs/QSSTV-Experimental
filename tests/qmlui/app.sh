@@ -25,6 +25,7 @@ SCENES="idle receiving options digital stopped quiet tx gallery"
 run light 411 800 $SCENES
 run dark 411 800 $SCENES
 run light 360 640 idle receiving
+run light 320 640 idle receiving
 run light 850 411 idle receiving
 run light 800 1200 idle receiving
 echo "screenshots: $OUT"
