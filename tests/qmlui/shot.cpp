@@ -211,9 +211,10 @@ int main(int argc, char **argv)
           app_->setScreen(0);
           AppModel::instance()->setSettingsOpen(true);
           QQuickItem *st = findItem(win->contentItem(), "settingsScreen");
-          const int page = scene == "settings-operator" ? 1 : scene == "settings-pictures" || scene == "settings-format" ? 2 : scene == "settings-position" ? 3 : scene == "settings-advanced" ? 4 : 0;
+          const int page = scene == "settings-operator" ? 1 : scene == "settings-pictures" || scene == "settings-format" ? 2 : scene == "settings-position" ? 3 : scene == "settings-advanced" ? 4 : scene == "settings-audio" || scene == "settings-mic" ? 5 : 0;
           if (st) st->setProperty("page", page);
           if (scene == "settings-format" && st) QMetaObject::invokeMethod(st, "openFormat");
+          if (scene == "settings-mic" && st) QMetaObject::invokeMethod(st, "openMic");
         }
       else if (scene == "saved")
         {

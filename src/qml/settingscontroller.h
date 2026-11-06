@@ -35,8 +35,15 @@ class SettingsController : public QObject
   Q_PROPERTY(bool placeLookup READ placeLookup WRITE setPlaceLookup NOTIFY positionChanged)   //!< the position is sent to OpenStreetMap to find city and state
   Q_PROPERTY(int coordFormat READ coordFormat WRITE setCoordFormat NOTIFY positionChanged)    //!< 0 decimal degrees, 1 degrees and minutes
   Q_PROPERTY(QString positionSummary READ positionSummary NOTIFY positionChanged)
-  // audio and radio (read only for now)
+  // audio and radio
   Q_PROPERTY(QString audioSummary READ audioSummary NOTIFY audioChanged)
+  Q_PROPERTY(QStringList inputDevices READ inputDevices NOTIFY audioChanged)
+  Q_PROPERTY(QStringList outputDevices READ outputDevices NOTIFY audioChanged)
+  Q_PROPERTY(QString inputDevice READ inputDevice WRITE setInputDevice NOTIFY audioChanged)
+  Q_PROPERTY(QString outputDevice READ outputDevice WRITE setOutputDevice NOTIFY audioChanged)
+  Q_PROPERTY(int micPreset READ micPreset WRITE setMicPreset NOTIFY audioChanged)   //!< 0 automatic, 1 unprocessed, 2 voice recognition, 3 standard
+  Q_PROPERTY(int rxGainDb READ rxGainDb WRITE setRxGainDb NOTIFY audioChanged)       //!< 0 to 30
+  Q_PROPERTY(QString routeDetail READ routeDetail NOTIFY audioChanged)                //!< what the sound system really opened
 
 public:
   static SettingsController *instance();
@@ -68,6 +75,17 @@ public:
   QString positionSummary() const;
 
   QString audioSummary() const;
+  QStringList inputDevices() const;
+  QStringList outputDevices() const;
+  QString inputDevice() const;
+  void setInputDevice(const QString &d);
+  QString outputDevice() const;
+  void setOutputDevice(const QString &d);
+  int micPreset() const;
+  void setMicPreset(int p);
+  int rxGainDb() const;
+  void setRxGainDb(int db);
+  QString routeDetail() const;
 
   //! the classic Configuration dialog (its pages first take over what was changed here)
   Q_INVOKABLE void openClassic();
@@ -81,6 +99,7 @@ signals:
 private:
   explicit SettingsController(QObject *parent=nullptr);
   void saveOperator();
+  void saveSound(const char *key,const QVariant &value,bool restart);
 };
 
 #endif // SETTINGSCONTROLLER_H

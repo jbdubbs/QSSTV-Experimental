@@ -5,6 +5,10 @@
 #include "configparams.h"
 #include "directoriesconfig.h"
 #include "gpsconfig.h"
+#include "mainwindow.h"
+#include "soundbase.h"
+#include "soundconfig.h"
+#include "soundqtmultimedia.h"
 #include "guiconfig.h"
 #include "nmeaparser.h"
 #include "operatorconfig.h"
@@ -15,6 +19,7 @@
 #include <QJSEngine>
 #include <QQmlEngine>
 #include <QSettings>
+#include <QTimer>
 
 static SettingsController *theSettings=nullptr;
 
@@ -177,6 +182,67 @@ QString SettingsController::positionSummary() const
 // ---- audio and radio ----
 
 QString SettingsController::audioSummary() const {return AppModel::instance()->routeText();}
+
+QStringList SettingsController::inputDevices() const
+{
+  QStringList in,out;
+  getCardList(in,out);
+  return in;
+}
+
+QStringList SettingsController::outputDevices() const
+{
+  QStringList in,out;
+  getCardList(in,out);
+  return out;
+}
+
+QString SettingsController::inputDevice() const {return ::inputAudioDevice;}
+QString SettingsController::outputDevice() const {return ::outputAudioDevice;}
+int SettingsController::micPreset() const {return ::micPreset;}
+int SettingsController::rxGainDb() const {return int(::rxGainDb+0.5);}
+QString SettingsController::routeDetail() const {return soundIOPtr ? soundIOPtr->routeSummary() : QString();}
+
+// the same keys the sound page writes; a changed device or microphone setting reopens the sound device (as OK in the classic dialog does)
+void SettingsController::saveSound(const char *key,const QVariant &value,bool restart)
+{
+  QSettings qSettings;
+  qSettings.beginGroup("SOUND");
+  qSettings.setValue(key,value);
+  qSettings.endGroup();
+  if(restart && mainWindowPtr)
+    QTimer::singleShot(0,mainWindowPtr,[]{mainWindowPtr->soundSettingsChanged();   // outside the tap that asked for it
+                                           emit SettingsController::instance()->audioChanged();});
+  emit audioChanged();
+}
+
+void SettingsController::setInputDevice(const QString &d)
+{
+  if(d==::inputAudioDevice) return;
+  ::inputAudioDevice=d;
+  saveSound("inputAudioDevice",d,true);
+}
+
+void SettingsController::setOutputDevice(const QString &d)
+{
+  if(d==::outputAudioDevice) return;
+  ::outputAudioDevice=d;
+  saveSound("outputAudioDevice",d,true);
+}
+
+void SettingsController::setMicPreset(int p)
+{
+  if(p<micPresetAuto || p>micPresetStandard || p==::micPreset) return;
+  ::micPreset=p;
+  saveSound("micPreset",p,true);   // the preset is chosen when the stream is opened
+}
+
+void SettingsController::setRxGainDb(int db)
+{
+  ::rxGainDb=qBound(0,db,30);
+  if(soundIOPtr) soundIOPtr->setRxGainDb(::rxGainDb);   // no reopening needed
+  saveSound("rxGainDb",::rxGainDb,false);
+}
 
 void SettingsController::openClassic()
 {

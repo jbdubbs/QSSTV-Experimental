@@ -12,7 +12,7 @@ Rectangle {
     z: 45
     property real topInset: 0
     property real bottomInset: 0
-    property int page: 0          // 0 overview, 1 operator, 2 pictures, 3 position, 4 advanced
+    property int page: 0          // 0 overview, 1 operator, 2 pictures, 3 position, 4 advanced, 5 audio and radio
     signal showAbout()
     MouseArea { anchors.fill: parent }
 
@@ -22,12 +22,16 @@ Rectangle {
         if (!AppModel.settingsOpen) return false
         if (formatDialog.open) formatDialog.open = false
         else if (coordDialog.open) coordDialog.open = false
+        else if (micDialog.open) micDialog.open = false
+        else if (speakerDialog.open) speakerDialog.open = false
+        else if (presetDialog.open) presetDialog.open = false
         else if (page !== 0) page = 0
         else close()
         return true
     }
-    onVisibleChanged: { formatDialog.open = false; coordDialog.open = false; if (visible) page = 0 }
+    onVisibleChanged: { formatDialog.open = false; coordDialog.open = false; micDialog.open = false; speakerDialog.open = false; presetDialog.open = false; if (visible) page = 0 }
     function openFormat() { formatDialog.open = true }   // the screenshots
+    function openMic() { presetDialog.open = true }
 
     StackLayout {
         anchors.fill: parent
@@ -38,7 +42,7 @@ Rectangle {
             title: qsTr("Settings"); topInset: screen.topInset; bottomInset: screen.bottomInset
             onBack: screen.close()
             PreferenceRow { icon: Icons.person; title: qsTr("Operator"); summary: SettingsController.operatorSummary; chevron: true; onClicked: screen.page = 1 }
-            PreferenceRow { icon: Icons.volume; title: qsTr("Audio and radio"); summary: SettingsController.audioSummary; chevron: true; onClicked: SettingsController.openClassic() }
+            PreferenceRow { icon: Icons.volume; title: qsTr("Audio and radio"); summary: SettingsController.audioSummary; chevron: true; onClicked: screen.page = 5 }
             PreferenceRow { icon: Icons.pin; title: qsTr("Position"); summary: SettingsController.positionSummary; chevron: true; onClicked: screen.page = 3 }
             PreferenceRow { icon: Icons.image; title: qsTr("Pictures"); summary: SettingsController.picturesSummary; chevron: true; onClicked: screen.page = 2 }
             PreferenceRow { icon: Icons.tune; title: qsTr("Advanced"); summary: qsTr("Modes, DRM, CW, waterfall text, frequencies"); chevron: true; onClicked: screen.page = 4 }
@@ -118,6 +122,70 @@ Rectangle {
             PreferenceRow { icon: Icons.image; title: qsTr("Templates"); summary: qsTr("The overlays used on your pictures"); chevron: true; onClicked: SettingsController.openClassic() }
             PreferenceRow { icon: Icons.info; title: qsTr("Classic settings"); summary: qsTr("Every option on one list"); chevron: true; onClicked: SettingsController.openClassic() }
         }
+
+        // ---- audio and radio ----
+        SettingsPage {
+            title: qsTr("Audio and radio"); topInset: screen.topInset; bottomInset: screen.bottomInset
+            onBack: screen.page = 0
+            PrefGroup { text: qsTr("Sound in") }
+            PreferenceRow {
+                icon: Icons.mic; title: qsTr("Microphone"); chevron: true
+                summary: SettingsController.inputDevice === "default" ? qsTr("System default") : SettingsController.inputDevice
+                onClicked: micDialog.open = true
+            }
+            PreferenceRow {
+                icon: Icons.tune; title: qsTr("Microphone processing"); chevron: true
+                summary: SettingsController.micPreset === 1 ? qsTr("Unprocessed") : SettingsController.micPreset === 2 ? qsTr("Voice recognition")
+                       : SettingsController.micPreset === 3 ? qsTr("Standard") : qsTr("Automatic")
+                onClicked: presetDialog.open = true
+            }
+            SliderRow {
+                title: qsTr("Receive gain"); summary: qsTr("Raise it when the radio is quiet")
+                from: 0; to: 30; stepSize: 1; value: SettingsController.rxGainDb
+                valueText: "+" + SettingsController.rxGainDb + " dB"
+                onCommitted: (v) => SettingsController.rxGainDb = v
+            }
+            LevelMeter {
+                x: 24; width: parent.width - 48
+                level: RxController.level; zoneStart: RxController.zoneStart; zoneEnd: RxController.zoneEnd
+                word: RxController.levelWord; hint: RxController.levelHint; active: RxController.listening
+            }
+            PrefGroup { text: qsTr("Sound out") }
+            PreferenceRow {
+                icon: Icons.volume; title: qsTr("Speaker"); chevron: true
+                summary: SettingsController.outputDevice === "default" ? qsTr("System default") : SettingsController.outputDevice
+                onClicked: speakerDialog.open = true
+            }
+            SliderRow {
+                visible: AppModel.mediaVolumeAvailable
+                title: qsTr("Media volume"); summary: qsTr("Sets how loud a picture is sent")
+                from: 0; to: 100; stepSize: 1; value: AppModel.mediaVolume
+                valueText: AppModel.mediaVolume + " %"
+                onCommitted: (v) => AppModel.mediaVolume = v
+            }
+            Item {
+                width: parent.width; height: 64
+                Button {
+                    x: 24; anchors.verticalCenter: parent.verticalCenter
+                    text: qsTr("Test sound"); highlighted: true
+                    enabled: !TxController.sending
+                    Material.accent: Theme.primary
+                    onClicked: TxController.sendTone(1000, 3)
+                    Accessible.name: qsTr("Play a test tone")
+                }
+            }
+            Text {
+                visible: SettingsController.routeDetail !== ""
+                width: parent.width; leftPadding: 24; rightPadding: 24; bottomPadding: 8
+                text: qsTr("In use: %1").arg(SettingsController.routeDetail)
+                color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(13); wrapMode: Text.WordWrap
+            }
+            PrefGroup { text: qsTr("Radio control") }
+            PreferenceRow {
+                icon: Icons.usb; title: qsTr("USB interface, radio and push to talk"); summary: qsTr("Opens the classic settings for now"); chevron: true
+                onClicked: SettingsController.openClassic()
+            }
+        }
     }
 
     ChoiceDialog {
@@ -126,6 +194,31 @@ Rectangle {
         options: SettingsController.imageFormats.map(f => ({text: f.toUpperCase(), hint: f === "png" ? qsTr("No loss, larger files") : f === "jpg" || f === "jpeg" ? qsTr("Smaller files") : ""}))
         current: SettingsController.imageFormats.indexOf(SettingsController.imageFormat)
         onPicked: (i) => SettingsController.imageFormat = SettingsController.imageFormats[i]
+    }
+    ChoiceDialog {
+        id: micDialog
+        title: qsTr("Microphone")
+        options: SettingsController.inputDevices.map(d => ({text: d === "default" ? qsTr("System default") : d}))
+        current: SettingsController.inputDevices.indexOf(SettingsController.inputDevice)
+        onPicked: (i) => SettingsController.inputDevice = SettingsController.inputDevices[i]
+    }
+    ChoiceDialog {
+        id: speakerDialog
+        title: qsTr("Speaker")
+        options: SettingsController.outputDevices.map(d => ({text: d === "default" ? qsTr("System default") : d}))
+        current: SettingsController.outputDevices.indexOf(SettingsController.outputDevice)
+        onPicked: (i) => SettingsController.outputDevice = SettingsController.outputDevices[i]
+    }
+    ChoiceDialog {
+        id: presetDialog
+        title: qsTr("Microphone processing")
+        options: [
+            {text: qsTr("Automatic"), hint: qsTr("Unprocessed if the phone has it")},
+            {text: qsTr("Unprocessed"), hint: qsTr("Best for pictures")},
+            {text: qsTr("Voice recognition"), hint: qsTr("Some noise reduction")},
+            {text: qsTr("Standard"), hint: qsTr("The phone may level and filter the sound")}]
+        current: SettingsController.micPreset
+        onPicked: (i) => SettingsController.micPreset = i
     }
     ChoiceDialog {
         id: coordDialog

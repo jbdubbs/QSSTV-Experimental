@@ -38,6 +38,7 @@ public:
   void switchMode(int rxtxMode) {slotModeChange(rxtxMode);}
   //! true once the quit is confirmed: settings are written for the last time and nothing may open a message box
   bool isQuitting() const {return quitting;}
+  void soundSettingsChanged() {restartSound(false);}   //!< the Qt Quick settings pages changed the device or the microphone setting
   //! --encode (set before init()): the SSTV / DRM tab it switches to is not remembered, the next start (or the next --encode)
   //! must not begin in it, and no first-run question box is armed
   void setHeadlessEncode(bool on) {headlessEncode=on;}
