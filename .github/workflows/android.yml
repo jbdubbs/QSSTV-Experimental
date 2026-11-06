@@ -1,0 +1,176 @@
+# Android build: cross-compiles the native libraries (tools/build-android-deps.sh), builds the app for the phone (arm64-v8a)
+# and for the emulator / Chromebooks (x86_64), checks that every native library is aligned for 16 KB pages (Google Play
+# requires it), and uploads the signed APK and, for arm64-v8a, the Android App Bundle (AAB) that goes to Google Play.
+# CI covers the build and the packaging only; audio, USB adapters, GPS and the camera need a real phone (see BUILDING.md).
+# Runs on a push to the android-port branch (and manually), not on every branch.
+#
+# Signing: with the repository secrets below the APK and the AAB are signed with the upload key (the AAB is what Play takes);
+# without them the APK is signed with a throwaway debug key (installable for testing, not for updating a Play install) and
+# the AAB is left unsigned. Create the upload key once, see packaging/android/PLAY.md:
+#   ANDROID_KEYSTORE_BASE64   the keystore file, base64 encoded (base64 -w0 upload.jks)
+#   ANDROID_KEYSTORE_ALIAS    the key alias
+#   ANDROID_KEYSTORE_PASSWORD the store password (the key password must be the same, which is keytool's default for PKCS12)
+name: Android build
+on:
+  push:
+    branches: [android-port]
+  workflow_dispatch:     # manual run from the Actions tab
+permissions:
+  contents: read
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  QT_VERSION: 6.11.2
+  NDK_VERSION: 27.2.12479018     # r27c: the NDK the official Qt 6.11 Android kits were built with
+  # the Hamlib commit the Android libraries are built from (the local development checkout is at the same commit)
+  HAMLIB_COMMIT: 50b2a9310edc4a481d8a6ef10e948ea8554f97f9
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {abi: arm64-v8a, qtabi: android_arm64_v8a, bundle: true}    # phones and tablets
+          - {abi: x86_64,    qtabi: android_x86_64,    bundle: false}   # the emulator and Chromebooks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build nasm autoconf automake libtool pkg-config
+          pip install aqtinstall
+
+      - name: Android SDK and NDK
+        run: |
+          set -e
+          [ -w "$ANDROID_HOME" ] || sudo chown -R "$USER" "$ANDROID_HOME"   # the runner image's SDK may belong to root
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION" "platforms;android-36" "build-tools;36.0.0"
+          echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+
+      - name: Cache Qt
+        id: qt-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/Qt
+          key: qt-${{ env.QT_VERSION }}-${{ matrix.qtabi }}-v1
+
+      - name: Install Qt
+        if: steps.qt-cache.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          # the desktop kit is only the host tools (moc, rcc, uic, androiddeployqt) of the cross build
+          aqt install-qt linux desktop "$QT_VERSION" linux_gcc_64 -O ~/Qt
+          aqt install-qt all_os android "$QT_VERSION" ${{ matrix.qtabi }} -m qtmultimedia qtserialport qtpositioning qtimageformats -O ~/Qt
+
+      # FFTW, OpenJPEG, libaom + libavif, Hamlib and Oboe, static, for this ABI: the slow part, so it is cached on what decides it
+      - name: Cache native libraries
+        id: deps-cache
+        uses: actions/cache@v4
+        with:
+          path: third_party/android-deps
+          key: android-deps-${{ matrix.abi }}-${{ hashFiles('tools/build-android-deps.sh') }}-${{ env.HAMLIB_COMMIT }}
+
+      - name: Hamlib source
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          git clone --quiet https://github.com/Hamlib/Hamlib.git "$RUNNER_TEMP/hamlib"
+          git -C "$RUNNER_TEMP/hamlib" checkout --quiet "$HAMLIB_COMMIT"
+          echo "HAMLIB_SRC=$RUNNER_TEMP/hamlib" >> "$GITHUB_ENV"
+
+      - name: Build the native libraries
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        run: ABIS=${{ matrix.abi }} tools/build-android-deps.sh
+
+      - name: Configure
+        run: |
+          set -e
+          DEPS="$PWD/third_party/android-deps/${{ matrix.abi }}"
+          export PKG_CONFIG_LIBDIR="$DEPS/lib/pkgconfig"
+          ~/Qt/$QT_VERSION/${{ matrix.qtabi }}/bin/qt-cmake -S src -B build-android -G Ninja \
+            -DQT_HOST_PATH=$HOME/Qt/$QT_VERSION/gcc_64 -DANDROID_SDK_ROOT="$ANDROID_HOME" -DANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo -DHAMLIB_ROOT="$DEPS" -DCMAKE_FIND_ROOT_PATH="$DEPS"
+
+      - name: Build the APK
+        run: cmake --build build-android
+
+      - name: Build the app bundle (AAB)
+        if: matrix.bundle
+        run: cmake --build build-android --target aab
+
+      - name: CAT bridge test (Java, on the runner)
+        run: bash tests/catbridge/run.sh
+
+      # Play rejects an upload with a library that is not aligned for 16 KB pages: every LOAD segment of every .so in the package
+      - name: Check 16 KB page alignment
+        run: |
+          set -e
+          APK=build-android/android-build/build/outputs/apk/release/android-build-release-unsigned.apk
+          READELF=$(ls "$ANDROID_NDK_ROOT"/toolchains/llvm/prebuilt/*/bin/llvm-readelf)
+          mkdir "$RUNNER_TEMP/libs"
+          unzip -q "$APK" 'lib/*' -d "$RUNNER_TEMP/libs"
+          bad=0; n=0
+          for f in "$RUNNER_TEMP"/libs/lib/${{ matrix.abi }}/*.so; do
+            n=$((n+1))
+            a=$("$READELF" -lW "$f" | awk '$1=="LOAD"{print $NF}' | sort -u | tr '\n' ' ')
+            case "$a" in "0x4000 ") ;; *) echo "NOT 16 KB aligned: $(basename "$f") ($a)"; bad=1 ;; esac
+          done
+          echo "$n libraries checked"
+          [ "$n" -gt 0 ] && [ "$bad" = 0 ]
+
+      - name: Sign
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEYSTORE_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -e
+          BT="$ANDROID_HOME/build-tools/36.0.0"
+          OUT="$PWD/out"; mkdir -p "$OUT"
+          NAME=QSSTV-Experimental-android-${{ matrix.abi }}
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+            KS="$RUNNER_TEMP/upload.jks"; KIND=release
+          else
+            KEY_ALIAS=androiddebugkey; KEY_PASS=android; KIND=debug
+            keytool -genkeypair -keystore "$RUNNER_TEMP/debug.jks" -storepass "$KEY_PASS" -keypass "$KEY_PASS" -alias "$KEY_ALIAS" \
+              -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+            KS="$RUNNER_TEMP/debug.jks"
+          fi
+          UNSIGNED=build-android/android-build/build/outputs/apk/release/android-build-release-unsigned.apk
+          # -P 16: the stored native libraries start on a 16 KB boundary in the zip as well
+          "$BT/zipalign" -f -P 16 4 "$UNSIGNED" "$RUNNER_TEMP/aligned.apk"
+          "$BT/apksigner" sign --ks "$KS" --ks-pass env:KEY_PASS --ks-key-alias "$KEY_ALIAS" --out "$OUT/$NAME-$KIND.apk" "$RUNNER_TEMP/aligned.apk"
+          "$BT/apksigner" verify --print-certs "$OUT/$NAME-$KIND.apk" | head -3
+          "$BT/zipalign" -c -P 16 4 "$OUT/$NAME-$KIND.apk"
+          if [ "${{ matrix.bundle }}" = true ]; then
+            AAB=build-android/android-build/build/outputs/bundle/release/android-build-release.aab
+            if [ "$KIND" = release ]; then
+              cp "$AAB" "$OUT/$NAME.aab"
+              jarsigner -keystore "$KS" -storepass "$KEY_PASS" -keypass "$KEY_PASS" -sigalg SHA256withRSA -digestalg SHA-256 "$OUT/$NAME.aab" "$KEY_ALIAS" >/dev/null
+              jarsigner -verify "$OUT/$NAME.aab" | head -2
+            else
+              cp "$AAB" "$OUT/$NAME-unsigned.aab"
+            fi
+          fi
+          (cd "$OUT" && sha256sum * | tee SHA256SUMS)
+          ls -la "$OUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: QSSTV-Experimental-android-${{ matrix.abi }}
+          path: out/*
