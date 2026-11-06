@@ -82,6 +82,13 @@ void AppModel::setMediaVolume(int percent)
 #endif
 }
 
+void AppModel::openAppSettings()
+{
+#ifdef Q_OS_ANDROID
+  androidOpenAppSettings();
+#endif
+}
+
 void AppModel::keepScreenOn(bool on)
 {
 #ifdef Q_OS_ANDROID

@@ -42,7 +42,7 @@ Column {
             }
         }
         Rectangle {
-            visible: TxController.hasPicture
+            visible: TxController.hasPicture && !AppModel.digital
             anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 8
             radius: 10; color: "#8c000000"
             width: sizeText.implicitWidth + 16; height: sizeText.implicitHeight + 4
@@ -58,7 +58,7 @@ Column {
         width: parent.width - 2 * Theme.margin
         spacing: 8
         Chip { text: qsTr("Photos"); icon: Icons.image; onClicked: TxController.pickPhoto() }
-        Chip { text: qsTr("Camera"); icon: Icons.camera; onClicked: TxController.camera() }
+        Chip { visible: TxController.cameraAvailable; text: qsTr("Camera"); icon: Icons.camera; onClicked: TxController.camera() }
         Chip { text: qsTr("Files"); icon: Icons.folder; onClicked: TxController.pickFile() }
     }
 }

@@ -54,7 +54,7 @@ Rectangle {
         Flow {
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 8
-            Chip { text: TxController.modeName; tone: "selected" }
+            Chip { text: AppModel.digital ? qsTr("Digital · %1").arg(TxController.drmSummary) : TxController.modeName; tone: "selected" }
             Chip { text: AppModel.routeText + (AppModel.mediaVolumeAvailable ? "  " + AppModel.mediaVolume + " %" : ""); icon: Icons.volume }
         }
         Text {

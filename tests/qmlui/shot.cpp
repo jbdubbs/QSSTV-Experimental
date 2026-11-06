@@ -127,11 +127,11 @@ int main(int argc, char **argv)
       // nothing is left open from the scene before
       for (const char *screenName : {"receiveScreen", "transmitScreen"})
         if (QQuickItem *s = findItem(win->contentItem(), screenName))
-          for (const char *prop : {"optionsOpen", "modesOpen", "detailsOpen"})
+          for (const char *prop : {"optionsOpen", "modesOpen", "detailsOpen", "digitalOpen"})
             if (s->property(prop).isValid()) s->setProperty(prop, false);
       TxController::instance()->setTestSending(-1);
       app_->setScreen(0);
-      app_->setDigital(scene == "digital");
+      app_->setDigital(scene == "digital" || scene.startsWith("tx-digital"));
       // the receiver does not run here: tell the screens what a running one would
       rx->setTestListening(scene == "stopped" ? 0 : 1);
       rx->setTestLevel(scene == "quiet" ? 0.1 : scene == "loud" ? 0.97 : 0.55);
@@ -164,6 +164,12 @@ int main(int argc, char **argv)
       else if (scene == "gallery") app_->setScreen(2);
       QTest::qWait(400);
       QQuickItem *content = win->contentItem();
+      if (scene == "tx-digital-details")
+        {
+          QQuickItem *t = findItem(content, "transmitScreen");
+          if (t) t->setProperty("digitalOpen", true);
+          QTest::qWait(500);
+        }
       if (scene == "tx-modes" || scene == "tx-details")
         {
           QQuickItem *t = findItem(content, "transmitScreen");

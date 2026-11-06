@@ -8,6 +8,7 @@ Item {
     property bool wide: width >= 600 && width > height * 1.1
     property alias detailsOpen: details.open
     property alias modesOpen: modes.open
+    property alias digitalOpen: digital.open
 
     ModeStrip {
         id: strip
@@ -25,7 +26,7 @@ Item {
             width: parent.width - 2 * Theme.margin
             text: TxController.hasPicture ? qsTr("Send") : qsTr("Choose a picture first")
             icon: TxController.hasPicture ? Icons.send : ""
-            enabledLook: TxController.hasPicture && !AppModel.digital
+            enabledLook: TxController.hasPicture
             onClicked: TxController.send()
         }
     }
@@ -36,7 +37,6 @@ Item {
         anchors.top: strip.bottom; anchors.topMargin: 6
         anchors.left: parent.left; anchors.right: parent.right
         anchors.bottom: sendBar.top
-        visible: !AppModel.digital
 
         Flickable {
             visible: !screen.wide
@@ -50,7 +50,7 @@ Item {
                 width: parent.width
                 spacing: 4
                 TxPictureBlock { width: parent.width; maxCanvasHeight: body.height * 0.4 }
-                TxOptionsBlock { width: parent.width; onOpenDetails: details.open = true; onOpenModes: modes.open = true }
+                TxOptionsBlock { width: parent.width; onOpenDetails: details.open = true; onOpenModes: modes.open = true; onOpenDigital: digital.open = true }
             }
         }
         Item {
@@ -64,23 +64,11 @@ Item {
                 contentHeight: wideOptions.height
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
-                TxOptionsBlock { id: wideOptions; width: parent.width; onOpenDetails: details.open = true; onOpenModes: modes.open = true }
+                TxOptionsBlock { id: wideOptions; width: parent.width; onOpenDetails: details.open = true; onOpenModes: modes.open = true; onOpenDigital: digital.open = true }
             }
         }
     }
-    Column {
-        visible: AppModel.digital
-        anchors.centerIn: parent
-        width: parent.width - 64
-        spacing: 6
-        Text { width: parent.width; horizontalAlignment: Text.AlignHCenter; text: qsTr("Digital pictures"); color: Theme.surfaceOn; font.pixelSize: Theme.sp(18) }
-        Text {
-            width: parent.width; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
-            text: qsTr("Sending digital (DRM) pictures comes in the next step of the new interface. Receiving works.")
-            color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(14)
-        }
-    }
-
     ModeSheet { id: modes }
+    DrmSheet { id: digital }
     DetailsSheet { id: details }
 }

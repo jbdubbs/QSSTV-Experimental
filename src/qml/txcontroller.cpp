@@ -9,9 +9,15 @@
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDir>
 #include <QJSEngine>
 #include <QLineEdit>
+#include <QCoreApplication>
+#include <QMediaDevices>
+#include <QPermission>
 #include <QQmlEngine>
+#include <QStandardPaths>
+#include <QSlider>
 
 TxController *TxController::instance()
 {
@@ -176,6 +182,104 @@ QString TxController::detailsSummary() const
   return parts.join(QStringLiteral(" · "));
 }
 
+// the digital settings are the page's own boxes and slider: what a user does there is what is done here
+static QComboBox *box(const char *name)
+{
+  return txWidgetPtr ? txWidgetPtr->findChild<QComboBox *>(QString::fromLatin1(name)) : nullptr;
+}
+
+static QSlider *sizeSlider()
+{
+  return txWidgetPtr ? txWidgetPtr->findChild<QSlider *>(QStringLiteral("sizeSlider")) : nullptr;
+}
+
+QStringList TxController::drmProfiles() const
+{
+  QStringList l;
+  if(QComboBox *b=box("drmProfileComboBox")) for(int i=0;i<b->count();i++) l<<b->itemText(i);
+  return l;
+}
+
+int TxController::drmProfile() const
+{
+  QComboBox *b=box("drmProfileComboBox");
+  return b ? b->currentIndex() : -1;
+}
+
+void TxController::setDrmProfile(int index)
+{
+  QComboBox *b=box("drmProfileComboBox");
+  if(!b || index<0 || index>=b->count()) return;
+  b->setCurrentIndex(index);
+  QMetaObject::invokeMethod(txWidgetPtr,"slotProfileChanged",Q_ARG(int,index));   // what choosing it in the box does
+  poll();
+}
+
+int TxController::drmSize() const {QSlider *s=sizeSlider(); return s ? s->value() : 0;}
+int TxController::drmSizeMin() const {QSlider *s=sizeSlider(); return s ? s->minimum() : 0;}
+int TxController::drmSizeMax() const {QSlider *s=sizeSlider(); return s ? s->maximum() : 0;}
+
+void TxController::setDrmSize(int bytes)
+{
+  if(QSlider *s=sizeSlider()) s->setValue(qBound(s->minimum(),bytes,s->maximum()));   // the page re-encodes in the background
+  poll();
+}
+
+QString TxController::drmSummary() const
+{
+  auto text=[](const char *name){QComboBox *b=box(name); return b ? b->currentText() : QString();};
+  const QString qam=text("drmTxQAMComboBox");
+  return tr("Mode %1, %2-QAM, %3").arg(text("drmTxModeComboBox"),qam,text("drmTxBandwidthComboBox"));
+}
+
+namespace
+{
+struct drmOption {const char *key; const char *title; const char *box;};
+const drmOption drmOptionTable[]={
+  {"mode","Robustness","drmTxModeComboBox"},
+  {"qam","QAM","drmTxQAMComboBox"},
+  {"bandwidth","Bandwidth","drmTxBandwidthComboBox"},
+  {"interleave","Interleaving","drmTxInterleaveComboBox"},
+  {"protection","Error protection","drmTxProtectionComboBox"},
+  {"rs","Reed-Solomon (files)","drmTxReedSolomonComboBox"},
+  {"encoding","Picture format","drmEncodingComboBox"},
+};
+}
+
+QVariantList TxController::drmOptions() const
+{
+  QVariantList l;
+  for(const drmOption &o:drmOptionTable)
+    {
+      QComboBox *b=box(o.box);
+      if(!b) continue;
+      QStringList items;
+      for(int i=0;i<b->count();i++) items<<b->itemText(i);
+      QVariantMap e;
+      e["key"]=o.key;
+      e["title"]=tr(o.title);
+      e["items"]=items;
+      e["index"]=b->currentIndex();
+      l.append(e);
+    }
+  return l;
+}
+
+void TxController::setDrmOption(const QString &key,int index)
+{
+  for(const drmOption &o:drmOptionTable)
+    {
+      if(key!=QLatin1String(o.key)) continue;
+      QComboBox *b=box(o.box);
+      if(!b || index<0 || index>=b->count()) return;
+      b->setCurrentIndex(index);
+      if(key==QLatin1String("encoding")) QMetaObject::invokeMethod(txWidgetPtr,"slotEncodingChanged",Q_ARG(int,index));
+      else QMetaObject::invokeMethod(txWidgetPtr,"slotGetTXParams");   // takes the boxes over and updates the time
+      poll();
+      return;
+    }
+}
+
 void TxController::pickPhoto() {pickFile();}
 
 void TxController::pickFile()
@@ -183,9 +287,51 @@ void TxController::pickFile()
   if(txWidgetPtr) QMetaObject::invokeMethod(txWidgetPtr,"slotFileOpen",Qt::QueuedConnection);
 }
 
+bool TxController::cameraAvailable() const
+{
+  return !QMediaDevices::videoInputs().isEmpty();
+}
+
+void TxController::setCameraOpen(bool open)
+{
+  if(open==m_cameraOpen) return;
+  m_cameraOpen=open;
+  emit cameraOpenChanged();
+}
+
 void TxController::camera()
 {
-  if(txWidgetPtr) QMetaObject::invokeMethod(txWidgetPtr,"slotSnapshot",Qt::QueuedConnection);
+  // asked in context: when the user taps Camera, with the system's own question
+  QCameraPermission permission;
+  switch(qApp->checkPermission(permission))
+    {
+    case Qt::PermissionStatus::Granted:
+      setCameraOpen(true);
+      break;
+    case Qt::PermissionStatus::Undetermined:
+      qApp->requestPermission(permission,this,[this](const QPermission &answer)
+        {
+          if(answer.status()==Qt::PermissionStatus::Granted) setCameraOpen(true);
+          else emit cameraBlocked();
+        });
+      break;
+    case Qt::PermissionStatus::Denied:
+      emit cameraBlocked();
+      break;
+    }
+}
+
+QString TxController::tempPicturePath() const
+{
+  const QString dir=QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+  QDir().mkpath(dir);
+  return dir+QStringLiteral("/camera.jpg");
+}
+
+void TxController::usePicture(const QString &file)
+{
+  setCameraOpen(false);
+  showPicture(file);
 }
 
 void TxController::showPicture(const QString &file)
@@ -229,6 +375,14 @@ void TxController::poll()
     {
       m_cachedMode=int(sstvModeIndexTx);
       emit modeChanged();
+    }
+  QString sig=QString("%1|%2|%3|%4|%5").arg(drmProfile()).arg(drmSize()).arg(drmSizeMax()).arg(drmSummary()).arg(txWidgetPtr->txSeconds());
+  for(const QVariant &o:drmOptions()) sig+="|"+QString::number(o.toMap().value("index").toInt());
+  if(sig!=m_drmSignature)
+    {
+      m_drmSignature=sig;
+      ++m_drmRevision;
+      emit drmChanged();
     }
   if(m_test) return;
   const bool sending=txWidgetPtr->functionsPtr() && txWidgetPtr->functionsPtr()->txBusy();

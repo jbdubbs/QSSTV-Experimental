@@ -36,6 +36,16 @@ class TxController : public QObject
   Q_PROPERTY(QString toOperator READ toOperator WRITE setToOperator NOTIFY detailsChanged)
   Q_PROPERTY(QString report READ report WRITE setReport NOTIFY detailsChanged)
   Q_PROPERTY(QString detailsSummary READ detailsSummary NOTIFY detailsChanged)   //!< "NT0Y · To W1AW · 59"
+  Q_PROPERTY(bool cameraOpen READ cameraOpen WRITE setCameraOpen NOTIFY cameraOpenChanged)   //!< the camera screen is showing
+  Q_PROPERTY(bool cameraAvailable READ cameraAvailable CONSTANT)                              //!< the device has a camera
+  // digital (DRM)
+  Q_PROPERTY(QStringList drmProfiles READ drmProfiles NOTIFY drmChanged)         //!< the saved DRM settings (Configuration > DRM), three at most
+  Q_PROPERTY(int drmProfile READ drmProfile WRITE setDrmProfile NOTIFY drmChanged)
+  Q_PROPERTY(int drmSize READ drmSize WRITE setDrmSize NOTIFY drmChanged)        //!< the compressed picture, in bytes
+  Q_PROPERTY(int drmSizeMin READ drmSizeMin NOTIFY drmChanged)
+  Q_PROPERTY(int drmSizeMax READ drmSizeMax NOTIFY drmChanged)
+  Q_PROPERTY(QString drmSummary READ drmSummary NOTIFY drmChanged)               //!< "Mode B, 16-QAM, 2.3 kHz"
+  Q_PROPERTY(int drmRevision READ drmRevision NOTIFY drmChanged)                 //!< changes whenever something of the digital settings does
 
 public:
   static TxController *instance();
@@ -63,11 +73,31 @@ public:
   void setReport(const QString &s);
   QString detailsSummary() const;
 
+  bool cameraOpen() const {return m_cameraOpen;}
+  void setCameraOpen(bool open);
+  bool cameraAvailable() const;
+  QStringList drmProfiles() const;
+  int drmProfile() const;
+  void setDrmProfile(int index);
+  int drmSize() const;
+  void setDrmSize(int bytes);
+  int drmSizeMin() const;
+  int drmSizeMax() const;
+  QString drmSummary() const;
+  int drmRevision() const {return m_drmRevision;}
+  //! the choices of the digital settings: [{key, title, items:[text], index}] read from the page's own boxes
+  Q_INVOKABLE QVariantList drmOptions() const;
+  Q_INVOKABLE void setDrmOption(const QString &key,int index);
+
   //! every analog mode: [{mode, name, size, time, group}] for the "All modes" sheet
   Q_INVOKABLE QVariantList allModes() const;
   Q_INVOKABLE void pickPhoto();     //!< the picture from the phone's photos
   Q_INVOKABLE void pickFile();      //!< the picture from a file
-  Q_INVOKABLE void camera();        //!< a picture from the camera
+  Q_INVOKABLE void camera();        //!< a picture from the camera: asks for the permission first, then the camera screen shows
+  //! where the camera screen saves the picture it takes (the program's cache)
+  Q_INVOKABLE QString tempPicturePath() const;
+  //! the camera took this picture: it is what is sent next
+  Q_INVOKABLE void usePicture(const QString &file);
   //! a picture from outside (shared to the program): load it and show the Transmit screen
   Q_INVOKABLE void showPicture(const QString &file);
   Q_INVOKABLE void send();
@@ -83,6 +113,9 @@ signals:
   void sendingChanged();
   void progressChanged();
   void detailsChanged();
+  void drmChanged();
+  void cameraOpenChanged();
+  void cameraBlocked();   //!< the user refused the camera: the screen says where to allow it
 
 private slots:
   void refreshPicture();
@@ -97,6 +130,9 @@ private:
   bool m_sending=false;
   qreal m_progress=0;
   int m_cachedMode=-1;
+  int m_drmRevision=0;
+  bool m_cameraOpen=false;
+  QString m_drmSignature;
   bool m_connected=false;
   bool m_test=false;
   QTimer m_timer;

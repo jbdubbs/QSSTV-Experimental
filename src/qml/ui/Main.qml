@@ -13,6 +13,11 @@ ApplicationWindow {
     Material.theme: Theme.dark ? Material.Dark : Material.Light
     Material.accent: Theme.primary
     font.family: Theme.fontFamily
+    // the window draws behind the system bars (edge to edge); the screens keep clear of them themselves, with SafeArea
+    topPadding: 0
+    leftPadding: 0
+    rightPadding: 0
+    bottomPadding: 0
 
     readonly property bool wide: width >= 600
 
@@ -57,6 +62,24 @@ ApplicationWindow {
                 PlaceholderScreen { title: qsTr("Gallery") }
             }
         }
+        CameraScreen {
+            anchors.fill: parent
+            visible: TxController.cameraOpen   // the camera itself only runs while this shows
+            topInset: root.inset.top
+            bottomInset: root.inset.bottom
+        }
+        Snackbar {
+            id: snack
+            anchors.left: parent.left; anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.leftMargin: Theme.margin; anchors.rightMargin: Theme.margin
+            anchors.bottomMargin: (win.wide ? 16 : Theme.navBarHeight + 16) + root.inset.bottom
+            onAction: AppModel.openAppSettings()
+        }
+        Connections {
+            target: TxController
+            function onCameraBlocked() { snack.show(qsTr("The camera is blocked for this app."), qsTr("Settings")) }
+        }
         SendingOverlay {
             anchors.fill: parent
             topInset: root.inset.top
@@ -80,9 +103,11 @@ ApplicationWindow {
     onClosing: (close) => {
         if (Qt.platform.os === "android") {
             close.accepted = false
-            if (TxController.sending) TxController.stop()
+            if (TxController.cameraOpen) TxController.cameraOpen = false
+            else if (TxController.sending) TxController.stop()
             else if (receive.optionsOpen) receive.optionsOpen = false
             else if (transmit.modesOpen) transmit.modesOpen = false
+            else if (transmit.digitalOpen) transmit.digitalOpen = false
             else if (transmit.detailsOpen) transmit.detailsOpen = false
             else if (AppModel.screen !== 0) AppModel.screen = 0
             else AppModel.moveToBackground()

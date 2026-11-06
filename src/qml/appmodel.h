@@ -50,6 +50,8 @@ public:
   Q_INVOKABLE void refreshVolume();
   //! the screen stays on (true) while a picture is sent
   Q_INVOKABLE void keepScreenOn(bool on);
+  //! the system's settings of this app (permissions): where a refused permission is allowed again
+  Q_INVOKABLE void openAppSettings();
   Q_INVOKABLE void moveToBackground();
   //! the window was closed (not Android): the program ends like the menu's Exit does
   Q_INVOKABLE void quit();

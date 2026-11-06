@@ -7,6 +7,7 @@ Column {
     id: block
     signal openDetails()
     signal openModes()
+    signal openDigital()
     spacing: 4
 
     // put my details on the picture: the text opens the details, the switch turns the template on and off
@@ -38,61 +39,150 @@ Column {
         }
     }
 
-    Item {
-        width: parent.width; height: 40
-        Text {
-            x: 24; anchors.verticalCenter: parent.verticalCenter
-            text: qsTr("Mode"); color: Theme.primary; font.pixelSize: Theme.sp(14); font.weight: Font.Medium
+    // analog: the mode, what it takes
+    Column {
+        width: parent.width
+        spacing: 4
+        visible: !AppModel.digital
+        Item {
+            width: parent.width; height: 40
+            Text {
+                x: 24; anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("Mode"); color: Theme.primary; font.pixelSize: Theme.sp(14); font.weight: Font.Medium
+            }
+            Row {
+                anchors.right: parent.right; anchors.rightMargin: 16
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 2
+                Text { text: qsTr("All modes"); color: Theme.primary; font.pixelSize: Theme.sp(14); font.weight: Font.Medium; anchors.verticalCenter: parent.verticalCenter }
+                Icon { path: Icons.chevron; color: Theme.primary; size: 20; anchors.verticalCenter: parent.verticalCenter }
+            }
+            TapHandler { onTapped: block.openModes() }
+            Accessible.role: Accessible.Button
+            Accessible.name: qsTr("All modes")
         }
-        Row {
-            anchors.right: parent.right; anchors.rightMargin: 16
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 2
-            Text { text: qsTr("All modes"); color: Theme.primary; font.pixelSize: Theme.sp(14); font.weight: Font.Medium; anchors.verticalCenter: parent.verticalCenter }
-            Icon { path: Icons.chevron; color: Theme.primary; size: 20; anchors.verticalCenter: parent.verticalCenter }
-        }
-        TapHandler { onTapped: block.openModes() }
-        Accessible.role: Accessible.Button
-        Accessible.name: qsTr("All modes")
-    }
-    Flow {
-        x: Theme.margin
-        width: parent.width - 2 * Theme.margin
-        spacing: 8
-        Repeater {
-            model: TxController.favorites
-            delegate: Chip {
-                required property var modelData
-                text: modelData.name
-                icon: selected ? Icons.check : ""
-                readonly property bool selected: TxController.mode === modelData.mode
-                tone: selected ? "selected" : "plain"
-                onClicked: TxController.mode = modelData.mode
+        Flow {
+            x: Theme.margin
+            width: parent.width - 2 * Theme.margin
+            spacing: 8
+            Repeater {
+                model: TxController.favorites
+                delegate: Chip {
+                    required property var modelData
+                    text: modelData.name
+                    icon: selected ? Icons.check : ""
+                    readonly property bool selected: TxController.mode === modelData.mode
+                    tone: selected ? "selected" : "plain"
+                    onClicked: TxController.mode = modelData.mode
+                }
+            }
+            // a mode chosen under "All modes" that is not a favourite
+            Chip {
+                id: other
+                visible: !TxController.favorites.some(f => f.mode === TxController.mode)
+                text: TxController.modeName
+                icon: Icons.check
+                tone: "selected"
             }
         }
-        // a mode chosen under "All modes" that is not a favourite
-        Chip {
-            id: other
-            visible: !TxController.favorites.some(f => f.mode === TxController.mode)
-            text: TxController.modeName
-            icon: Icons.check
-            tone: "selected"
+        Text {
+            x: 24
+            width: parent.width - 48
+            visible: TxController.hasPicture
+            text: TxController.pictureSize + (TxController.timeText !== "" ? "  ·  " : "")
+            color: Theme.surfaceVariantOn
+            font.pixelSize: Theme.sp(14)
+            Text {
+                anchors.left: parent.left
+                anchors.leftMargin: parent.contentWidth
+                text: TxController.timeText
+                color: Theme.surfaceOn
+                font.pixelSize: Theme.sp(14)
+                font.weight: Font.Medium
+            }
         }
     }
-    Text {
-        x: 24
-        width: parent.width - 48
-        visible: TxController.hasPicture
-        text: TxController.pictureSize + (TxController.timeText !== "" ? "  ·  " : "")
-        color: Theme.surfaceVariantOn
-        font.pixelSize: Theme.sp(14)
+
+    // digital: the saved settings, the size of the picture, what it takes
+    Column {
+        width: parent.width
+        spacing: 4
+        visible: AppModel.digital
+        Item {
+            width: parent.width; height: 40
+            Text {
+                x: 24; anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("Digital settings"); color: Theme.primary; font.pixelSize: Theme.sp(14); font.weight: Font.Medium
+            }
+            Row {
+                anchors.right: parent.right; anchors.rightMargin: 16
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 2
+                Text { text: qsTr("Details"); color: Theme.primary; font.pixelSize: Theme.sp(14); font.weight: Font.Medium; anchors.verticalCenter: parent.verticalCenter }
+                Icon { path: Icons.chevron; color: Theme.primary; size: 20; anchors.verticalCenter: parent.verticalCenter }
+            }
+            TapHandler { onTapped: block.openDigital() }
+            Accessible.role: Accessible.Button
+            Accessible.name: qsTr("Digital settings, details")
+        }
+        Flow {
+            x: Theme.margin
+            width: parent.width - 2 * Theme.margin
+            spacing: 8
+            Repeater {
+                model: TxController.drmProfiles
+                delegate: Chip {
+                    required property int index
+                    required property string modelData
+                    readonly property bool selected: TxController.drmProfile === index
+                    text: modelData
+                    icon: selected ? Icons.check : ""
+                    tone: selected ? "selected" : "plain"
+                    onClicked: TxController.drmProfile = index
+                }
+            }
+        }
+        Item {
+            width: parent.width
+            height: sizeCol.implicitHeight
+            Column {
+                id: sizeCol
+                x: 24
+                width: parent.width - 48
+                Item {
+                    width: parent.width; height: sizeLabel.implicitHeight + 4
+                    Text { id: sizeLabel; text: qsTr("Picture size"); color: Theme.surfaceOn; font.pixelSize: Theme.sp(16) }
+                    Text {
+                        anchors.right: parent.right
+                        text: qsTr("%1 bytes").arg(sizeSlider.pressed ? Math.round(sizeSlider.value) : TxController.drmSize)
+                        color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(14)
+                    }
+                }
+                Slider {
+                    id: sizeSlider
+                    width: parent.width
+                    from: TxController.drmSizeMin; to: Math.max(TxController.drmSizeMax, TxController.drmSizeMin + 1)
+                    stepSize: 100
+                    value: TxController.drmSize
+                    onPressedChanged: if (!pressed) TxController.drmSize = Math.round(value)   // the picture is encoded again once, when the finger lets go
+                    Accessible.name: qsTr("Picture size in bytes")
+                }
+            }
+        }
         Text {
-            anchors.left: parent.left
-            anchors.leftMargin: parent.contentWidth
-            text: TxController.timeText
-            color: Theme.surfaceOn
+            x: 24
+            width: parent.width - 48
+            text: TxController.drmSummary + (TxController.timeText !== "" ? "  ·  " : "")
+            color: Theme.surfaceVariantOn
             font.pixelSize: Theme.sp(14)
-            font.weight: Font.Medium
+            Text {
+                anchors.left: parent.left
+                anchors.leftMargin: parent.contentWidth
+                text: TxController.timeText
+                color: Theme.surfaceOn
+                font.pixelSize: Theme.sp(14)
+                font.weight: Font.Medium
+            }
         }
     }
     Rectangle {

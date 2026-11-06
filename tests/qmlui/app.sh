@@ -21,7 +21,7 @@ run() {   # theme width height scenes...
   mkdir -p "$SCRATCH/home-$theme-$w"
   QSSTV_QML_THEME=$theme timeout 120 "$SCRATCH/shot" "$SCRATCH/home-$theme-$w" "$OUT/$theme" "$w" "$h" "$@" || rc=1
 }
-SCENES="idle receiving options digital stopped quiet tx tx-picture tx-modes tx-details tx-sending gallery"
+SCENES="idle receiving options digital stopped quiet tx tx-picture tx-modes tx-details tx-digital tx-digital-details tx-sending gallery"
 run light 411 800 $SCENES
 run dark 411 800 $SCENES
 run light 360 640 idle receiving tx-picture
