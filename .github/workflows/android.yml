@@ -154,7 +154,7 @@ jobs:
           UNSIGNED=build-android/android-build/build/outputs/apk/release/android-build-release-unsigned.apk
           # -P 16: the stored native libraries start on a 16 KB boundary in the zip as well
           "$BT/zipalign" -f -P 16 4 "$UNSIGNED" "$RUNNER_TEMP/aligned.apk"
-          "$BT/apksigner" sign --ks "$KS" --ks-pass env:KEY_PASS --ks-key-alias "$KEY_ALIAS" --out "$OUT/$NAME-$KIND.apk" "$RUNNER_TEMP/aligned.apk"
+          "$BT/apksigner" sign --ks "$KS" --ks-pass env:KEY_PASS --ks-key-alias "$KEY_ALIAS" --v4-signing-enabled false --out "$OUT/$NAME-$KIND.apk" "$RUNNER_TEMP/aligned.apk"
           "$BT/apksigner" verify --print-certs "$OUT/$NAME-$KIND.apk" | head -3
           "$BT/zipalign" -c -P 16 4 "$OUT/$NAME-$KIND.apk"
           if [ "${{ matrix.bundle }}" = true ]; then
@@ -174,3 +174,50 @@ jobs:
         with:
           name: QSSTV-Experimental-android-${{ matrix.abi }}
           path: out/*
+
+  # The x86_64 build on an emulator: it installs and starts, opens its audio, decodes a recording handed over by another app (the VIEW
+  # intent of "Open with") and puts the picture into the picture library, without a crash. tests/androidsmoke/run.sh has the checks.
+  smoke:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # a Jb60 recording made with the real transmitter code (the loopback harness needs only Qt's headers)
+      - name: Make a test recording
+        run: |
+          set -e
+          sudo apt-get update
+          sudo apt-get install -y qt6-base-dev
+          (cd tests/jb60_loopback && QT_INCLUDE=/usr/include/x86_64-linux-gnu/qt6 ./build.sh)
+          tests/jb60_loopback/loopback jb --image card --vis --wav "$RUNNER_TEMP/smoke.wav" > /dev/null
+          ls -la "$RUNNER_TEMP/smoke.wav"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: QSSTV-Experimental-android-x86_64
+          path: apk
+
+      - name: Run the smoke test on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: bash tests/androidsmoke/run.sh apk/QSSTV-Experimental-android-x86_64-debug.apk "$RUNNER_TEMP/smoke.wav" smoke-out
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-smoke-logs
+          path: smoke-out
+          if-no-files-found: ignore
