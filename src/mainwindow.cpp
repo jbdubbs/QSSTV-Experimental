@@ -55,6 +55,9 @@
 #include "uimode.h"
 #include "touchpage.h"
 #ifdef Q_OS_ANDROID
+#include "qtlocationsource.h"
+#endif
+#ifdef Q_OS_ANDROID
 #include "androidaudio.h"
 #include <android/log.h>
 #endif
@@ -120,6 +123,9 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
   pttIcon->setLineWidth(2);
   rigControllerPtr=new rigControl(1); // must precede configDialog construction
   gpsReaderPtr=new gpsReader(this);   // the GPS configuration page and the Transmit tab use it
+#ifdef Q_OS_ANDROID
+  gpsReaderPtr->setLocationSource(new qtLocationSource(gpsReaderPtr));   // the phone's own position: no receiver on a cable, no port
+#endif
   placeLookupPtr=new placeLookup(this);
   configDialogPtr=new configDialog(this);
   configDialogPtr->readSettings();

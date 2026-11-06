@@ -23,6 +23,9 @@ endif()
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network Xml SerialPort Multimedia Svg)
+if(ANDROID)
+  find_package(Qt6 6.5 REQUIRED COMPONENTS Positioning)   # the phone's own location (android/qtlocationsource.cpp)
+endif()
 if(UNIX AND NOT APPLE AND NOT ANDROID)
   # only used to probe for xdg-desktop-portal at startup (native file dialogs, see preferPortalTheme())
   find_package(Qt6 REQUIRED COMPONENTS DBus)
@@ -175,6 +178,7 @@ set(QSSTV_SOURCES
     template/templatevars.cpp
     gps/nmeaparser.cpp
     gps/gpsreader.cpp
+    gps/locationsource.h
     gps/placelookup.cpp
     editor/editordocument.cpp
     editor/editorcommands.cpp
@@ -325,7 +329,7 @@ set(QSSTV_SOURCES
 
 if(ANDROID)
   # the native sound backend (AAudio through Oboe); the other platforms use soundqtmultimedia.cpp only
-  list(APPEND QSSTV_SOURCES sound/soundandroid.cpp android/openwith.cpp android/androidaudio.cpp android/androidusb.cpp)
+  list(APPEND QSSTV_SOURCES sound/soundandroid.cpp android/openwith.cpp android/androidaudio.cpp android/androidusb.cpp android/qtlocationsource.cpp)
 endif()
 
 # Video capture used to be Linux/macOS-only V4L2 (excluded on macOS via the original
@@ -464,6 +468,9 @@ target_link_libraries(qsstv PRIVATE
     PkgConfig::OPENJP2
     hamlib::hamlib
 )
+if(ANDROID)
+  target_link_libraries(qsstv PRIVATE Qt6::Positioning)
+endif()
 if(ANDROID)
   # The User's Guide is compiled into the app (documentation/userguide stays the one source, see BUILDING.md): an Android app
   # has no folder to install it to, and guideserver serves it from :/userguide to the browser on 127.0.0.1

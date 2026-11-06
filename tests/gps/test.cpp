@@ -4,6 +4,7 @@
 #include "nmeaparser.h"
 #include "gpsreader.h"
 #include "placelookup.h"
+#include "locationsource.h"
 #include "fakeservice.h"
 
 #include <QCoreApplication>
@@ -679,6 +680,105 @@ static void testTracking()
   gpsPort=savedPort;
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// the operating system's location service in place of a port (Android): a source of this test stands in for it
+
+class fakeLocation : public locationSource
+{
+public:
+  int started=0,stopped=0,onceAsked=0,onceTimeout=0;
+  void start() override {started++;}
+  void stop() override {stopped++;}
+  void requestOnce(int ms) override {onceAsked++; onceTimeout=ms;}
+  void give(double lat,double lon) {emit position(lat,lon);}
+  void giveOnce(double lat,double lon) {emit onceReady(lat,lon);}
+  void fail(const QString &reason) {emit failed(reason);}
+};
+
+static void testLocationService()
+{
+  fakeLocation fake;
+  gpsReader reader;
+  reader.setLocationSource(&fake);
+  reader.setTrackTimeouts(300,300);
+  CHECK(reader.usesLocationService());
+  gpsEnabled=true;
+  gpsPort.clear();   // no port is needed
+  int positions=0;
+  double lat=0,lon=0;
+  QList<int> states;
+  QStringList reasons;
+  QObject::connect(&reader,&gpsReader::positionUpdated,[&](double a,double b) {positions++; lat=a; lon=b;});
+  QObject::connect(&reader,&gpsReader::trackingState,[&](int state,const QString &reason) {states.append(state); reasons.append(reason);});
+
+  // enabled is all it takes; disabled is not tracked
+  gpsEnabled=false;
+  CHECK(!reader.startTracking() && !reader.tracking());
+  gpsEnabled=true;
+  CHECK(reader.startTracking() && reader.tracking());
+  CHECK(fake.started==1 && states==(QList<int>{gpsReader::TRACKWAITING}));
+  int stoppedAtStart=fake.stopped;   // (starting stops a source that may be running first)
+
+  // a position: fixed, reported; a second one at once is the same second (not reported again), a later one is
+  fake.give(47.6062,-122.3321);
+  CHECK(positions==1 && near(lat,47.6062) && near(lon,-122.3321));
+  CHECK(states==(QList<int>{gpsReader::TRACKWAITING,gpsReader::TRACKFIXED}));
+  fake.give(47.7,-122.4);
+  CHECK(positions==1);
+  pump(100);
+  fake.give(47.7,-122.4);   // still within the second
+  CHECK(positions==1);
+  pump(800);
+  fake.give(47.8,-122.5);
+  CHECK(positions==2 && near(lat,47.8));
+
+  // the service falls silent: no position now (and nothing was stopped), a position makes it fixed again
+  pump(500);
+  CHECK(states.last()==gpsReader::TRACKWAITING && reasons.last().contains("phone"));
+  CHECK(fake.stopped==stoppedAtStart);
+  fake.give(47.9,-122.6);
+  CHECK(states.last()==gpsReader::TRACKFIXED);
+
+  // the service says it cannot: failed, the source stopped, and tried again by itself
+  fake.fail("The program may not use the phone's location");
+  CHECK(states.last()==gpsReader::TRACKFAILED && reasons.last().contains("may not use"));
+  CHECK(fake.stopped==stoppedAtStart+1);
+  pump(500);
+  CHECK(fake.started==2 && states.last()==gpsReader::TRACKWAITING);
+
+  // one position on request while tracking: the tracking stops for it and starts again after it
+  bool got=false,gotOk=false;
+  double fixLat=0,fixLon=0;
+  QString fixWhy;
+  QObject::connect(&reader,&gpsReader::fixReady,[&](bool ok,double a,double b,const QString &why) {got=true; gotOk=ok; fixLat=a; fixLon=b; fixWhy=why;});
+  const int stoppedBeforeOnce=fake.stopped;
+  CHECK(reader.requestFix(QString(),0,2000));
+  CHECK(fake.onceAsked==1 && fake.onceTimeout==2000 && fake.stopped>stoppedBeforeOnce);
+  CHECK(!reader.requestFix(QString(),0,2000));   // one at a time
+  fake.giveOnce(1.5,2.5);
+  CHECK(got && gotOk && near(fixLat,1.5) && near(fixLon,2.5));
+  CHECK(fake.started==3 && reader.tracking());
+
+  // a refused request says why; one that gets no answer says so after its time
+  got=false;
+  CHECK(reader.requestFix(QString(),0,2000));
+  fake.fail("denied");
+  CHECK(got && !gotOk && fixWhy=="denied");
+  got=false;
+  CHECK(reader.requestFix(QString(),0,300));
+  pump(500);
+  CHECK(got && !gotOk && fixWhy.contains("no position"));
+  CHECK(!reader.busy());
+
+  // stopping stops the source
+  const int stoppedBefore=fake.stopped;
+  reader.stopTracking();
+  CHECK(!reader.tracking() && fake.stopped>stoppedBefore);
+  const int after=positions;
+  fake.give(1,1);
+  CHECK(positions==after);   // nothing is reported once it is stopped
+}
+
 int main(int argc,char **argv)
 {
   QCoreApplication app(argc,argv);
@@ -693,6 +793,8 @@ int main(int argc,char **argv)
   testReader();
   testTracking();
   std::printf("tracking done\n");
+  testLocationService();
+  std::printf("location service done\n");
   if(failures) std::printf("%d check(s) FAILED\n",failures);
   else std::printf("gps: all checks passed\n");
   return failures?1:0;

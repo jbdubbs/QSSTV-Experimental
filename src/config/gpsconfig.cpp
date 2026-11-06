@@ -24,6 +24,16 @@ gpsConfig::gpsConfig(QWidget *parent) : baseConfig(parent), ui(new Ui::gpsConfig
   connect(ui->portComboBox,SIGNAL(activated(int)),SLOT(slotCheckPort()));   // a port chosen or typed after the box was ticked
   if(ui->portComboBox->lineEdit()!=nullptr) connect(ui->portComboBox->lineEdit(),SIGNAL(editingFinished()),SLOT(slotCheckPort()));
   connect(ui->testPushButton,SIGNAL(clicked()),SLOT(slotTest()));
+  if(gpsReaderPtr!=nullptr && gpsReaderPtr->usesLocationService())
+    {
+      // the phone's own position: there is no port to choose and no baud rate
+      for(QWidget *w:{static_cast<QWidget *>(ui->portLabel),static_cast<QWidget *>(ui->portComboBox),static_cast<QWidget *>(ui->rescanToolButton),
+                      static_cast<QWidget *>(ui->baudLabel),static_cast<QWidget *>(ui->baudComboBox)})
+        w->hide();
+      ui->infoLabel->setText(tr("Reads the position of the station from the phone's own location service (the system asks once "
+                                "whether the program may use it). The position goes into the Lat and Long fields of the Transmit "
+                                "tab and into the %a and %b template macros. The city and state (%g) can be looked up from it."));
+    }
   slotRescanPorts();
 }
 
@@ -123,6 +133,7 @@ void gpsConfig::slotRescanPorts()
 QString gpsConfig::portConflict(const QString &port) const
 {
   if(rigControllerPtr==nullptr || port.isEmpty()) return QString();
+  if(gpsReaderPtr!=nullptr && gpsReaderPtr->usesLocationService()) return QString();   // no port is used
   const scatParams *cp=rigControllerPtr->params();
   if(cp->enableCAT && samePort(cp->serialPort,port))
     return QString("The GPS port (%1) must be different from the CAT serial port").arg(port);
@@ -152,14 +163,15 @@ void gpsConfig::slotTest()
   const bool lookup=ui->placeCheckBox->isChecked();
   int format;
   getIndex(format,ui->formatComboBox);
-  if(gpsReaderPtr==nullptr || port.isEmpty()) return;
+  const bool phone=(gpsReaderPtr!=nullptr && gpsReaderPtr->usesLocationService());
+  if(gpsReaderPtr==nullptr || (port.isEmpty() && !phone)) return;
   const QString conflict=portConflict(port);
   if(!conflict.isEmpty())
     {
       ui->resultLabel->setText(conflict);   // the port is not opened: it is busy, and opening it could key the PTT
       return;
     }
-  ui->resultLabel->setText(tr("Reading %1 ...").arg(port));
+  ui->resultLabel->setText(phone ? tr("Asking the phone for its position ...") : tr("Reading %1 ...").arg(port));
   ui->testPushButton->setEnabled(false);
   const bool started=gpsReaderPtr->requestFix(port,baud);
   if(!started)
