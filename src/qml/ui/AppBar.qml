@@ -29,12 +29,18 @@ Item {
             Accessible.role: Accessible.Heading
             Accessible.name: bar.title
         }
+        TextMetrics {   // how wide the route text wants to be, whatever room the chip is given
+            id: routeMetrics
+            text: bar.routeText
+            font.pixelSize: Theme.sp(13)
+            font.weight: Font.Medium
+        }
         Rectangle {
             id: routeChip
             visible: bar.routeText !== ""
             implicitHeight: 32
-            implicitWidth: routeRow.implicitWidth + 20
-            Layout.maximumWidth: routeRow.implicitWidth + 20
+            implicitWidth: routeMetrics.width + 18 + 6 + 20
+            Layout.maximumWidth: routeMetrics.width + 18 + 6 + 20
             Layout.minimumWidth: 56
             radius: 8
             color: "transparent"
@@ -51,7 +57,7 @@ Item {
                     font.pixelSize: Theme.sp(13)
                     font.weight: Font.Medium
                     elide: Text.ElideRight
-                    width: Math.min(implicitWidth, Math.max(0, routeChip.width - 20 - 24))
+                    width: Math.min(routeMetrics.width, Math.max(0, routeChip.width - 20 - 24))
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }
