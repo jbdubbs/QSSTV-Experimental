@@ -444,6 +444,7 @@ void mainWindow::goBack()
           else front->close();
         }
     }
+  else if(galleryWidgetPtr && galleryWidgetPtr->leaveSelectMode()) return;   // Select off before anything else
   else if(ui->maintabWidget->currentIndex()!=0) ui->maintabWidget->setCurrentIndex(0);
   else platformService::moveToBackground();
 }
@@ -1418,6 +1419,12 @@ void mainWindow::slotClearScope()
 
 
 #endif
+
+void mainWindow::showTransmitPage()
+{
+  const int txIdx=ui->maintabWidget->indexOf(ui->txTab);
+  if(ui->maintabWidget->isTabEnabled(txIdx)) ui->maintabWidget->setCurrentIndex(txIdx);
+}
 
 void mainWindow::slotTxTestPattern()
 {

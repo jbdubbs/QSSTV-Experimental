@@ -44,6 +44,8 @@ public:
   spectrumWidget *spectrumFramePtr;
   //! opens the built-in Users Guide, at `page` (e.g. "pages/template-editor.html") when it exists
   void openUserGuide(const QString &page);
+  //! shows the Transmit page (a picture was sent to it), if it can be used just now
+  void showTransmitPage();
 
 private slots:
   void slotConfigure();

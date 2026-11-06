@@ -8,6 +8,8 @@
 #include <iostream>
 #include <QMessageBox>
 #include "txwidget.h"
+#include "mainwindow.h"
+#include "uimode.h"
 #include "utils/supportfunctions.h"
 
 #define MINCOLSIZE 32
@@ -34,6 +36,12 @@ imageMatrix::~imageMatrix()
 void imageMatrix::setupLayout()
 {
   anchorViewer=NULL;
+  // the page is built again whenever the gallery changes, and what was put on it before is still there (its layout is deleted, its widgets are not)
+  delete selectButton;
+  delete selectionBar;
+  selectButton=nullptr;
+  selectionBar=nullptr;
+  selectMode=false;
   if(verticalLayout!=NULL) delete verticalLayout;
   verticalLayout = new QVBoxLayout(parentPtr);
   verticalLayout->setObjectName(QString::fromUtf8("vt1"));
@@ -94,6 +102,76 @@ void imageMatrix::setupLayout()
   connect(nextPushButton,SIGNAL(clicked()),SLOT(slotNext()));
   connect(beginPushButton,SIGNAL(clicked()),SLOT(slotBegin()));
   connect(endPushButton,SIGNAL(clicked()),SLOT(slotEnd()));
+  if(uiMode::touch())
+    {
+      // Select: with fingers there is no Ctrl and no Shift, so the pictures are chosen in a mode of their own
+      selectMode=false;
+      selectButton=new QPushButton(tr("Select"),parentPtr);
+      selectButton->setObjectName("selectButton");
+      selectButton->setCheckable(true);
+      selectButton->setMinimumHeight(uiMode::tapSize-8);
+      horizontalLayout->insertWidget(0,selectButton);
+      selectionBar=new QWidget(parentPtr);
+      QHBoxLayout *bar=new QHBoxLayout(selectionBar);
+      bar->setContentsMargins(0,0,0,0);
+      selectionLabel=new QLabel(selectionBar);
+      selectionLabel->setSizePolicy(QSizePolicy::Ignored,QSizePolicy::Preferred);   // the buttons keep their room, the text takes what is left
+      selectAllButton=new QPushButton(tr("All"),selectionBar);
+      selectToTxButton=new QPushButton(tr("To TX"),selectionBar);
+      selectDeleteButton=new QPushButton(tr("Delete"),selectionBar);
+      bar->addWidget(selectionLabel,1);
+      bar->addWidget(selectAllButton);
+      bar->addWidget(selectToTxButton);
+      bar->addWidget(selectDeleteButton);
+      selectionBar->hide();
+      verticalLayout->insertWidget(1,selectionBar);
+      connect(selectButton,&QPushButton::toggled,this,&imageMatrix::slotSelectToggled);
+      connect(selectAllButton,&QPushButton::clicked,this,&imageMatrix::slotSelectAll);
+      connect(selectToTxButton,&QPushButton::clicked,this,&imageMatrix::slotSelectionToTx);
+      connect(selectDeleteButton,&QPushButton::clicked,this,&imageMatrix::slotDeleteSelected);
+    }
+}
+
+bool imageMatrix::leaveSelectMode()
+{
+  if(!selectMode || !selectButton) return false;
+  selectButton->setChecked(false);
+  return true;
+}
+
+void imageMatrix::slotSelectToggled(bool on)
+{
+  selectMode=on;
+  for(int i=0;i<gridLayout->count();i++) gridLayout->itemAt(i)->widget()->setProperty("selecting",on);   // no viewer opens on a double tap
+  if(!on) clearSelection();
+  updateSelectionBar();
+}
+
+void imageMatrix::slotSelectAll()
+{
+  for(int i=0;i<gridLayout->count();i++)
+    {
+      imageViewer *v=(imageViewer *)gridLayout->itemAt(i)->widget();
+      if(!v->getFilename().isEmpty()) v->setSelected(true);
+    }
+  updateSelectionBar();
+}
+
+void imageMatrix::slotSelectionToTx()
+{
+  slotToTxSelected(-1);
+  mainWindowPtr->showTransmitPage();
+}
+
+void imageMatrix::updateSelectionBar()
+{
+  if(!selectionBar) return;
+  selectionBar->setVisible(selectMode);
+  const int n=selectedViewers().count();
+  selectionLabel->setText(n>0 ? tr("%1 selected").arg(n) : tr("Tap pictures to select them"));
+  selectAllButton->setEnabled(true);
+  selectToTxButton->setEnabled(n>0);
+  selectDeleteButton->setEnabled(n>0);
 }
 
 
@@ -217,6 +295,7 @@ QList<imageViewer *> imageMatrix::selectedViewers()
 // plain click selects one, Ctrl toggles, Shift selects the range from the last plain/Ctrl click
 void imageMatrix::slotThumbClicked(imageViewer *iv,Qt::KeyboardModifiers mods)
 {
+  if(selectMode) mods|=Qt::ControlModifier;   // in Select every tap adds or takes away one picture
   if((mods & Qt::ShiftModifier) && anchorViewer)
     {
       int a=gridLayout->indexOf(anchorViewer);
@@ -230,6 +309,7 @@ void imageMatrix::slotThumbClicked(imageViewer *iv,Qt::KeyboardModifiers mods)
               imageViewer *v=(imageViewer *)gridLayout->itemAt(i)->widget();
               if(!v->getFilename().isEmpty()) v->setSelected(true);
             }
+          updateSelectionBar();
           return;
         }
     }
@@ -243,6 +323,7 @@ void imageMatrix::slotThumbClicked(imageViewer *iv,Qt::KeyboardModifiers mods)
       iv->setSelected(true);
     }
   anchorViewer=iv;
+  updateSelectionBar();
 }
 
 void imageMatrix::slotDeleteSelected()
@@ -277,8 +358,10 @@ void imageMatrix::displayFiles()
   int i,j,k;
   QString tempStr;
   clearSelection();
+  updateSelectionBar();
   int offset=currentPage*rows*columns;
-  pageLabel->setText(QString("   Page %1 of %2").arg(currentPage+1).arg(numPages).leftJustified(17,' '));
+  if(uiMode::touch()) pageLabel->setText(QString("%1 / %2").arg(currentPage+1).arg(numPages));   // a row of buttons that has to fit a phone
+  else pageLabel->setText(QString("   Page %1 of %2").arg(currentPage+1).arg(numPages).leftJustified(17,' '));
   for(i=0;i<rows;i++)
     {
       for(j=0;j<columns;)

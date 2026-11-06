@@ -226,3 +226,10 @@ void galleryWidget::txStockImageChanged()
 
 
 
+
+bool galleryWidget::leaveSelectMode()
+{
+  bool was=false;
+  for(imageMatrix *m:findChildren<imageMatrix *>()) was|=m->leaveSelectMode();
+  return was;
+}

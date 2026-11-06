@@ -19,6 +19,8 @@
 #include "uimode.h"
 #include "touchpage.h"
 #include "reflow.h"
+#include "gallerywidget.h"
+#include "imagematrix.h"
 #include "spectrumwidget.h"
 
 int main(int argc, char **argv)
@@ -119,6 +121,59 @@ int main(int argc, char **argv)
                 for (const QString &o : reflowOffenders(sa->widget(), sa->viewport()->width())) printf("        %s\n", qPrintable(o));
             }
           cd->hide();
+          continue;
+        }
+      if (page == "galleryselect")
+        {
+          // the Gallery's Select mode (touch shells): six pictures, choose two by tapping, All, then Back turns Select off
+          if (!tabs || tabs->count() < 3 || shell == "desktop") {printf("  galleryselect (not in this shell)\n"); continue;}
+          QDir().mkpath(rxSSTVImagesPath);
+          for (int k = 0; k < 6; k++)
+            {
+              QImage im(160, 120, QImage::Format_RGB32);
+              im.fill(QColor::fromHsv(k * 50, 200, 220));
+              im.save(QString("%1/test%2.png").arg(rxSSTVImagesPath).arg(k));
+            }
+          galleryWidgetPtr->changedMatrix(imageViewer::RXSSTVTHUMB);
+          tabs->setCurrentIndex(2);
+          QTest::qWait(1500);
+          imageMatrix *m = nullptr;
+          for (imageMatrix *c : galleryWidgetPtr->findChildren<imageMatrix *>()) if (c->isVisible()) {m = c; break;}
+          auto check = [&](bool ok, const char *what) {printf("  %s  %s\n", ok ? "ok  " : "FAIL", what); if (!ok) exitCode = 1;};
+          if (!m) {check(false, "a visible picture matrix"); continue;}
+          QWidget *pg = m->parentWidget();   // the tab page: the matrix puts its pictures and buttons on it
+          QPushButton *sel = pg->findChild<QPushButton *>("selectButton");
+          check(sel && sel->isVisible(), "a Select button in the Gallery");
+          if (!sel) continue;
+          QList<imageViewer *> thumbs;
+          for (imageViewer *v : pg->findChildren<imageViewer *>()) if (!v->getFilename().isEmpty()) thumbs << v;
+          std::sort(thumbs.begin(), thumbs.end(), [](imageViewer *a, imageViewer *b) {return a->getFilename() < b->getFilename();});
+          check(thumbs.size() == 6, "six pictures in the matrix");
+          auto selectedCount = [&]() {int n = 0; for (imageViewer *v : thumbs) n += v->isSelected(); return n;};
+          auto labelText = [&]() {QString t; for (QLabel *l : pg->findChildren<QLabel *>()) if (l->isVisible() && (l->text().contains("select"))) t = l->text(); return t;};
+          QTest::mouseClick(sel, Qt::LeftButton);
+          QTest::qWait(100);
+          check(m->selecting(), "Select is on after tapping it");
+          check(labelText().contains("Tap pictures"), "the bar says to tap pictures");
+          QTest::mouseClick(thumbs[0], Qt::LeftButton, Qt::NoModifier, thumbs[0]->rect().center());
+          QTest::qWait(60);
+          QTest::mouseClick(thumbs[2], Qt::LeftButton, Qt::NoModifier, thumbs[2]->rect().center());
+          QTest::qWait(60);
+          check(selectedCount() == 2 && thumbs[0]->isSelected() && thumbs[2]->isSelected(), "two taps choose two pictures (the first stays chosen)");
+          check(labelText().startsWith("2 "), "the bar counts them");
+          QTest::mouseClick(thumbs[0], Qt::LeftButton, Qt::NoModifier, thumbs[0]->rect().center());
+          QTest::qWait(300);
+          check(selectedCount() == 1 && !thumbs[0]->isSelected(), "a second tap takes a picture away again");
+          QPushButton *all = nullptr;
+          for (QPushButton *b : pg->findChildren<QPushButton *>()) if (b->text() == "All" && b->isVisible()) all = b;
+          check(all != nullptr, "an All button");
+          if (all) QTest::mouseClick(all, Qt::LeftButton);
+          QTest::qWait(60);
+          check(selectedCount() == 6, "All chooses every picture of the page");
+          mainWindowPtr->grab().save(QString("%1/%2-%3x%4-galleryselect.png").arg(outDir, shell).arg(width).arg(height));
+          check(galleryWidgetPtr->leaveSelectMode(), "Back (leaveSelectMode) turns Select off");
+          QTest::qWait(60);
+          check(!m->selecting() && selectedCount() == 0, "and drops the choice");
           continue;
         }
       const QStringList names = {"rx", "tx", "gallery", "more"};

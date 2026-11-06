@@ -37,6 +37,7 @@
 #include <configdialog.h>
 #include "drm.h"
 #include "txwidget.h"
+#include "mainwindow.h"
 #include "rxwidget.h"
 #include "gallerywidget.h"
 #include "templaterender.h"
@@ -882,7 +883,7 @@ void imageViewer::mousePressEvent( QMouseEvent *e )
             }
           else
             {
-              if (hasValidImage()) slotView();
+              if (hasValidImage() && !property("selecting").toBool()) slotView();
             }
         }
       else if (e->type() == QEvent::MouseButtonPress)
@@ -1384,6 +1385,7 @@ void imageViewer::toTx(int seg)
   addToLog(QString("ToTx: %1").arg(imageFileName),LOGTXMAIN);
   mt=new moveToTxEvent(imageFileName,seg);
   QApplication::postEvent(dispatcherPtr, mt); // Qt will delete it when done
+  if(uiMode::touch()) mainWindowPtr->showTransmitPage();   // the picture is for the Transmit page, which is where it is looked at
 }
 
 
