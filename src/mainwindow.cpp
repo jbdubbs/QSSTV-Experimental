@@ -578,10 +578,15 @@ void mainWindow::init()
 #ifdef Q_OS_ANDROID
   // Android may end the process while the app is in the background, with no clean exit (and so no writeSettings() from
   // shutdown()): save the settings whenever the app leaves the foreground
+  androidVolumeKeysChangeMedia();   // the phone's volume keys set the volume the picture is sent at, also before it starts
   connect(qApp,&QGuiApplication::applicationStateChanged,this,[this](Qt::ApplicationState state)
     {
       if(state!=Qt::ApplicationActive) writeSettings();
-      else dispatcherPtr->appResumed();
+      else
+        {
+          dispatcherPtr->appResumed();
+          androidVolumeKeysChangeMedia();   // the window may be a new one (the activity is recreated after the system ended it)
+        }
       if(state==Qt::ApplicationActive && micDenied && platformPermissions::microphoneGranted())
         {
           micDenied=false;   // given in the system settings since: the receiver was waiting for it

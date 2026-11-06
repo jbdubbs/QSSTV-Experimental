@@ -22,6 +22,10 @@ int androidDeviceId(const QString &savedName,bool inputs);
 bool androidIsBuiltInSpeaker(int outputDeviceId);   //!< a stereo tone on the second channel would be summed into the picture
 int androidMediaVolumePercent();
 void androidSetMediaVolumePercent(int percent);
+//! The volume keys of the phone change the media volume while the program is in front (otherwise the ringer's, when nothing plays)
+void androidVolumeKeysChangeMedia();
+//! "media 7/15, ring 4/7", for the log
+QString androidVolumeSummary();
 void androidRequestTransmitFocus();
 void androidAbandonTransmitFocus();
 void androidRequestNotificationPermission();

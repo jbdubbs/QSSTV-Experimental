@@ -64,6 +64,19 @@ void androidSetMediaVolumePercent(int percent)
   QJniObject::callStaticMethod<void>(helper,"setMusicVolumePercent","(Landroid/content/Context;I)V",ctx.object<jobject>(),jint(percent));
 }
 
+void androidVolumeKeysChangeMedia()
+{
+  const QJniObject ctx=context();
+  if(ctx.isValid()) QJniObject::callStaticMethod<void>(helper,"volumeKeysChangeMedia","(Landroid/content/Context;)V",ctx.object<jobject>());
+}
+
+QString androidVolumeSummary()
+{
+  const QJniObject ctx=context();
+  if(!ctx.isValid()) return QString();
+  return QJniObject::callStaticObjectMethod(helper,"volumeSummary","(Landroid/content/Context;)Ljava/lang/String;",ctx.object<jobject>()).toString();
+}
+
 void androidRequestTransmitFocus()
 {
   const QJniObject ctx=context();

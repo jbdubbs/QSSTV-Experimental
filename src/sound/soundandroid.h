@@ -79,6 +79,7 @@ private:
   std::atomic<bool> closing;
   int idleTicks;
   QString route;
+  QString startVolumes;   // the system volumes when the transmission started (for the log)
 
   sampleRing capRing;            // microphone -> sound thread
   sampleRing playRing;           // sound thread -> speaker

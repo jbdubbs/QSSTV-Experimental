@@ -84,6 +84,27 @@ public class AudioHelper
         return max > 0 ? Math.round(100f * am.getStreamVolume(AudioManager.STREAM_MUSIC) / max) : 0;
     }
 
+    /**
+     * Name the media volume as the one the volume keys change while this window is in front. Without it the keys change the
+     * stream that is playing, and when nothing is playing the ringer: the speaker is only open during a transmission, so before
+     * a picture starts (and between two) the keys moved the ringer, the screen showed a volume bar all the same, and the picture
+     * then sounded at the media volume that nobody had touched.
+     */
+    public static void volumeKeysChangeMedia(Context context)
+    {
+        if (!(context instanceof Activity)) return;
+        final Activity activity = (Activity) context;
+        activity.runOnUiThread(() -> activity.setVolumeControlStream(AudioManager.STREAM_MUSIC));
+    }
+
+    /** For the log: the volumes as the system holds them, "media 7/15, ring 4/7" */
+    public static String volumeSummary(Context context)
+    {
+        AudioManager am = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+        return "media " + am.getStreamVolume(AudioManager.STREAM_MUSIC) + "/" + am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                + ", ring " + am.getStreamVolume(AudioManager.STREAM_RING) + "/" + am.getStreamMaxVolume(AudioManager.STREAM_RING);
+    }
+
     public static void setMusicVolumePercent(Context context, int percent)
     {
         AudioManager am = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);

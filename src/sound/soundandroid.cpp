@@ -338,7 +338,8 @@ void soundAndroid::preparePlayback()
   focusHeld=true;
   androidRequestTransmitFocus();   // other apps stop playing, so nothing sounds over the picture
   const int volume=androidMediaVolumePercent();
-  ALOG("media volume %d%%%s",volume,volume<40 ? ", telling the user" : "");
+  startVolumes=androidVolumeSummary();
+  ALOG("transmission starts, volumes: %s%s",qPrintable(startVolumes),volume<40 ? ", telling the user" : "");
   if(volume<40) emit audioNotice(tr("The media volume is %1%. Raise it with the volume keys so the transmission is loud enough.").arg(volume));
 }
 
@@ -516,6 +517,8 @@ void soundAndroid::waitPlaybackEnd()
   stopOutput();
   if(focusHeld)
     {
+      const QString endVolumes=androidVolumeSummary();   // the volume keys in between show here: the media volume changes, the ringer's does not
+      ALOG("transmission ends, volumes: %s%s",qPrintable(endVolumes),endVolumes==startVolumes ? " (as at the start)" : " (changed during the transmission)");
       androidAbandonTransmitFocus();
       focusHeld=false;
     }
