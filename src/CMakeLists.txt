@@ -756,7 +756,7 @@ if(ANDROID)
       QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/android"
       QT_ANDROID_VERSION_NAME "${QSSTV_ANDROID_VERSION_NAME}"
       QT_ANDROID_VERSION_CODE "${QSSTV_ANDROID_VERSION_CODE}"
-      QT_ANDROID_MIN_SDK_VERSION 28      # Android 9, what Qt 6.11 supports
+      QT_ANDROID_MIN_SDK_VERSION 29      # Android 10 (Qt 6.11 itself goes down to 9; 10 gives the per-app picture folder in the gallery and the dark theme without extra code)
       QT_ANDROID_TARGET_SDK_VERSION 36   # Android 16, what Google Play asks for
       QT_ANDROID_COMPILE_SDK_VERSION 36)
   message(STATUS "Android: ${QSSTV_ANDROID_VERSION_NAME}, versionCode ${QSSTV_ANDROID_VERSION_CODE}")

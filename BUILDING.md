@@ -251,7 +251,7 @@ usb-serial-for-android is bundled (`packaging/android/libs`), Hamlib reaches the
 (Qt Positioning) instead of a serial receiver, and camera pictures are turned and mirrored the way the camera says. It is not
 released, and what needs a phone or a radio interface (the permission boxes, a real adapter, a GPS fix) has only been tried on
 the desktop with stand-ins (`tests/catbridge`, `tests/gps`, `tests/camorient`).
-Android 9 (API 28) or newer, 64-bit ARM (`arm64-v8a`) or `x86_64` for the emulator.
+Android 10 (API 29) or newer, 64-bit ARM (`arm64-v8a`) or `x86_64` for the emulator.
 
 You need JDK 21, the Android SDK with platform 36 and **NDK 27.2.12479018 (r27c)**, and Qt 6.11.2 for Android (the NDK must be
 the one the Qt kit was built with) plus the matching desktop Qt as the host tools, for example with [aqtinstall](https://github.com/miurahr/aqtinstall):

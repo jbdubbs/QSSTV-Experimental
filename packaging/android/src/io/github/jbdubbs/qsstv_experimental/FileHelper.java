@@ -6,7 +6,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.provider.OpenableColumns;
@@ -85,13 +84,12 @@ public class FileHelper
 
     /**
      * Copy a picture into the shared Pictures/QSSTV-Experimental folder. Returns the MediaStore URI, or "" when nothing was
-     * done: not a picture type the gallery knows, Android 9 (no per-app folder in MediaStore before Android 10, and the program
-     * does not ask for the storage permission), or an error.
+     * done: not a picture type the gallery knows, or an error.
      */
     public static String saveToGallery(Context context, String path, String displayName)
     {
         String mime = imageMimeType(displayName);
-        if (mime == null || Build.VERSION.SDK_INT < 29) return "";
+        if (mime == null) return "";
         ContentResolver resolver = context.getContentResolver();
         ContentValues values = new ContentValues();
         values.put(MediaStore.Images.Media.DISPLAY_NAME, displayName);

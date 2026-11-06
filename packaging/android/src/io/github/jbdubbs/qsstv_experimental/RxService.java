@@ -8,7 +8,6 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
-import android.os.Build;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.util.Log;
@@ -52,10 +51,7 @@ public class RxService extends Service
         Notification notification = buildNotification();
         try
         {
-            if (Build.VERSION.SDK_INT >= 29)
-                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE);
-            else
-                startForeground(NOTIFICATION_ID, notification);
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE);
         }
         catch (RuntimeException e)
         {
