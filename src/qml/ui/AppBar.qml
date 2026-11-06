@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Material
 import QtQuick.Layouts
+import QtQml
 
 // The top bar of a screen: its title, the route chip (where the sound goes) and the menu
 Item {
@@ -8,10 +9,9 @@ Item {
     property string title
     property string routeText
     property alias actions: extra.data     // more icon buttons before the menu
+    property var entries: []               // the menu: [{id, text}]
     signal routeClicked()
-    signal settingsClicked()
-    signal helpClicked()
-    signal aboutClicked()
+    signal entryTriggered(string id)
     implicitHeight: Theme.appBarHeight
 
     RowLayout {
@@ -76,9 +76,16 @@ Item {
             Menu {
                 id: menu
                 y: parent.height
-                MenuItem { text: qsTr("Settings"); onTriggered: bar.settingsClicked() }
-                MenuItem { text: qsTr("Help"); onTriggered: bar.helpClicked() }
-                MenuItem { text: qsTr("About"); onTriggered: bar.aboutClicked() }
+                Instantiator {
+                    model: bar.entries
+                    delegate: MenuItem {
+                        required property var modelData
+                        text: modelData.text
+                        onTriggered: bar.entryTriggered(modelData.id)
+                    }
+                    onObjectAdded: (index, object) => menu.insertItem(index, object)
+                    onObjectRemoved: (index, object) => menu.removeItem(object)
+                }
             }
         }
     }

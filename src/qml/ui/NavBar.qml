@@ -8,9 +8,7 @@ Rectangle {
     color: Theme.surfaceContainer
     implicitHeight: Theme.navBarHeight + bottomInset
     RowLayout {
-        anchors.fill: parent
-        anchors.topMargin: 12
-        anchors.bottomMargin: 16 + nav.bottomInset
+        anchors.fill: parent      // every item is as high as the bar: a press anywhere on it counts
         spacing: 0
         Repeater {
             model: [{l: qsTr("Receive"), i: Icons.mic}, {l: qsTr("Transmit"), i: Icons.send}, {l: qsTr("Gallery"), i: Icons.image}]
@@ -21,6 +19,7 @@ Rectangle {
                 Layout.fillHeight: true
                 label: modelData.l
                 icon: modelData.i
+                topPad: 12
                 selected: AppModel.screen === index
                 onClicked: AppModel.screen = index
             }

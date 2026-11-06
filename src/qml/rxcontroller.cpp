@@ -109,6 +109,11 @@ void RxController::toggle()
   if(m_listening) stop(); else start();
 }
 
+void RxController::decodeRecording()
+{
+  if(rxWidgetPtr) QMetaObject::invokeMethod(rxWidgetPtr,"slotDecodeFile",Qt::QueuedConnection);
+}
+
 void RxController::clearPicture()
 {
   if(rxWidgetPtr) rxWidgetPtr->clearImage();

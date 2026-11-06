@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.util.Log;
 
 import org.qtproject.qt.android.bindings.QtActivity;
@@ -16,6 +17,52 @@ import org.qtproject.qt.android.bindings.QtActivity;
 public class MainActivity extends QtActivity
 {
     private static final String TAG = "qsstv-files";
+    private static final int REQUEST_PHOTO = 0x5153;
+
+    /** The photo the user picked, as a content:// URI string (the program copies it into its cache). Implemented in src/android/photopicker.cpp. */
+    private static native void photoPicked(String uri);
+
+    /**
+     * The system's photo picker (Android 13 and later: a browsable library of the user's photos, no permission asked), or the
+     * system's image chooser before that. The result comes back to onActivityResult().
+     */
+    public void pickPhoto()
+    {
+        Intent intent;
+        if (Build.VERSION.SDK_INT >= 33)
+        {
+            intent = new Intent(MediaStore.ACTION_PICK_IMAGES);
+        }
+        else
+        {
+            intent = new Intent(Intent.ACTION_GET_CONTENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+        }
+        intent.setType("image/*");
+        try
+        {
+            startActivityForResult(intent, REQUEST_PHOTO);
+        }
+        catch (RuntimeException e)
+        {
+            Log.w(TAG, "no photo picker: " + e);
+        }
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data)
+    {
+        if (requestCode != REQUEST_PHOTO)
+        {
+            super.onActivityResult(requestCode, resultCode, data);
+            return;
+        }
+        if (resultCode == RESULT_OK && data != null && data.getData() != null)
+        {
+            Log.i(TAG, "photo picked: " + data.getData());
+            photoPicked(data.getData().toString());
+        }
+    }
 
     @Override
     public void onCreate(Bundle savedInstanceState)

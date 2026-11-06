@@ -6,6 +6,11 @@
 #include "sstvparam.h"
 #include "txfunctions.h"
 #include "txwidget.h"
+#include "dispatcher.h"
+#include "waterfalltext.h"
+#ifdef Q_OS_ANDROID
+#include "photopicker.h"
+#endif
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -17,6 +22,7 @@
 #include <QPermission>
 #include <QQmlEngine>
 #include <QStandardPaths>
+#include <QSettings>
 #include <QSlider>
 
 TxController *TxController::instance()
@@ -138,9 +144,23 @@ QVariantList TxController::allModes() const
 
 QString TxController::remainingText() const
 {
-  const int total=txWidgetPtr ? txWidgetPtr->txSeconds() : 0;
+  const int total=m_toolName.isEmpty() ? (txWidgetPtr ? txWidgetPtr->txSeconds() : 0) : m_toolSeconds;
+  if(total<=0) return QString();
   const int left=qMax(0,int(total*(1.0-m_progress)+0.5));
   return QString("%1:%2").arg(left/60).arg(left%60,2,10,QLatin1Char('0'));
+}
+
+QString TxController::totalText() const
+{
+  return m_toolName.isEmpty() ? timeText() : timeString(m_toolSeconds);
+}
+
+void TxController::startTool(const QString &name,int seconds)
+{
+  m_toolName=name;
+  m_toolSeconds=seconds;
+  emit toolChanged();
+  emit progressChanged();
 }
 
 bool TxController::useTemplateOn() const {return ::useTemplate;}
@@ -280,7 +300,81 @@ void TxController::setDrmOption(const QString &key,int index)
     }
 }
 
-void TxController::pickPhoto() {pickFile();}
+void TxController::pickPhoto()
+{
+#ifdef Q_OS_ANDROID
+  androidPickPhoto();   // the system's photo picker
+#else
+  pickFile();
+#endif
+}
+
+void TxController::testPattern(int which)
+{
+  if(!txWidgetPtr) return;
+  const etpSelect sel=which==1 ? TPPM5544 : which==2 ? TPINDIANHEAD : TPSMPTE;
+  txWidgetPtr->txTestPattern(sel);
+}
+
+void TxController::sendWaterfallId()
+{
+  startTool(tr("Waterfall call sign"),0);
+  if(txWidgetPtr) QMetaObject::invokeMethod(txWidgetPtr,"sendWFID",Qt::QueuedConnection);
+}
+
+void TxController::sendWaterfallText(const QString &text)
+{
+  if(text.isEmpty() || !waterfallPtr) return;
+  waterfallPtr->setText(text);
+  startTool(tr("Waterfall text"),0);
+  dispatcherPtr->startTX(txFunctions::TXSENDWFID);
+}
+
+void TxController::sendCwId()
+{
+  startTool(tr("CW call sign"),0);
+  if(txWidgetPtr) QMetaObject::invokeMethod(txWidgetPtr,"sendCWID",Qt::QueuedConnection);
+}
+
+QVariantMap TxController::toolDefaults() const
+{
+  QSettings s;
+  s.beginGroup("TX");
+  QVariantMap m;
+  m["tone"]=s.value("toneFreq",1000).toInt();
+  m["duration"]=s.value("toneDuration",5).toInt();
+  m["low"]=s.value("sweepLowerFreq",300).toInt();
+  m["high"]=s.value("sweepUpperFreq",3000).toInt();
+  m["sweepDuration"]=s.value("sweepDuration",10).toInt();
+  s.endGroup();
+  return m;
+}
+
+void TxController::sendTone(int frequency,int seconds)
+{
+  QSettings s;
+  s.beginGroup("TX");
+  s.setValue("toneFreq",frequency);
+  s.setValue("toneDuration",seconds);
+  s.endGroup();
+  txWidgetPtr->functionsPtr()->setToneParam(double(seconds),double(frequency));
+  startTool(tr("Test tone, %1 Hz").arg(frequency),seconds);
+  dispatcherPtr->startTX(txFunctions::TXSENDTONE);
+}
+
+void TxController::sendSweep(int lowerFrequency,int upperFrequency,int seconds)
+{
+  QSettings s;
+  s.beginGroup("TX");
+  s.setValue("sweepLowerFreq",lowerFrequency);
+  s.setValue("sweepUpperFreq",upperFrequency);
+  s.setValue("sweepDuration",seconds);
+  s.endGroup();
+  txWidgetPtr->functionsPtr()->setToneParam(double(seconds),double(lowerFrequency),double(upperFrequency));
+  startTool(tr("Frequency sweep, %1 to %2 Hz").arg(lowerFrequency).arg(upperFrequency),seconds);
+  dispatcherPtr->startTX(txFunctions::TXSENDTONE);
+}
+
 
 void TxController::pickFile()
 {
@@ -358,8 +452,11 @@ void TxController::progressTick(int percent)
   emit progressChanged();
 }
 
-void TxController::setTestSending(qreal progress)
+void TxController::setTestSending(qreal progress,const QString &tool,int toolSeconds)
 {
+  m_toolName=tool;
+  m_toolSeconds=toolSeconds;
+  emit toolChanged();
   m_test=progress>=0;
   m_sending=m_test;
   m_progress=m_test ? progress : 0;
@@ -389,7 +486,12 @@ void TxController::poll()
   if(sending!=m_sending)
     {
       m_sending=sending;
-      if(!sending) {m_progress=0; emit progressChanged();}
+      if(!sending)
+        {
+          m_progress=0;
+          if(!m_toolName.isEmpty()) {m_toolName.clear(); m_toolSeconds=0; emit toolChanged();}
+          emit progressChanged();
+        }
       emit sendingChanged();
     }
 }

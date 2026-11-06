@@ -2,6 +2,7 @@
 #include "appmodel.h"
 #include "rxcontroller.h"
 #include "txcontroller.h"
+#include "widgetwindows.h"
 #include "uimode.h"
 
 #include <QGuiApplication>
@@ -16,6 +17,7 @@ static QQmlApplicationEngine *engine=nullptr;
 void show()
 {
   QQuickStyle::setStyle(QStringLiteral("Material"));
+  qApp->installEventFilter(new widgetWindows(qApp));   // the Widgets windows that open over the Qt Quick one
   engine=new QQmlApplicationEngine(qApp);
   QObject::connect(engine,&QQmlApplicationEngine::objectCreationFailed,qApp,[]{qFatal("the Qt Quick interface did not load");},Qt::QueuedConnection);
   engine->loadFromModule("QSSTV","Main");

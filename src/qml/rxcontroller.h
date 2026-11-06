@@ -85,6 +85,8 @@ public:
   Q_INVOKABLE void stop();
   Q_INVOKABLE void toggle();
   Q_INVOKABLE void clearPicture();
+  //! decode a recording of SSTV or DRM from a sound file (the system's file picker)
+  Q_INVOKABLE void decodeRecording();
 
   // from the dispatcher through qmlUi (GUI thread)
   void imageStarted(int width,int height);

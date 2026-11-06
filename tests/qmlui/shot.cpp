@@ -125,9 +125,10 @@ int main(int argc, char **argv)
       AppModel *app_ = AppModel::instance();
       RxController *rx = RxController::instance();
       // nothing is left open from the scene before
+      win->setProperty("aboutOpen", false);
       for (const char *screenName : {"receiveScreen", "transmitScreen"})
         if (QQuickItem *s = findItem(win->contentItem(), screenName))
-          for (const char *prop : {"optionsOpen", "modesOpen", "detailsOpen", "digitalOpen"})
+          for (const char *prop : {"optionsOpen", "modesOpen", "detailsOpen", "digitalOpen", "toolsOpen", "open"})
             if (s->property(prop).isValid()) s->setProperty(prop, false);
       TxController::instance()->setTestSending(-1);
       app_->setScreen(0);
@@ -160,10 +161,18 @@ int main(int argc, char **argv)
               QTest::qWait(300);
             }
           if (scene == "tx-sending") tx->setTestSending(0.38);
+          if (scene == "tx-sending-tool") tx->setTestSending(0.4, "Test tone, 1000 Hz", 5);
         }
       else if (scene == "gallery") app_->setScreen(2);
       QTest::qWait(400);
       QQuickItem *content = win->contentItem();
+      if (scene == "about") {win->setProperty("aboutOpen", true); QTest::qWait(500);}
+      if (scene == "tx-tools")
+        {
+          QQuickItem *t = findItem(content, "transmitScreen");
+          if (t) t->setProperty("toolsOpen", true);
+          QTest::qWait(500);
+        }
       if (scene == "tx-digital-details")
         {
           QQuickItem *t = findItem(content, "transmitScreen");

@@ -24,6 +24,7 @@ class AppModel : public QObject
   Q_PROPERTY(qreal fontScale READ fontScale NOTIFY fontScaleChanged)                      //!< the system's text size setting, 1 = normal
   Q_PROPERTY(int mediaVolume READ mediaVolume WRITE setMediaVolume NOTIFY mediaVolumeChanged)   //!< the phone's media volume, 0 to 100: how loud a picture is sent
   Q_PROPERTY(bool mediaVolumeAvailable READ mediaVolumeAvailable CONSTANT)                    //!< there is a media volume to set (Android)
+  Q_PROPERTY(QString versionText READ versionText CONSTANT)                                   //!< "10.1.1"
   Q_PROPERTY(bool startListening READ startListening CONSTANT)                            //!< the receiver starts with the program
 
 public:
@@ -41,6 +42,7 @@ public:
   void setMediaVolume(int percent);
   bool mediaVolumeAvailable() const;
   bool startListening() const {return true;}
+  QString versionText() const;
 
   //! the program's own analog / digital mode changed, whoever changed it
   void modeChanged() {emit digitalChanged();}
@@ -52,6 +54,12 @@ public:
   Q_INVOKABLE void keepScreenOn(bool on);
   //! the system's settings of this app (permissions): where a refused permission is allowed again
   Q_INVOKABLE void openAppSettings();
+  //! the licenses of the libraries the program uses (THIRD_PARTY_LICENSES.md, compiled in)
+  Q_INVOKABLE QString licensesText() const;
+  //! the User's Guide, in the browser
+  Q_INVOKABLE void openHelp();
+  //! the settings: until the new settings pages are there, the program's own (Widgets) dialog
+  Q_INVOKABLE void openSettings();
   Q_INVOKABLE void moveToBackground();
   //! the window was closed (not Android): the program ends like the menu's Exit does
   Q_INVOKABLE void quit();

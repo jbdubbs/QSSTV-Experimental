@@ -1,5 +1,6 @@
 #include "appmodel.h"
 #include "appglobal.h"
+#include "configdialog.h"
 #include "mainwindow.h"
 #include "platformservice.h"
 #include "soundbase.h"
@@ -8,6 +9,7 @@
 #ifdef Q_OS_ANDROID
 #include "androidaudio.h"
 #endif
+#include <QFile>
 #include <QJSEngine>
 #include <QQmlEngine>
 
@@ -80,6 +82,37 @@ void AppModel::setMediaVolume(int percent)
 #else
   Q_UNUSED(percent);
 #endif
+}
+
+QString AppModel::versionText() const
+{
+  return MAJORVERSION+MINORVERSION;
+}
+
+QString AppModel::licensesText() const
+{
+  QFile f(QStringLiteral(":/THIRD_PARTY_LICENSES.md"));
+  return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()) : QString();
+}
+
+void AppModel::openHelp()
+{
+  if(mainWindowPtr) QMetaObject::invokeMethod(mainWindowPtr,"slotDocumentation",Qt::QueuedConnection);
+}
+
+void AppModel::openSettings()
+{
+  // the dialog fills the screen (and keeps clear of the system bars: widgetWindows), like a page of its own
+  QMetaObject::invokeMethod(qApp,[]
+    {
+      if(!mainWindowPtr) return;
+      if(configDialogPtr)
+        {
+          configDialogPtr->setProperty("touchMaximized",true);
+          configDialogPtr->setWindowState(configDialogPtr->windowState()|Qt::WindowMaximized);
+        }
+      QMetaObject::invokeMethod(mainWindowPtr,"slotConfigure");
+    },Qt::QueuedConnection);
 }
 
 void AppModel::openAppSettings()

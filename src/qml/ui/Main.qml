@@ -20,11 +20,28 @@ ApplicationWindow {
     bottomPadding: 0
 
     readonly property bool wide: width >= 600
+    property alias aboutOpen: about.open
 
     Item {
         id: root
         anchors.fill: parent
         readonly property var inset: SafeArea.margins
+
+        // the menu of each screen: what is special to it, then the program's
+        readonly property var menuEntries: {
+            var l = []
+            if (AppModel.screen === 0) l.push({id: "decode", text: qsTr("Decode a recording...")})
+            if (AppModel.screen === 1) l.push({id: "tools", text: qsTr("Transmit tools...")})
+            l.push({id: "settings", text: qsTr("Settings")}, {id: "help", text: qsTr("Help")}, {id: "about", text: qsTr("About")})
+            return l
+        }
+        function menu(id) {
+            if (id === "decode") RxController.decodeRecording()
+            else if (id === "tools") transmit.toolsOpen = true
+            else if (id === "settings") AppModel.openSettings()
+            else if (id === "help") AppModel.openHelp()
+            else if (id === "about") about.open = true
+        }
 
         readonly property string title: AppModel.screen === 0 ? qsTr("Receive") : AppModel.screen === 1 ? qsTr("Transmit") : qsTr("Gallery")
 
@@ -42,6 +59,8 @@ ApplicationWindow {
                 width: parent.width
                 title: root.title
                 routeText: AppModel.routeText
+                entries: root.menuEntries
+                onEntryTriggered: (id) => root.menu(id)
                 actions: [
                     Item {
                         visible: AppModel.screen === 0
@@ -80,6 +99,7 @@ ApplicationWindow {
             target: TxController
             function onCameraBlocked() { snack.show(qsTr("The camera is blocked for this app."), qsTr("Settings")) }
         }
+        AboutSheet { id: about }
         SendingOverlay {
             anchors.fill: parent
             topInset: root.inset.top
@@ -108,6 +128,8 @@ ApplicationWindow {
             else if (receive.optionsOpen) receive.optionsOpen = false
             else if (transmit.modesOpen) transmit.modesOpen = false
             else if (transmit.digitalOpen) transmit.digitalOpen = false
+            else if (transmit.toolsOpen) transmit.toolsOpen = false
+            else if (about.open) about.open = false
             else if (transmit.detailsOpen) transmit.detailsOpen = false
             else if (AppModel.screen !== 0) AppModel.screen = 0
             else AppModel.moveToBackground()

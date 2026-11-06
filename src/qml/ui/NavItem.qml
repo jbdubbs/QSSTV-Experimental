@@ -9,8 +9,10 @@ Item {
     signal clicked()
     implicitHeight: col.implicitHeight
     implicitWidth: col.implicitWidth
+    property real topPad: 0
     Column {
         id: col
+        y: item.topPad
         anchors.horizontalCenter: parent.horizontalCenter
         spacing: 4
         Rectangle {

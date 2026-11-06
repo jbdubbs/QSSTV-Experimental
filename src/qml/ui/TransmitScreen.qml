@@ -9,6 +9,7 @@ Item {
     property alias detailsOpen: details.open
     property alias modesOpen: modes.open
     property alias digitalOpen: digital.open
+    property alias toolsOpen: tools.open
 
     ModeStrip {
         id: strip
@@ -70,5 +71,6 @@ Item {
     }
     ModeSheet { id: modes }
     DrmSheet { id: digital }
+    ToolsSheet { id: tools }
     DetailsSheet { id: details }
 }

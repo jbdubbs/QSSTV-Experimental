@@ -30,7 +30,9 @@ class TxController : public QObject
   Q_PROPERTY(QString timeText READ timeText NOTIFY timeChanged)                  //!< "1 min 54 s", or empty without a picture
   Q_PROPERTY(bool sending READ sending NOTIFY sendingChanged)
   Q_PROPERTY(qreal progress READ progress NOTIFY progressChanged)                //!< 0 to 1
-  Q_PROPERTY(QString remainingText READ remainingText NOTIFY progressChanged)    //!< "0:42"
+  Q_PROPERTY(QString remainingText READ remainingText NOTIFY progressChanged)    //!< "0:42", empty when the time is not known
+  Q_PROPERTY(QString totalText READ totalText NOTIFY progressChanged)            //!< what the whole transmission takes
+  Q_PROPERTY(QString toolName READ toolName NOTIFY toolChanged)                  //!< while a tone, text or CW is sent: what it is; empty for a picture
   Q_PROPERTY(bool useTemplate READ useTemplateOn WRITE setUseTemplate NOTIFY detailsChanged)
   Q_PROPERTY(QString toCall READ toCall WRITE setToCall NOTIFY detailsChanged)
   Q_PROPERTY(QString toOperator READ toOperator WRITE setToOperator NOTIFY detailsChanged)
@@ -63,6 +65,8 @@ public:
   bool sending() const {return m_sending;}
   qreal progress() const {return m_progress;}
   QString remainingText() const;
+  QString totalText() const;
+  QString toolName() const {return m_toolName;}
   bool useTemplateOn() const;
   void setUseTemplate(bool on);
   QString toCall() const;
@@ -93,6 +97,15 @@ public:
   Q_INVOKABLE QVariantList allModes() const;
   Q_INVOKABLE void pickPhoto();     //!< the picture from the phone's photos
   Q_INVOKABLE void pickFile();      //!< the picture from a file
+  // the tools of the Transmit menu (the Widgets versions are dialogs, which cannot be shown over this interface)
+  Q_INVOKABLE void testPattern(int which);                 //!< 0 SMPTE, 1 PM5544, 2 Indian head: the pattern becomes the picture to send
+  Q_INVOKABLE void sendWaterfallId();                      //!< the call sign as text in the waterfall
+  Q_INVOKABLE void sendWaterfallText(const QString &text);
+  Q_INVOKABLE void sendCwId();
+  Q_INVOKABLE void sendTone(int frequency,int seconds);
+  Q_INVOKABLE void sendSweep(int lowerFrequency,int upperFrequency,int seconds);
+  //! the values the tone and sweep sheets start from (the ones of the last time): {tone, duration, low, high, sweepDuration}
+  Q_INVOKABLE QVariantMap toolDefaults() const;
   Q_INVOKABLE void camera();        //!< a picture from the camera: asks for the permission first, then the camera screen shows
   //! where the camera screen saves the picture it takes (the program's cache)
   Q_INVOKABLE QString tempPicturePath() const;
@@ -104,7 +117,7 @@ public:
   Q_INVOKABLE void stop();
 
   //! the tests: pretend a transmission is under way at this progress (0 to 1), or none (negative)
-  void setTestSending(qreal progress);
+  void setTestSending(qreal progress,const QString &tool=QString(),int toolSeconds=0);
 
 signals:
   void pictureChanged();
@@ -115,6 +128,7 @@ signals:
   void detailsChanged();
   void drmChanged();
   void cameraOpenChanged();
+  void toolChanged();
   void cameraBlocked();   //!< the user refused the camera: the screen says where to allow it
 
 private slots:
@@ -132,6 +146,9 @@ private:
   int m_cachedMode=-1;
   int m_drmRevision=0;
   bool m_cameraOpen=false;
+  QString m_toolName;
+  int m_toolSeconds=0;
+  void startTool(const QString &name,int seconds);
   QString m_drmSignature;
   bool m_connected=false;
   bool m_test=false;

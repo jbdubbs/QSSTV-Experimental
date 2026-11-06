@@ -39,7 +39,15 @@ Rectangle {
             width: Math.min(parent.width, 240); height: width * 0.75
             anchors.horizontalCenter: parent.horizontalCenter
             radius: Theme.radius; color: Theme.surfaceHigh; clip: true
-            ImageSurface { anchors.fill: parent; source: 2; revision: TxController.pictureRevision }
+            ImageSurface { anchors.fill: parent; source: 2; revision: TxController.pictureRevision; visible: TxController.toolName === "" }
+            Column {
+                visible: TxController.toolName !== ""
+                anchors.centerIn: parent
+                width: parent.width - 32
+                spacing: 8
+                Icon { anchors.horizontalCenter: parent.horizontalCenter; path: Icons.volume; size: 40; color: Theme.primary }
+                Text { width: parent.width; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap; text: TxController.toolName; color: Theme.surfaceOn; font.pixelSize: Theme.sp(16) }
+            }
         }
         ProgressRing {
             anchors.horizontalCenter: parent.horizontalCenter
@@ -47,14 +55,14 @@ Rectangle {
             value: TxController.progress
             Column {
                 anchors.centerIn: parent
-                Text { anchors.horizontalCenter: parent.horizontalCenter; text: TxController.remainingText; color: Theme.surfaceOn; font.pixelSize: Theme.sp(34) }
-                Text { anchors.horizontalCenter: parent.horizontalCenter; text: qsTr("left of %1").arg(TxController.timeText); color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(13) }
+                Text { anchors.horizontalCenter: parent.horizontalCenter; text: TxController.remainingText !== "" ? TxController.remainingText : qsTr("Sending"); color: Theme.surfaceOn; font.pixelSize: Theme.sp(34) }
+                Text { anchors.horizontalCenter: parent.horizontalCenter; visible: TxController.remainingText !== ""; text: qsTr("left of %1").arg(TxController.totalText); color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(13) }
             }
         }
         Flow {
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 8
-            Chip { text: AppModel.digital ? qsTr("Digital · %1").arg(TxController.drmSummary) : TxController.modeName; tone: "selected" }
+            Chip { visible: TxController.toolName === ""; text: AppModel.digital ? qsTr("Digital · %1").arg(TxController.drmSummary) : TxController.modeName; tone: "selected" }
             Chip { text: AppModel.routeText + (AppModel.mediaVolumeAvailable ? "  " + AppModel.mediaVolume + " %" : ""); icon: Icons.volume }
         }
         Text {
