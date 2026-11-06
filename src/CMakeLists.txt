@@ -484,7 +484,7 @@ if(QSSTV_QML_UI)
   set(QSSTV_QML_FILES Main.qml Theme.qml Icons.qml Icon.qml Chip.qml ModeStrip.qml AppBar.qml NavItem.qml NavBar.qml NavRail.qml
       ExtendedFab.qml LevelMeter.qml BottomSheet.qml PreferenceRow.qml PictureCanvas.qml SpectrumStrip.qml StatusRow.qml
       ProgressLine.qml ReceiveScreen.qml PlaceholderScreen.qml ProgressRing.qml WideButton.qml ModeSheet.qml DetailsSheet.qml
-      TxPictureBlock.qml TxOptionsBlock.qml TransmitScreen.qml SendingOverlay.qml DrmSheet.qml CameraScreen.qml Snackbar.qml ToolsSheet.qml AboutSheet.qml)
+      TxPictureBlock.qml TxOptionsBlock.qml TransmitScreen.qml SendingOverlay.qml DrmSheet.qml CameraScreen.qml Snackbar.qml ToolsSheet.qml AboutSheet.qml SegmentedTabs.qml ThumbCell.qml GalleryScreen.qml SelectionBar.qml ZoomImage.qml ViewerScreen.qml)
   list(TRANSFORM QSSTV_QML_FILES PREPEND "qml/ui/" OUTPUT_VARIABLE QSSTV_QML_PATHS)
   foreach(f IN LISTS QSSTV_QML_FILES)   # the files sit flat in the module: its types are found by name
     set_source_files_properties("qml/ui/${f}" PROPERTIES QT_RESOURCE_ALIAS "${f}")
@@ -492,7 +492,7 @@ if(QSSTV_QML_UI)
   set_source_files_properties(qml/ui/Theme.qml qml/ui/Icons.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
   qt_add_qml_module(qsstv URI QSSTV VERSION 1.0 RESOURCE_PREFIX /qt/qml
       QML_FILES ${QSSTV_QML_PATHS}
-      SOURCES qml/qmlui.cpp qml/appmodel.cpp qml/rxcontroller.cpp qml/txcontroller.cpp qml/imagesurface.cpp qml/waterfall.cpp qml/widgetwindows.cpp)
+      SOURCES qml/qmlui.cpp qml/appmodel.cpp qml/rxcontroller.cpp qml/txcontroller.cpp qml/imagesurface.cpp qml/waterfall.cpp qml/widgetwindows.cpp qml/gallerymodel.cpp qml/thumbnailprovider.cpp)
   set_target_properties(qsstv PROPERTIES QT_QML_ROOT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/qml/ui")   # androiddeployqt: which QML plugins to package
 endif()
 if(ANDROID)

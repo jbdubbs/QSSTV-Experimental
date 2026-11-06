@@ -93,6 +93,7 @@ public:
   void lineDrawn(int line);
   void imageEnded();
   void imageShown();
+  void imageSaved(const QString &file);
   void statusReceived(bool drm,const QString &text);
   void syncReceived(int quality);
   void fftInit(int fftLength,int samplingRate);
@@ -106,6 +107,7 @@ signals:
   void pictureChanged();
   void waterfallChanged();
   void optionsChanged();
+  void pictureSaved(const QString &file);   //!< a received picture was saved to the gallery
 
 private slots:
   void poll();

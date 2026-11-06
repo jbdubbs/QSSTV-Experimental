@@ -584,6 +584,7 @@ void dispatcher::saveImage(QString fileName, QString infotext)
   QFileInfo info(fileName);
   QString fn=QDir::tempPath()+"/"+info.baseName()+"."+ftpDefaultImageFormat;
   galleryWidgetPtr->putRxImage(fileName);
+  qmlUi::rxImageSaved(fileName);
   txWidgetPtr->setPreviewWidget(fileName);
   if(enableFTP)
     {

@@ -15,6 +15,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDir>
+#include <QFileInfo>
 #include <QJSEngine>
 #include <QLineEdit>
 #include <QCoreApplication>
@@ -432,6 +433,26 @@ void TxController::showPicture(const QString &file)
 {
   if(!txWidgetPtr) return;
   txWidgetPtr->setImage(file);
+  AppModel::instance()->setScreen(1);
+}
+
+void TxController::showPictures(const QStringList &files)
+{
+  if(!txWidgetPtr || files.isEmpty()) return;
+  txWidgetPtr->setImages(files);
+  AppModel::instance()->setScreen(1);
+}
+
+void TxController::useTemplateFile(const QString &file)
+{
+  if(!txWidgetPtr) return;
+  if(QComboBox *b=txWidgetPtr->findChild<QComboBox *>(QStringLiteral("templatesComboBox")))
+    {
+      const QString name=QFileInfo(file).completeBaseName();
+      for(int i=0;i<b->count();i++)
+        if(b->itemText(i)==name) {b->setCurrentIndex(i); break;}
+    }
+  setUseTemplate(true);
   AppModel::instance()->setScreen(1);
 }
 

@@ -113,6 +113,10 @@ public:
   Q_INVOKABLE void usePicture(const QString &file);
   //! a picture from outside (shared to the program): load it and show the Transmit screen
   Q_INVOKABLE void showPicture(const QString &file);
+  //! several pictures from the gallery: they fill the grid of the picture to send
+  Q_INVOKABLE void showPictures(const QStringList &files);
+  //! a template from the gallery: it is the one put on the picture, and the Transmit screen shows
+  Q_INVOKABLE void useTemplateFile(const QString &file);
   Q_INVOKABLE void send();
   Q_INVOKABLE void stop();
 

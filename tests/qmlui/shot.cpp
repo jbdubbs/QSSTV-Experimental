@@ -24,6 +24,8 @@
 #include "imageviewer.h"
 #include "rxwidget.h"
 #include "spectrumwidget.h"
+#include "gallerymodel.h"
+#include "directoriesconfig.h"
 
 static QQuickWindow *theWindow()
 {
@@ -81,6 +83,41 @@ static QImage testPicture(int w, int h, int lines)
   return im;
 }
 
+// pictures in the gallery folders, of today, yesterday, last week and last year, so that the grid has its day headings
+static void makeGallery(const QString &scratch)
+{
+  rxSSTVImagesPath = scratch + "/g/rx_sstv/";
+  rxDRMImagesPath = scratch + "/g/rx_drm/";
+  txSSTVImagesPath = scratch + "/g/tx_sstv/";
+  txDRMImagesPath = scratch + "/g/tx_drm/";
+  txStockImagesPath = scratch + "/g/tx_stock/";
+  templatesPath = scratch + "/g/templates/";
+  for (const QString &d : {rxSSTVImagesPath, rxDRMImagesPath, txSSTVImagesPath, txDRMImagesPath, txStockImagesPath, templatesPath}) QDir().mkpath(d);
+  struct F {QString dir, name; int hoursAgo; int lines;};
+  const std::vector<F> files = {
+    {rxSSTVImagesPath, "m1", 1, 256}, {rxSSTVImagesPath, "s1", 3, 240}, {rxSSTVImagesPath, "pd120", 5, 256}, {rxSSTVImagesPath, "r36", 7, 200},
+    {rxSSTVImagesPath, "m1", 27, 256}, {rxSSTVImagesPath, "pd90", 30, 256}, {rxSSTVImagesPath, "s2", 24 * 5, 256}, {rxSSTVImagesPath, "m2", 24 * 5 + 2, 128},
+    {rxSSTVImagesPath, "r72", 24 * 40, 256}, {rxDRMImagesPath, "drm", 2, 256}, {rxDRMImagesPath, "drm", 28, 256},
+    {txSSTVImagesPath, "tx", 4, 256}, {txSSTVImagesPath, "tx", 26, 256}, {txDRMImagesPath, "tx", 50, 256},
+    {txStockImagesPath, "stock-a", 24 * 300, 256}, {txStockImagesPath, "stock-b", 24 * 300, 256}};
+  int n = 0;
+  for (const F &f : files)
+    {
+      const QDateTime when = QDateTime::currentDateTimeUtc().addSecs(-3600 * f.hoursAgo);
+      const QString file = QString("%1%2_%3_%4.png").arg(f.dir, f.name, when.toString("yyyyMMdd_HHmmss")).arg(n++);
+      QImage im = testPicture(320, 256, f.lines);
+      QPainter p(&im);
+      p.setPen(Qt::white);
+      p.setFont(QFont("sans", 40, QFont::Bold));
+      p.drawText(im.rect(), Qt::AlignCenter, QString::number(n));
+      p.end();
+      im.save(file);
+      QFile fl(file);
+      if (fl.open(QIODevice::ReadWrite)) {fl.setFileTime(when, QFileDevice::FileModificationTime); fl.close();}
+    }
+  QFile::copy(QStringLiteral(SRC_TEMPLATE_FIXTURE), templatesPath + "synthetic.templ");
+}
+
 int main(int argc, char **argv)
 {
   setvbuf(stdout, nullptr, _IOLBF, 0);
@@ -112,6 +149,7 @@ int main(int argc, char **argv)
   QTest::qWait(300);
   mainWindowPtr->init();
   mainWindowPtr->startRunning(false);   // no sound card receiver
+  makeGallery(scratch);   // after the settings were read
   qmlUi::show();
   QTest::qWait(500);
   QQuickWindow *win = theWindow();
@@ -131,6 +169,9 @@ int main(int argc, char **argv)
           for (const char *prop : {"optionsOpen", "modesOpen", "detailsOpen", "digitalOpen", "toolsOpen", "open"})
             if (s->property(prop).isValid()) s->setProperty(prop, false);
       TxController::instance()->setTestSending(-1);
+      if (QQuickItem *v = findItem(win->contentItem(), "viewerScreen")) v->setProperty("infoOpen", false);
+      GalleryModel::instance()->closeViewer();
+      GalleryModel::instance()->clearSelection();
       app_->setScreen(0);
       app_->setDigital(scene == "digital" || scene.startsWith("tx-digital"));
       // the receiver does not run here: tell the screens what a running one would
@@ -163,7 +204,21 @@ int main(int argc, char **argv)
           if (scene == "tx-sending") tx->setTestSending(0.38);
           if (scene == "tx-sending-tool") tx->setTestSending(0.4, "Test tone, 1000 Hz", 5);
         }
-      else if (scene == "gallery") app_->setScreen(2);
+      else if (scene.startsWith("gallery"))
+        {
+          app_->setScreen(2);
+          GalleryModel *g = GalleryModel::instance();
+          g->clearSelection();
+          g->closeViewer();
+          g->setTab(scene == "gallery-sent" ? 1 : scene == "gallery-templates" ? 2 : 0);
+          g->rescan();
+          if (scene == "gallery-empty") {g->setTab(1); QDir(txSSTVImagesPath).removeRecursively(); QDir(txDRMImagesPath).removeRecursively(); g->rescan();}
+          QTest::qWait(600);
+          if (scene == "gallery-select") {g->startSelecting(1); g->toggle(3);}
+          if (scene == "gallery-viewer" || scene == "gallery-info") g->setViewerIndex(1);
+          if (scene == "gallery-delete") {QTest::qWait(500); g->setViewerIndex(1); QTest::qWait(700); g->deleteIndex(1); QTest::qWait(900);}
+          if (scene == "gallery-info") {QTest::qWait(500); if (QQuickItem *v = findItem(win->contentItem(), "viewerScreen")) v->setProperty("infoOpen", true);}
+        }
       QTest::qWait(400);
       QQuickItem *content = win->contentItem();
       if (scene == "about") {win->setProperty("aboutOpen", true); QTest::qWait(500);}

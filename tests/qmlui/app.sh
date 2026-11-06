@@ -7,12 +7,12 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 B=${1:-$HERE/../../build-qml}
 OUT=${2:-}
 cd "$B"
-SCRATCH=$(mktemp -d); trap 'rm -rf "${SCRATCH:?}"' EXIT
+SCRATCH=$(mktemp -d -p "${TMPDIR:-/tmp}"); [ -n "$KEEP" ] || trap 'rm -rf "${SCRATCH:?}"' EXIT
 [ -n "$OUT" ] || OUT=$(mktemp -d -t qsstv-qmlui-XXXXXX)
 FLAGS=$(grep '^CXX_DEFINES' CMakeFiles/qsstv.dir/flags.make | cut -d= -f2-)
 INCS=$(grep '^CXX_INCLUDES' CMakeFiles/qsstv.dir/flags.make | cut -d= -f2-)
 CXXF=$(grep '^CXX_FLAGS' CMakeFiles/qsstv.dir/flags.make | cut -d= -f2-)
-eval /usr/bin/c++ $CXXF $FLAGS $INCS -isystem /usr/include/qt6/QtTest -fPIC -c "$HERE/shot.cpp" -o "$SCRATCH/shot.o"
+eval /usr/bin/c++ $CXXF $FLAGS $INCS -DSRC_TEMPLATE_FIXTURE=\\\"$HERE/../template/fixtures/synthetic.templ\\\" -isystem /usr/include/qt6/QtTest -fPIC -c "$HERE/shot.cpp" -o "$SCRATCH/shot.o"
 LINK=$(sed "s# CMakeFiles/qsstv.dir/main.cpp.o # $SCRATCH/shot.o #; s#-o qsstv-experimental#-o $SCRATCH/shot#; s#-Wl,--dependency-file=CMakeFiles/qsstv.dir/link.d##" CMakeFiles/qsstv.dir/link.txt)
 eval $LINK /usr/lib64/libQt6Test.so
 rc=0
@@ -21,7 +21,7 @@ run() {   # theme width height scenes...
   mkdir -p "$SCRATCH/home-$theme-$w"
   QSSTV_QML_THEME=$theme timeout 120 "$SCRATCH/shot" "$SCRATCH/home-$theme-$w" "$OUT/$theme" "$w" "$h" "$@" || rc=1
 }
-SCENES="idle receiving options digital stopped quiet tx tx-picture tx-modes tx-details tx-digital tx-digital-details tx-tools tx-sending tx-sending-tool about gallery"
+SCENES=${QMLUI_SCENES:-"idle receiving options digital stopped quiet tx tx-picture tx-modes tx-details tx-digital tx-digital-details tx-tools tx-sending tx-sending-tool about gallery gallery-sent gallery-templates gallery-select gallery-viewer gallery-info gallery-delete gallery-empty"}
 run light 411 800 $SCENES
 run dark 411 800 $SCENES
 run light 360 640 idle receiving tx-picture

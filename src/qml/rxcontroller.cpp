@@ -157,6 +157,11 @@ void RxController::imageEnded()
   poll();
 }
 
+void RxController::imageSaved(const QString &file)
+{
+  emit pictureSaved(file);
+}
+
 void RxController::imageShown()
 {
   m_line=m_lines=0;

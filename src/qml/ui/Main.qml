@@ -54,8 +54,15 @@ ApplicationWindow {
             anchors.right: parent.right
             anchors.rightMargin: root.inset.right
             anchors.bottom: win.wide ? parent.bottom : nav.top
+            SelectionBar {
+                visible: AppModel.screen === 2 && GalleryModel.selecting
+                width: parent.width
+                height: visible ? Theme.appBarHeight : 0
+            }
             AppBar {
                 id: bar
+                visible: !(AppModel.screen === 2 && GalleryModel.selecting)
+                height: visible ? Theme.appBarHeight : 0
                 width: parent.width
                 title: root.title
                 routeText: AppModel.routeText
@@ -74,11 +81,11 @@ ApplicationWindow {
             }
             StackLayout {
                 width: parent.width
-                height: parent.height - bar.height
+                height: parent.height - Theme.appBarHeight
                 currentIndex: AppModel.screen
                 ReceiveScreen { id: receive; objectName: "receiveScreen" }
                 TransmitScreen { id: transmit; objectName: "transmitScreen" }
-                PlaceholderScreen { title: qsTr("Gallery") }
+                GalleryScreen { id: gallery }
             }
         }
         CameraScreen {
@@ -89,15 +96,35 @@ ApplicationWindow {
         }
         Snackbar {
             id: snack
+            z: 60   // above the picture viewer too
             anchors.left: parent.left; anchors.right: parent.right
             anchors.bottom: parent.bottom
             anchors.leftMargin: Theme.margin; anchors.rightMargin: Theme.margin
-            anchors.bottomMargin: (win.wide ? 16 : Theme.navBarHeight + 16) + root.inset.bottom
-            onAction: AppModel.openAppSettings()
+            anchors.bottomMargin: (GalleryModel.viewerIndex >= 0 ? 72 + 8 : win.wide ? 16 : Theme.navBarHeight + 16) + root.inset.bottom
+            onAction: {
+                if (kind === "settings") AppModel.openAppSettings()
+                else if (kind === "undo") GalleryModel.undoDelete()
+                else if (kind === "view") GalleryModel.openFile(payload)
+            }
         }
         Connections {
             target: TxController
-            function onCameraBlocked() { snack.show(qsTr("The camera is blocked for this app."), qsTr("Settings")) }
+            function onCameraBlocked() { snack.show(qsTr("The camera is blocked for this app."), qsTr("Settings"), "settings") }
+        }
+        Connections {
+            target: GalleryModel
+            function onDeleted(count) { snack.show(count === 1 ? qsTr("Picture deleted") : qsTr("%1 pictures deleted").arg(count), qsTr("Undo"), "undo") }
+        }
+        Connections {
+            target: RxController
+            function onPictureSaved(file) { snack.show(qsTr("Saved to Gallery"), qsTr("View"), "view", file) }
+        }
+        ViewerScreen {
+            id: viewer
+            objectName: "viewerScreen"
+            anchors.fill: parent
+            topInset: root.inset.top
+            bottomInset: root.inset.bottom
         }
         AboutSheet { id: about }
         SendingOverlay {
@@ -123,7 +150,10 @@ ApplicationWindow {
     onClosing: (close) => {
         if (Qt.platform.os === "android") {
             close.accepted = false
-            if (TxController.cameraOpen) TxController.cameraOpen = false
+            if (viewer.infoOpen) viewer.infoOpen = false
+            else if (GalleryModel.viewerIndex >= 0) GalleryModel.closeViewer()
+            else if (AppModel.screen === 2 && GalleryModel.selecting) GalleryModel.clearSelection()
+            else if (TxController.cameraOpen) TxController.cameraOpen = false
             else if (TxController.sending) TxController.stop()
             else if (receive.optionsOpen) receive.optionsOpen = false
             else if (transmit.modesOpen) transmit.modesOpen = false

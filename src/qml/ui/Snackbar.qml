@@ -5,10 +5,14 @@ Rectangle {
     id: snack
     property string text
     property string actionText
+    property string kind          // what the action is for (the one who shows it decides)
+    property var payload          // and what it is about
     signal action()
-    function show(message, actionLabel) {
+    function show(message, actionLabel, what, data) {
         text = message
         actionText = actionLabel || ""
+        kind = what || ""
+        payload = data
         shown = true
         hider.restart()
     }
@@ -43,7 +47,7 @@ Rectangle {
                 color: Theme.dark ? "#00677d" : "#8fdcf5"
                 font.pixelSize: Theme.sp(14); font.weight: Font.Medium
             }
-            TapHandler { onTapped: { snack.shown = false; snack.action() } }
+            TapHandler { onTapped: { snack.action(); snack.shown = false } }
             Accessible.role: Accessible.Button
             Accessible.name: snack.actionText
         }
