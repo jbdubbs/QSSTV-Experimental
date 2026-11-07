@@ -24,7 +24,7 @@ BottomSheet {
 
     Item {
         width: parent.width; height: field.implicitHeight + 16
-        TextField {
+        Field {
             id: field
             x: 24; y: 4; width: parent.width - 48
             text: sheet.freq

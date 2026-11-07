@@ -13,7 +13,7 @@ Rectangle {
     property real topInset: 0
     property real bottomInset: 0
     property int page: 0          // 0 overview, 1 operator, 2 pictures, 3 position, 4 advanced, 5 audio and radio, 6 the radio list, 7 receive, 8 identification,
-                                  // 9 calibration, 10 internet time, 11 radio time signal, 12 another SSTV station, 13 DRM profiles, 14 one profile, 15 frequencies
+                                  // 9 calibration, 10 internet time, 11 radio time signal, 12 another SSTV station, 13 DRM profiles, 14 one profile, 15 frequencies, 16 appearance
     onPageChanged: {
         if (page < 10 || page > 12) Calibration.leave()   // a measurement ends with its page, and the receiver listens again
         if (page === 5) SettingsController.rescanAdapters()   // an adapter may have been plugged in
@@ -21,6 +21,7 @@ Rectangle {
     }
     signal showAbout()
     MouseArea { anchors.fill: parent }
+    readonly property var themeNames: [qsTr("Follow the phone"), qsTr("Light"), qsTr("Dark"), qsTr("Dim"), qsTr("Night")]
 
     function close() { AppModel.settingsOpen = false }
     // Back: one level up; true when the settings were showing
@@ -62,6 +63,7 @@ Rectangle {
             PreferenceRow { icon: Icons.volume; title: qsTr("Audio and radio"); summary: SettingsController.audioSummary; chevron: true; onClicked: screen.page = 5 }
             PreferenceRow { icon: Icons.pin; title: qsTr("Position"); summary: SettingsController.positionSummary; chevron: true; onClicked: screen.page = 3 }
             PreferenceRow { icon: Icons.image; title: qsTr("Pictures"); summary: SettingsController.picturesSummary; chevron: true; onClicked: screen.page = 2 }
+            PreferenceRow { icon: Icons.palette; title: qsTr("Appearance"); summary: screen.themeNames[AppModel.theme]; chevron: true; onClicked: screen.page = 16 }
             PreferenceRow { icon: Icons.tune; title: qsTr("Advanced"); summary: qsTr("Modes, DRM, CW, waterfall text, frequencies"); chevron: true; onClicked: screen.page = 4 }
             Item { width: 1; height: 8 }
             PreferenceRow { icon: Icons.help; title: qsTr("Help and User's Guide"); onClicked: AppModel.openHelp() }
@@ -197,11 +199,10 @@ Rectangle {
             }
             Item {
                 width: parent.width; height: 64
-                Button {
+                ThemedButton {
                     x: 24; anchors.verticalCenter: parent.verticalCenter
-                    text: qsTr("Test sound"); highlighted: true; font.pixelSize: Theme.sp(14)
+                    text: qsTr("Test sound"); highlighted: true
                     enabled: !TxController.sending
-                    Material.accent: Theme.primary
                     onClicked: TxController.sendTone(1000, 3)
                     Accessible.name: qsTr("Play a test tone")
                 }
@@ -238,12 +239,10 @@ Rectangle {
             }
             Item {
                 width: parent.width; height: 64
-                Button {
+                ThemedButton {
                     x: 24; anchors.verticalCenter: parent.verticalCenter
                     text: SettingsController.pttTesting ? qsTr("Keying...") : qsTr("Test push to talk")
-                    font.pixelSize: Theme.sp(14)
                     enabled: SettingsController.pttMode !== 0 && !SettingsController.pttTesting && !TxController.sending
-                    Material.accent: Theme.primary
                     onClicked: SettingsController.testPtt()
                     Accessible.name: qsTr("Key the transmitter for a moment")
                 }
@@ -277,7 +276,7 @@ Rectangle {
                 }
                 Text { x: 64; height: parent.height; verticalAlignment: Text.AlignVCenter; text: qsTr("Radio"); color: Theme.surfaceOn; font.pixelSize: Theme.sp(22); Accessible.role: Accessible.Heading }
             }
-            TextField {
+            Field {
                 id: search
                 anchors.top: radioBar.bottom; anchors.topMargin: 4
                 x: 16; width: parent.width - 32
@@ -421,6 +420,41 @@ Rectangle {
             topInset: screen.topInset; bottomInset: screen.bottomInset
             onBack: screen.page = 4
             onOpenRadio: screen.page = 5
+        }
+
+        // ---- appearance ----
+        SettingsPage {
+            title: qsTr("Appearance"); topInset: screen.topInset; bottomInset: screen.bottomInset
+            onBack: screen.page = 0
+            Text {
+                width: parent.width; leftPadding: 24; rightPadding: 24; topPadding: 8; bottomPadding: 8
+                text: qsTr("The colors of the program. The text keeps the size of the phone's own setting.")
+                color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(14); wrapMode: Text.WordWrap
+            }
+            Repeater {
+                model: [
+                    {text: qsTr("Follow the phone"), hint: qsTr("Light by day, dark by night, as the phone is set")},
+                    {text: qsTr("Light"), hint: qsTr("Always light")},
+                    {text: qsTr("Dark"), hint: qsTr("Always dark: near black, bright text")},
+                    {text: qsTr("Dim"), hint: qsTr("Dark with less light, for a dark room")},
+                    {text: qsTr("Night"), hint: qsTr("Red on black, easy on the night vision")}
+                ]
+                delegate: RadioRow {
+                    required property var modelData
+                    required property int index
+                    title: modelData.text; summary: modelData.hint
+                    checked: AppModel.theme === index
+                    onClicked: AppModel.theme = index
+                }
+            }
+            Item { width: 1; height: 8 }
+            PreferenceRow {
+                title: qsTr("Tint the pictures in Night")
+                summary: AppModel.theme !== 4 ? qsTr("Choose Night above to use this") : AppModel.tintPictures ? qsTr("The pictures and the waterfall are red")
+                         : qsTr("The pictures keep their colors; the waterfall is red")
+                checkable: true; checked: AppModel.tintPictures; enabledRow: AppModel.theme === 4
+                onToggled: (on) => AppModel.tintPictures = on
+            }
         }
     }
 

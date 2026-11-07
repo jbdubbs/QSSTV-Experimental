@@ -261,8 +261,23 @@ int main(int argc, char **argv)
           app_->setScreen(0);
           AppModel::instance()->setSettingsOpen(true);
           QQuickItem *st = findItem(win->contentItem(), "settingsScreen");
-          const int page = scene == "settings-operator" ? 1 : scene == "settings-pictures" || scene == "settings-format" ? 2 : scene == "settings-position" ? 3 : scene == "settings-advanced" ? 4 : scene == "settings-audio" || scene == "settings-mic" ? 5 : scene == "settings-radios" ? 6 : scene == "settings-receive" ? 7 : scene == "settings-cw" ? 8 : 0;
+          const int page = scene == "settings-operator" ? 1 : scene == "settings-pictures" || scene == "settings-format" ? 2 : scene == "settings-position" ? 3 : scene == "settings-advanced" ? 4 : scene == "settings-audio" || scene == "settings-mic" ? 5 : scene == "settings-radios" ? 6 : scene == "settings-receive" ? 7 : scene == "settings-cw" ? 8 : scene == "settings-appearance" ? 16 : 0;
           if (st) st->setProperty("page", page);
+          if (scene == "settings-appearance")
+            {
+              // the look is kept in the settings file at once, and comes back (the classic pages must not undo it)
+              AppModel *am = AppModel::instance();
+              const int t0 = am->theme();
+              const bool k0 = am->tintPictures();
+              am->setTheme(t0 == 3 ? 4 : 3);
+              am->setTintPictures(!k0);
+              QSettings qs;
+              if (qs.value("Appearance/theme").toInt() != am->theme() || qs.value("Appearance/tintPictures").toBool() != am->tintPictures())
+                {fprintf(stderr, "FAIL: the look is not in the settings file\n"); exitCode = 1;}
+              am->setTheme(t0);
+              am->setTintPictures(k0);
+              if (QSettings().value("Appearance/theme").toInt() != t0) {fprintf(stderr, "FAIL: the look did not come back\n"); exitCode = 1;}
+            }
           if (scene == "settings-format" && st) QMetaObject::invokeMethod(st, "openFormat");
           if (scene == "settings-mic" && st) QMetaObject::invokeMethod(st, "openMic");
         }

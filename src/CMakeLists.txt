@@ -339,7 +339,7 @@ set(QSSTV_SOURCES
 
 if(ANDROID)
   # the native sound backend (AAudio through Oboe); the other platforms use soundqtmultimedia.cpp only
-  list(APPEND QSSTV_SOURCES sound/soundandroid.cpp android/openwith.cpp android/androidaudio.cpp android/androidusb.cpp android/qtlocationsource.cpp android/photopicker.cpp)
+  list(APPEND QSSTV_SOURCES sound/soundandroid.cpp android/openwith.cpp android/androidaudio.cpp android/androidusb.cpp android/qtlocationsource.cpp android/photopicker.cpp android/androidshell.cpp)
 endif()
 
 # Video capture used to be Linux/macOS-only V4L2 (excluded on macOS via the original
@@ -487,7 +487,7 @@ if(QSSTV_QML_UI)
   set(QSSTV_QML_FILES Main.qml Theme.qml Icons.qml Icon.qml Chip.qml ModeStrip.qml AppBar.qml NavItem.qml NavBar.qml NavRail.qml
       ExtendedFab.qml LevelMeter.qml BottomSheet.qml PreferenceRow.qml PictureCanvas.qml SpectrumStrip.qml StatusRow.qml
       ProgressLine.qml ReceiveScreen.qml PlaceholderScreen.qml ProgressRing.qml WideButton.qml ModeSheet.qml DetailsSheet.qml
-      TxPictureBlock.qml TxOptionsBlock.qml TransmitScreen.qml SendingOverlay.qml DrmSheet.qml CameraScreen.qml Snackbar.qml ToolsSheet.qml AboutSheet.qml SegmentedTabs.qml ThumbCell.qml GalleryScreen.qml SelectionBar.qml ZoomImage.qml ViewerScreen.qml PrefGroup.qml TextRow.qml ChoiceDialog.qml InlineBanner.qml ProblemDialog.qml FirstRunScreen.qml Stepper.qml ColorSwatches.qml AskDialog.qml EditPanel.qml StartersSheet.qml TemplateSheet.qml TemplateEditorScreen.qml HowSteps.qml QualityBar.qml CalibrationPage.qml CalibrationNtpPage.qml CalibrationWwvPage.qml CalibrationSstvPage.qml CalibrationOverviewPage.qml DrmProfilesPage.qml DrmProfilePage.qml FrequencySheet.qml FrequenciesPage.qml TuneSheet.qml SettingsPage.qml SliderRow.qml SettingsScreen.qml)
+      TxPictureBlock.qml TxOptionsBlock.qml TransmitScreen.qml SendingOverlay.qml DrmSheet.qml CameraScreen.qml Snackbar.qml ToolsSheet.qml AboutSheet.qml SegmentedTabs.qml ThumbCell.qml GalleryScreen.qml SelectionBar.qml ZoomImage.qml ViewerScreen.qml PrefGroup.qml RadioRow.qml RadioMark.qml ToggleSwitch.qml ThemedSlider.qml ThemedButton.qml ThemedSpinBox.qml ThemedMenuItem.qml Field.qml TextRow.qml ChoiceDialog.qml InlineBanner.qml ProblemDialog.qml FirstRunScreen.qml Stepper.qml ColorSwatches.qml AskDialog.qml EditPanel.qml StartersSheet.qml TemplateSheet.qml TemplateEditorScreen.qml HowSteps.qml QualityBar.qml CalibrationPage.qml CalibrationNtpPage.qml CalibrationWwvPage.qml CalibrationSstvPage.qml CalibrationOverviewPage.qml DrmProfilesPage.qml DrmProfilePage.qml FrequencySheet.qml FrequenciesPage.qml TuneSheet.qml SettingsPage.qml SliderRow.qml SettingsScreen.qml)
   list(TRANSFORM QSSTV_QML_FILES PREPEND "qml/ui/" OUTPUT_VARIABLE QSSTV_QML_PATHS)
   foreach(f IN LISTS QSSTV_QML_FILES)   # the files sit flat in the module: its types are found by name
     set_source_files_properties("qml/ui/${f}" PROPERTIES QT_RESOURCE_ALIAS "${f}")

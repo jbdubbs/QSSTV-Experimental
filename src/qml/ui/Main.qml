@@ -12,6 +12,8 @@ ApplicationWindow {
     color: Theme.surface
     Material.theme: Theme.dark ? Material.Dark : Material.Light
     Material.accent: Theme.primary
+    Material.foreground: Theme.surfaceOn        // the controls' own text and marks follow the look too (Night has no white in it)
+    Material.background: Theme.surface
     font.family: Theme.fontFamily
     // the window draws behind the system bars (edge to edge); the screens keep clear of them themselves, with SafeArea
     topPadding: 0
@@ -205,28 +207,44 @@ ApplicationWindow {
         }
     }
 
+    // Back, one step: true when something was closed or left, false when there was nothing (the first screen, nothing open)
+    function goBack() {
+        if (problemDialog.open) problemDialog.open = false
+        else if (tplEditor.goBack()) {}
+        else if (firstRun.goBack()) {}
+        else if (settings.goBack()) {}
+        else if (viewer.infoOpen) viewer.infoOpen = false
+        else if (GalleryModel.viewerIndex >= 0) GalleryModel.closeViewer()
+        else if (AppModel.screen === 2 && GalleryModel.selecting) GalleryModel.clearSelection()
+        else if (TxController.cameraOpen) TxController.cameraOpen = false
+        else if (TxController.sending) TxController.stop()
+        else if (receive.optionsOpen) receive.optionsOpen = false
+        else if (transmit.modesOpen) transmit.modesOpen = false
+        else if (transmit.digitalOpen) transmit.digitalOpen = false
+        else if (transmit.toolsOpen) transmit.toolsOpen = false
+        else if (transmit.templatesOpen) transmit.templatesOpen = false
+        else if (Frequencies.pickerOpen) Frequencies.pickerOpen = false
+        else if (about.open) about.open = false
+        else if (transmit.detailsOpen) transmit.detailsOpen = false
+        else if (AppModel.screen !== 0) AppModel.screen = 0
+        else return false
+        return true
+    }
+    Connections {
+        target: AppModel
+        function onBackInvoked() { if (!win.goBack()) AppModel.moveToBackground() }
+        // a launcher shortcut: Receive, Transmit or Gallery, from wherever the program was left
+        function onScreenRequested(screen) {
+            AppModel.settingsOpen = false
+            if (GalleryModel.viewerIndex >= 0) GalleryModel.closeViewer()
+            if (!TxController.sending) AppModel.screen = screen
+        }
+    }
+
     onClosing: (close) => {
         if (Qt.platform.os === "android") {
             close.accepted = false
-            if (problemDialog.open) problemDialog.open = false
-            else if (tplEditor.goBack()) {}
-            else if (firstRun.goBack()) {}
-            else if (settings.goBack()) {}
-            else if (viewer.infoOpen) viewer.infoOpen = false
-            else if (GalleryModel.viewerIndex >= 0) GalleryModel.closeViewer()
-            else if (AppModel.screen === 2 && GalleryModel.selecting) GalleryModel.clearSelection()
-            else if (TxController.cameraOpen) TxController.cameraOpen = false
-            else if (TxController.sending) TxController.stop()
-            else if (receive.optionsOpen) receive.optionsOpen = false
-            else if (transmit.modesOpen) transmit.modesOpen = false
-            else if (transmit.digitalOpen) transmit.digitalOpen = false
-            else if (transmit.toolsOpen) transmit.toolsOpen = false
-            else if (transmit.templatesOpen) transmit.templatesOpen = false
-            else if (Frequencies.pickerOpen) Frequencies.pickerOpen = false
-            else if (about.open) about.open = false
-            else if (transmit.detailsOpen) transmit.detailsOpen = false
-            else if (AppModel.screen !== 0) AppModel.screen = 0
-            else AppModel.moveToBackground()
+            if (!win.goBack()) AppModel.moveToBackground()
         } else {
             close.accepted = false
             AppModel.quit()

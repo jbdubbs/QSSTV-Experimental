@@ -100,7 +100,7 @@ title, the <strong>route chip</strong> that says where the sound goes (<em>Phone
 
 <h2>Settings</h2>
 <div class="shots">
-<figure><img src="../images/android-settings.png" alt="The settings list with Operator, Audio and radio, Position, Pictures and Advanced" loading="lazy"><figcaption>The settings list.</figcaption></figure>
+<figure><img src="../images/android-settings.png" alt="The settings list with Operator, Audio and radio, Position, Pictures, Appearance and Advanced" loading="lazy"><figcaption>The settings list.</figcaption></figure>
 <figure><img src="../images/android-audio.png" alt="The Audio and radio page with microphone, gain, level, speaker and volume" loading="lazy"><figcaption>Audio and radio.</figcaption></figure>
 </div>
 <p><span class="ui">&#8942; &gt; Settings</span> shows a list with the current value under each name. There is no OK and no Cancel: <strong>a change is kept as soon as it is made</strong>. <span class="ui">Back</span> goes one level up.</p>
@@ -109,6 +109,7 @@ title, the <strong>route chip</strong> that says where the sound goes (<em>Phone
 <li><span class="ui">Audio and radio</span>: the microphone and what the phone may do to it, the receive gain, the live input level, the speaker, the media volume, <span class="ui">Test sound</span>, and the radio control (see below).</li>
 <li><span class="ui">Position</span>: the phone's position for the pictures, the city and state lookup and the coordinate format.</li>
 <li><span class="ui">Pictures</span>: the file format of received pictures and whether to keep a copy of what you send.</li>
+<li><span class="ui">Appearance</span>: the colors of the program (see <a href="#looks">Looks, large text and screen readers</a>).</li>
 <li><span class="ui">Advanced</span>: <span class="ui">Receive</span> (sensitivity, how much of a picture is kept), <span class="ui">CW and waterfall</span> (text, tone, speed and the markers), <span class="ui">Calibration</span> (the sound clock, see below), <span class="ui">Digital (DRM) profiles</span> and <span class="ui">Frequencies</span> (see below). <span class="ui">Templates</span> goes to the Gallery. <span class="ui">Classic settings</span> opens the full list of options of the desktop program.</li>
 </ul>
 
@@ -148,6 +149,17 @@ title, the <strong>route chip</strong> that says where the sound goes (<em>Phone
 
 <h2>Receiving with the screen off</h2>
 <p>While the program is receiving it runs as a foreground service, with a notification. Receiving goes on with the screen off or with another app in front. Android may still stop apps in the background on phones with aggressive battery savers: if reception stops after a while, set the battery use of the program to <em>unrestricted</em> in the Android settings.</p>
+<div class="shots">
+<figure><img src="../images/android-notification.png" alt="The notification: Listening for pictures, with a Stop button" loading="lazy"><figcaption>The notification, opened out.</figcaption></figure>
+</div>
+<p>The notification says what the program does: <em>Listening for pictures</em>, or <em>Sending</em> (with the mode and the time of the picture). Its <span class="ui">Stop</span> button ends what runs: the picture that is being sent, otherwise the receiver, and the notification goes with it. Tap the notification itself to open the program.</p>
+
+<h2>Back and the icon</h2>
+<ul>
+<li><strong>Back</strong> (the gesture or the button of the phone) goes one step back: a sheet closes, a page returns to the one before, another tab returns to Receive. On Receive with nothing open it takes the program to the home screen <em>without</em> ending it: the receiver keeps running in its service. To end it, press <span class="ui">Stop</span> on Receive or in the notification, and leave.</li>
+<li><strong>Hold the icon</strong> of the program on the home screen: <span class="ui">Receive</span>, <span class="ui">Transmit</span> and <span class="ui">Gallery</span> open the program on that screen.</li>
+<li><strong>Share</strong> a picture to the program from the photos app (or <em>Open with</em> from a file manager): it is put on the Transmit screen.</li>
+</ul>
 
 <h2>A radio interface on USB (CAT and PTT)</h2>
 <p>A USB serial adapter or interface with a CP210x, FTDI, CH340/CH341, Prolific or CDC chip (the Digirig is one) is used instead of a serial port. Plug it in through an OTG adapter or a USB-C cable; Android offers to open this program, and asks once, from a box, whether the program may use that device.</p>
@@ -161,9 +173,16 @@ title, the <strong>route chip</strong> that says where the sound goes (<em>Phone
 <h2>Position (GPS)</h2>
 <p>The phone's own location is used: there is no port or speed to set. <span class="ui">Settings &gt; Position &gt; Use the phone's position</span> switches it on; Android asks once for permission to use the precise location while the program is in use, and the row <em>Position now</em> then shows where the phone is (or why it cannot tell). The pictures then carry the position. Nothing leaves the phone unless you also switch on <span class="ui">Look up city and state</span>, see the <a href="privacy.html">privacy policy</a>.</p>
 
-<h2>Large text, dark mode and screen readers</h2>
+<h2 id="looks">Looks, large text and screen readers</h2>
+<div class="shots">
+<figure><img src="../images/android-appearance.png" alt="Settings, Appearance: follow the phone, light, dark, dim and night, and the switch to tint the pictures" loading="lazy"><figcaption>Settings &gt; Appearance.</figcaption></figure>
+<figure><img src="../images/android-night.png" alt="The Receive screen in the Night look: red on black, a picture coming in" loading="lazy"><figcaption>The Night look.</figcaption></figure>
+</div>
 <ul>
-<li>The program follows the phone's <strong>light or dark</strong> theme and its <strong>text size</strong> setting. At a large size the route chip shrinks to an icon and the mode button to <em>SSTV | DRM</em>, and lists scroll.</li>
+<li><span class="ui">Settings &gt; Appearance</span> chooses the colors. <em>Follow the phone</em> (the default) is light by day and dark by night as the phone is set; <em>Light</em> and <em>Dark</em> keep one of them; <em>Dim</em> is a dark with less light in it, for a dark room; <em>Night</em> is <strong>red on black</strong>, with no blue or green light, so that the eyes of someone watching the sky or the band keep their night vision. The status that is green or amber in the other looks (<em>Listening</em>, <em>Good</em>) is told by its word and its icon in Night.</li>
+<li>In Night the waterfall is red. The pictures keep their colors unless <span class="ui">Tint the pictures in Night</span> is on: they are then shown in red too (the files are not changed). The bars of the phone itself (the clock and the icons at the top) are the phone's and stay as they are.</li>
+<li>The program follows the phone's <strong>text size</strong> setting. At a large size the route chip shrinks to an icon and the mode button to <em>SSTV | DRM</em>, and lists scroll.</li>
+<li>With the phone's <em>Remove animations</em> on (Settings &gt; Accessibility), sheets and pages appear without sliding or fading. What shows the live state (the picture that grows, the waterfall, the level meter) keeps moving.</li>
 <li>Every control has a name for <strong>TalkBack</strong> and the other screen readers. Controls are at least 48 by 48 dp to touch. The screens behind a full-screen page such as Settings are hidden, so a screen reader reads only what is in front.</li>
 <li>The phone gives a short <strong>vibration</strong> when you change the mode, select a picture, start a transmission or when a picture is saved.</li>
 </ul>

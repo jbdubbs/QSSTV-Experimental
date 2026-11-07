@@ -34,7 +34,7 @@ Item {
             topPadding: 24
             Text { text: dlg.title; color: Theme.surfaceOn; font.pixelSize: Theme.sp(22); leftPadding: 24; rightPadding: 24; bottomPadding: 12; width: parent.width; wrapMode: Text.WordWrap; Accessible.role: Accessible.Heading }
             Text { visible: dlg.text !== ""; text: dlg.text; color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(14); leftPadding: 24; rightPadding: 24; bottomPadding: 12; width: parent.width; wrapMode: Text.WordWrap }
-            TextField {
+            Field {
                 id: field
                 visible: dlg.input
                 x: 24; width: parent.width - 48

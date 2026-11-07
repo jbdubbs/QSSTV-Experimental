@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 
 // A picture that fills the space and can be pinched larger, moved around when it is, and zoomed with a double tap
 Item {
@@ -7,14 +8,20 @@ Item {
     readonly property bool zoomed: img.scale > 1.02
     signal tapped()
 
-    Image {
-        id: img
-        width: zoom.width; height: zoom.height
-        source: zoom.source
-        asynchronous: true
-        fillMode: Image.PreserveAspectFit
-        smooth: true
-        cache: false
+    // the red of the Night look is made over the whole space, not on the picture itself: a layer on a picture that is scaled larger would be blurred
+    Item {
+        anchors.fill: parent
+        layer.enabled: Theme.tint
+        layer.effect: MultiEffect { colorization: 1.0; colorizationColor: "#e8341f" }
+        Image {
+            id: img
+            width: zoom.width; height: zoom.height
+            source: zoom.source
+            asynchronous: true
+            fillMode: Image.PreserveAspectFit
+            smooth: true
+            cache: false
+        }
     }
 
     // keep the picture covering the space: at scale s it may move (s - 1) / 2 of its size either way
@@ -31,9 +38,9 @@ Item {
     }
     ParallelAnimation {
         id: reset
-        NumberAnimation { target: img; property: "scale"; to: 1; duration: 150 }
-        NumberAnimation { target: img; property: "x"; to: 0; duration: 150 }
-        NumberAnimation { target: img; property: "y"; to: 0; duration: 150 }
+        NumberAnimation { target: img; property: "scale"; to: 1; duration: Theme.ms(150) }
+        NumberAnimation { target: img; property: "x"; to: 0; duration: Theme.ms(150) }
+        NumberAnimation { target: img; property: "y"; to: 0; duration: Theme.ms(150) }
     }
     function zoomTo(point) {
         if (img.scale > 1.02) { reset.start(); return }

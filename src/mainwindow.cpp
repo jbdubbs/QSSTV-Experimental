@@ -1108,7 +1108,13 @@ void mainWindow::timerEvent(QTimerEvent *)
 #ifdef Q_OS_ANDROID
   // the foreground service that keeps the microphone working in the background runs exactly while the sound backend
   // is receiving or sending (driverOK(): the permission was given and the device opened)
-  platformService::setActive(soundIOPtr && soundIOPtr->driverOK() && (soundIOPtr->isCapturing() || soundIOPtr->isPlaying()));
+  int serviceState=0;
+  if(soundIOPtr && soundIOPtr->driverOK())
+    {
+      if(soundIOPtr->isPlaying()) serviceState=qmlUi::sendingTool() ? 3 : 2;
+      else if(soundIOPtr->isCapturing()) serviceState=1;
+    }
+  platformService::setState(serviceState,serviceState>=2 ? qmlUi::sendingDetail() : QString());   // the notification says which, and has a Stop button
   // a muted, blocked or overloaded microphone: say so while it lasts (soundBase::inputProblem())
   const QString problem=soundIOPtr ? soundIOPtr->inputProblem() : QString();
   if(problem!=inputProblemShown)

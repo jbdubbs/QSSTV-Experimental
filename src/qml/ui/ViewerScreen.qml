@@ -57,7 +57,7 @@ Rectangle {
         gradient: Gradient { GradientStop { position: 0; color: "#b3000000" } GradientStop { position: 1; color: "#00000000" } }
         Item {
             x: 4; y: viewer.topInset; width: Theme.tap; height: Theme.appBarHeight
-            Icon { anchors.centerIn: parent; path: Icons.back; color: "white" }
+            Icon { anchors.centerIn: parent; path: Icons.back; color: Theme.onPicture }
             TapHandler { margin: Theme.tapMargin(parent); onTapped: GalleryModel.closeViewer() }
             Accessible.onPressAction: { GalleryModel.closeViewer() }
             Accessible.role: Accessible.Button
@@ -66,8 +66,8 @@ Rectangle {
         Column {
             x: 64; y: viewer.topInset + 6
             width: parent.width - 80
-            Text { width: parent.width; text: viewer.current ? (viewer.current.badge !== "" ? viewer.current.badge + " · " : "") + viewer.current.name : ""; color: "white"; font.pixelSize: Theme.sp(16); font.weight: Font.Medium; elide: Text.ElideRight }
-            Text { width: parent.width; text: viewer.current ? viewer.current.when : ""; color: "#b3ffffff"; font.pixelSize: Theme.sp(12) }
+            Text { width: parent.width; text: viewer.current ? (viewer.current.badge !== "" ? viewer.current.badge + " · " : "") + viewer.current.name : ""; color: Theme.onPicture; font.pixelSize: Theme.sp(16); font.weight: Font.Medium; elide: Text.ElideRight }
+            Text { width: parent.width; text: viewer.current ? viewer.current.when : ""; color: Theme.onPictureVariant; font.pixelSize: Theme.sp(12) }
         }
     }
 
@@ -97,8 +97,8 @@ Rectangle {
                     Column {
                         anchors.centerIn: parent
                         spacing: 2
-                        Icon { anchors.horizontalCenter: parent.horizontalCenter; path: modelData.icon; color: "white" }
-                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: modelData.text; color: "white"; font.pixelSize: Theme.sp(12) }
+                        Icon { anchors.horizontalCenter: parent.horizontalCenter; path: modelData.icon; color: Theme.onPicture }
+                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: modelData.text; color: Theme.onPicture; font.pixelSize: Theme.sp(12) }
                     }
                     TapHandler { margin: Theme.tapMargin(parent);
                         onTapped: {

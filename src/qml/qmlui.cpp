@@ -49,4 +49,26 @@ void rxSync(int quality) {if(uiMode::qml()) RxController::instance()->syncReceiv
 void rxFftInit(int len,int rate) {if(uiMode::qml()) RxController::instance()->fftInit(len,rate);}
 void rxFft(const double *fft) {if(uiMode::qml()) RxController::instance()->fftReceived(fft);}
 
+void stopFromNotification()
+{
+  if(!uiMode::qml()) return;
+  if(TxController::instance()->sending()) TxController::instance()->stop();
+  else RxController::instance()->stop();
+}
+
+bool sendingTool()
+{
+  return uiMode::qml() && !TxController::instance()->toolName().isEmpty();
+}
+
+QString sendingDetail()
+{
+  if(!uiMode::qml()) return QString();
+  TxController *tx=TxController::instance();
+  if(!tx->toolName().isEmpty()) return tx->toolName();
+  if(AppModel::instance()->digital()) return QObject::tr("Digital (DRM)");
+  const QString time=tx->totalText();
+  return time.isEmpty() ? tx->modeName() : tx->modeName()+QStringLiteral(", ")+time;
+}
+
 }

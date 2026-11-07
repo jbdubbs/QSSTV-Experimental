@@ -3,6 +3,7 @@
 #ifdef Q_OS_ANDROID
 #include <QCoreApplication>
 #include <QJniObject>
+#include "androidshell.h"
 #endif
 
 namespace platformService
@@ -10,15 +11,19 @@ namespace platformService
 
 #ifdef Q_OS_ANDROID
 
+void setState(int state,const QString &detail)
+{
+  static int current=0;
+  static QString currentDetail;
+  if(state==current && detail==currentDetail) return;
+  androidSetServiceState(state,detail);
+  current=state;
+  currentDetail=detail;
+}
+
 void setActive(bool on)
 {
-  static bool current=false;
-  if(on==current) return;
-  QJniObject context=QNativeInterface::QAndroidApplication::context();
-  if(!context.isValid()) return;
-  QJniObject::callStaticMethod<void>("io/github/jbdubbs/qsstv_experimental/RxService","setActive",
-                                     "(Landroid/content/Context;Z)V",context.object<jobject>(),jboolean(on));
-  current=on;
+  setState(on ? 1 : 0);
 }
 
 void moveToBackground()
@@ -29,6 +34,7 @@ void moveToBackground()
 
 #else
 
+void setState(int,const QString &) {}
 void setActive(bool) {}
 void moveToBackground() {}
 

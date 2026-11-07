@@ -28,7 +28,7 @@ Item {
         x: 24; y: head.y + head.height + 2; width: parent.width - 48
         text: row.summary; color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(13); wrapMode: Text.WordWrap
     }
-    Slider {
+    ThemedSlider {
         id: slider
         x: 12; width: parent.width - 24
         y: (note.visible ? note.y + note.height : head.y + head.height) + 2

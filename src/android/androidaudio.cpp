@@ -82,6 +82,12 @@ void androidDarkSystemBarIcons(bool dark)
   if(ctx.isValid()) QJniObject::callStaticMethod<void>(helper,"darkSystemBarIcons","(Landroid/content/Context;Z)V",ctx.object<jobject>(),jboolean(dark));
 }
 
+bool androidAnimationsRemoved()
+{
+  const QJniObject ctx=context();
+  return ctx.isValid() && QJniObject::callStaticMethod<jboolean>(helper,"animationsRemoved","(Landroid/content/Context;)Z",ctx.object<jobject>());
+}
+
 void androidHaptic(int kind)
 {
   const QJniObject ctx=context();

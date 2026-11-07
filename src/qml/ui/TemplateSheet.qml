@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import QSSTV
 
 // The template that goes on the picture: choose another, change this one, or make a new one
@@ -31,7 +32,8 @@ BottomSheet {
                 id: thumb
                 x: 24; anchors.verticalCenter: parent.verticalCenter
                 width: 72; height: 56; radius: 8; color: Theme.surfaceHigh; clip: true
-                Image { anchors.fill: parent; source: parent.parent.modelData.thumb; fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: false }
+                Image { anchors.fill: parent; source: parent.parent.modelData.thumb; fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: false
+                       layer.enabled: Theme.tint; layer.effect: MultiEffect { colorization: 1.0; colorizationColor: "#e8341f" } }
             }
             Text {
                 anchors.left: thumb.right; anchors.leftMargin: 16

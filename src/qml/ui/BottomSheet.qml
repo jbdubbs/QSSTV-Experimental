@@ -16,7 +16,7 @@ Item {
         anchors.fill: parent
         color: Theme.scrim
         opacity: sheet.open ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: 180 } }
+        Behavior on opacity { NumberAnimation { duration: Theme.ms(180) } }
         MouseArea { anchors.fill: parent; onClicked: sheet.open = false }
     }
     Rectangle {
@@ -24,7 +24,7 @@ Item {
         width: parent.width
         height: Math.min(parent.height * 0.85, column.implicitHeight + 24)
         y: sheet.open ? parent.height - height : parent.height
-        Behavior on y { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+        Behavior on y { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
         color: Theme.surfaceContainer
         radius: 28
         Rectangle { width: parent.width; height: parent.radius; y: parent.height - height; color: parent.color }   // square at the bottom

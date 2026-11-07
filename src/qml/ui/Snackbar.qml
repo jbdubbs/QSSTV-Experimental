@@ -19,11 +19,11 @@ Rectangle {
     property bool shown: false
     visible: opacity > 0
     opacity: shown ? 1 : 0
-    Behavior on opacity { NumberAnimation { duration: 150 } }
+    Behavior on opacity { NumberAnimation { duration: Theme.ms(150) } }
     z: 60
     height: Math.max(48, label.implicitHeight + 28)
     radius: 6
-    color: Theme.dark ? "#e3e2e6" : "#2f3133"
+    color: Theme.snackbar
     Row {
         anchors.fill: parent
         anchors.leftMargin: 16; anchors.rightMargin: 8
@@ -33,7 +33,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             text: snack.text
             wrapMode: Text.WordWrap
-            color: Theme.dark ? "#2f3133" : "#f1f0f4"
+            color: Theme.snackbarOn
             font.pixelSize: Theme.sp(14)
         }
         Item {
@@ -44,7 +44,7 @@ Rectangle {
                 id: actionLabel
                 anchors.centerIn: parent
                 text: snack.actionText
-                color: Theme.dark ? "#00677d" : "#8fdcf5"
+                color: Theme.snackbarAction
                 font.pixelSize: Theme.sp(14); font.weight: Font.Medium
             }
             TapHandler { margin: Theme.tapMargin(parent); onTapped: { snack.action(); snack.shown = false } }

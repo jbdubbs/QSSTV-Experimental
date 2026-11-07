@@ -11,6 +11,7 @@ Rectangle {
     ImageSurface {
         anchors.fill: parent
         source: 0
+        tint: Theme.tint
         revision: RxController.pictureRevision
         visible: RxController.hasPicture
     }

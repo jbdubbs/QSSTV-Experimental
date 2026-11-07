@@ -38,7 +38,7 @@ Rectangle {
         width: parent.width; height: Theme.appBarHeight
         Item {
             x: 4; width: Theme.tap; height: Theme.tap; anchors.verticalCenter: parent.verticalCenter
-            Icon { anchors.centerIn: parent; path: Icons.close; color: "white" }
+            Icon { anchors.centerIn: parent; path: Icons.close; color: Theme.onPicture }
             TapHandler { margin: Theme.tapMargin(parent); onTapped: TxController.cameraOpen = false }
             Accessible.onPressAction: { TxController.cameraOpen = false }
             Accessible.role: Accessible.Button
@@ -48,7 +48,7 @@ Rectangle {
             visible: devices.videoInputs.length > 1
             anchors.right: parent.right; anchors.rightMargin: 4
             width: Theme.tap; height: Theme.tap; anchors.verticalCenter: parent.verticalCenter
-            Icon { anchors.centerIn: parent; path: Icons.flip; color: "white" }
+            Icon { anchors.centerIn: parent; path: Icons.flip; color: Theme.onPicture }
             TapHandler { margin: Theme.tapMargin(parent); onTapped: screen.deviceIndex = (screen.deviceIndex + 1) % devices.videoInputs.length }
             Accessible.onPressAction: { screen.deviceIndex = (screen.deviceIndex + 1) % devices.videoInputs.length }
             Accessible.role: Accessible.Button
@@ -60,8 +60,8 @@ Rectangle {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom; anchors.bottomMargin: 32 + screen.bottomInset
         width: 76; height: 76; radius: 38
-        color: "transparent"; border.width: 4; border.color: "white"
-        Rectangle { anchors.centerIn: parent; width: 60; height: 60; radius: 30; color: shutter.pressed ? "#cccccc" : "white" }
+        color: "transparent"; border.width: 4; border.color: Theme.onPicture
+        Rectangle { anchors.centerIn: parent; width: 60; height: 60; radius: 30; color: shutter.pressed ? Theme.onPictureVariant : Theme.onPicture }
         TapHandler { margin: Theme.tapMargin(parent); id: shutter; enabled: capture.readyForCapture; onTapped: capture.captureToFile(TxController.tempPicturePath()) }
         Accessible.role: Accessible.Button
         Accessible.name: qsTr("Take the picture")

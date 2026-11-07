@@ -37,8 +37,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         width: row.checkable ? sw.implicitWidth : (row.chevron ? 24 : 0)
         height: Theme.tap
-        Switch { id: sw; Accessible.ignored: true; visible: row.checkable; enabled: row.enabledRow; anchors.centerIn: parent; checked: row.checked; onToggled: row.toggled(checked)
-            Accessible.name: row.title }
+        ToggleSwitch { id: sw; Accessible.ignored: true; interactive: false; visible: row.checkable; enabled: row.enabledRow; anchors.centerIn: parent; checked: row.checked }
         Icon { visible: row.chevron; anchors.centerIn: parent; path: Icons.chevron }
     }
     TapHandler { margin: Theme.tapMargin(parent); enabled: !row.checkable && row.enabledRow; onTapped: row.clicked() }

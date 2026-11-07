@@ -19,7 +19,9 @@ class AppModel : public QObject
   QML_SINGLETON
   Q_PROPERTY(int screen READ screen WRITE setScreen NOTIFY screenChanged)                 //!< 0 Receive, 1 Transmit, 2 Gallery
   Q_PROPERTY(bool digital READ digital WRITE setDigital NOTIFY digitalChanged)            //!< DRM instead of analog SSTV, for both screens
-  Q_PROPERTY(int colorScheme READ colorScheme CONSTANT)                                   //!< 0 follow the system, 1 light, 2 dark
+  Q_PROPERTY(int theme READ theme WRITE setTheme NOTIFY themeChanged)                    //!< 0 follow the phone, 1 light, 2 dark, 3 dim, 4 night (red on black)
+  Q_PROPERTY(bool tintPictures READ tintPictures WRITE setTintPictures NOTIFY tintPicturesChanged)   //!< in Night the pictures are red too
+  Q_PROPERTY(bool reducedMotion READ reducedMotion NOTIFY reducedMotionChanged)           //!< the phone's "Remove animations" is on: nothing slides or fades
   Q_PROPERTY(QString routeText READ routeText NOTIFY routeChanged)                        //!< "Phone speaker", "USB: Digirig"
   Q_PROPERTY(qreal fontScale READ fontScale NOTIFY fontScaleChanged)                      //!< the system's text size setting, 1 = normal
   Q_PROPERTY(int mediaVolume READ mediaVolume WRITE setMediaVolume NOTIFY mediaVolumeChanged)   //!< the phone's media volume, 0 to 100: how loud a picture is sent
@@ -38,7 +40,12 @@ public:
   void setScreen(int s);
   bool digital() const;
   void setDigital(bool on);
-  int colorScheme() const {return m_colorScheme;}
+  int theme() const {return m_theme;}
+  void setTheme(int t);
+  bool tintPictures() const {return m_tintPictures;}
+  void setTintPictures(bool on);
+  bool reducedMotion() const {return m_reducedMotion;}
+  void setReducedMotion(bool on);   //!< for the tests
   QString routeText() const;
   qreal fontScale() const {return m_fontScale;}
   int mediaVolume() const;
@@ -88,17 +95,26 @@ signals:
   void digitalChanged();
   void routeChanged();
   void fontScaleChanged();
+  void themeChanged();
+  void tintPicturesChanged();
+  void reducedMotionChanged();
   void mediaVolumeChanged();
   void settingsOpenChanged();
   void micDeniedChanged();
   void firstRunChanged();
+  void backInvoked();                                              //!< the system's Back (Android 13 and later): one step back, or to the home screen
+  void screenRequested(int screen);                                //!< a launcher shortcut: 0 Receive, 1 Transmit, 2 Gallery
   void noticeShown(const QString &text);                           //!< a short message for the snackbar
   void problemShown(const QString &title,const QString &text);   //!< a dialog with this text
 
 private:
   explicit AppModel(QObject *parent=nullptr);
+  void checkShortcut();
+  static bool systemAnimationsRemoved();
   int m_screen=0;
-  int m_colorScheme=0;
+  int m_theme=0;
+  bool m_tintPictures=false;
+  bool m_reducedMotion=false;
   qreal m_fontScale=1.0;
   int m_volume=70;
   bool m_settingsOpen=false;

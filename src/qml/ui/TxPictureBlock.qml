@@ -16,6 +16,7 @@ Column {
         ImageSurface {
             anchors.fill: parent
             source: 2
+            tint: Theme.tint
             revision: TxController.pictureRevision
             visible: TxController.hasPicture
         }
@@ -44,9 +45,9 @@ Column {
         Rectangle {
             visible: TxController.hasPicture && !AppModel.digital
             anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 8
-            radius: 10; color: "#8c000000"
+            radius: 10; color: Theme.pictureShade
             width: sizeText.implicitWidth + 16; height: sizeText.implicitHeight + 4
-            Text { id: sizeText; anchors.centerIn: parent; text: TxController.pictureSize; color: "white"; font.pixelSize: Theme.sp(12) }
+            Text { id: sizeText; anchors.centerIn: parent; text: TxController.pictureSize; color: Theme.onPicture; font.pixelSize: Theme.sp(12) }
         }
         Accessible.role: Accessible.Graphic
         Accessible.name: TxController.hasPicture ? qsTr("Picture to send, %1").arg(TxController.pictureSize) : qsTr("No picture chosen")

@@ -50,7 +50,7 @@ BottomSheet {
         width: parent.width
         visible: sheet.page === "text"
         spacing: 12
-        TextField {
+        Field {
             id: wfText
             x: 24; width: parent.width - 48
             placeholderText: qsTr("Text to send")
@@ -72,9 +72,9 @@ BottomSheet {
         Row {
             x: 24; spacing: 16
             Column { Text { text: qsTr("Frequency (Hz)"); color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(13) }
-                SpinBox { id: tone; from: 100; to: 4000; stepSize: 50; editable: true; value: 1000; Accessible.name: qsTr("Frequency in hertz") } }
+                ThemedSpinBox { id: tone; from: 100; to: 4000; stepSize: 50; editable: true; value: 1000; Accessible.name: qsTr("Frequency in hertz") } }
             Column { Text { text: qsTr("Seconds"); color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(13) }
-                SpinBox { id: toneTime; from: 1; to: 120; editable: true; value: 5; Accessible.name: qsTr("Duration in seconds") } }
+                ThemedSpinBox { id: toneTime; from: 1; to: 120; editable: true; value: 5; Accessible.name: qsTr("Duration in seconds") } }
         }
         WideButton {
             x: 24; width: parent.width - 48
@@ -90,14 +90,14 @@ BottomSheet {
         Row {
             x: 24; spacing: 12
             Column { Text { text: qsTr("From (Hz)"); color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(13) }
-                SpinBox { id: low; from: 100; to: 3900; stepSize: 100; editable: true; value: 300; Accessible.name: qsTr("Lowest frequency") } }
+                ThemedSpinBox { id: low; from: 100; to: 3900; stepSize: 100; editable: true; value: 300; Accessible.name: qsTr("Lowest frequency") } }
             Column { Text { text: qsTr("To (Hz)"); color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(13) }
-                SpinBox { id: high; from: 200; to: 4000; stepSize: 100; editable: true; value: 3000; Accessible.name: qsTr("Highest frequency") } }
+                ThemedSpinBox { id: high; from: 200; to: 4000; stepSize: 100; editable: true; value: 3000; Accessible.name: qsTr("Highest frequency") } }
         }
         Row {
             x: 24
             Column { Text { text: qsTr("Seconds"); color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(13) }
-                SpinBox { id: sweepTime; from: 1; to: 120; editable: true; value: 10; Accessible.name: qsTr("Duration in seconds") } }
+                ThemedSpinBox { id: sweepTime; from: 1; to: 120; editable: true; value: 10; Accessible.name: qsTr("Duration in seconds") } }
         }
         WideButton {
             x: 24; width: parent.width - 48

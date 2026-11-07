@@ -11,7 +11,7 @@ Item {
     signal committed(string text)
     width: parent ? parent.width : 360
     implicitHeight: field.implicitHeight + 16
-    TextField {
+    Field {
         id: field
         x: 24; y: 8
         width: parent.width - 48

@@ -69,7 +69,7 @@ Rectangle {
             visible: panel.tab === 0 && panel.isText
             width: parent.width
             topPadding: 10   // the label of the field rises above its frame
-            TextField {
+            Field {
                 id: textField
                 x: 16; width: parent.width - 32
                 placeholderText: qsTr("Text")

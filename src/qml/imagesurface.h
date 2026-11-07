@@ -1,6 +1,7 @@
 #ifndef IMAGESURFACE_H
 #define IMAGESURFACE_H
 
+#include <QImage>
 #include <QQuickPaintedItem>
 #include <QtQml/qqmlregistration.h>
 
@@ -16,6 +17,7 @@ class ImageSurface : public QQuickPaintedItem
   Q_PROPERTY(int revision READ revision WRITE setRevision NOTIFY revisionChanged)
   Q_PROPERTY(bool fill READ fill WRITE setFill NOTIFY fillChanged)               //!< cover the item (crop) instead of fitting inside it
   Q_PROPERTY(bool empty READ empty NOTIFY revisionChanged)                       //!< there is nothing to paint
+  Q_PROPERTY(bool tint READ tint WRITE setTint NOTIFY tintChanged)               //!< painted in red only (the Night look): the light of each pixel, no blue or green
 
 public:
   explicit ImageSurface(QQuickItem *parent=nullptr);
@@ -27,8 +29,13 @@ public:
   bool fill() const {return m_fill;}
   void setFill(bool f);
   bool empty() const;
+  bool tint() const {return m_tint;}
+  void setTint(bool t);
+  //! the picture with only its light left, in the red of the Night look (also for the tests)
+  static QImage tinted(const QImage &image);
 
 signals:
+  void tintChanged();
   void sourceChanged();
   void revisionChanged();
   void fillChanged();
@@ -38,6 +45,10 @@ private:
   int m_source=0;
   int m_revision=0;
   bool m_fill=false;
+  bool m_tint=false;
+  QImage m_tinted;          // the picture in red, kept until the next revision
+  int m_tintedRevision=-1;
+  qint64 m_tintedKey=0;
 };
 
 #endif // IMAGESURFACE_H

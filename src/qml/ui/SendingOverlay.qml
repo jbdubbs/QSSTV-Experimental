@@ -40,7 +40,7 @@ Rectangle {
             width: Math.min(parent.width, 240); height: width * 0.75
             anchors.horizontalCenter: parent.horizontalCenter
             radius: Theme.radius; color: Theme.surfaceHigh; clip: true
-            ImageSurface { anchors.fill: parent; source: 2; revision: TxController.pictureRevision; visible: TxController.toolName === "" }
+            ImageSurface { anchors.fill: parent; source: 2; tint: Theme.tint; revision: TxController.pictureRevision; visible: TxController.toolName === "" }
             Column {
                 visible: TxController.toolName !== ""
                 anchors.centerIn: parent

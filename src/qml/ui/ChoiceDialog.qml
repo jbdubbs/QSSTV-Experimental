@@ -45,14 +45,7 @@ Item {
                     required property var modelData
                     required property int index
                     width: col.width; height: Math.max(56, labels.implicitHeight + 16)
-                    RadioButton {
-                        id: radio
-                        x: 12; anchors.verticalCenter: parent.verticalCenter
-                        checked: index === dlg.current
-                        Material.accent: Theme.primary
-                        onClicked: { dlg.picked(index); dlg.open = false }
-                        Accessible.name: typeof modelData === "string" ? modelData : modelData.text
-                    }
+                    RadioMark { x: 20; anchors.verticalCenter: parent.verticalCenter; checked: index === dlg.current }
                     Column {
                         id: labels
                         x: 64; width: parent.width - 80
@@ -62,6 +55,9 @@ Item {
                     }
                     TapHandler { margin: Theme.tapMargin(parent); onTapped: { dlg.picked(index); dlg.open = false } }
                     Accessible.onPressAction: { { dlg.picked(index); dlg.open = false } }
+                    Accessible.role: Accessible.RadioButton
+                    Accessible.name: typeof modelData === "string" ? modelData : modelData.text
+                    Accessible.checked: index === dlg.current
                 }
             }
             Item {

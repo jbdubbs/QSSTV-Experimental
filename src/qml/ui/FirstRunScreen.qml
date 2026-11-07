@@ -96,10 +96,9 @@ Rectangle {
                        color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(15); wrapMode: Text.WordWrap }
                 Item {
                     width: parent.width; height: 64
-                    Button {
+                    ThemedButton {
                         x: 24; anchors.verticalCenter: parent.verticalCenter
-                        text: qsTr("Set up the radio"); highlighted: true; font.pixelSize: Theme.sp(14)
-                        Material.accent: Theme.primary
+                        text: qsTr("Set up the radio"); highlighted: true
                         onClicked: { AppModel.finishFirstRun(); first.setUpRadio() }
                     }
                 }
@@ -120,10 +119,9 @@ Rectangle {
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("Skip the setup")
         }
-        Button {
+        ThemedButton {
             anchors.right: parent.right; anchors.rightMargin: 24; anchors.verticalCenter: parent.verticalCenter
-            text: first.step >= first.lastStep ? qsTr("Done") : qsTr("Next"); highlighted: true; font.pixelSize: Theme.sp(14)
-            Material.accent: Theme.primary
+            text: first.step >= first.lastStep ? qsTr("Done") : qsTr("Next"); highlighted: true
             onClicked: first.next()
         }
     }

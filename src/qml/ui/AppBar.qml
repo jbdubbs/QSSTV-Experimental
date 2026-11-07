@@ -81,9 +81,10 @@ Item {
             Menu {
                 id: menu
                 y: parent.height
+                background: Rectangle { implicitWidth: 200; color: Theme.surfaceHigh; radius: 4; border.width: 1; border.color: Theme.outlineVariant }
                 Instantiator {
                     model: bar.entries
-                    delegate: MenuItem {
+                    delegate: ThemedMenuItem {
                         required property var modelData
                         text: modelData.text
                         onTriggered: bar.entryTriggered(modelData.id)

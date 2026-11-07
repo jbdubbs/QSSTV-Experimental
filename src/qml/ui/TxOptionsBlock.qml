@@ -38,7 +38,7 @@ Column {
             TapHandler { margin: Theme.tapMargin(parent); onTapped: block.openDetails() }
             Accessible.onPressAction: { block.openDetails() }
         }
-        Switch {
+        ToggleSwitch {
             id: templateSwitch
             anchors.right: parent.right; anchors.rightMargin: 24
             anchors.verticalCenter: parent.verticalCenter
@@ -194,7 +194,7 @@ Column {
                         color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(14)
                     }
                 }
-                Slider {
+                ThemedSlider {
                     id: sizeSlider
                     width: parent.width
                     from: TxController.drmSizeMin; to: Math.max(TxController.drmSizeMax, TxController.drmSizeMin + 1)
@@ -246,7 +246,7 @@ Column {
                     color: Theme.surfaceOn; font.pixelSize: Theme.sp(14); font.weight: Font.Medium
                 }
             }
-            Slider {
+            ThemedSlider {
                 visible: AppModel.mediaVolumeAvailable
                 width: parent.width
                 from: 0; to: 100; stepSize: 1

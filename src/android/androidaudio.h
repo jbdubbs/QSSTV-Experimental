@@ -27,6 +27,7 @@ void androidVolumeKeysChangeMedia();
 //! The screen stays on while a picture is sent (and may go off again afterwards)
 void androidKeepScreenOn(bool on);
 void androidDarkSystemBarIcons(bool dark);   //!< the icons of the status and navigation bars: dark for a light screen
+bool androidAnimationsRemoved();   //!< the system's "Remove animations" is on
 void androidHaptic(int kind);   //!< a short vibration: 0 tick, 1 confirmation, 2 refusal
 //! "media 7/15, ring 4/7", for the log
 QString androidVolumeSummary();

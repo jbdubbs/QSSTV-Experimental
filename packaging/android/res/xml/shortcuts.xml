@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Hold the app icon: Receive, Transmit and Gallery open the program on that screen (ShortcutActivity passes the screen on to MainActivity) -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="receive"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_receive"
+        android:shortcutShortLabel="@string/shortcut_receive"
+        android:shortcutLongLabel="@string/shortcut_receive_long">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="io.github.jbdubbs.qsstv_experimental"
+            android:targetClass="io.github.jbdubbs.qsstv_experimental.ShortcutActivity">
+            <extra android:name="qsstv.screen" android:value="receive" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="transmit"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_transmit"
+        android:shortcutShortLabel="@string/shortcut_transmit"
+        android:shortcutLongLabel="@string/shortcut_transmit_long">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="io.github.jbdubbs.qsstv_experimental"
+            android:targetClass="io.github.jbdubbs.qsstv_experimental.ShortcutActivity">
+            <extra android:name="qsstv.screen" android:value="transmit" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="gallery"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_gallery"
+        android:shortcutShortLabel="@string/shortcut_gallery"
+        android:shortcutLongLabel="@string/shortcut_gallery_long">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="io.github.jbdubbs.qsstv_experimental"
+            android:targetClass="io.github.jbdubbs.qsstv_experimental.ShortcutActivity">
+            <extra android:name="qsstv.screen" android:value="gallery" />
+        </intent>
+    </shortcut>
+</shortcuts>

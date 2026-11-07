@@ -33,6 +33,9 @@ namespace qmlUi
   void rxSync(int quality);                    //!< sync quality, 0 to 25
   void rxFftInit(int fftLength,int samplingRate);   //!< the spectrum display was set up
   void rxFft(const double *fft);               //!< another spectrum (half-complex, fftLength values)
+  void stopFromNotification();                 //!< the Stop button of the notification: the picture that is sent stops, otherwise the receiver
+  bool sendingTool();                          //!< what is sent is a tone, text or CW call, not a picture
+  QString sendingDetail();                     //!< what is being sent, in a few words, for the notification ("Martin 1, 1 min 58 s")
 #else
   inline void show() {}
   inline void notifyModeChanged() {}
@@ -50,6 +53,9 @@ namespace qmlUi
   inline void rxSync(int) {}
   inline void rxFftInit(int,int) {}
   inline void rxFft(const double *) {}
+  inline void stopFromNotification() {}
+  inline bool sendingTool() {return false;}
+  inline QString sendingDetail() {return QString();}
 #endif
 }
 

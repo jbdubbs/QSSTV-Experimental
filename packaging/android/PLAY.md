@@ -69,12 +69,14 @@ Requirements the build already meets: target API 36, 64-bit libraries only, **16
 > - Works with the phone's microphone and speaker, a headset cable, or a USB audio interface
 > - CAT frequency control and PTT through USB serial interfaces (CP210x, FTDI, CH340, Prolific)
 > - Picture gallery, templates with your call sign, report, time and position, and sharing to other apps
+> - Light, dark, dim and night (red on black) looks, a Stop button in the notification, shortcuts for Receive, Transmit and Gallery
 > - Decode recordings of SSTV from any sound file
 >
 > Free software under the GNU GPL v3, based on QSSTV by Johan Maes, ON4QZ. Source code: github.com/jbdubbs/QSSTV-Experimental
 >
 > A licensed amateur radio operator is responsible for what is transmitted. Receiving needs no license.
 
+- **What's new** (500, per release): the draft is in `RELEASE-NOTES.md`, with the GitHub release text.
 - **Privacy policy URL:** `https://jbdubbs.github.io/QSSTV-Experimental/pages/privacy.html` (the guide is published from `main`: live after the merge of android-port).
 - **Graphics:** app icon 512x512 PNG (`packaging/linux/icons/qsstv-experimental-512.png`), **feature graphic 1024x500 (still to make)**, phone screenshots (at least 2, 16:9 or 9:16;
   take them on a real phone: Receive with a picture, Transmit, Gallery, Settings) and, if tablets are supported, 7" and 10" tablet screenshots.

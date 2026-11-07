@@ -11,6 +11,7 @@ Rectangle {
         anchors.fill: parent
         source: 1
         fill: true
+        tint: Theme.night   // the waterfall is red in Night, whatever is chosen for the pictures
         revision: RxController.waterfallRevision
     }
     // the tones of the mode: sync 1200 Hz, black 1500 Hz, white 2300 Hz; digital: the edges and the pilot of the DRM signal
@@ -32,7 +33,7 @@ Rectangle {
             id: cap
             anchors.centerIn: parent
             text: AppModel.digital ? qsTr("725 to 1850 Hz") : qsTr("1200 to 2300 Hz")
-            color: "#cfe7f1"
+            color: Theme.night ? Theme.onPicture : "#cfe7f1"
             font.pixelSize: Theme.sp(12)
         }
     }

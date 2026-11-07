@@ -142,6 +142,7 @@ void dispatcher::customEvent( QEvent * e )
           // the receiver's state changes only now and then, so what is on the screen must be right when the app returns
           if(type==rxSSTVStatus) {missedSSTVStatus=((rxSSTVStatusEvent*)e)->getStr();missedStatus=true;}
           else if(type==lineDisplay) missedPicture=true;
+          ((baseEvent*)e)->setDone();   // the DRM receiver waits for it (drmRx::run): without it the receiver stops for good in the background
           return;
         }
     }

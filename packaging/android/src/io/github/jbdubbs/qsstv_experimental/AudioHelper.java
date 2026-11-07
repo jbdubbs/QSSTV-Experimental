@@ -132,6 +132,19 @@ public class AudioHelper
         });
     }
 
+    /** The system's "Remove animations" (Settings > Accessibility): the animator duration scale is 0 */
+    public static boolean animationsRemoved(Context context)
+    {
+        try
+        {
+            return Settings.Global.getFloat(context.getContentResolver(), Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f;
+        }
+        catch (Exception e)
+        {
+            return false;
+        }
+    }
+
     /** A short vibration of the screen's own kind: 0 a tick (a choice was made), 1 a confirmation (it started, it was saved), 2 a refusal */
     public static void haptic(Context context, final int kind)
     {

@@ -19,13 +19,12 @@ Item {
     Rectangle {
         y: 22; width: parent.width; height: 48
         radius: 8; color: "transparent"; border.width: 1; border.color: Theme.outline
-        Button {
+        ThemedButton {
             id: minus
-            width: 48; height: 48; flat: true; text: "−"; font.pixelSize: Theme.sp(22)
+            width: 48; height: 48; flat: true; text: "−"; pixelSize: Theme.sp(22)
             enabled: st.enabledStepper && st.value > st.from
             autoRepeat: true; autoRepeatDelay: 400; autoRepeatInterval: 60
             onClicked: st.changed(Math.max(st.from, st.value - st.step))
-            Material.foreground: Theme.primary
             Accessible.name: qsTr("Less: %1").arg(st.label)
         }
         Text {
@@ -33,13 +32,12 @@ Item {
             text: st.value.toFixed(st.decimals)
             color: Theme.surfaceOn; font.pixelSize: Theme.sp(16); font.weight: Font.Medium
         }
-        Button {
+        ThemedButton {
             id: plus
-            x: parent.width - 48; width: 48; height: 48; flat: true; text: "+"; font.pixelSize: Theme.sp(22)
+            x: parent.width - 48; width: 48; height: 48; flat: true; text: "+"; pixelSize: Theme.sp(22)
             enabled: st.enabledStepper && st.value < st.to
             autoRepeat: true; autoRepeatDelay: 400; autoRepeatInterval: 60
             onClicked: st.changed(Math.min(st.to, st.value + st.step))
-            Material.foreground: Theme.primary
             Accessible.name: qsTr("More: %1").arg(st.label)
         }
     }

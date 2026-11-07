@@ -47,7 +47,7 @@
         android:hardwareAccelerated="true"
         android:label="-- %%INSERT_APP_NAME%% --"
         android:icon="-- %%INSERT_APP_ICON%% --"
-        android:enableOnBackInvokedCallback="false"
+        android:enableOnBackInvokedCallback="true"
         android:allowBackup="false"
         android:fullBackupOnly="false">
         <activity
@@ -62,6 +62,8 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Hold the icon: Receive, Transmit, Gallery (res/xml/shortcuts.xml) -->
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
             <!-- A USB serial adapter (a radio interface) is plugged in: the program is offered -->
             <intent-filter>
                 <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
@@ -109,6 +111,16 @@
                 android:name="android.app.arguments"
                 android:value="-- %%INSERT_APP_ARGUMENTS%% --" />
         </activity>
+
+        <!-- What the launcher shortcuts start (res/xml/shortcuts.xml): it has a task of its own, so that the "clear the task" that Android adds to a
+             shortcut does not finish the running program -->
+        <activity
+            android:name="io.github.jbdubbs.qsstv_experimental.ShortcutActivity"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.NoDisplay"
+            android:exported="false" />
 
         <service
             android:name="io.github.jbdubbs.qsstv_experimental.RxService"
