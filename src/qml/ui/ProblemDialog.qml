@@ -44,7 +44,8 @@ Item {
                     anchors.right: parent.right; anchors.rightMargin: 24; anchors.verticalCenter: parent.verticalCenter
                     text: qsTr("OK"); color: Theme.primary; font.pixelSize: Theme.sp(14); font.weight: Font.Medium
                     padding: 8
-                    TapHandler { onTapped: dlg.open = false }
+                    TapHandler { margin: Theme.tapMargin(parent); onTapped: dlg.open = false }
+                    Accessible.onPressAction: { dlg.open = false }
                     Accessible.role: Accessible.Button
                 }
             }

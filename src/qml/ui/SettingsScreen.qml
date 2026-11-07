@@ -192,7 +192,7 @@ Rectangle {
                 width: parent.width; height: 64
                 Button {
                     x: 24; anchors.verticalCenter: parent.verticalCenter
-                    text: qsTr("Test sound"); highlighted: true
+                    text: qsTr("Test sound"); highlighted: true; font.pixelSize: Theme.sp(14)
                     enabled: !TxController.sending
                     Material.accent: Theme.primary
                     onClicked: TxController.sendTone(1000, 3)
@@ -234,6 +234,7 @@ Rectangle {
                 Button {
                     x: 24; anchors.verticalCenter: parent.verticalCenter
                     text: SettingsController.pttTesting ? qsTr("Keying...") : qsTr("Test push to talk")
+                    font.pixelSize: Theme.sp(14)
                     enabled: SettingsController.pttMode !== 0 && !SettingsController.pttTesting && !TxController.sending
                     Material.accent: Theme.primary
                     onClicked: SettingsController.testPtt()
@@ -262,7 +263,8 @@ Rectangle {
                 Item {
                     x: 4; width: Theme.tap; height: parent.height
                     Icon { anchors.centerIn: parent; path: Icons.back; color: Theme.surfaceOn }
-                    TapHandler { onTapped: screen.page = 5 }
+                    TapHandler { margin: Theme.tapMargin(parent); onTapped: screen.page = 5 }
+                    Accessible.onPressAction: { screen.page = 5 }
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Back")
                 }
@@ -273,6 +275,7 @@ Rectangle {
                 anchors.top: radioBar.bottom; anchors.topMargin: 4
                 x: 16; width: parent.width - 32
                 placeholderText: qsTr("Search: Kenwood, TS-480, IC-7300 ...")
+                font.pixelSize: Theme.sp(16)
                 color: Theme.surfaceOn; placeholderTextColor: Theme.outline
                 Material.accent: Theme.primary
                 inputMethodHints: Qt.ImhNoPredictiveText

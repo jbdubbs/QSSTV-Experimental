@@ -59,6 +59,8 @@ public:
   //! Back was pressed on the first screen with nothing open: the app goes to the background and keeps receiving
   //! look at the media volume again (the volume keys change it behind our back); a Timer on the screen that shows it calls this
   Q_INVOKABLE void refreshVolume();
+  //! a short vibration (0 a tick, 1 a confirmation, 2 a refusal), where the phone has one
+  Q_INVOKABLE void haptic(int kind);
   //! the screen stays on (true) while a picture is sent
   Q_INVOKABLE void keepScreenOn(bool on);
   //! the system's settings of this app (permissions): where a refused permission is allowed again

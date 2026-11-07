@@ -36,6 +36,8 @@ QtObject {
     readonly property int radius: 12
     readonly property real fontScale: AppModel.fontScale
     function sp(n) { return Math.round(n * fontScale) }
+    // the margin that makes a place that takes taps at least 48 x 48 (a TapHandler takes taps this far outside its item)
+    function tapMargin(item) { return item ? Math.max(0, (tap - Math.min(item.width, item.height)) / 2) : 0 }
 
     readonly property string fontFamily: Qt.platform.os === "android" ? "Roboto" : Qt.application.font.family
 }

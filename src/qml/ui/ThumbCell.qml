@@ -25,14 +25,14 @@ Item {
             anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 4
             radius: 4; color: "#a3000000"
             width: badgeText.implicitWidth + 10; height: badgeText.implicitHeight + 2
-            Text { id: badgeText; anchors.centerIn: parent; text: cell.info.badge; color: "white"; font.pixelSize: Theme.sp(10); font.weight: Font.Bold }
+            Text { id: badgeText; anchors.centerIn: parent; text: cell.info.badge; color: "white"; font.pixelSize: Theme.sp(12); font.weight: Font.Bold }
         }
         Rectangle {
             visible: cell.info.isTemplate
             anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 4
             radius: 4; color: "#a3000000"
             width: tmplText.implicitWidth + 10; height: tmplText.implicitHeight + 2
-            Text { id: tmplText; anchors.centerIn: parent; text: qsTr("Template"); color: "white"; font.pixelSize: Theme.sp(10); font.weight: Font.Bold }
+            Text { id: tmplText; anchors.centerIn: parent; text: qsTr("Template"); color: "white"; font.pixelSize: Theme.sp(12); font.weight: Font.Bold }
         }
     }
     Rectangle {
@@ -41,11 +41,12 @@ Item {
         color: Theme.primary
         Icon { anchors.centerIn: parent; path: Icons.check; size: 16; color: Theme.primaryOn }
     }
-    TapHandler {
+    TapHandler { margin: Theme.tapMargin(parent);
         onTapped: GalleryModel.tap(cell.info.index)
-        onLongPressed: GalleryModel.startSelecting(cell.info.index)
+        onLongPressed: { GalleryModel.startSelecting(cell.info.index); AppModel.haptic(1) }
     }
     Accessible.role: Accessible.Button
     Accessible.name: (cell.info.badge !== "" ? cell.info.badge + ", " : "") + cell.info.name
     Accessible.selected: cell.info.selected
+    Accessible.onPressAction: GalleryModel.tap(cell.info.index)
 }

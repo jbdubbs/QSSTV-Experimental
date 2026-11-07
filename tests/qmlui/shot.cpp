@@ -119,6 +119,34 @@ static void makeGallery(const QString &scratch)
   QFile::copy(QStringLiteral(SRC_TEMPLATE_FIXTURE), templatesPath + "synthetic.templ");
 }
 
+// What the guidelines ask for, looked for in the shown tree (QSSTV_QML_AUDIT=1): a place that takes a tap smaller than 48 x 48, text smaller than
+// 12 sp, text that does not fit its space (elided)
+static void auditTree(QQuickItem *item, const QString &scene)
+{
+  if (!item->isVisible() || item->opacity() <= 0.01) return;
+  const QString cls = QString::fromLatin1(item->metaObject()->className());
+  bool tapTarget = false;
+  double margin = 0;
+  for (QObject *c : item->children())
+    if (QString::fromLatin1(c->metaObject()->className()).contains("TapHandler")) {tapTarget = true; margin = qMax(margin, c->property("margin").toDouble());}
+  if (tapTarget && item->width() > 0 && item->height() > 0 && (item->width() + 2 * margin < 47.5 || item->height() + 2 * margin < 47.5))
+    {
+      QQuickItem *p = item->parentItem();
+      fprintf(stderr, "AUDIT %s TARGET %.0fx%.0f %s/%s in %s\n", qPrintable(scene), item->width(), item->height(), qPrintable(cls),
+              qPrintable(item->objectName()), p ? p->metaObject()->className() : "-");
+    }
+  if (cls.startsWith("QQuickText"))
+    {
+      const QString text = item->property("text").toString();
+      const QFont f = item->property("font").value<QFont>();
+      if (!text.isEmpty() && f.pixelSize() > 0 && f.pixelSize() < 12)
+        fprintf(stderr, "AUDIT %s SMALLTEXT %dpx \"%s\"\n", qPrintable(scene), f.pixelSize(), qPrintable(text.left(30)));
+      if (!text.isEmpty() && item->property("truncated").toBool())
+        fprintf(stderr, "AUDIT %s ELIDED \"%s\" width %.0f\n", qPrintable(scene), qPrintable(text.left(40)), item->width());
+    }
+  for (QQuickItem *c : item->childItems()) auditTree(c, scene);
+}
+
 int main(int argc, char **argv)
 {
   setvbuf(stdout, nullptr, _IOLBF, 0);
@@ -268,6 +296,7 @@ int main(int argc, char **argv)
           if (r) r->setProperty("optionsOpen", true);
           QTest::qWait(500);
         }
+      if (qEnvironmentVariableIsSet("QSSTV_QML_AUDIT")) auditTree(win->contentItem(), scene);
       QImage img = win->grabWindow();
       const QString file = QString("%1/qml-%2x%3-%4.png").arg(outDir).arg(width).arg(height).arg(scene);
       if (img.isNull() || !img.save(file)) {fprintf(stderr, "FAIL: no picture for %s\n", qPrintable(scene)); exitCode = 1;}

@@ -37,12 +37,13 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         width: row.checkable ? sw.implicitWidth : (row.chevron ? 24 : 0)
         height: Theme.tap
-        Switch { id: sw; visible: row.checkable; enabled: row.enabledRow; anchors.centerIn: parent; checked: row.checked; onToggled: row.toggled(checked)
+        Switch { id: sw; Accessible.ignored: true; visible: row.checkable; enabled: row.enabledRow; anchors.centerIn: parent; checked: row.checked; onToggled: row.toggled(checked)
             Accessible.name: row.title }
         Icon { visible: row.chevron; anchors.centerIn: parent; path: Icons.chevron }
     }
-    TapHandler { enabled: !row.checkable && row.enabledRow; onTapped: row.clicked() }
-    TapHandler { enabled: row.checkable && row.enabledRow; onTapped: { sw.toggle(); row.toggled(sw.checked) } }
+    TapHandler { margin: Theme.tapMargin(parent); enabled: !row.checkable && row.enabledRow; onTapped: row.clicked() }
+    TapHandler { margin: Theme.tapMargin(parent); enabled: row.checkable && row.enabledRow; onTapped: { sw.toggle(); row.toggled(sw.checked) } }
+    Accessible.onPressAction: if (row.enabledRow) { if (row.checkable) { sw.toggle(); row.toggled(sw.checked) } else row.clicked() }
     Accessible.role: checkable ? Accessible.CheckBox : Accessible.Button
     Accessible.name: summary !== "" ? title + ", " + summary : title
 }

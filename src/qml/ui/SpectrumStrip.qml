@@ -33,7 +33,7 @@ Rectangle {
             anchors.centerIn: parent
             text: AppModel.digital ? qsTr("725 to 1850 Hz") : qsTr("1200 to 2300 Hz")
             color: "#cfe7f1"
-            font.pixelSize: Theme.sp(11)
+            font.pixelSize: Theme.sp(12)
         }
     }
     Accessible.role: Accessible.Graphic

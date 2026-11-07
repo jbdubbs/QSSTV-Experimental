@@ -17,7 +17,8 @@ Item {
         Item {
             x: 4; width: Theme.tap; height: parent.height
             Icon { anchors.centerIn: parent; path: Icons.back; color: Theme.surfaceOn }
-            TapHandler { onTapped: page.back() }
+            TapHandler { margin: Theme.tapMargin(parent); onTapped: page.back() }
+            Accessible.onPressAction: { page.back() }
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("Back")
         }

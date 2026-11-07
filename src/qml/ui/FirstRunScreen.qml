@@ -98,7 +98,7 @@ Rectangle {
                     width: parent.width; height: 64
                     Button {
                         x: 24; anchors.verticalCenter: parent.verticalCenter
-                        text: qsTr("Set up the radio"); highlighted: true
+                        text: qsTr("Set up the radio"); highlighted: true; font.pixelSize: Theme.sp(14)
                         Material.accent: Theme.primary
                         onClicked: { AppModel.finishFirstRun(); first.setUpRadio() }
                     }
@@ -115,13 +115,14 @@ Rectangle {
         Text {
             x: 24; anchors.verticalCenter: parent.verticalCenter
             text: qsTr("Skip"); color: Theme.primary; font.pixelSize: Theme.sp(15); font.weight: Font.Medium; padding: 12
-            TapHandler { onTapped: AppModel.finishFirstRun() }
+            TapHandler { margin: Theme.tapMargin(parent); onTapped: AppModel.finishFirstRun() }
+            Accessible.onPressAction: { AppModel.finishFirstRun() }
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("Skip the setup")
         }
         Button {
             anchors.right: parent.right; anchors.rightMargin: 24; anchors.verticalCenter: parent.verticalCenter
-            text: first.step >= first.lastStep ? qsTr("Done") : qsTr("Next"); highlighted: true
+            text: first.step >= first.lastStep ? qsTr("Done") : qsTr("Next"); highlighted: true; font.pixelSize: Theme.sp(14)
             Material.accent: Theme.primary
             onClicked: first.next()
         }

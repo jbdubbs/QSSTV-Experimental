@@ -10,7 +10,8 @@ Rectangle {
     Item {
         x: 4; width: Theme.tap; height: Theme.tap; anchors.verticalCenter: parent.verticalCenter
         Icon { anchors.centerIn: parent; path: Icons.close; color: Theme.primaryContainerOn }
-        TapHandler { onTapped: GalleryModel.clearSelection() }
+        TapHandler { margin: Theme.tapMargin(parent); onTapped: GalleryModel.clearSelection() }
+        Accessible.onPressAction: { GalleryModel.clearSelection() }
         Accessible.role: Accessible.Button
         Accessible.name: qsTr("Stop selecting")
     }
@@ -27,14 +28,16 @@ Rectangle {
         Item {
             width: Theme.tap; height: Theme.tap
             Text { anchors.centerIn: parent; text: qsTr("All"); color: Theme.primaryContainerOn; font.pixelSize: Theme.sp(14); font.weight: Font.Medium }
-            TapHandler { onTapped: GalleryModel.selectAll() }
+            TapHandler { margin: Theme.tapMargin(parent); onTapped: GalleryModel.selectAll() }
+            Accessible.onPressAction: { GalleryModel.selectAll() }
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("Select all")
         }
         Item {
             width: Theme.tap; height: Theme.tap
             Icon { anchors.centerIn: parent; path: Icons.send; color: Theme.primaryContainerOn }
-            TapHandler { onTapped: GalleryModel.sendSelected() }
+            TapHandler { margin: Theme.tapMargin(parent); onTapped: GalleryModel.sendSelected() }
+            Accessible.onPressAction: { GalleryModel.sendSelected() }
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("Send by radio")
         }
@@ -42,14 +45,16 @@ Rectangle {
             visible: bar.count === 1
             width: visible ? Theme.tap : 0; height: Theme.tap
             Icon { anchors.centerIn: parent; path: Icons.share; color: Theme.primaryContainerOn }
-            TapHandler { onTapped: GalleryModel.shareSelected() }
+            TapHandler { margin: Theme.tapMargin(parent); onTapped: GalleryModel.shareSelected() }
+            Accessible.onPressAction: { GalleryModel.shareSelected() }
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("Share")
         }
         Item {
             width: Theme.tap; height: Theme.tap
             Icon { anchors.centerIn: parent; path: Icons.remove; color: Theme.primaryContainerOn }
-            TapHandler { onTapped: GalleryModel.deleteSelected() }
+            TapHandler { margin: Theme.tapMargin(parent); onTapped: GalleryModel.deleteSelected() }
+            Accessible.onPressAction: { GalleryModel.deleteSelected() }
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("Delete")
         }

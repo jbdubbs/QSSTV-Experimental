@@ -26,6 +26,9 @@ ApplicationWindow {
         id: root
         anchors.fill: parent
         readonly property var inset: SafeArea.margins
+        // a screen of its own is in front of the others (settings, the viewer, the camera, sending ...): what is behind it is hidden, so that the
+        // screen reader does not read it (Accessible.ignored does not reach the children) and nothing is drawn for nothing
+        readonly property bool covered: AppModel.settingsOpen || AppModel.firstRun || GalleryModel.viewerIndex >= 0 || TxController.cameraOpen || TxController.sending
 
         // the menu of each screen: what is special to it, then the program's
         readonly property var menuEntries: {
@@ -48,6 +51,7 @@ ApplicationWindow {
         // the status bar's room, the top bar, the screen
         Column {
             id: column
+            visible: !root.covered
             anchors.top: parent.top
             anchors.topMargin: root.inset.top
             anchors.left: win.wide ? rail.right : parent.left
@@ -73,7 +77,8 @@ ApplicationWindow {
                         visible: AppModel.screen === 0
                         width: Theme.tap; height: Theme.tap
                         Icon { anchors.centerIn: parent; path: Icons.tune }
-                        TapHandler { onTapped: receive.optionsOpen = true }
+                        TapHandler { margin: Theme.tapMargin(parent); onTapped: receive.optionsOpen = true }
+                        Accessible.onPressAction: { receive.optionsOpen = true }
                         Accessible.role: Accessible.Button
                         Accessible.name: qsTr("Receive options")
                     }
@@ -112,12 +117,16 @@ ApplicationWindow {
             function onCameraBlocked() { snack.show(qsTr("The camera is blocked for this app."), qsTr("Settings"), "settings") }
         }
         Connections {
+            target: TxController
+            function onSendingChanged() { AppModel.haptic(TxController.sending ? 1 : 0) }   // it starts, it is over
+        }
+        Connections {
             target: GalleryModel
             function onDeleted(count) { snack.show(count === 1 ? qsTr("Picture deleted") : qsTr("%1 pictures deleted").arg(count), qsTr("Undo"), "undo") }
         }
         Connections {
             target: RxController
-            function onPictureSaved(file) { snack.show(qsTr("Saved to Gallery"), qsTr("View"), "view", file) }
+            function onPictureSaved(file) { snack.show(qsTr("Saved to Gallery"), qsTr("View"), "view", file); AppModel.haptic(1) }
         }
         ViewerScreen {
             id: viewer
@@ -156,13 +165,13 @@ ApplicationWindow {
         }
         NavBar {
             id: nav
-            visible: !win.wide
+            visible: !win.wide && !root.covered
             anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
             bottomInset: root.inset.bottom
         }
         NavRail {
             id: rail
-            visible: win.wide
+            visible: win.wide && !root.covered
             anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
             leftInset: root.inset.left
             topPadding: root.inset.top

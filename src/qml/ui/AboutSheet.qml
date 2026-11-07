@@ -41,7 +41,8 @@ BottomSheet {
                 Icon { path: Icons.back; size: 20; color: Theme.primary; anchors.verticalCenter: parent.verticalCenter }
                 Text { text: qsTr("About"); color: Theme.primary; font.pixelSize: Theme.sp(14); font.weight: Font.Medium; anchors.verticalCenter: parent.verticalCenter }
             }
-            TapHandler { onTapped: sheet.licenses = false }
+            TapHandler { margin: Theme.tapMargin(parent); onTapped: sheet.licenses = false }
+            Accessible.onPressAction: { sheet.licenses = false }
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("Back to About")
         }

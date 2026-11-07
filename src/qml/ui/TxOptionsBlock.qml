@@ -27,7 +27,8 @@ Column {
                 width: parent.width
                 elide: Text.ElideRight
             }
-            TapHandler { onTapped: block.openDetails() }
+            TapHandler { margin: Theme.tapMargin(parent); onTapped: block.openDetails() }
+            Accessible.onPressAction: { block.openDetails() }
         }
         Switch {
             id: templateSwitch
@@ -57,7 +58,8 @@ Column {
                 Text { text: qsTr("All modes"); color: Theme.primary; font.pixelSize: Theme.sp(14); font.weight: Font.Medium; anchors.verticalCenter: parent.verticalCenter }
                 Icon { path: Icons.chevron; color: Theme.primary; size: 20; anchors.verticalCenter: parent.verticalCenter }
             }
-            TapHandler { onTapped: block.openModes() }
+            TapHandler { margin: Theme.tapMargin(parent); onTapped: block.openModes() }
+            Accessible.onPressAction: { block.openModes() }
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("All modes")
         }
@@ -121,7 +123,8 @@ Column {
                 Text { text: qsTr("Details"); color: Theme.primary; font.pixelSize: Theme.sp(14); font.weight: Font.Medium; anchors.verticalCenter: parent.verticalCenter }
                 Icon { path: Icons.chevron; color: Theme.primary; size: 20; anchors.verticalCenter: parent.verticalCenter }
             }
-            TapHandler { onTapped: block.openDigital() }
+            TapHandler { margin: Theme.tapMargin(parent); onTapped: block.openDigital() }
+            Accessible.onPressAction: { block.openDigital() }
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("Digital settings, details")
         }

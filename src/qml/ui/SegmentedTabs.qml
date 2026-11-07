@@ -36,7 +36,8 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                     }
                 }
-                TapHandler { onTapped: tabs.picked(index) }
+                TapHandler { margin: Theme.tapMargin(parent); onTapped: tabs.picked(index) }
+                Accessible.onPressAction: { tabs.picked(index) }
                 Accessible.role: Accessible.RadioButton
                 Accessible.name: modelData
                 Accessible.checked: selected

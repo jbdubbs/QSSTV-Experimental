@@ -39,7 +39,8 @@ Rectangle {
         Item {
             x: 4; width: Theme.tap; height: Theme.tap; anchors.verticalCenter: parent.verticalCenter
             Icon { anchors.centerIn: parent; path: Icons.close; color: "white" }
-            TapHandler { onTapped: TxController.cameraOpen = false }
+            TapHandler { margin: Theme.tapMargin(parent); onTapped: TxController.cameraOpen = false }
+            Accessible.onPressAction: { TxController.cameraOpen = false }
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("Close the camera")
         }
@@ -48,7 +49,8 @@ Rectangle {
             anchors.right: parent.right; anchors.rightMargin: 4
             width: Theme.tap; height: Theme.tap; anchors.verticalCenter: parent.verticalCenter
             Icon { anchors.centerIn: parent; path: Icons.flip; color: "white" }
-            TapHandler { onTapped: screen.deviceIndex = (screen.deviceIndex + 1) % devices.videoInputs.length }
+            TapHandler { margin: Theme.tapMargin(parent); onTapped: screen.deviceIndex = (screen.deviceIndex + 1) % devices.videoInputs.length }
+            Accessible.onPressAction: { screen.deviceIndex = (screen.deviceIndex + 1) % devices.videoInputs.length }
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("Use the other camera")
         }
@@ -60,8 +62,9 @@ Rectangle {
         width: 76; height: 76; radius: 38
         color: "transparent"; border.width: 4; border.color: "white"
         Rectangle { anchors.centerIn: parent; width: 60; height: 60; radius: 30; color: shutter.pressed ? "#cccccc" : "white" }
-        TapHandler { id: shutter; enabled: capture.readyForCapture; onTapped: capture.captureToFile(TxController.tempPicturePath()) }
+        TapHandler { margin: Theme.tapMargin(parent); id: shutter; enabled: capture.readyForCapture; onTapped: capture.captureToFile(TxController.tempPicturePath()) }
         Accessible.role: Accessible.Button
         Accessible.name: qsTr("Take the picture")
+        Accessible.onPressAction: if (capture.readyForCapture) capture.captureToFile(TxController.tempPicturePath())
     }
 }

@@ -26,7 +26,8 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             text: banner.actionText; color: Theme.primary; font.pixelSize: Theme.sp(14); font.weight: Font.Medium
             padding: 8
-            TapHandler { onTapped: banner.action() }
+            TapHandler { margin: Theme.tapMargin(parent); onTapped: banner.action() }
+            Accessible.onPressAction: { banner.action() }
             Accessible.role: Accessible.Button
             Accessible.name: banner.actionText
         }

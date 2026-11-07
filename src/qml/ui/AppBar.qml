@@ -24,7 +24,7 @@ Item {
             color: Theme.surfaceOn
             font.pixelSize: Theme.sp(22)
             Layout.fillWidth: true
-            Layout.minimumWidth: Math.min(implicitWidth, bar.width * 0.4)
+            Layout.minimumWidth: Math.min(implicitWidth, bar.width * 0.6)
             elide: Text.ElideRight
             Accessible.role: Accessible.Heading
             Accessible.name: bar.title
@@ -32,6 +32,7 @@ Item {
         TextMetrics {   // how wide the route text wants to be, whatever room the chip is given
             id: routeMetrics
             text: bar.routeText
+            font.family: Theme.fontFamily
             font.pixelSize: Theme.sp(13)
             font.weight: Font.Medium
         }
@@ -39,9 +40,10 @@ Item {
             id: routeChip
             visible: bar.routeText !== ""
             implicitHeight: 32
-            implicitWidth: routeMetrics.width + 18 + 6 + 20
-            Layout.maximumWidth: routeMetrics.width + 18 + 6 + 20
-            Layout.minimumWidth: 56
+            readonly property bool iconOnly: Theme.fontScale > 1.4   // no room for the words beside a large title: the icon stays, the name is read aloud
+            implicitWidth: iconOnly ? 48 : (Math.ceil(routeMetrics.width) + 2) + 18 + 6 + 20
+            Layout.maximumWidth: iconOnly ? 48 : (Math.ceil(routeMetrics.width) + 2) + 18 + 6 + 20
+            Layout.minimumWidth: iconOnly ? 48 : 56
             radius: 8
             color: "transparent"
             border.width: 1
@@ -52,16 +54,18 @@ Item {
                 spacing: 6
                 Icon { path: Icons.phone; size: 18; color: Theme.good; anchors.verticalCenter: parent.verticalCenter }
                 Text {
+                    visible: !routeChip.iconOnly
                     text: bar.routeText
                     color: Theme.surfaceVariantOn
                     font.pixelSize: Theme.sp(13)
                     font.weight: Font.Medium
                     elide: Text.ElideRight
-                    width: Math.min(routeMetrics.width, Math.max(0, routeChip.width - 20 - 24))
+                    width: Math.min((Math.ceil(routeMetrics.width) + 2), Math.max(0, routeChip.width - 20 - 24))
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }
-            TapHandler { onTapped: bar.routeClicked() }
+            TapHandler { margin: Theme.tapMargin(parent); onTapped: bar.routeClicked() }
+            Accessible.onPressAction: { bar.routeClicked() }
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("Sound goes to %1").arg(bar.routeText)
         }
@@ -70,7 +74,8 @@ Item {
             implicitWidth: Theme.tap
             implicitHeight: Theme.tap
             Icon { anchors.centerIn: parent; path: Icons.more; color: Theme.surfaceVariantOn }
-            TapHandler { onTapped: menu.open() }
+            TapHandler { margin: Theme.tapMargin(parent); onTapped: menu.open() }
+            Accessible.onPressAction: { menu.open() }
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("More options")
             Menu {

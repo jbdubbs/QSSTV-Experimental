@@ -26,7 +26,8 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
         }
     }
-    TapHandler { onTapped: fab.clicked() }
+    TapHandler { margin: Theme.tapMargin(parent); onTapped: fab.clicked() }
+    Accessible.onPressAction: { fab.clicked() }
     Accessible.role: Accessible.Button
     Accessible.name: text
 }

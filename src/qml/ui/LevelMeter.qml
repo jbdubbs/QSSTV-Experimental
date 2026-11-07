@@ -41,9 +41,9 @@ Rectangle {
         }
         Item {
             width: parent.width; height: lab1.implicitHeight
-            Text { id: lab1; text: qsTr("Too quiet"); color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(11) }
-            Text { anchors.horizontalCenter: parent.horizontalCenter; x: (card.zoneStart + card.zoneEnd) / 2 * parent.width - width / 2; text: qsTr("Good"); color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(11) }
-            Text { anchors.right: parent.right; text: qsTr("Too loud"); color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(11) }
+            Text { id: lab1; text: qsTr("Too quiet"); color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(12) }
+            Text { anchors.horizontalCenter: parent.horizontalCenter; x: (card.zoneStart + card.zoneEnd) / 2 * parent.width - width / 2; text: qsTr("Good"); color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(12) }
+            Text { anchors.right: parent.right; text: qsTr("Too loud"); color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(12) }
         }
         Row {
             visible: card.hint !== ""

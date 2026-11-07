@@ -48,7 +48,8 @@ BottomSheet {
                 color: Theme.surfaceVariantOn
                 font.pixelSize: Theme.sp(14)
             }
-            TapHandler { onTapped: { TxController.mode = modelData.mode; sheet.open = false } }
+            TapHandler { margin: Theme.tapMargin(parent); onTapped: { TxController.mode = modelData.mode; sheet.open = false } }
+            Accessible.onPressAction: { { TxController.mode = modelData.mode; sheet.open = false } }
             Accessible.role: Accessible.RadioButton
             Accessible.name: modelData.name + ", " + modelData.size + ", " + modelData.time
             Accessible.checked: selected

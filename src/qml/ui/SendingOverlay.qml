@@ -20,7 +20,8 @@ Rectangle {
         Item {
             x: 4; width: Theme.tap; height: Theme.tap; anchors.verticalCenter: parent.verticalCenter
             Icon { anchors.centerIn: parent; path: Icons.close }
-            TapHandler { onTapped: TxController.stop() }
+            TapHandler { margin: Theme.tapMargin(parent); onTapped: TxController.stop() }
+            Accessible.onPressAction: { TxController.stop() }
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("Stop sending")
         }

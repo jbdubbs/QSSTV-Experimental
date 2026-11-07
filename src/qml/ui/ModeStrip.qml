@@ -3,7 +3,8 @@ import QtQuick
 // The one analog / digital choice, the same on Receive and Transmit: a single-select segmented button
 Rectangle {
     id: strip
-    implicitHeight: 40
+    implicitHeight: Math.max(40, Math.round(Theme.sp(14) * 1.4) + 16)   // grows with the text size
+    readonly property bool shortLabels: Theme.fontScale > 1.3          // at a large text size the words are short; the name read aloud stays whole
     radius: height / 2
     color: "transparent"
     border.width: 1
@@ -13,7 +14,7 @@ Rectangle {
     Row {
         anchors.fill: parent
         Repeater {
-            model: [qsTr("Analog SSTV"), qsTr("Digital (DRM)")]
+            model: strip.shortLabels ? [qsTr("SSTV"), qsTr("DRM")] : [qsTr("Analog SSTV"), qsTr("Digital (DRM)")]
             delegate: Rectangle {
                 required property int index
                 required property string modelData
@@ -38,9 +39,10 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                     }
                 }
-                TapHandler { onTapped: AppModel.digital = (index === 1) }
+                TapHandler { margin: Theme.tapMargin(parent); onTapped: { AppModel.digital = (index === 1); AppModel.haptic(0) } }
+                Accessible.onPressAction: { AppModel.digital = (index === 1) }
                 Accessible.role: Accessible.RadioButton
-                Accessible.name: modelData
+                Accessible.name: index === 1 ? qsTr("Digital (DRM)") : qsTr("Analog SSTV")
                 Accessible.checked: selected
             }
         }

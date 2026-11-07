@@ -165,6 +165,15 @@ void AppModel::openAppSettings()
 #endif
 }
 
+void AppModel::haptic(int kind)
+{
+#ifdef Q_OS_ANDROID
+  androidHaptic(kind);
+#else
+  Q_UNUSED(kind)
+#endif
+}
+
 void AppModel::keepScreenOn(bool on)
 {
 #ifdef Q_OS_ANDROID

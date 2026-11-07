@@ -58,7 +58,8 @@ Rectangle {
         Item {
             x: 4; y: viewer.topInset; width: Theme.tap; height: Theme.appBarHeight
             Icon { anchors.centerIn: parent; path: Icons.back; color: "white" }
-            TapHandler { onTapped: GalleryModel.closeViewer() }
+            TapHandler { margin: Theme.tapMargin(parent); onTapped: GalleryModel.closeViewer() }
+            Accessible.onPressAction: { GalleryModel.closeViewer() }
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("Back to the gallery")
         }
@@ -98,7 +99,7 @@ Rectangle {
                         Icon { anchors.horizontalCenter: parent.horizontalCenter; path: modelData.icon; color: "white" }
                         Text { anchors.horizontalCenter: parent.horizontalCenter; text: modelData.text; color: "white"; font.pixelSize: Theme.sp(12) }
                     }
-                    TapHandler {
+                    TapHandler { margin: Theme.tapMargin(parent);
                         onTapped: {
                             var i = GalleryModel.viewerIndex
                             if (modelData.id === "share") GalleryModel.shareIndex(i)
@@ -109,6 +110,13 @@ Rectangle {
                     }
                     Accessible.role: Accessible.Button
                     Accessible.name: modelData.text
+                    Accessible.onPressAction: {
+                        var i = GalleryModel.viewerIndex
+                        if (modelData.id === "share") GalleryModel.shareIndex(i)
+                        else if (modelData.id === "send") GalleryModel.sendIndex(i)
+                        else if (modelData.id === "info") infoSheet.open = true
+                        else GalleryModel.deleteIndex(i)
+                    }
                 }
             }
         }

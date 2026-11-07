@@ -29,7 +29,8 @@ Item {
             font.weight: item.selected ? Font.Bold : Font.Medium
         }
     }
-    TapHandler { onTapped: item.clicked() }
+    TapHandler { margin: Theme.tapMargin(parent); onTapped: item.clicked() }
+    Accessible.onPressAction: { item.clicked() }
     Accessible.role: Accessible.PageTab
     Accessible.name: label
     Accessible.selected: selected

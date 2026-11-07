@@ -47,7 +47,8 @@ Rectangle {
                 color: Theme.dark ? "#00677d" : "#8fdcf5"
                 font.pixelSize: Theme.sp(14); font.weight: Font.Medium
             }
-            TapHandler { onTapped: { snack.action(); snack.shown = false } }
+            TapHandler { margin: Theme.tapMargin(parent); onTapped: { snack.action(); snack.shown = false } }
+            Accessible.onPressAction: { { snack.action(); snack.shown = false } }
             Accessible.role: Accessible.Button
             Accessible.name: snack.actionText
         }

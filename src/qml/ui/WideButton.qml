@@ -25,7 +25,8 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
         }
     }
-    TapHandler { enabled: button.enabledLook || button.danger; onTapped: button.clicked() }
+    TapHandler { margin: Theme.tapMargin(parent); enabled: button.enabledLook || button.danger; onTapped: button.clicked() }
+    Accessible.onPressAction: if (button.enabledLook || button.danger) { button.clicked() }
     Accessible.role: Accessible.Button
     Accessible.name: text
 }

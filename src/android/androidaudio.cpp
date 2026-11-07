@@ -76,6 +76,12 @@ void androidKeepScreenOn(bool on)
   if(ctx.isValid()) QJniObject::callStaticMethod<void>(helper,"keepScreenOn","(Landroid/content/Context;Z)V",ctx.object<jobject>(),jboolean(on));
 }
 
+void androidHaptic(int kind)
+{
+  const QJniObject ctx=context();
+  if(ctx.isValid()) QJniObject::callStaticMethod<void>(helper,"haptic","(Landroid/content/Context;I)V",ctx.object<jobject>(),jint(kind));
+}
+
 QString androidVolumeSummary()
 {
   const QJniObject ctx=context();

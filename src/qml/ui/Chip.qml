@@ -29,7 +29,8 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
         }
     }
-    TapHandler { onTapped: chip.clicked() }
+    TapHandler { margin: Theme.tapMargin(parent); onTapped: { chip.clicked(); AppModel.haptic(0) } }
+    Accessible.onPressAction: { chip.clicked() }
     Accessible.role: Accessible.Button
     Accessible.name: text
 }

@@ -108,6 +108,23 @@ public class AudioHelper
         });
     }
 
+    /** A short vibration of the screen's own kind: 0 a tick (a choice was made), 1 a confirmation (it started, it was saved), 2 a refusal */
+    public static void haptic(Context context, final int kind)
+    {
+        if (!(context instanceof Activity)) return;
+        final Activity activity = (Activity) context;
+        activity.runOnUiThread(() -> {
+            int what = android.view.HapticFeedbackConstants.CLOCK_TICK;
+            if (android.os.Build.VERSION.SDK_INT >= 30)
+            {
+                if (kind == 1) what = android.view.HapticFeedbackConstants.CONFIRM;
+                else if (kind == 2) what = android.view.HapticFeedbackConstants.REJECT;
+            }
+            else if (kind != 0) what = android.view.HapticFeedbackConstants.LONG_PRESS;
+            activity.getWindow().getDecorView().performHapticFeedback(what);
+        });
+    }
+
     /** For the log: the volumes as the system holds them, "media 7/15, ring 4/7" */
     public static String volumeSummary(Context context)
     {

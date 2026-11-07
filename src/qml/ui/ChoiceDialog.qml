@@ -60,7 +60,8 @@ Item {
                         Text { width: parent.width; text: typeof modelData === "string" ? modelData : modelData.text; color: Theme.surfaceOn; font.pixelSize: Theme.sp(16); wrapMode: Text.WordWrap }
                         Text { width: parent.width; visible: typeof modelData !== "string" && !!modelData.hint; text: typeof modelData === "string" ? "" : (modelData.hint || ""); color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(13); wrapMode: Text.WordWrap }
                     }
-                    TapHandler { onTapped: { dlg.picked(index); dlg.open = false } }
+                    TapHandler { margin: Theme.tapMargin(parent); onTapped: { dlg.picked(index); dlg.open = false } }
+                    Accessible.onPressAction: { { dlg.picked(index); dlg.open = false } }
                 }
             }
             Item {
@@ -68,7 +69,8 @@ Item {
                 Text {
                     anchors.right: parent.right; anchors.rightMargin: 24; anchors.verticalCenter: parent.verticalCenter
                     text: qsTr("Cancel"); color: Theme.primary; font.pixelSize: Theme.sp(14); font.weight: Font.Medium
-                    TapHandler { onTapped: dlg.open = false }
+                    TapHandler { margin: Theme.tapMargin(parent); onTapped: dlg.open = false }
+                    Accessible.onPressAction: { dlg.open = false }
                     Accessible.role: Accessible.Button
                 }
             }

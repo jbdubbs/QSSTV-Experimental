@@ -21,7 +21,8 @@ BottomSheet {
             Icon { path: Icons.back; size: 20; color: Theme.primary; anchors.verticalCenter: parent.verticalCenter }
             Text { text: qsTr("All tools"); color: Theme.primary; font.pixelSize: Theme.sp(14); font.weight: Font.Medium; anchors.verticalCenter: parent.verticalCenter }
         }
-        TapHandler { onTapped: sheet.page = "menu" }
+        TapHandler { margin: Theme.tapMargin(parent); onTapped: sheet.page = "menu" }
+        Accessible.onPressAction: { sheet.page = "menu" }
         Accessible.role: Accessible.Button
         Accessible.name: qsTr("Back to all tools")
     }
