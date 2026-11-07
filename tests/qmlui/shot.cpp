@@ -26,6 +26,7 @@
 #include "spectrumwidget.h"
 #include "gallerymodel.h"
 #include "settingscontroller.h"
+#include "touchtemplateeditor.h"
 #include "directoriesconfig.h"
 
 static QQuickWindow *theWindow()
@@ -201,6 +202,7 @@ int main(int argc, char **argv)
       TxController::instance()->setTestSending(-1);
       if (QQuickItem *v = findItem(win->contentItem(), "viewerScreen")) v->setProperty("infoOpen", false);
       GalleryModel::instance()->closeViewer();
+      if (TouchTemplateEditor::instance()->isOpen()) TouchTemplateEditor::instance()->close();
       AppModel::instance()->setSettingsOpen(false);
       AppModel::instance()->setMicDenied(scene == "mic-denied");
       AppModel::instance()->setFirstRun(scene.startsWith("firstrun"));
@@ -247,6 +249,42 @@ int main(int argc, char **argv)
           if (st) st->setProperty("page", page);
           if (scene == "settings-format" && st) QMetaObject::invokeMethod(st, "openFormat");
           if (scene == "settings-mic" && st) QMetaObject::invokeMethod(st, "openMic");
+        }
+      else if (scene.startsWith("tpl-"))
+        {
+          // the template editor: the call sign bar with a replay window, the text of the bar chosen
+          TouchTemplateEditor *te = TouchTemplateEditor::instance();
+          if (scene == "tpl-starters") {app_->setScreen(2); GalleryModel *g = GalleryModel::instance(); g->setTab(2); g->rescan();
+                                        QTest::qWait(500);
+                                        if (QQuickItem *gs = findItem(win->contentItem(), "galleryScreen")) QMetaObject::invokeMethod(gs, "harnessStarters");}
+          else
+            {
+              te->newTemplate(3);
+              for (const QVariant &l : te->layers())
+                if (l.toMap().value("kind").toString() == "text") {te->select(l.toMap().value("id").toString()); break;}
+              QTest::qWait(300);
+              QQuickItem *ed = findItem(win->contentItem(), "templateEditorScreen");
+              const QString what = scene.mid(4);
+              if (ed && what != "editor" && !what.startsWith("drag")) QMetaObject::invokeMethod(ed, "harness", Q_ARG(QVariant, what));
+              if (ed && what.startsWith("drag"))
+                {
+                  // a finger on the handle at the bottom right of the chosen item, pulled outward: it must grow, and the finger must keep the handle
+                  // (the item under it, or the move of the whole item, must not take the gesture)
+                  const QVariantMap s0 = te->property("sel").toMap();
+                  const double w0 = s0.value("w").toDouble() + s0.value("fontSize").toDouble();
+                  QVariant pv; QMetaObject::invokeMethod(ed, "harnessPoint", Q_RETURN_ARG(QVariant, pv), Q_ARG(QVariant, 4));
+                  const QPoint p0 = pv.toPointF().toPoint();
+                  QTest::mousePress(win, Qt::LeftButton, Qt::NoModifier, p0);
+                  for (int k = 1; k <= 10; k++) {QTest::mouseMove(win, p0 - QPoint(0, 0) + QPoint(2 * k, 6 * k)); QTest::qWait(20);}
+                  QTest::mouseRelease(win, Qt::LeftButton, Qt::NoModifier, p0 + QPoint(20, 60));
+                  QTest::qWait(400);
+                  const QVariantMap s1 = te->property("sel").toMap();
+                  const double w1 = s1.value("w").toDouble() + s1.value("fontSize").toDouble();
+                  const bool moved = s1.value("x").toDouble() != s0.value("x").toDouble() || s1.value("y").toDouble() != s0.value("y").toDouble();
+                  printf("  drag  size %.1f -> %.1f, corner moved: %s, can undo %d (%s)\n", w0, w1, moved ? "YES" : "no", te->property("canUndo").toBool(), w1 > w0 && !moved ? "grew" : "FAILED");
+                  if (!(w1 > w0) || moved) exitCode = 1;
+                }
+            }
         }
       else if (scene == "saved")
         {

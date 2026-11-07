@@ -12,6 +12,7 @@ Item {
     property alias stepSize: slider.stepSize
     property real value: 0
     signal committed(real value)
+    signal moved(real value)          //!< while the finger is still on the slider
     width: parent ? parent.width : 360
     implicitHeight: head.implicitHeight + slider.implicitHeight + (note.visible ? note.implicitHeight : 0) + 20
     Item {
@@ -33,6 +34,7 @@ Item {
         y: (note.visible ? note.y + note.height : head.y + head.height) + 2
         Material.accent: Theme.primary
         value: row.value
+        onMoved: row.moved(value)
         onPressedChanged: if (!pressed) row.committed(value)
         Accessible.name: row.title
     }

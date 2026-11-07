@@ -1,6 +1,7 @@
 #include "qmlui.h"
 #include "appmodel.h"
 #include "rxcontroller.h"
+#include "touchtemplateeditor.h"
 #include "txcontroller.h"
 #include "thumbnailprovider.h"
 #include "widgetwindows.h"
@@ -27,7 +28,12 @@ void show()
 }
 
 // the hooks do nothing while the Widgets interface is the one in use (a development build with the Qt Quick one compiled in)
-void sendPicture(const QString &file) {TxController::instance()->showPicture(file);}
+void sendPicture(const QString &file)
+{
+  TouchTemplateEditor *ed=TouchTemplateEditor::instance();
+  if(ed->takePendingImage()) ed->addImage(file,ed->canvasWidth()/2,ed->canvasHeight()/2);   // the picture the template editor asked for
+  else TxController::instance()->showPicture(file);
+}
 void notifyModeChanged() {if(uiMode::qml()) AppModel::instance()->modeChanged();}
 void rxImageStarted(int w,int h) {if(uiMode::qml()) RxController::instance()->imageStarted(w,h);}
 void rxLine(int line) {if(uiMode::qml()) RxController::instance()->lineDrawn(line);}

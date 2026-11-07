@@ -27,12 +27,12 @@ ApplicationWindow {
         anchors.fill: parent
         readonly property var inset: SafeArea.margins
         // the bars' icons are dark on a light screen and light on a dark one; the viewer, the camera and the sending page are black
-        readonly property bool darkBarIcons: !Theme.dark && GalleryModel.viewerIndex < 0 && !TxController.cameraOpen
+        readonly property bool darkBarIcons: !Theme.dark && (TemplateEditor.open || (GalleryModel.viewerIndex < 0 && !TxController.cameraOpen))   // the editor is a light page, also over the black viewer
         onDarkBarIconsChanged: AppModel.systemBarIcons(darkBarIcons)
         Component.onCompleted: AppModel.systemBarIcons(darkBarIcons)
         // a screen of its own is in front of the others (settings, the viewer, the camera, sending ...): what is behind it is hidden, so that the
         // screen reader does not read it (Accessible.ignored does not reach the children) and nothing is drawn for nothing
-        readonly property bool covered: AppModel.settingsOpen || AppModel.firstRun || GalleryModel.viewerIndex >= 0 || TxController.cameraOpen || TxController.sending
+        readonly property bool covered: TemplateEditor.open || AppModel.settingsOpen || AppModel.firstRun || GalleryModel.viewerIndex >= 0 || TxController.cameraOpen || TxController.sending
 
         // the menu of each screen: what is special to it, then the program's
         readonly property var menuEntries: {
@@ -140,6 +140,16 @@ ApplicationWindow {
             topInset: root.inset.top
             bottomInset: root.inset.bottom
         }
+        TemplateEditorScreen {
+            id: tplEditor
+            objectName: "templateEditorScreen"
+            anchors.fill: parent
+            topInset: root.inset.top
+            bottomInset: root.inset.bottom
+            leftInset: root.inset.left
+            rightInset: root.inset.right
+            onNotice: (text) => snack.show(text, "")
+        }
         SettingsScreen {
             id: settings
             objectName: "settingsScreen"
@@ -187,6 +197,7 @@ ApplicationWindow {
         if (Qt.platform.os === "android") {
             close.accepted = false
             if (problemDialog.open) problemDialog.open = false
+            else if (tplEditor.goBack()) {}
             else if (firstRun.goBack()) {}
             else if (settings.goBack()) {}
             else if (viewer.infoOpen) viewer.infoOpen = false

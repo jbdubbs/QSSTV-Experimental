@@ -86,6 +86,7 @@ Rectangle {
                 model: [
                     {id: "share", text: qsTr("Share"), icon: Icons.share, show: viewer.current && !viewer.current.isTemplate},
                     {id: "send", text: viewer.current && viewer.current.isTemplate ? qsTr("Use template") : qsTr("Send by radio"), icon: Icons.send, show: true},
+                    {id: "edit", text: qsTr("Edit"), icon: Icons.edit, show: viewer.current && viewer.current.isTemplate},
                     {id: "info", text: qsTr("Info"), icon: Icons.info, show: true},
                     {id: "delete", text: qsTr("Delete"), icon: Icons.remove, show: true}
                 ]
@@ -105,6 +106,7 @@ Rectangle {
                             if (modelData.id === "share") GalleryModel.shareIndex(i)
                             else if (modelData.id === "send") GalleryModel.sendIndex(i)
                             else if (modelData.id === "info") infoSheet.open = true
+                            else if (modelData.id === "edit") TemplateEditor.openFile(viewer.current.path)
                             else GalleryModel.deleteIndex(i)
                         }
                     }
@@ -115,6 +117,7 @@ Rectangle {
                         if (modelData.id === "share") GalleryModel.shareIndex(i)
                         else if (modelData.id === "send") GalleryModel.sendIndex(i)
                         else if (modelData.id === "info") infoSheet.open = true
+                        else if (modelData.id === "edit") TemplateEditor.openFile(viewer.current.path)
                         else GalleryModel.deleteIndex(i)
                     }
                 }
