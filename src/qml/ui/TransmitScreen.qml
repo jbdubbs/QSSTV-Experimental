@@ -10,6 +10,7 @@ Item {
     property alias modesOpen: modes.open
     property alias digitalOpen: digital.open
     property alias toolsOpen: tools.open
+    signal editProfiles()
     property alias templatesOpen: templates.open
 
     ModeStrip {
@@ -71,7 +72,7 @@ Item {
         }
     }
     ModeSheet { id: modes }
-    DrmSheet { id: digital }
+    DrmSheet { id: digital; onEditProfiles: { digital.open = false; screen.editProfiles() } }
     ToolsSheet { id: tools }
     DetailsSheet { id: details }
     TemplateSheet { id: templates; onNewTemplate: starters.open = true }

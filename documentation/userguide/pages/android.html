@@ -109,7 +109,7 @@ title, the <strong>route chip</strong> that says where the sound goes (<em>Phone
 <li><span class="ui">Audio and radio</span>: the microphone and what the phone may do to it, the receive gain, the live input level, the speaker, the media volume, <span class="ui">Test sound</span>, and the radio control (see below).</li>
 <li><span class="ui">Position</span>: the phone's position for the pictures, the city and state lookup and the coordinate format.</li>
 <li><span class="ui">Pictures</span>: the file format of received pictures and whether to keep a copy of what you send.</li>
-<li><span class="ui">Advanced</span>: <span class="ui">Receive</span> (sensitivity, how much of a picture is kept), <span class="ui">CW and waterfall</span> (text, tone, speed and the markers), <span class="ui">Calibration</span> (the sound clock, see below). <span class="ui">Templates</span> goes to the Gallery. The other entries open the <em>classic settings</em>, the full list of options of the desktop program, until they have a page of their own.</li>
+<li><span class="ui">Advanced</span>: <span class="ui">Receive</span> (sensitivity, how much of a picture is kept), <span class="ui">CW and waterfall</span> (text, tone, speed and the markers), <span class="ui">Calibration</span> (the sound clock, see below), <span class="ui">Digital (DRM) profiles</span> and <span class="ui">Frequencies</span> (see below). <span class="ui">Templates</span> goes to the Gallery. <span class="ui">Classic settings</span> opens the full list of options of the desktop program.</li>
 </ul>
 
 <h2>Calibrating the sound clock</h2>
@@ -124,6 +124,18 @@ title, the <strong>route chip</strong> that says where the sound goes (<em>Phone
 <li><strong>Another SSTV station</strong> is for when neither is available. One station sends a black picture with one straight line, the other receives it and measures how much the line slants. The result is only as good as the clock of the other station, so one of you must have been calibrated in one of the other ways. <span class="ui">Save</span> applies the result and keeps listening, so the next picture shows whether the line is now straight.</li>
 </ul>
 <p>While you measure, the screen stays on and receiving stops; it starts again when you leave the page. <span class="ui">Use it for sending too</span> (on by default) applies the result to the send clock as well, as most sound devices run input and output from one clock. A result more than 0.2 % off is refused: that is a wrong input, not a clock. <span class="ui">Back to 48,000 Hz</span> forgets the measured clock.</p>
+
+<h2>Digital profiles and frequencies</h2>
+<div class="shots">
+<figure><img src="../images/android-drm-profile.png" alt="One digital profile with its name and the six settings, each with a line that says what it does" loading="lazy"><figcaption>A digital profile.</figcaption></figure>
+<figure><img src="../images/android-frequencies.png" alt="The list of frequencies, split into analog SSTV and digital, with the Add button" loading="lazy"><figcaption>The frequencies.</figcaption></figure>
+<figure><img src="../images/android-tune.png" alt="The Tune the radio list on the Receive screen, one frequency marked as the one the radio is on" loading="lazy"><figcaption>Tuning the radio.</figcaption></figure>
+</div>
+<ul>
+<li><strong>Digital (DRM) profiles</strong> (<span class="ui">Settings &gt; Advanced</span>) are three saved sets of digital settings. Each has a name and six choices (mode, QAM, bandwidth, interleave, protection, Reed-Solomon), all in view with a line that says what it does. A change is kept at once, and the Transmit screen shows the profile names as chips. The three profiles of a new installation are all the same: <span class="ui">Use typical settings</span> fills in <em>Robust</em>, <em>Balanced</em> and <em>Fast</em> (mode B; 4-, 16- and 64-QAM). The row <span class="ui">Edit the profiles</span> at the bottom of the Transmit screen's Digital settings sheet opens the same page. <span class="ui">Show the picture while it arrives</span> turns the partial picture of a digital reception on and off.</li>
+<li><strong>Frequencies</strong> is the list the program tunes your radio to. A row is a frequency in MHz for analog SSTV or for digital, with the mode of the radio (USB, PKTUSB ...) and the passband. Tap a row to change it; <span class="ui">Up</span> and <span class="ui">Down</span> move it inside its list, <span class="ui">Delete</span> removes it and offers <em>Undo</em>. <span class="ui">Add the usual ones</span> fills an empty list. <span class="ui">Command sent to the radio after tuning</span> is an optional raw CAT command, as text or as hex.</li>
+<li><strong>Tuning.</strong> When a radio is set up (<span class="ui">Settings &gt; Audio and radio &gt; Radio</span>), the Receive and Transmit screens show the radio's frequency as a chip. Tap it to see the frequencies for the mode you are in (analog or digital), with the one the radio is on marked; a tap on another tunes the radio to it: frequency, mode and passband, and then the extra command if there is one. Without a radio the chip is not shown.</li>
+</ul>
 
 <h2>The microphone and speaker of the phone</h2>
 <p>Hold or place the phone next to the radio's speaker to receive, and next to the radio's microphone to send: nothing else is needed. This works, but it picks up room noise, so expect pictures to need a stronger signal than with a cable; a headset cable or a USB audio interface is better.</p>
@@ -158,7 +170,7 @@ title, the <strong>route chip</strong> that says where the sound goes (<em>Phone
 
 <h2>What is not on the phone yet</h2>
 <p>The repeater and unattended beacon, FTP upload, the XML-RPC interface, the command line options, the update check (Google Play updates the program) and the AppImage and Windows installers.
-The classic settings reached from <span class="ui">Advanced</span> still hold the options that have no page of their own: the DRM profiles and the frequency list.</p>
+The classic settings reached from <span class="ui">Advanced</span> still hold the options that have no page of their own.</p>
 
 <h2>If something does not work</h2>
 <ul>

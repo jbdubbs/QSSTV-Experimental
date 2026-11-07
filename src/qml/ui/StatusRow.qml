@@ -18,4 +18,9 @@ Flow {
         tone: RxController.sync >= 0.6 ? "good" : RxController.sync >= 0.3 ? "plain" : "warn"
     }
     Chip { visible: RxController.listening && !RxController.receiving; text: AppModel.digital ? qsTr("Mode: DRM") : qsTr("Mode: Auto") }
+    Chip {
+        visible: Frequencies.radioReady && Frequencies.chipText !== ""
+        icon: Icons.radio; text: Frequencies.chipText
+        onClicked: Frequencies.pickerOpen = true
+    }
 }

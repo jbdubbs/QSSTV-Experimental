@@ -5,7 +5,9 @@ import QSSTV
 BottomSheet {
     id: sheet
     title: qsTr("Digital settings")
-    property var options: { TxController.drmRevision; return TxController.drmOptions() }
+    signal editProfiles()
+    // the revision is used (and not just read): a statement that only reads it is dropped by the QML compiler and the binding would not follow
+    property var options: { const r = TxController.drmRevision; return r >= 0 ? TxController.drmOptions() : [] }
     Flickable {
         width: parent.width
         height: Math.min(col.height, sheet.height * 0.6)
@@ -48,6 +50,10 @@ BottomSheet {
                         }
                     }
                 }
+            }
+            PreferenceRow {
+                icon: Icons.edit; title: qsTr("Edit the profiles"); summary: qsTr("Names and settings"); chevron: true
+                onClicked: sheet.editProfiles()
             }
             Item { width: 1; height: 16 }
         }

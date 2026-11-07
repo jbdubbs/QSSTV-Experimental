@@ -11,6 +11,13 @@ Column {
     signal openDigital()
     spacing: 4
 
+    // the radio's frequency: a tap tunes it to one of the list
+    Flow {
+        visible: Frequencies.radioReady && Frequencies.chipText !== ""
+        x: Theme.margin; width: parent.width - 2 * Theme.margin
+        Chip { icon: Icons.radio; text: Frequencies.chipText; onClicked: Frequencies.pickerOpen = true }
+    }
+
     // put my details on the picture: the text opens the details, the switch turns the template on and off
     Item {
         width: parent.width

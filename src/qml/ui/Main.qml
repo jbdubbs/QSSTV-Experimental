@@ -94,7 +94,10 @@ ApplicationWindow {
                 height: parent.height - Theme.appBarHeight
                 currentIndex: AppModel.screen
                 ReceiveScreen { id: receive; objectName: "receiveScreen" }
-                TransmitScreen { id: transmit; objectName: "transmitScreen" }
+                TransmitScreen {
+                    id: transmit; objectName: "transmitScreen"
+                    onEditProfiles: { AppModel.settingsOpen = true; Qt.callLater(function() { settings.page = 13 }) }
+                }
                 GalleryScreen { id: gallery }
             }
         }
@@ -115,6 +118,7 @@ ApplicationWindow {
                 if (kind === "settings") AppModel.openAppSettings()
                 else if (kind === "undo") GalleryModel.undoDelete()
                 else if (kind === "view") GalleryModel.openFile(payload)
+                else if (kind === "undofreq") Frequencies.undoRemove()
             }
         }
         Connections {
@@ -124,6 +128,10 @@ ApplicationWindow {
         Connections {
             target: TxController
             function onSendingChanged() { AppModel.haptic(TxController.sending ? 1 : 0) }   // it starts, it is over
+        }
+        Connections {
+            target: Frequencies
+            function onRemoved(text) { snack.show(text, qsTr("Undo"), "undofreq") }
         }
         Connections {
             target: GalleryModel
@@ -173,6 +181,10 @@ ApplicationWindow {
             function onNoticeShown(text) { snack.show(text, "") }
         }
         AboutSheet { id: about }
+        TuneSheet {
+            id: tuneSheet
+            onEditList: { AppModel.settingsOpen = true; Qt.callLater(function() { settings.page = 15 }) }
+        }
         SendingOverlay {
             anchors.fill: parent
             topInset: root.inset.top
@@ -210,6 +222,7 @@ ApplicationWindow {
             else if (transmit.digitalOpen) transmit.digitalOpen = false
             else if (transmit.toolsOpen) transmit.toolsOpen = false
             else if (transmit.templatesOpen) transmit.templatesOpen = false
+            else if (Frequencies.pickerOpen) Frequencies.pickerOpen = false
             else if (about.open) about.open = false
             else if (transmit.detailsOpen) transmit.detailsOpen = false
             else if (AppModel.screen !== 0) AppModel.screen = 0

@@ -28,6 +28,8 @@
 #include "settingscontroller.h"
 #include "touchtemplateeditor.h"
 #include "calibrationcontroller.h"
+#include "drmprofilescontroller.h"
+#include "frequencycontroller.h"
 #include "soundconfig.h"
 #include "directoriesconfig.h"
 
@@ -206,6 +208,15 @@ int main(int argc, char **argv)
       GalleryModel::instance()->closeViewer();
       if (TouchTemplateEditor::instance()->isOpen()) TouchTemplateEditor::instance()->close();
       CalibrationController::instance()->leave();
+      {
+        // the frequencies and the DRM profiles of the scene: none, unless it is about them
+        FrequencyController *fc = FrequencyController::instance();
+        const bool freqScene = scene.startsWith("freq") || scene.contains("-freq");
+        fc->setPickerOpen(false);
+        fc->setTestList(freqScene && scene != "freq-empty");
+        fc->setTestRadio(freqScene && scene != "freq-noradio", QStringLiteral("14.230 MHz USB"));
+        DrmProfilesController::instance()->setTestProfiles(false);
+      }
       rxClock = txClock = BASESAMPLERATE;
       {QSettings qs; qs.remove("Calibration/when"); qs.remove("Calibration/how"); qs.remove("Calibration/device");}
       AppModel::instance()->setSettingsOpen(false);
@@ -278,6 +289,34 @@ int main(int argc, char **argv)
           if (st) st->setProperty("page", page);
           if (method) cal->setTestState(method, phase);
           if (scene == "cal-reset" && st) {QTest::qWait(300); if (QQuickItem *ov = findItem(win->contentItem(), "calibrationOverview")) QMetaObject::invokeMethod(ov, "openReset");}
+        }
+      else if (scene.startsWith("drm-profile") || scene.startsWith("freq"))
+        {
+          AppModel::instance()->setSettingsOpen(true);
+          QQuickItem *st = findItem(win->contentItem(), "settingsScreen");
+          int page = 13;
+          if (scene.startsWith("drm-profile"))
+            {
+              DrmProfilesController::instance()->setTestProfiles(scene != "drm-profiles-factory");
+              if (scene == "drm-profile") page = 14;
+            }
+          else page = 15;
+          if (st) st->setProperty("page", page);
+          QTest::qWait(300);
+          // what the pages keep must be in the settings file at once (the classic pages write it back at quit, and must not undo it)
+          {
+            QSettings qs;
+            if (scene == "drm-profiles" && (qs.value("DRMPROFILE/drmPF1Name").toString() != "Robust" || qs.value("DRMPROFILE/drmPF3QAM").toInt() != 2))
+              {fprintf(stderr, "FAIL: the DRM profiles are not in the settings file\n"); exitCode = 1;}
+            if (scene == "freq" && (qs.value("FREQSELECT/frequencyList").toStringList().size() != 6 || qs.value("FREQSELECT/modeList").toStringList().count("DRM") != 1))
+              {fprintf(stderr, "FAIL: the frequencies are not in the settings file\n"); exitCode = 1;}
+          }
+          if (scene == "freq-edit" || scene == "freq-new")
+            if (QQuickItem *fp = findItem(win->contentItem(), "frequenciesPage"))
+              {
+                if (scene == "freq-edit") QMetaObject::invokeMethod(fp, "openEdit", Q_ARG(QVariant, 0));
+                else QMetaObject::invokeMethod(fp, "openNew");
+              }
         }
       else if (scene.startsWith("tpl-"))
         {
@@ -358,6 +397,7 @@ int main(int argc, char **argv)
           else if (!t->setProperty(scene == "tx-modes" ? "modesOpen" : scene == "tx-template" ? "templatesOpen" : "detailsOpen", true)) fprintf(stderr, "cannot set the sheet property\n");
           QTest::qWait(500);
         }
+      if (scene.endsWith("-freq-sheet")) {FrequencyController::instance()->setPickerOpen(true); QTest::qWait(500);}
       if (scene == "options")
         {
           QQuickItem *r = findItem(content, "receiveScreen");

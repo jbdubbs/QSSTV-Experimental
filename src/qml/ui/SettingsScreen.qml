@@ -13,7 +13,7 @@ Rectangle {
     property real topInset: 0
     property real bottomInset: 0
     property int page: 0          // 0 overview, 1 operator, 2 pictures, 3 position, 4 advanced, 5 audio and radio, 6 the radio list, 7 receive, 8 identification,
-                                  // 9 calibration, 10 internet time, 11 radio time signal, 12 another SSTV station
+                                  // 9 calibration, 10 internet time, 11 radio time signal, 12 another SSTV station, 13 DRM profiles, 14 one profile, 15 frequencies
     onPageChanged: {
         if (page < 10 || page > 12) Calibration.leave()   // a measurement ends with its page, and the receiver listens again
         if (page === 5) SettingsController.rescanAdapters()   // an adapter may have been plugged in
@@ -26,7 +26,8 @@ Rectangle {
     // Back: one level up; true when the settings were showing
     function goBack() {
         if (!AppModel.settingsOpen) return false
-        if (calOverview.dialogOpen) calOverview.closeDialog()
+        if (freqPage.dialogOpen) freqPage.closeDialog()
+        else if (calOverview.dialogOpen) calOverview.closeDialog()
         else if (calSstv.dialogOpen) calSstv.closeDialog()
         else if (formatDialog.open) formatDialog.open = false
         else if (coordDialog.open) coordDialog.open = false
@@ -38,7 +39,8 @@ Rectangle {
         else if (baudDialog.open) baudDialog.open = false
         else if (sensitivityDialog.open) sensitivityDialog.open = false
         else if (page === 6) page = 5
-        else if (page === 7 || page === 8 || page === 9) page = 4
+        else if (page === 7 || page === 8 || page === 9 || page === 13 || page === 15) page = 4
+        else if (page === 14) page = 13
         else if (page >= 10 && page <= 12) page = 9
         else if (page !== 0) page = 0
         else close()
@@ -145,9 +147,9 @@ Rectangle {
                 color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(14); wrapMode: Text.WordWrap
             }
             PreferenceRow { icon: Icons.tune; title: qsTr("Receive"); summary: qsTr("Sensitivity, when a picture is kept"); chevron: true; onClicked: screen.page = 7 }
-            PreferenceRow { icon: Icons.send; title: qsTr("Digital (DRM) profiles"); summary: qsTr("Saved settings for digital pictures"); chevron: true; onClicked: SettingsController.openClassic() }
+            PreferenceRow { icon: Icons.send; title: qsTr("Digital (DRM) profiles"); summary: DrmProfiles.summary; chevron: true; onClicked: screen.page = 13 }
             PreferenceRow { icon: Icons.mic; title: qsTr("CW and waterfall identification"); summary: qsTr("Text, speed, tone"); chevron: true; onClicked: screen.page = 8 }
-            PreferenceRow { icon: Icons.pin; title: qsTr("Frequencies"); summary: qsTr("SSTV and DRM calling frequencies"); chevron: true; onClicked: SettingsController.openClassic() }
+            PreferenceRow { icon: Icons.pin; title: qsTr("Frequencies"); summary: Frequencies.summary; chevron: true; onClicked: screen.page = 15 }
             PreferenceRow { icon: Icons.volume; title: qsTr("Calibration"); summary: Calibration.summary; chevron: true; onClicked: screen.page = 9 }
             PreferenceRow { icon: Icons.image; title: qsTr("Templates"); summary: qsTr("Change them or make new ones in the Gallery"); chevron: true; onClicked: { AppModel.settingsOpen = false; GalleryModel.tab = 2; AppModel.screen = 2 } }
             PreferenceRow { icon: Icons.info; title: qsTr("Classic settings"); summary: qsTr("Every option on one list"); chevron: true; onClicked: SettingsController.openClassic() }
@@ -371,7 +373,7 @@ Rectangle {
                 delegate: TextRow {
                     required property var modelData
                     label: modelData.label; hint: modelData.label
-                    text: { SettingsController.wfFontSize; return SettingsController.waterfallText(modelData.key) }
+                    text: { const f = SettingsController.wfFontSize; return f >= 0 ? SettingsController.waterfallText(modelData.key) : "" }
                     onCommitted: (t) => SettingsController.setWaterfallText(modelData.key, t)
                 }
             }
@@ -399,6 +401,26 @@ Rectangle {
             id: calSstv
             topInset: screen.topInset; bottomInset: screen.bottomInset
             onBack: screen.page = 9
+        }
+
+        // ---- the DRM profiles and the frequencies ----
+        DrmProfilesPage {
+            topInset: screen.topInset; bottomInset: screen.bottomInset
+            onBack: screen.page = 4
+            onChoose: (i) => { drmEdit.profileIndex = i; screen.page = 14 }
+        }
+        DrmProfilePage {
+            id: drmEdit
+            objectName: "drmProfilePage"
+            topInset: screen.topInset; bottomInset: screen.bottomInset
+            onBack: screen.page = 13
+        }
+        FrequenciesPage {
+            id: freqPage
+            objectName: "frequenciesPage"
+            topInset: screen.topInset; bottomInset: screen.bottomInset
+            onBack: screen.page = 4
+            onOpenRadio: screen.page = 5
         }
     }
 
