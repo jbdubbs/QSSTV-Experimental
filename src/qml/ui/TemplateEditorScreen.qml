@@ -132,6 +132,7 @@ Rectangle {
     // ---- the bar at the bottom ----
     Item {
         id: bottomBar
+        visible: !panel.above
         anchors.bottom: parent.bottom; x: screen.leftInset; width: (screen.wide && screen.panelOpen ? parent.width - 360 : parent.width) - screen.leftInset
         height: 72 + screen.bottomInset
         Rectangle { anchors.fill: parent; color: Theme.surfaceContainer }
@@ -173,10 +174,18 @@ Rectangle {
         visible: screen.panelOpen && TemplateEditor.hasSelection
         z: 3
         readonly property real phoneHeight: Math.min(screen.height > 1000 ? 460 : 330, screen.height * 0.46)
+        // typing on a phone: just above the keyboard, with the field and the codes, and the picture above that
+        readonly property bool above: typing && !screen.wide
+        // (Qt on Android gives the keyboard rectangle in device pixels, the window is in dp); before the keyboard is up: what it was the last time
+        readonly property real keyboardNow: Qt.inputMethod.visible ? Qt.inputMethod.keyboardRectangle.height / Screen.devicePixelRatio : 0
+        property real keyboardLast: 0
+        onKeyboardNowChanged: if (keyboardNow > 50) keyboardLast = keyboardNow
+        readonly property real keyboard: !above ? 0 : keyboardNow > 50 ? keyboardNow : keyboardLast > 0 ? keyboardLast : Qt.platform.os === "android" ? screen.height * 0.4 : 0
+        readonly property real typingHeight: 170
         x: screen.wide ? screen.width - 360 : screen.leftInset
-        y: screen.wide ? screen.topInset : bottomBar.y - phoneHeight
+        y: screen.wide ? screen.topInset : above ? screen.height - keyboard - typingHeight : bottomBar.y - phoneHeight
         width: screen.wide ? 360 : screen.width - screen.leftInset - screen.rightInset
-        height: screen.wide ? screen.height - screen.topInset - 0 : phoneHeight
+        height: screen.wide ? screen.height - screen.topInset - 0 : above ? typingHeight : phoneHeight
         bottomInset: screen.wide ? screen.bottomInset : 0
         onOpenMacros: macroSheet.open = true
     }

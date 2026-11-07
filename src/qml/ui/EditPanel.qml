@@ -15,11 +15,24 @@ Rectangle {
     readonly property var s: TemplateEditor.sel
     readonly property bool isText: s.kind === "text"
     readonly property bool hasSel: TemplateEditor.hasSelection
+    // the words are being typed: the panel shrinks to the field and the codes and sits above the keyboard (the screen moves it). It does so as
+    // soon as the field has the focus, before the keyboard is up, so that Android has no reason to shift the whole window up
+    readonly property bool typing: textField.activeFocus
+    property bool keyboardSeen: false
+    onTypingChanged: if (!typing) keyboardSeen = false
+    Connections {
+        target: Qt.inputMethod
+        function onVisibleChanged() {
+            if (Qt.inputMethod.visible) panel.keyboardSeen = true
+            else if (panel.keyboardSeen) { panel.keyboardSeen = false; textField.focus = false }   // the keyboard was closed (Back): the typing is over
+        }
+    }
     onIsTextChanged: if (!isText && tab === 0) tab = 1
 
     // the segmented tabs
     Row {
         id: tabs
+        visible: !panel.typing
         x: 16; y: 8; width: parent.width - 32; height: 40
         readonly property var names: panel.isText ? [qsTr("Text"), qsTr("Style"), qsTr("Place")] : [qsTr("Style"), qsTr("Place")]
         Repeater {
@@ -43,7 +56,7 @@ Rectangle {
     }
     Flickable {
         id: body
-        anchors.top: tabs.bottom; anchors.topMargin: 8
+        anchors.top: panel.typing ? parent.top : tabs.bottom; anchors.topMargin: panel.typing ? 4 : 8
         anchors.bottom: parent.bottom; anchors.bottomMargin: panel.bottomInset
         width: parent.width
         contentHeight: Math.max(textTab.height, styleTab.height, placeTab.height) + 16
@@ -61,8 +74,10 @@ Rectangle {
                 x: 16; width: parent.width - 32
                 placeholderText: qsTr("Text")
                 font.pixelSize: Theme.sp(16); color: Theme.surfaceOn; Material.accent: Theme.primary
-                Binding on text { when: !textField.activeFocus; value: panel.s.text !== undefined ? panel.s.text : "" }
+                Binding on text { when: !textField.activeFocus; restoreMode: Binding.RestoreNone; value: panel.s.text !== undefined ? panel.s.text : "" }
                 onTextEdited: TemplateEditor.setProp("text", text)
+                EnterKey.type: Qt.EnterKeyDone
+                onAccepted: { focus = false; Qt.inputMethod.hide() }
                 Accessible.name: qsTr("Text of the item")
             }
             Text { text: qsTr("Insert"); color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(13); leftPadding: 16; topPadding: 6 }
