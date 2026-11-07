@@ -149,7 +149,6 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
   beaconCountdownLabel->hide();
   ui->statusBar->addWidget(beaconCountdownLabel);
   spectrumFramePtr=ui->spectrumFrame;
-  if(uiMode::touch() && !uiMode::qml()) setupTouchShell();   // the Qt Quick shell (src/qml) shows its own screens
 
 
   // setting up pointers
@@ -287,223 +286,6 @@ static void askForNotifications()
   androidRequestNotificationPermission();
 }
 #endif
-
-/*!
-  The shell for a touch screen. The pages (Receive, Transmit, Gallery) are the same widgets as on the desktop, they only get a new
-  frame: large tabs at the bottom, a finger-scrolled page around Receive and Transmit, the spectrum at the top of the Receive page,
-  and a More page with what the menu bar and the status bar's buttons hold. How the pages arrange themselves for a narrow
-  window is in the pages (rxWidget::arrange(), txWidget::arrange()).
-*/
-void mainWindow::setupTouchShell()
-{
-  menuBar()->hide();
-  // the status bar keeps its message line, the frequency and the PTT light; its buttons are on the More page
-  for(QWidget *w:{static_cast<QWidget *>(freqComboBox),static_cast<QWidget *>(wfTextPushButton),static_cast<QWidget *>(idPushButton),
-                  static_cast<QWidget *>(cwPushButton),static_cast<QWidget *>(&pttText)})
-    w->hide();
-
-  QTabWidget *tabs=ui->maintabWidget;
-  // the frequency is in the system's font as well: the status bar is a strip, and a phone on its side has no height to spare
-  QFont statusFont=QApplication::font();
-  statusFont.setBold(true);
-  freqDisplay->setFont(statusFont);
-  freqDisplay->setLineWidth(1);
-  freqDisplay->setMaximumWidth(120);
-  ui->statusBar->setSizeGripEnabled(false);
-
-  // the forms carry a font of their own (a small fixed-pitch one, 8 and 9 pt): the system's font is what a phone reads best
-  ui->rxWindow->setFont(QApplication::font());
-  ui->txWindow->setFont(QApplication::font());
-
-  // Receive: the spectrum on top, the page under it scrolls
-  ui->verticalLayout_2->removeWidget(ui->rxWindow);
-  rxScroll=makeTouchScrollPage2D(ui->rxWindow,ui->rxTab);   // sideways too, should a page ever need more than the screen is wide
-  ui->horizontalLayout->removeWidget(ui->spectrumFrame);
-  ui->spectrumFrame->setMinimumWidth(0);
-  ui->spectrumFrame->setMaximumWidth(QWIDGETSIZE_MAX);
-  ui->spectrumFrame->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
-  ui->spectrumFrame->setFixedHeight(170);
-  ui->verticalLayout_2->addWidget(ui->spectrumFrame);
-  ui->verticalLayout_2->addWidget(rxScroll,1);
-
-  // Transmit
-  ui->verticalLayout_3->removeWidget(ui->txWindow);
-  ui->verticalLayout_3->addWidget(makeTouchScrollPage2D(ui->txWindow,ui->txTab),1);
-
-  // More: the menu bar
-  morePage *more=new morePage(this);
-  more->addHeading(tr("Receive"));
-  more->addButton(tr("Decode a recording..."),[this]{ui->actionDecodeFromFile->trigger();});
-  more->addButton(tr("Save the waterfall picture"),[this]{ui->actionSaveWaterfallImage->trigger();});
-  more->addHeading(tr("Transmit"));
-  more->addButton(tr("Send a test pattern"),[this]{ui->actionTxTestPattern->trigger();});
-  more->addButton(tr("Send the waterfall text"),[this]{wfTextPushButton->click();});
-  more->addButton(tr("Send the waterfall ID"),[this]{idPushButton->click();});
-  more->addButton(tr("Send the CW ID"),[this]{cwPushButton->click();});
-  more->addHeading(tr("Program"));
-  more->addButton(tr("Settings"),[this]{ui->actionConfigure->trigger();});
-  more->addButton(tr("User's Guide"),[this]{ui->actionUsersGuide->trigger();});
-  more->addButton(tr("About"),[this]{ui->actionAboutQSSTV->trigger();});
-  more->addButton(tr("Exit"),[this]{ui->actionExit->trigger();});
-  tabs->addTab(more,tr("More"));
-
-  // the navigation under the pages
-  ui->horizontalLayout->removeWidget(tabs);
-  QWidget *shell=new QWidget(ui->centralwidget);
-  QBoxLayout *column=new QBoxLayout(QBoxLayout::TopToBottom,shell);
-  column->setContentsMargins(0,0,0,0);
-  column->setSpacing(0);
-  nav=new bottomNav(tabs,shell);
-  column->addWidget(tabs,1);
-  column->addWidget(nav);
-  shellLayout=column;
-  ui->horizontalLayout->addWidget(shell);
-  qApp->installEventFilter(this);   // the Back key
-  qApp->installEventFilter(new touchFlick(this));   // a finger scrolls the pages, whatever it starts on
-  arrangePages();
-}
-
-/*!
-  A phone on its side is short (about 400 dp): the navigation moves to the left edge, and on the Receive page the spectrum and the
-  settings stand in a column beside the picture, so the picture keeps the height.
-*/
-void mainWindow::arrangeRail(bool on)
-{
-  if(on==rail || !nav) return;
-  rail=on;
-  nav->setRail(on);
-  shellLayout->removeWidget(nav);
-  shellLayout->insertWidget(on ? 0 : 1,nav);
-  shellLayout->setDirection(on ? QBoxLayout::LeftToRight : QBoxLayout::TopToBottom);
-
-  QBoxLayout *rx=ui->verticalLayout_2;
-  rx->removeWidget(ui->spectrumFrame);
-  rx->removeWidget(rxScroll);
-  if(on)
-    {
-      if(!rxSide)
-        {
-          rxSide=new QWidget(ui->rxTab);
-          QVBoxLayout *sl=new QVBoxLayout(rxSide);
-          sl->setContentsMargins(0,0,0,0);
-          sl->setSpacing(2);
-        }
-      QVBoxLayout *sl=static_cast<QVBoxLayout *>(rxSide->layout());
-      QWidget *settings=ui->rxWindow->takeSettings();
-      settings->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Expanding);   // as wide as the column
-      rxSideScroll=makeTouchScrollPage(settings,rxSide);
-      sl->addWidget(ui->spectrumFrame);
-      sl->addWidget(rxSideScroll,1);
-      ui->spectrumFrame->setFixedHeight(120);
-      rx->setDirection(QBoxLayout::LeftToRight);
-      rx->addWidget(rxScroll,3);
-      rx->addWidget(rxSide,2);
-      rxSide->show();
-    }
-  else
-    {
-      QVBoxLayout *sl=static_cast<QVBoxLayout *>(rxSide->layout());
-      sl->removeWidget(ui->spectrumFrame);
-      sl->removeWidget(rxSideScroll);
-      rxSideScroll->takeWidget();
-      rxSideScroll->deleteLater();
-      rxSideScroll=nullptr;
-      ui->rxWindow->giveBackSettings();
-      rx->removeWidget(rxSide);
-      rxSide->hide();
-      rx->setDirection(QBoxLayout::TopToBottom);
-      ui->spectrumFrame->setFixedHeight(170);
-      rx->addWidget(ui->spectrumFrame);
-      rx->addWidget(rxScroll,1);
-    }
-}
-
-void mainWindow::arrangePages()
-{
-  arrangeRail(width()>height() && height()<480);
-  const int w=uiMode::availableWidth(this)-(rail ? 96 : 0);   // the pages have what the navigation rail leaves
-  const bool narrow=uiMode::narrow(w);
-  ui->rxWindow->arrange(narrow,w);
-  ui->txWindow->arrange(narrow,w);
-}
-
-void mainWindow::goBack()
-{
-  // some phones deliver a Back gesture twice in quick succession (a key press and the system's own callback): the second one
-  // would close what the first one only stepped out of (a Settings section, then the whole of Settings)
-  static QElapsedTimer last;
-  if(last.isValid() && last.elapsed()<250) return;
-  last.restart();
-  QWidget *front=QApplication::activePopupWidget();
-  if(!front) front=QApplication::activeModalWidget();
-  if(!front)
-    {
-      QWidget *w=QApplication::activeWindow();
-      if(w && w!=this) front=w;   // a viewer or another window of its own
-    }
-  if(front)
-    {
-      backAware *levels=dynamic_cast<backAware *>(front);
-      if(!levels || !levels->backPressed())
-        {
-          // reject(), not close(): a message box with no cancel button (About...) ignores being closed
-          if(QDialog *d=qobject_cast<QDialog *>(front)) d->reject();
-          else front->close();
-        }
-    }
-  else if(galleryWidgetPtr && galleryWidgetPtr->leaveSelectMode()) return;   // Select off before anything else
-  else if(ui->maintabWidget->currentIndex()!=0) ui->maintabWidget->setCurrentIndex(0);
-  else platformService::moveToBackground();
-}
-
-//! touch shell: the Back key
-bool mainWindow::eventFilter(QObject *o,QEvent *e)
-{
-  if((e->type()==QEvent::KeyPress || e->type()==QEvent::KeyRelease) && static_cast<QKeyEvent *>(e)->key()==Qt::Key_Back)
-    {
-      // Android's Back key (and gesture): the program never ends by it, it closes what is in front, then goes back to Receive,
-      // then to the background
-      if(e->type()==QEvent::KeyPress && !static_cast<QKeyEvent *>(e)->isAutoRepeat()) goBack();
-      e->accept();
-      return true;
-    }
-  if(e->type()==QEvent::Polish && o->isWidgetType()) prepareTouchWindow(static_cast<QWidget *>(o));
-  if(e->type()==QEvent::Show && o->isWidgetType())
-    {
-      // a maximized window of its own is under the status bar and the navigation bar, like the main window
-      QWidget *w=static_cast<QWidget *>(o);
-      if(w->isWindow() && w->property("touchMaximized").toBool() && w->windowHandle() && !w->property("safeAreaSet").toBool())
-        {
-          w->setProperty("safeAreaSet",true);
-          w->setContentsMargins(w->windowHandle()->safeAreaMargins());
-          connect(w->windowHandle(),&QWindow::safeAreaMarginsChanged,w,[w]{w->setContentsMargins(w->windowHandle()->safeAreaMargins());});
-        }
-    }
-  return QMainWindow::eventFilter(o,e);
-}
-
-void mainWindow::resizeEvent(QResizeEvent *e)
-{
-  QMainWindow::resizeEvent(e);
-  if(uiMode::touch()) arrangePages();
-}
-
-void mainWindow::showEvent(QShowEvent *e)
-{
-  QMainWindow::showEvent(e);
-  if(uiMode::touch() && windowHandle() && !safeAreaConnected)
-    {
-      // Android 15 and later draw an app under the status bar and the navigation bar: keep the content inside what is visible
-      safeAreaConnected=true;
-      connect(windowHandle(),&QWindow::safeAreaMarginsChanged,this,&mainWindow::applySafeArea);
-    }
-  applySafeArea();
-}
-
-void mainWindow::applySafeArea()
-{
-  if(uiMode::touch() && windowHandle()) setContentsMargins(windowHandle()->safeAreaMargins());
-}
 
 void mainWindow::askMicrophone()
 {
@@ -1156,30 +938,6 @@ void mainWindow::slotAboutQSSTV()
     dlg.resize(900,600);
     dlg.exec();
   };
-  if(uiMode::touch())
-    {
-      // Android's own message box ignores the Back key when it has a button of ours, so the About box is a dialog of the program
-      QDialog dlg(this);
-      dlg.setWindowTitle(tr("About..."));
-      QVBoxLayout *lay=new QVBoxLayout(&dlg);
-      QTextBrowser *tb=new QTextBrowser(&dlg);
-      tb->setPlainText(temp);
-      lay->addWidget(tb,1);
-      QHBoxLayout *row=new QHBoxLayout;
-      QPushButton *licButton=new QPushButton(tr("Third-party licenses..."),&dlg);
-      QPushButton *okButton=new QPushButton(tr("OK"),&dlg);
-      bool licenses=false;
-      connect(licButton,&QPushButton::clicked,&dlg,[&dlg,&licenses]{licenses=true;dlg.accept();});
-      connect(okButton,&QPushButton::clicked,&dlg,&QDialog::accept);
-      row->addWidget(licButton);
-      row->addStretch(1);
-      row->addWidget(okButton);
-      lay->addLayout(row);
-      dlg.resize(800,1000);   // the whole screen (prepareTouchWindow)
-      dlg.exec();
-      if(licenses) showLicenses();
-      return;
-    }
   QMessageBox box(QMessageBox::Information,tr("About..."),temp,QMessageBox::Ok,this);
   box.setIconPixmap(QPixmap(":/icons/qsstv.png").scaled(64,64,Qt::KeepAspectRatio,Qt::SmoothTransformation));
   QPushButton *licButton=box.addButton(tr("Third-party licenses..."),QMessageBox::ActionRole);
@@ -1452,12 +1210,6 @@ void mainWindow::slotClearScope()
 
 
 #endif
-
-void mainWindow::showTransmitPage()
-{
-  const int txIdx=ui->maintabWidget->indexOf(ui->txTab);
-  if(ui->maintabWidget->isTabEnabled(txIdx)) ui->maintabWidget->setCurrentIndex(txIdx);
-}
 
 void mainWindow::slotTxTestPattern()
 {

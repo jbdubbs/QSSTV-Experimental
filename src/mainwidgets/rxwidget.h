@@ -25,15 +25,6 @@ class rxWidget : public QWidget
   Q_OBJECT
   
 public:
-  /*!
-    Arrange the page for the width it has been given (touch shell, uimode.h). Narrow: one column, the toolbar over the picture with the
-    two meters beside it, the SSTV/DRM settings under that. Not narrow: the arrangement of the form, picture and settings side by side.
-    Does nothing when the arrangement is already the asked-for one.
-  */
-  void arrange(bool narrow,int availableWidth);
-  //! touch shell, a phone on its side: the settings box is taken out of the page to stand beside it, and given back
-  QWidget *takeSettings();
-  void giveBackSettings();
 
 
   explicit rxWidget(QWidget *parent = 0);
@@ -96,8 +87,6 @@ signals:
 
 private:
   Ui::rxWidget *ui;
-  bool arrangedNarrow=false;
-  QHBoxLayout *narrowRow=nullptr;   //!< the picture and the meters, while arranged narrow
   rxFunctions *rxFunctionsPtr;
   imageViewer *imageViewerPtr;
   void getParams();

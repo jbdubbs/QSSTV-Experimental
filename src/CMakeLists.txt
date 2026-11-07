@@ -29,6 +29,9 @@ endif()
 # The Qt Quick user interface for phones and tablets (src/qml): on for Android, and for a development build on the desktop (run with
 # QSSTV_UI=qml). Off, the Android build keeps the Widgets touch shell.
 option(QSSTV_QML_UI "Build the Qt Quick user interface for phones and tablets (src/qml)" ${ANDROID})
+if(ANDROID AND NOT QSSTV_QML_UI)
+  message(FATAL_ERROR "The Android program has only the Qt Quick interface: build it with QSSTV_QML_UI=ON (the Widgets touch shell is gone)")
+endif()
 if(QSSTV_QML_UI)
   find_package(Qt6 6.9 REQUIRED COMPONENTS Qml Quick QuickControls2)   # 6.9 for the SafeArea attached type
 endif()

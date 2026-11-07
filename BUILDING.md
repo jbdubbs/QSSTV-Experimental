@@ -244,8 +244,10 @@ because macOS's audio decoder does not handle Vorbis.
 An Android build is being developed on the `android-port` branch. It receives and transmits through the phone's own microphone
 and speaker (or a headset or USB audio interface), asks for the microphone permission, keeps receiving with the screen off (a
 foreground service), saves received pictures to the gallery and decodes recordings opened from a file manager ("Open with"). The
-window is a touch layout on a phone or tablet (bottom navigation, Settings as a list of pages; `QSSTV_UI=phone` or `tablet` shows it on
-the desktop). USB serial adapters (Digirig, FTDI, CP210x, CH34x, Prolific, CDC) carry the CAT and PTT lines: the Java library
+screens are Qt Quick (`src/qml`, built with `-DQSSTV_QML_UI=ON`, which is the default on Android and required there): Receive, Transmit and
+Gallery with a bottom navigation, Settings as a list of pages. A desktop build with `-DQSSTV_QML_UI=ON` shows them with `QSSTV_UI=qml`
+(`tests/qmlui` takes screenshots of them). The entries of Settings > Advanced that have no page of their own yet open the classic
+Configuration dialog, laid out for a phone (`QSSTV_UI=phone` or `tablet` shows that on the desktop, `tests/uishots`). USB serial adapters (Digirig, FTDI, CP210x, CH34x, Prolific, CDC) carry the CAT and PTT lines: the Java library
 usb-serial-for-android is bundled (`packaging/android/libs`), Hamlib reaches the rig through a loopback TCP port that
 `CatBridge.java` connects to the adapter, and RTS/DTR PTT is driven by the program itself. The GPS button uses the phone's position
 (Qt Positioning) instead of a serial receiver, and camera pictures are turned and mirrored the way the camera says. It is not

@@ -73,12 +73,7 @@ void openWith::decode(const QString &what)
     {
       // a picture shared to the program, or opened with it: it is what is going to be sent next
       ALOG("a picture to send: %s",qPrintable(local));
-      if(uiMode::qml()) qmlUi::sendPicture(local);
-      else if(txWidgetPtr && mainWindowPtr)
-        {
-          txWidgetPtr->setImage(local);
-          mainWindowPtr->showTransmitPage();
-        }
+      qmlUi::sendPicture(local);
       return;
     }
   if(!fileDecoderPtr) return;

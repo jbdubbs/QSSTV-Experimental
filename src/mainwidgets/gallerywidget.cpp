@@ -23,22 +23,10 @@ galleryWidget::galleryWidget(QWidget *parent) :
   ui->setupUi(this);
   ui->tabWidget->setCurrentIndex(0);
   ui->templateMatrix->setSortFlag(QDir::Name);
-  if(uiMode::touch())
+  // behind the Qt Quick interface this page is never shown (it only holds the pictures' state): the pages are built when asked for, not 96 viewers at the start
+  if(uiMode::qml())
     {
-      // six tabs with scroll arrows are no way to choose on a phone: one box that names the page, and the pages built when asked for
       m_lazy=true;
-      ui->tabWidget->tabBar()->hide();
-      ui->tabWidget->setDocumentMode(true);
-      QComboBox *selector=new QComboBox(this);
-      selector->setObjectName("gallerySelector");
-      for(int i=0;i<ui->tabWidget->count();i++) selector->addItem(ui->tabWidget->tabText(i));
-      ui->verticalLayout->insertWidget(0,selector);
-      connect(selector,QOverload<int>::of(&QComboBox::currentIndexChanged),ui->tabWidget,&QTabWidget::setCurrentIndex);
-      connect(ui->tabWidget,&QTabWidget::currentChanged,this,[selector](int i)
-        {
-          QSignalBlocker block(selector);
-          selector->setCurrentIndex(i);
-        });
       connect(ui->tabWidget,&QTabWidget::currentChanged,this,&galleryWidget::slotTabShown);
     }
 }
@@ -285,9 +273,3 @@ void galleryWidget::txStockImageChanged()
 
 
 
-bool galleryWidget::leaveSelectMode()
-{
-  bool was=false;
-  for(imageMatrix *m:findChildren<imageMatrix *>()) was|=m->leaveSelectMode();
-  return was;
-}

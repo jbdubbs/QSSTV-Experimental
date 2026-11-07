@@ -24,7 +24,6 @@
 #define DRMGRIDWIDTH  640   // canvas of a DRM grid (PD120 size)
 #define DRMGRIDHEIGHT 496
 #include <QLabel>
-#include "uimode.h"
 #include <QThread>
 #include <atomic>
 #include <memory>
@@ -32,14 +31,12 @@
 #include <QEvent>
 #include <QMovie>
 #include <QTimer>
-#include <QElapsedTimer>
-class QTouchEvent;
 
 class QMenu;
 class QAction;
 class jp2IO;
 
-class imageViewer : public QLabel, public flickAware
+class imageViewer : public QLabel
 {
   Q_OBJECT
   /*! thumbnail type */
@@ -138,12 +135,9 @@ protected:
   void keyPressEvent(QKeyEvent *e);
   void wheelEvent(QWheelEvent *e);
   void mouseMoveEvent(QMouseEvent *e);
-  void showContextMenu(const QPoint &pos,const QPoint &globalPos);
   void mouseReleaseEvent(QMouseEvent *e);
   void focusInEvent(QFocusEvent *e);
   void focusOutEvent(QFocusEvent *e);
-  bool event(QEvent *e) override;
-  QString touchFlickMode() const override;   //!< touch screens: pinch to zoom the viewer
   void paintEvent(QPaintEvent *e);
 
 public slots:
@@ -157,7 +151,6 @@ private slots:
   void slotLoad();
   void slotNew();
   void slotUploadFTP();
-  void slotShare();
   void slotProperties();
   void slotCopy();
   void slotPaste();
@@ -213,7 +206,6 @@ private:
   QMenu *toTXMenu;
   QAction *editAct;
   QAction *uploadAct;
-  QAction *shareAct;   // Android: the share sheet; not made elsewhere
   QAction *deleteAct;
   QAction *clearAct;
   QAction *viewAct;
@@ -302,19 +294,6 @@ private:
   QRect view;
   QPoint clickPos;
   QTimer clickTimer;
-public:
-  QRect viewRect() const {return view;}   //!< the part of the picture shown (null: all of it); tests/pinch
-private:
-  void touchView(QTouchEvent *te);
-  QRect pictureRect() const;
-  bool touchPinching=false;     //!< two fingers are down
-  bool touchMoved=false;        //!< the finger moved: not a tap
-  QPointF touchStart,touchLast,pinchAnchor,touchTapPos;
-  QRect pinchView;
-  double pinchDist=1;
-  QElapsedTimer touchClock,touchTapClock;
-  QTimer longPressTimer;        //!< touch screens: a finger held still opens the pop-up menu
-  QPoint longPressPos;
   QTimer framingTimer;
   QImage previewBase;               // last rendered frame shrunk to the window (live DRM zoom/pan preview)
   QVector<double> renderedZoom;     // framing of the last render, per slot

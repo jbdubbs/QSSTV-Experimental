@@ -7,14 +7,13 @@
 class QWidget;
 
 /*!
-  Which user interface the program shows. Two things are decided apart:
+  Which user interface the program shows. The desktop has the Widgets one (menu bar, tabs at the top, the status bar with the operating
+  buttons). Android has the Qt Quick one (src/qml), which is also what QSSTV_UI=qml shows on a desktop built with QSSTV_QML_UI=ON; the
+  Widgets pages are then still built, never shown, because they hold the receiver and transmitter state the Qt Quick screens read.
 
-  - the shell around the pages: the desktop one (menu bar, tabs at the top, the status bar with the operating buttons) or the
-    touch one (no menu bar, large tabs at the bottom with a More page, the spectrum on the Receive page). Android always has the
-    touch shell; every other platform the desktop shell, unless the environment variable QSSTV_UI is "phone" or "tablet", which is how
-    the touch layouts are looked at (and tested, tests/uishots) on the desktop;
-  - how a page arranges itself, from the width it is given: narrow (a phone held upright: one column) or wide (a phone on its
-    side, a tablet, the desktop: the arrangement the pages always had).
+  touch() is also true on Android for the one Widgets window the touch interface still opens: the classic Configuration dialog (the
+  entries of Settings > Advanced that have no page of their own yet), which lists its sections, reflows them for a narrow screen and scrolls
+  with a finger. On the desktop QSSTV_UI=phone or tablet shows the dialog that way (tests/uishots).
 */
 namespace uiMode
 {

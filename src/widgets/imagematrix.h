@@ -8,8 +8,6 @@
 #include <QVBoxLayout>
 #include <QGridLayout>
 #include <QToolButton>
-#include <QPushButton>
-#include <QLabel>
 #include "widgets/imageviewer.h"
 
 
@@ -26,10 +24,6 @@ public:
   QFileInfoList getFileList(){return fileList;}
   QString getLastFile();
   void setSortFlag(QDir::SortFlags sf) {sortFlags=sf;}
-  //! touch shell: Select is on (taps choose pictures instead of opening them)
-  bool selecting() const {return selectMode;}
-  //! touch shell: turns Select off; true when it was on
-  bool leaveSelectMode();
 
 private:
   void getList();
@@ -57,15 +51,6 @@ private:
   int numPages;
   int currentPage;
   QWidget *parentPtr;
-  // touch shell: a Select button in the page row and, while it is on, a bar with what can be done with the pictures chosen
-  bool selectMode=false;
-  QPushButton *selectButton=nullptr;
-  QWidget *selectionBar=nullptr;
-  QLabel *selectionLabel=nullptr;
-  QPushButton *selectAllButton=nullptr;
-  QPushButton *selectToTxButton=nullptr;
-  QPushButton *selectDeleteButton=nullptr;
-  void updateSelectionBar();
   QDir::SortFlags sortFlags;
 
 private slots:
@@ -77,9 +62,6 @@ private slots:
   void slotThumbClicked(imageViewer *iv,Qt::KeyboardModifiers mods);
   void slotDeleteSelected();
   void slotToTxSelected(int seg);
-  void slotSelectToggled(bool on);
-  void slotSelectAll();
-  void slotSelectionToTx();
 
 };
 

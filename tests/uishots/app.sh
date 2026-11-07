@@ -1,7 +1,8 @@
 #!/bin/bash
-# Screenshots and size checks of the real main window in the desktop and touch shells (tests/uishots/shot.cpp).
+# Screenshots of the real main window (desktop) and size checks of every page of the Configuration dialog as the phone shows it, which is
+# the classic settings behind Advanced of the Qt Quick interface (tests/uishots/shot.cpp).
 #   tests/uishots/app.sh [build-dir] [out-dir]        build-dir default build-cmake, out-dir default a new folder under /tmp
-# Prints each page's minimum size and exits 1 if a touch shell's window will not get as narrow as the screen.
+# Prints each page's minimum size and exits 1 if a page of the dialog will not get as narrow as the screen.
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 B=${1:-$HERE/../../build-cmake}
@@ -23,13 +24,13 @@ run() {
   timeout 120 "$SCRATCH/shot" "$SCRATCH/home-$shell-$w" "$OUT" "$shell" "$w" "$h" "$@" || rc=1
 }
 if [ -n "${SIZES:-}" ]; then
-  for spec in $SIZES; do IFS=: read -r shell w h <<< "$spec"; run "$shell" "$w" "$h" rx tx gallery gallerytabs more settings galleryselect overscroll; done
+  for spec in $SIZES; do IFS=: read -r shell w h <<< "$spec"; run "$shell" "$w" "$h" settings; done
 else
   run desktop 900 600 rx tx gallery
-  run phone 411 800 rx tx gallery gallerytabs more settings galleryselect overscroll
-  run phone 360 640 rx tx gallery gallerytabs more settings galleryselect overscroll
-  run phone 850 411 rx tx gallery gallerytabs more settings galleryselect overscroll
-  run tablet 800 1200 rx tx gallery gallerytabs more settings galleryselect overscroll
+  run phone 411 800 settings
+  run phone 360 640 settings
+  run phone 850 411 settings
+  run tablet 800 1200 settings
 fi
 echo "screenshots: $OUT"
 exit $rc

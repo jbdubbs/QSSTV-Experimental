@@ -29,7 +29,6 @@ public:
   void txImageChanged ();
   void txStockImageChanged();
   QString getTemplateFileName(int);
-  bool leaveSelectMode();   //!< touch shell: the Back key turns Select off first; true when it was on
   const QStringList &getFilenames();
 
 public slots:

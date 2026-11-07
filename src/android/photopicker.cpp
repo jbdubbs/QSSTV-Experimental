@@ -29,12 +29,7 @@ static void JNICALL photoPickedNative(JNIEnv *env,jclass,jstring uri)
     {
       const QString local=platformFiles::importPicked(picked);   // the system's grant ends with the activity result: copy it now
       if(local.isEmpty()) return;
-      if(uiMode::qml()) qmlUi::sendPicture(local);
-      else if(txWidgetPtr && mainWindowPtr)
-        {
-          txWidgetPtr->setImage(local);
-          mainWindowPtr->showTransmitPage();
-        }
+      qmlUi::sendPicture(local);
     },Qt::QueuedConnection);
 }
 

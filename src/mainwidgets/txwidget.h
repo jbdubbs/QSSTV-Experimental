@@ -40,12 +40,6 @@ public:
   explicit txWidget(QWidget *parent = 0);
   ~txWidget();
   void init();
-  /*!
-    Arrange the page for the width it has been given (touch shell, uimode.h). Narrow: one column, the toolbar in two rows, then the
-    picture, then the settings and the form under it. Not narrow: the arrangement of the form, picture and settings side by side.
-    Does nothing when the arrangement is already the asked-for one.
-  */
-  void arrange(bool narrow,int availableWidth);
   //! only the tab of mode "busy" stays selectable (-1: all tabs)
   void setModeLock(int busy);
 //  void startTX(bool st, bool check=true);
@@ -171,9 +165,6 @@ signals:
   void beaconCountdownChanged(const QString &text,bool error); //!< status bar text for the running webcam beacon (countdown, or the reason it is not transmitting); empty: not running
 
 private:
-  bool arrangedNarrow=false;
-  bool arrangedGrid=false;
-  QGridLayout *toolGrid=nullptr;   //!< the toolbar in two rows, while arranged narrow
   void convertPosition(int format);
   //! writes the Transmit tab choices as they are (writeSettings() first reads the boxes and re-applies the template)
   void saveSettings();

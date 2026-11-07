@@ -28,22 +28,6 @@ class QPushButton;
 QScrollArea *makeTouchScrollPage(QWidget *content,QWidget *parent=nullptr);
 
 /*!
-  The last tab of the touch shell: what the menu bar holds on the desktop, as a list of large buttons.
-*/
-class morePage : public QScrollArea
-{
-  Q_OBJECT
-public:
-  explicit morePage(QWidget *parent=nullptr);
-  //! a full width button; \a action runs when it is tapped
-  void addButton(const QString &text,const std::function<void()> &action);
-  //! a small heading above the buttons that follow
-  void addHeading(const QString &text);
-private:
-  QVBoxLayout *box;
-};
-
-/*!
   The style of the touch shell: the program's own style (Fusion), with the controls made big enough for a finger (44 dp high,
   indicators of checkboxes and radio buttons 24 dp). A style sheet would do the same but restyles every widget, a proxy style
   only changes sizes.
@@ -148,23 +132,5 @@ void prepareTouchWindow(QWidget *w);
   arrangement for a narrow one yet (a page of Settings).
 */
 QScrollArea *makeTouchScrollPage2D(QWidget *content,QWidget *parent=nullptr);
-
-/*!
-  The bottom navigation of the touch shell: one large button per page of \a tabs, sharing the width equally. The tab bar of the
-  tab widget is hidden; the widget keeps the pages, and the buttons follow it when the page is changed by the program.
-  (A style sheet on a QTabBar stops it from expanding over the width, so the buttons are the bar.)
-*/
-class bottomNav : public QWidget
-{
-  Q_OBJECT
-public:
-  explicit bottomNav(QTabWidget *tabs,QWidget *parent=nullptr);
-  //! a column of buttons for the side of the window (a phone on its side has no height to spare) instead of a row
-  void setRail(bool rail);
-private:
-  QHBoxLayout *row;
-  QList<QPushButton *> buttons;
-  static QString styleSheet(bool rail);
-};
 
 #endif // TOUCHPAGE_H
