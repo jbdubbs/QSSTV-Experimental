@@ -6,6 +6,8 @@
 #include "sstvparam.h"
 #include "txfunctions.h"
 #include "txwidget.h"
+#include "gallerywidget.h"
+#include "thumbnailprovider.h"
 #include "dispatcher.h"
 #include "waterfalltext.h"
 #ifdef Q_OS_ANDROID
@@ -443,16 +445,58 @@ void TxController::showPictures(const QStringList &files)
   AppModel::instance()->setScreen(1);
 }
 
-void TxController::useTemplateFile(const QString &file)
+static QComboBox *templateBox()
+{
+  return txWidgetPtr ? txWidgetPtr->findChild<QComboBox *>(QStringLiteral("templatesComboBox")) : nullptr;
+}
+
+QString TxController::templateName() const
+{
+  const QComboBox *b=templateBox();
+  return b ? b->currentText() : QString();
+}
+
+QString TxController::templateFile() const
+{
+  const QComboBox *b=templateBox();
+  return (b && galleryWidgetPtr && b->currentIndex()>=0) ? galleryWidgetPtr->getTemplateFileName(b->currentIndex()) : QString();
+}
+
+QVariantList TxController::templates() const
+{
+  QVariantList l;
+  if(!galleryWidgetPtr) return l;
+  const QString current=templateFile();
+  const int n=galleryWidgetPtr->getFilenames().count();
+  for(int i=0;i<n;i++)
+    {
+      const QString path=galleryWidgetPtr->getTemplateFileName(i);
+      if(path.isEmpty()) continue;
+      QVariantMap m;
+      m["name"]=QFileInfo(path).completeBaseName();
+      m["path"]=path;
+      m["thumb"]=QStringLiteral("image://thumb/")+ThumbnailProvider::idFor(path);
+      m["current"]=(path==current);
+      l.append(m);
+    }
+  return l;
+}
+
+void TxController::chooseTemplate(const QString &file)
 {
   if(!txWidgetPtr) return;
-  if(QComboBox *b=txWidgetPtr->findChild<QComboBox *>(QStringLiteral("templatesComboBox")))
+  if(QComboBox *b=templateBox())
     {
       const QString name=QFileInfo(file).completeBaseName();
       for(int i=0;i<b->count();i++)
         if(b->itemText(i)==name) {b->setCurrentIndex(i); break;}
     }
-  setUseTemplate(true);
+  setUseTemplate(true);   // the choice of a template is the wish to have one on the picture
+}
+
+void TxController::useTemplateFile(const QString &file)
+{
+  chooseTemplate(file);
   AppModel::instance()->setScreen(1);
 }
 

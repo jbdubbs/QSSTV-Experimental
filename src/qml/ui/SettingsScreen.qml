@@ -144,7 +144,7 @@ Rectangle {
             PreferenceRow { icon: Icons.mic; title: qsTr("CW and waterfall identification"); summary: qsTr("Text, speed, tone"); chevron: true; onClicked: screen.page = 8 }
             PreferenceRow { icon: Icons.pin; title: qsTr("Frequencies"); summary: qsTr("SSTV and DRM calling frequencies"); chevron: true; onClicked: SettingsController.openClassic() }
             PreferenceRow { icon: Icons.volume; title: qsTr("Calibration"); summary: qsTr("Sound card clock: NTP or WWV"); chevron: true; onClicked: SettingsController.openClassic() }
-            PreferenceRow { icon: Icons.image; title: qsTr("Templates"); summary: qsTr("The overlays used on your pictures"); chevron: true; onClicked: SettingsController.openClassic() }
+            PreferenceRow { icon: Icons.image; title: qsTr("Templates"); summary: qsTr("Change them or make new ones in the Gallery"); chevron: true; onClicked: { AppModel.settingsOpen = false; GalleryModel.tab = 2; AppModel.screen = 2 } }
             PreferenceRow { icon: Icons.info; title: qsTr("Classic settings"); summary: qsTr("Every option on one list"); chevron: true; onClicked: SettingsController.openClassic() }
         }
 

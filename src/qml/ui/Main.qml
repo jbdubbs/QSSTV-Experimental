@@ -209,6 +209,7 @@ ApplicationWindow {
             else if (transmit.modesOpen) transmit.modesOpen = false
             else if (transmit.digitalOpen) transmit.digitalOpen = false
             else if (transmit.toolsOpen) transmit.toolsOpen = false
+            else if (transmit.templatesOpen) transmit.templatesOpen = false
             else if (about.open) about.open = false
             else if (transmit.detailsOpen) transmit.detailsOpen = false
             else if (AppModel.screen !== 0) AppModel.screen = 0

@@ -6,6 +6,7 @@ import QSSTV
 Column {
     id: block
     signal openDetails()
+    signal openTemplates()
     signal openModes()
     signal openDigital()
     spacing: 4
@@ -38,6 +39,31 @@ Column {
             onToggled: TxController.useTemplate = checked
             Accessible.name: qsTr("Put my details on the picture")
         }
+    }
+
+    // which template: the sheet lists them, changes this one or begins a new one
+    Item {
+        width: parent.width
+        height: Math.max(56, tplCol.implicitHeight + 16)
+        Column {
+            id: tplCol
+            anchors.left: parent.left; anchors.leftMargin: 24
+            anchors.right: tplChevron.left; anchors.rightMargin: 12
+            anchors.verticalCenter: parent.verticalCenter
+            Text { text: qsTr("Template"); color: Theme.surfaceOn; font.pixelSize: Theme.sp(16); width: parent.width; wrapMode: Text.WordWrap }
+            Text {
+                text: TxController.templateName !== "" ? TxController.templateName : qsTr("None yet. Tap to make one")
+                color: Theme.surfaceVariantOn
+                font.pixelSize: Theme.sp(13)
+                width: parent.width
+                elide: Text.ElideRight
+            }
+        }
+        Icon { id: tplChevron; path: Icons.chevron; color: Theme.outline; anchors.right: parent.right; anchors.rightMargin: 20; anchors.verticalCenter: parent.verticalCenter }
+        TapHandler { margin: Theme.tapMargin(parent); onTapped: block.openTemplates() }
+        Accessible.role: Accessible.Button
+        Accessible.name: qsTr("Template") + ", " + (TxController.templateName !== "" ? TxController.templateName : qsTr("none yet"))
+        Accessible.onPressAction: { block.openTemplates() }
     }
 
     // analog: the mode, what it takes

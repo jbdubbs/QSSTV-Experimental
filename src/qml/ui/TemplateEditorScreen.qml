@@ -100,7 +100,7 @@ Rectangle {
         }
         Column {
             x: 56; width: parent.width - 56 - 3 * Theme.tap - 8; anchors.verticalCenter: parent.verticalCenter
-            Text { width: parent.width; text: TemplateEditor.isNew ? qsTr("New template") : TemplateEditor.name; color: Theme.surfaceOn; font.pixelSize: Theme.sp(17); font.weight: Font.Medium; elide: Text.ElideRight; Accessible.role: Accessible.Heading }
+            Text { width: parent.width; text: TemplateEditor.isNew ? qsTr("New template") : TemplateEditor.name; color: Theme.surfaceOn; font.pixelSize: Theme.sp(screen.width < 340 ? 15 : 17); font.weight: Font.Medium; elide: Text.ElideRight; Accessible.role: Accessible.Heading }
             Text { width: parent.width; text: TemplateEditor.isNew ? qsTr("Not saved yet") : TemplateEditor.dirty ? qsTr("Edited") : qsTr("Saved"); color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(12) }
         }
         Row {

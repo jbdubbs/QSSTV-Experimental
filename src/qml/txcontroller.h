@@ -34,6 +34,8 @@ class TxController : public QObject
   Q_PROPERTY(QString totalText READ totalText NOTIFY progressChanged)            //!< what the whole transmission takes
   Q_PROPERTY(QString toolName READ toolName NOTIFY toolChanged)                  //!< while a tone, text or CW is sent: what it is; empty for a picture
   Q_PROPERTY(bool useTemplate READ useTemplateOn WRITE setUseTemplate NOTIFY detailsChanged)
+  Q_PROPERTY(QString templateName READ templateName NOTIFY detailsChanged)   //!< the template that goes on the picture; empty when there is none
+  Q_PROPERTY(QString templateFile READ templateFile NOTIFY detailsChanged)   //!< its file
   Q_PROPERTY(QString toCall READ toCall WRITE setToCall NOTIFY detailsChanged)
   Q_PROPERTY(QString toOperator READ toOperator WRITE setToOperator NOTIFY detailsChanged)
   Q_PROPERTY(QString report READ report WRITE setReport NOTIFY detailsChanged)
@@ -68,6 +70,8 @@ public:
   QString totalText() const;
   QString toolName() const {return m_toolName;}
   bool useTemplateOn() const;
+  QString templateName() const;
+  QString templateFile() const;
   void setUseTemplate(bool on);
   QString toCall() const;
   void setToCall(const QString &s);
@@ -117,6 +121,9 @@ public:
   Q_INVOKABLE void showPictures(const QStringList &files);
   //! a template from the gallery: it is the one put on the picture, and the Transmit screen shows
   Q_INVOKABLE void useTemplateFile(const QString &file);
+  //! the templates there are, [{name, path, thumb, current}], and the choice of one (the Transmit screen stays)
+  Q_INVOKABLE QVariantList templates() const;
+  Q_INVOKABLE void chooseTemplate(const QString &file);
   Q_INVOKABLE void send();
   Q_INVOKABLE void stop();
 

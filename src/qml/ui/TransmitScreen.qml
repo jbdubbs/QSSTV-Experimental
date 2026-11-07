@@ -10,6 +10,7 @@ Item {
     property alias modesOpen: modes.open
     property alias digitalOpen: digital.open
     property alias toolsOpen: tools.open
+    property alias templatesOpen: templates.open
 
     ModeStrip {
         id: strip
@@ -51,7 +52,7 @@ Item {
                 width: parent.width
                 spacing: 4
                 TxPictureBlock { width: parent.width; maxCanvasHeight: body.height * 0.4 }
-                TxOptionsBlock { width: parent.width; onOpenDetails: details.open = true; onOpenModes: modes.open = true; onOpenDigital: digital.open = true }
+                TxOptionsBlock { width: parent.width; onOpenDetails: details.open = true; onOpenTemplates: templates.open = true; onOpenModes: modes.open = true; onOpenDigital: digital.open = true }
             }
         }
         Item {
@@ -65,7 +66,7 @@ Item {
                 contentHeight: wideOptions.height
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
-                TxOptionsBlock { id: wideOptions; width: parent.width; onOpenDetails: details.open = true; onOpenModes: modes.open = true; onOpenDigital: digital.open = true }
+                TxOptionsBlock { id: wideOptions; width: parent.width; onOpenDetails: details.open = true; onOpenTemplates: templates.open = true; onOpenModes: modes.open = true; onOpenDigital: digital.open = true }
             }
         }
     }
@@ -73,4 +74,6 @@ Item {
     DrmSheet { id: digital }
     ToolsSheet { id: tools }
     DetailsSheet { id: details }
+    TemplateSheet { id: templates; onNewTemplate: starters.open = true }
+    StartersSheet { id: starters }
 }

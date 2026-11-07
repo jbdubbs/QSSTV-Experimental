@@ -197,7 +197,7 @@ int main(int argc, char **argv)
       win->setProperty("aboutOpen", false);
       for (const char *screenName : {"receiveScreen", "transmitScreen"})
         if (QQuickItem *s = findItem(win->contentItem(), screenName))
-          for (const char *prop : {"optionsOpen", "modesOpen", "detailsOpen", "digitalOpen", "toolsOpen", "open"})
+          for (const char *prop : {"optionsOpen", "modesOpen", "detailsOpen", "digitalOpen", "toolsOpen", "templatesOpen", "open"})
             if (s->property(prop).isValid()) s->setProperty(prop, false);
       TxController::instance()->setTestSending(-1);
       if (QQuickItem *v = findItem(win->contentItem(), "viewerScreen")) v->setProperty("infoOpen", false);
@@ -321,11 +321,12 @@ int main(int argc, char **argv)
           if (t) t->setProperty("digitalOpen", true);
           QTest::qWait(500);
         }
-      if (scene == "tx-modes" || scene == "tx-details")
+      if (scene == "tx-template") {txWidgetPtr->setupTemplatesComboBox(); QTest::qWait(500);}
+      if (scene == "tx-modes" || scene == "tx-details" || scene == "tx-template")
         {
           QQuickItem *t = findItem(content, "transmitScreen");
           if (!t) fprintf(stderr, "no transmitScreen item\n");
-          else if (!t->setProperty(scene == "tx-modes" ? "modesOpen" : "detailsOpen", true)) fprintf(stderr, "cannot set the sheet property\n");
+          else if (!t->setProperty(scene == "tx-modes" ? "modesOpen" : scene == "tx-template" ? "templatesOpen" : "detailsOpen", true)) fprintf(stderr, "cannot set the sheet property\n");
           QTest::qWait(500);
         }
       if (scene == "options")

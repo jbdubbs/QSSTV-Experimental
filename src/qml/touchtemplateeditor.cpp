@@ -4,6 +4,9 @@
 #include "templatepresets.h"
 #include "templatevars.h"
 #include "txcontroller.h"
+#include "txwidget.h"
+#include "gallerywidget.h"
+#include "imageviewer.h"
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -185,6 +188,10 @@ bool TouchTemplateEditor::save(const QString &name)
   m_doc.markSaved();
   emit fileChanged();
   emit dirtyChanged();
+  // as dispatcher::slotTemplateSaved: the gallery and the template list of the Transmit page (and its picture) follow
+  if(galleryWidgetPtr) galleryWidgetPtr->changedMatrix(imageViewer::TEMPLATETHUMB);
+  if(txWidgetPtr) txWidgetPtr->setupTemplatesComboBox();
+  emit TxController::instance()->detailsChanged();
   return true;
 }
 
