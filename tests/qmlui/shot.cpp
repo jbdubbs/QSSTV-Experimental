@@ -21,6 +21,7 @@
 #include "rxcontroller.h"
 #include "txcontroller.h"
 #include "txwidget.h"
+#include "sstvparam.h"
 #include "imageviewer.h"
 #include "rxwidget.h"
 #include "spectrumwidget.h"
@@ -255,6 +256,23 @@ int main(int argc, char **argv)
             }
           if (scene == "tx-sending") tx->setTestSending(0.38);
           if (scene == "tx-sending-tool") tx->setTestSending(0.4, "Test tone, 1000 Hz", 5);
+          if (scene == "tx-mode")
+            {
+              // a mode chosen on the page (a chip, or a row of "All modes") takes effect at once (#170): the page's own combo box emits
+              // no activated() for a change made in code, so the controller has to run what a choice there does
+              const int from = tx->mode(), to = from == int(PD120) ? int(R36) : int(PD120);
+              const QString timeBefore = tx->timeText();
+              QSignalSpy changed(tx, &TxController::modeChanged);
+              tx->setMode(to);
+              auto fail = [&](const char *what) {fprintf(stderr, "FAIL: tx-mode: %s\n", what); exitCode = 1;};
+              if (int(sstvModeIndexTx) != to) fail("the page's mode is still the old one");
+              if (tx->mode() != to) fail("the controller's mode is still the old one");
+              if (tx->modeName() != QString(SSTVTable[to].name)) fail("the mode name is not the new mode's");
+              if (changed.isEmpty()) fail("no modeChanged");
+              if (tx->timeText().isEmpty() || tx->timeText() == timeBefore) fail("the time of the new mode was not worked out");
+              printf("  mode  %d -> %d, time \"%s\" -> \"%s\"\n", from, to, qPrintable(timeBefore), qPrintable(tx->timeText()));
+              QTest::qWait(300);
+            }
         }
       else if (scene.startsWith("settings"))
         {

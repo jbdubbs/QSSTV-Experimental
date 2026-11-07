@@ -74,8 +74,10 @@ int TxController::mode() const {return int(sstvModeIndexTx);}
 void TxController::setMode(int m)
 {
   if(m<0 || m>=NUMSSTVMODES || !txWidgetPtr) return;
-  // the page's own combo box: it does what a choice there does (the grid control, the template, the saving)
+  // the page's own combo box, then what a choice there does (the grid control, the template, the time, the saving): the box emits no
+  // activated() for a change made in code, so the page's slot is run here, as for the DRM profile (#170)
   if(QComboBox *box=txWidgetPtr->findChild<QComboBox *>(QStringLiteral("sstvModeComboBox"))) box->setCurrentIndex(m);
+  QMetaObject::invokeMethod(txWidgetPtr,"slotModeChanged",Q_ARG(int,m));
   m_cachedMode=int(sstvModeIndexTx);
   emit modeChanged();
   emit timeChanged();
