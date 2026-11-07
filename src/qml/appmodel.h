@@ -61,6 +61,8 @@ public:
   Q_INVOKABLE void refreshVolume();
   //! a short vibration (0 a tick, 1 a confirmation, 2 a refusal), where the phone has one
   Q_INVOKABLE void haptic(int kind);
+  //! the icons of the system bars: dark ones where the screen under them is light
+  Q_INVOKABLE void systemBarIcons(bool dark);
   //! the screen stays on (true) while a picture is sent
   Q_INVOKABLE void keepScreenOn(bool on);
   //! the system's settings of this app (permissions): where a refused permission is allowed again

@@ -76,6 +76,12 @@ void androidKeepScreenOn(bool on)
   if(ctx.isValid()) QJniObject::callStaticMethod<void>(helper,"keepScreenOn","(Landroid/content/Context;Z)V",ctx.object<jobject>(),jboolean(on));
 }
 
+void androidDarkSystemBarIcons(bool dark)
+{
+  const QJniObject ctx=context();
+  if(ctx.isValid()) QJniObject::callStaticMethod<void>(helper,"darkSystemBarIcons","(Landroid/content/Context;Z)V",ctx.object<jobject>(),jboolean(dark));
+}
+
 void androidHaptic(int kind)
 {
   const QJniObject ctx=context();

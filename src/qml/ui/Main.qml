@@ -26,6 +26,10 @@ ApplicationWindow {
         id: root
         anchors.fill: parent
         readonly property var inset: SafeArea.margins
+        // the bars' icons are dark on a light screen and light on a dark one; the viewer, the camera and the sending page are black
+        readonly property bool darkBarIcons: !Theme.dark && GalleryModel.viewerIndex < 0 && !TxController.cameraOpen
+        onDarkBarIconsChanged: AppModel.systemBarIcons(darkBarIcons)
+        Component.onCompleted: AppModel.systemBarIcons(darkBarIcons)
         // a screen of its own is in front of the others (settings, the viewer, the camera, sending ...): what is behind it is hidden, so that the
         // screen reader does not read it (Accessible.ignored does not reach the children) and nothing is drawn for nothing
         readonly property bool covered: AppModel.settingsOpen || AppModel.firstRun || GalleryModel.viewerIndex >= 0 || TxController.cameraOpen || TxController.sending

@@ -108,6 +108,30 @@ public class AudioHelper
         });
     }
 
+    /** The icons of the status bar and the navigation bar: dark ones (true) for a light screen, light ones (false) for a dark one, as a picture on black needs */
+    @SuppressWarnings("deprecation")
+    public static void darkSystemBarIcons(Context context, final boolean dark)
+    {
+        if (!(context instanceof Activity)) return;
+        final Activity activity = (Activity) context;
+        activity.runOnUiThread(() -> {
+            if (Build.VERSION.SDK_INT >= 30)
+            {
+                android.view.WindowInsetsController c = activity.getWindow().getInsetsController();
+                if (c == null) return;
+                int mask = android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                c.setSystemBarsAppearance(dark ? mask : 0, mask);
+            }
+            else
+            {
+                android.view.View decor = activity.getWindow().getDecorView();
+                int f = decor.getSystemUiVisibility();
+                int light = android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+                decor.setSystemUiVisibility(dark ? (f | light) : (f & ~light));
+            }
+        });
+    }
+
     /** A short vibration of the screen's own kind: 0 a tick (a choice was made), 1 a confirmation (it started, it was saved), 2 a refusal */
     public static void haptic(Context context, final int kind)
     {

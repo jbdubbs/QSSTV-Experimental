@@ -165,6 +165,15 @@ void AppModel::openAppSettings()
 #endif
 }
 
+void AppModel::systemBarIcons(bool dark)
+{
+#ifdef Q_OS_ANDROID
+  androidDarkSystemBarIcons(dark);
+#else
+  Q_UNUSED(dark)
+#endif
+}
+
 void AppModel::haptic(int kind)
 {
 #ifdef Q_OS_ANDROID
