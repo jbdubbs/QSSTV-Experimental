@@ -733,7 +733,10 @@ void mainWindow::writeSettings()
   galleryWidgetPtr->writeSettings();
   rxWidgetPtr->writeSettings();
   txWidgetPtr->writeSettings();
-  configDialogPtr->writeSettings();
+  // The Qt Quick settings pages keep every change in the settings file themselves. The classic pages are alive but hidden then, and what they
+  // would write back are the values their fields had when they were last read (a call sign set on the phone was forgotten at the next start).
+  // The classic dialog saves what it changed when it is closed with OK (configDialog::exec), so nothing is lost here.
+  if(!uiMode::qml()) configDialogPtr->writeSettings();
   qSettings.endGroup();
   ui->spectrumFrame->writeSettings();
 }
