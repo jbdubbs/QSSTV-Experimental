@@ -72,6 +72,7 @@ ApplicationWindow {
                 routeText: AppModel.routeText
                 entries: root.menuEntries
                 onEntryTriggered: (id) => root.menu(id)
+                onRouteClicked: { AppModel.settingsOpen = true; Qt.callLater(function() { settings.page = 5 }) }   // the route chip: where the sound goes, and how to change it
                 actions: [
                     Item {
                         visible: AppModel.screen === 0
