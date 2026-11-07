@@ -16,6 +16,9 @@ class widgetWindows : public QObject
 public:
   explicit widgetWindows(QObject *parent=nullptr) : QObject(parent) {}
   bool eventFilter(QObject *o,QEvent *e) override;
+  //! Back was pressed (the key, or the callback of Android 13 and later, which brings no key event): a Widgets window in front takes it
+  //! (closes, or goes one level up); false when there is none and the Qt Quick window is to handle it
+  static bool back();
 };
 
 #endif // WIDGETWINDOWS_H

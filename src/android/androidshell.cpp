@@ -3,6 +3,7 @@
 #include "appglobal.h"
 #include "qml/appmodel.h"
 #include "qmlui.h"
+#include "widgetwindows.h"
 
 #include <QCoreApplication>
 #include <QJniEnvironment>
@@ -19,7 +20,8 @@ static const char *serviceClass="io/github/jbdubbs/qsstv_experimental/RxService"
 // MainActivity: the system's Back arrived (the Android UI thread)
 static void JNICALL backInvokedNative(JNIEnv *,jclass)
 {
-  QMetaObject::invokeMethod(qApp,[] {emit AppModel::instance()->backInvoked();},Qt::QueuedConnection);
+  // a Widgets window over the Qt Quick one (the classic settings, a message box, the camera dialog) takes Back first
+  QMetaObject::invokeMethod(qApp,[] {if(!widgetWindows::back()) emit AppModel::instance()->backInvoked();},Qt::QueuedConnection);
 }
 
 // RxService: the Stop button of the notification (the Android UI thread)
