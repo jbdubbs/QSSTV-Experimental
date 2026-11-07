@@ -12,8 +12,10 @@ Rectangle {
     z: 45
     property real topInset: 0
     property real bottomInset: 0
-    property int page: 0          // 0 overview, 1 operator, 2 pictures, 3 position, 4 advanced, 5 audio and radio, 6 the radio list, 7 receive, 8 identification
+    property int page: 0          // 0 overview, 1 operator, 2 pictures, 3 position, 4 advanced, 5 audio and radio, 6 the radio list, 7 receive, 8 identification,
+                                  // 9 calibration, 10 internet time, 11 radio time signal, 12 another SSTV station
     onPageChanged: {
+        if (page < 10 || page > 12) Calibration.leave()   // a measurement ends with its page, and the receiver listens again
         if (page === 5) SettingsController.rescanAdapters()   // an adapter may have been plugged in
         if (page !== 6) { search.text = ""; search.focus = false; Qt.inputMethod.hide() }   // the radio search is over
     }
@@ -24,7 +26,9 @@ Rectangle {
     // Back: one level up; true when the settings were showing
     function goBack() {
         if (!AppModel.settingsOpen) return false
-        if (formatDialog.open) formatDialog.open = false
+        if (calOverview.dialogOpen) calOverview.closeDialog()
+        else if (calSstv.dialogOpen) calSstv.closeDialog()
+        else if (formatDialog.open) formatDialog.open = false
         else if (coordDialog.open) coordDialog.open = false
         else if (micDialog.open) micDialog.open = false
         else if (speakerDialog.open) speakerDialog.open = false
@@ -34,12 +38,13 @@ Rectangle {
         else if (baudDialog.open) baudDialog.open = false
         else if (sensitivityDialog.open) sensitivityDialog.open = false
         else if (page === 6) page = 5
-        else if (page === 7 || page === 8) page = 4
+        else if (page === 7 || page === 8 || page === 9) page = 4
+        else if (page >= 10 && page <= 12) page = 9
         else if (page !== 0) page = 0
         else close()
         return true
     }
-    onVisibleChanged: { formatDialog.open = false; coordDialog.open = false; micDialog.open = false; speakerDialog.open = false; presetDialog.open = false; adapterDialog.open = false; pttDialog.open = false; baudDialog.open = false; sensitivityDialog.open = false; if (visible) page = 0 }
+    onVisibleChanged: { formatDialog.open = false; coordDialog.open = false; micDialog.open = false; speakerDialog.open = false; presetDialog.open = false; adapterDialog.open = false; pttDialog.open = false; baudDialog.open = false; sensitivityDialog.open = false; if (visible) page = 0; else Calibration.leave() }
     function openFormat() { formatDialog.open = true }   // the screenshots
     function openMic() { presetDialog.open = true }
 
@@ -143,7 +148,7 @@ Rectangle {
             PreferenceRow { icon: Icons.send; title: qsTr("Digital (DRM) profiles"); summary: qsTr("Saved settings for digital pictures"); chevron: true; onClicked: SettingsController.openClassic() }
             PreferenceRow { icon: Icons.mic; title: qsTr("CW and waterfall identification"); summary: qsTr("Text, speed, tone"); chevron: true; onClicked: screen.page = 8 }
             PreferenceRow { icon: Icons.pin; title: qsTr("Frequencies"); summary: qsTr("SSTV and DRM calling frequencies"); chevron: true; onClicked: SettingsController.openClassic() }
-            PreferenceRow { icon: Icons.volume; title: qsTr("Calibration"); summary: qsTr("Sound card clock: NTP or WWV"); chevron: true; onClicked: SettingsController.openClassic() }
+            PreferenceRow { icon: Icons.volume; title: qsTr("Calibration"); summary: Calibration.summary; chevron: true; onClicked: screen.page = 9 }
             PreferenceRow { icon: Icons.image; title: qsTr("Templates"); summary: qsTr("Change them or make new ones in the Gallery"); chevron: true; onClicked: { AppModel.settingsOpen = false; GalleryModel.tab = 2; AppModel.screen = 2 } }
             PreferenceRow { icon: Icons.info; title: qsTr("Classic settings"); summary: qsTr("Every option on one list"); chevron: true; onClicked: SettingsController.openClassic() }
         }
@@ -370,6 +375,30 @@ Rectangle {
                     onCommitted: (t) => SettingsController.setWaterfallText(modelData.key, t)
                 }
             }
+        }
+
+        // ---- calibration of the sound clock ----
+        CalibrationOverviewPage {
+            id: calOverview
+            objectName: "calibrationOverview"
+            topInset: screen.topInset; bottomInset: screen.bottomInset
+            onBack: screen.page = 4
+            onChoose: (m) => { Calibration.open(m); screen.page = 9 + m }
+        }
+        CalibrationNtpPage {
+            topInset: screen.topInset; bottomInset: screen.bottomInset
+            onBack: screen.page = 9
+            onSaved: screen.page = 9
+        }
+        CalibrationWwvPage {
+            topInset: screen.topInset; bottomInset: screen.bottomInset
+            onBack: screen.page = 9
+            onSaved: screen.page = 9
+        }
+        CalibrationSstvPage {
+            id: calSstv
+            topInset: screen.topInset; bottomInset: screen.bottomInset
+            onBack: screen.page = 9
         }
     }
 

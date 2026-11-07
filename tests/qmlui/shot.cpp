@@ -27,6 +27,8 @@
 #include "gallerymodel.h"
 #include "settingscontroller.h"
 #include "touchtemplateeditor.h"
+#include "calibrationcontroller.h"
+#include "soundconfig.h"
 #include "directoriesconfig.h"
 
 static QQuickWindow *theWindow()
@@ -203,6 +205,9 @@ int main(int argc, char **argv)
       if (QQuickItem *v = findItem(win->contentItem(), "viewerScreen")) v->setProperty("infoOpen", false);
       GalleryModel::instance()->closeViewer();
       if (TouchTemplateEditor::instance()->isOpen()) TouchTemplateEditor::instance()->close();
+      CalibrationController::instance()->leave();
+      rxClock = txClock = BASESAMPLERATE;
+      {QSettings qs; qs.remove("Calibration/when"); qs.remove("Calibration/how"); qs.remove("Calibration/device");}
       AppModel::instance()->setSettingsOpen(false);
       AppModel::instance()->setMicDenied(scene == "mic-denied");
       AppModel::instance()->setFirstRun(scene.startsWith("firstrun"));
@@ -249,6 +254,30 @@ int main(int argc, char **argv)
           if (st) st->setProperty("page", page);
           if (scene == "settings-format" && st) QMetaObject::invokeMethod(st, "openFormat");
           if (scene == "settings-mic" && st) QMetaObject::invokeMethod(st, "openMic");
+        }
+      else if (scene.startsWith("cal-"))
+        {
+          // the calibration pages: no sound device and no network here, the page is shown in a state of the controller
+          CalibrationController *cal = CalibrationController::instance();
+          AppModel::instance()->setSettingsOpen(true);
+          QQuickItem *st = findItem(win->contentItem(), "settingsScreen");
+          if (scene == "cal-overview-done" || scene == "cal-reset")
+            {
+              rxClock = txClock = BASESAMPLERATE * (1.0 + 12.9e-6);
+              QSettings qs;
+              qs.setValue("Calibration/when", QDate(2026, 11, 7).toString(Qt::ISODate));
+              qs.setValue("Calibration/how", 1);
+              qs.setValue("Calibration/device", QStringLiteral("phone microphone and speaker"));
+              emit cal->clocksChanged();
+            }
+          emit cal->clocksChanged();
+          int page = 9, method = 0, phase = 0;
+          if (scene.startsWith("cal-ntp")) {page = 10; method = 1; phase = scene == "cal-ntp-early" ? 1 : scene == "cal-ntp-good" ? 2 : scene == "cal-ntp-problem" ? 3 : 0;}
+          else if (scene.startsWith("cal-wwv")) {page = 11; method = 2; phase = scene == "cal-wwv-measuring" ? 2 : 0;}
+          else if (scene.startsWith("cal-sstv")) {page = 12; method = 3; cal->setSstvRole(scene.startsWith("cal-sstv-send") ? 1 : 0); phase = scene == "cal-sstv-got" ? 2 : scene == "cal-sstv-sending" ? 1 : 0;}
+          if (st) st->setProperty("page", page);
+          if (method) cal->setTestState(method, phase);
+          if (scene == "cal-reset" && st) {QTest::qWait(300); if (QQuickItem *ov = findItem(win->contentItem(), "calibrationOverview")) QMetaObject::invokeMethod(ov, "openReset");}
         }
       else if (scene.startsWith("tpl-"))
         {

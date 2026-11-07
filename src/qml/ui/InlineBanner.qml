@@ -6,6 +6,7 @@ Rectangle {
     property string text
     property string actionText
     property bool warning: true
+    property string icon: Icons.warning
     signal action()
     implicitHeight: Math.max(56, content.implicitHeight + 20)
     radius: 12
@@ -14,7 +15,7 @@ Rectangle {
         id: content
         anchors.fill: parent; anchors.margins: 10; anchors.leftMargin: 14
         spacing: 12
-        Icon { anchors.verticalCenter: parent.verticalCenter; path: Icons.warning; color: Theme.warn }
+        Icon { anchors.verticalCenter: parent.verticalCenter; path: banner.icon; color: banner.warning ? Theme.warn : Theme.surfaceVariantOn }
         Text {
             width: parent.width - 24 - 12 - (actionLabel.visible ? actionLabel.width + 12 : 0)
             anchors.verticalCenter: parent.verticalCenter
@@ -32,6 +33,6 @@ Rectangle {
             Accessible.name: banner.actionText
         }
     }
-    Accessible.role: Accessible.AlertMessage
+    Accessible.role: warning ? Accessible.AlertMessage : Accessible.StaticText
     Accessible.name: text
 }

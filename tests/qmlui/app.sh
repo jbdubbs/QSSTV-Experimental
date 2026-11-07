@@ -21,12 +21,12 @@ run() {   # theme width height scenes...
   mkdir -p "$SCRATCH/home-$theme-$w"
   QSSTV_QML_THEME=$theme timeout 120 "$SCRATCH/shot" "$SCRATCH/home-$theme-$w" "$OUT/$theme" "$w" "$h" "$@" || rc=1
 }
-SCENES=${QMLUI_SCENES:-"idle receiving options digital stopped quiet tx tx-picture tx-modes tx-details tx-template tx-digital tx-digital-details tx-tools tx-sending tx-sending-tool about gallery gallery-sent gallery-templates gallery-select gallery-viewer gallery-info gallery-delete saved gallery-empty settings settings-operator settings-pictures settings-format settings-position settings-advanced settings-audio settings-mic settings-radios settings-receive settings-cw mic-denied firstrun-1 firstrun-2 tpl-editor tpl-text tpl-style tpl-place tpl-add tpl-layers tpl-more tpl-macros tpl-keep tpl-name tpl-starters tpl-drag"}
+SCENES=${QMLUI_SCENES:-"idle receiving options digital stopped quiet tx tx-picture tx-modes tx-details tx-template tx-digital tx-digital-details tx-tools tx-sending tx-sending-tool about gallery gallery-sent gallery-templates gallery-select gallery-viewer gallery-info gallery-delete saved gallery-empty settings settings-operator settings-pictures settings-format settings-position settings-advanced settings-audio settings-mic settings-radios settings-receive settings-cw mic-denied firstrun-1 firstrun-2 tpl-editor tpl-text tpl-style tpl-place tpl-add tpl-layers tpl-more tpl-macros tpl-keep tpl-name tpl-starters tpl-drag cal-overview cal-overview-done cal-reset cal-ntp cal-ntp-early cal-ntp-good cal-ntp-problem cal-wwv cal-wwv-measuring cal-sstv cal-sstv-got cal-sstv-send cal-sstv-sending"}
 run light 411 800 $SCENES
 run dark 411 800 $SCENES
 run light 360 640 idle receiving tx-picture tpl-text tpl-place
 run light 320 640 idle receiving tx-picture tpl-text tpl-style
-run light 850 411 idle receiving tx-picture gallery gallery-viewer settings settings-audio firstrun-2 tpl-editor tpl-text tpl-add
-run light 800 1200 idle receiving tx-picture gallery gallery-viewer settings settings-audio firstrun-2 tpl-editor tpl-style tpl-layers
+run light 850 411 idle receiving tx-picture gallery gallery-viewer settings settings-audio firstrun-2 tpl-editor tpl-text tpl-add cal-overview-done cal-ntp-good
+run light 800 1200 idle receiving tx-picture gallery gallery-viewer settings settings-audio firstrun-2 tpl-editor tpl-style tpl-layers cal-ntp-good cal-sstv-got
 echo "screenshots: $OUT"
 exit $rc

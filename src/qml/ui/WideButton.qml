@@ -7,12 +7,13 @@ Rectangle {
     property string icon
     property bool enabledLook: true
     property bool danger: false
+    property bool tonal: false          // a quieter button next to the main one
     signal clicked()
     implicitHeight: 56
     radius: height / 2
-    color: danger ? Theme.errorContainer : enabledLook ? Theme.primary : Theme.surfaceHigh
-    readonly property color content: danger ? Theme.error : enabledLook ? Theme.primaryOn : Theme.surfaceVariantOn
-    opacity: enabledLook || danger ? 1 : 0.7
+    color: danger ? Theme.errorContainer : tonal ? Theme.primaryContainer : enabledLook ? Theme.primary : Theme.surfaceHigh
+    readonly property color content: danger ? Theme.error : tonal ? Theme.primaryContainerOn : enabledLook ? Theme.primaryOn : Theme.surfaceVariantOn
+    opacity: enabledLook || danger || tonal ? 1 : 0.7
     Row {
         anchors.centerIn: parent
         spacing: 10
@@ -25,8 +26,8 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
         }
     }
-    TapHandler { margin: Theme.tapMargin(parent); enabled: button.enabledLook || button.danger; onTapped: button.clicked() }
-    Accessible.onPressAction: if (button.enabledLook || button.danger) { button.clicked() }
+    TapHandler { margin: Theme.tapMargin(parent); enabled: button.enabledLook || button.danger || button.tonal; onTapped: button.clicked() }
+    Accessible.onPressAction: if (button.enabledLook || button.danger || button.tonal) { button.clicked() }
     Accessible.role: Accessible.Button
     Accessible.name: text
 }

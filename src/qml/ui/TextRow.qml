@@ -22,7 +22,8 @@ Item {
         color: Theme.surfaceOn
         placeholderTextColor: Theme.outline
         font.pixelSize: Theme.sp(16)
-        onEditingFinished: row.committed(text)
+        onEditingFinished: { row.committed(text); cursorPosition = 0 }   // a long text shows its beginning when the field is left
+        onActiveFocusChanged: if (!activeFocus) cursorPosition = 0
         Accessible.name: row.label
         Accessible.role: Accessible.EditableText
     }

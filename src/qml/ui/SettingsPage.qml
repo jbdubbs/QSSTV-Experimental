@@ -8,6 +8,9 @@ Item {
     property real topInset: 0
     property real bottomInset: 0
     default property alias rows: column.data
+    property real contentWidth: 640        // a tablet does not stretch the rows over the whole screen
+    property alias footer: footerItem.data  // buttons that stay at the bottom, under the rows
+    property real footerHeight: 0
     signal back()
 
     Item {
@@ -33,11 +36,17 @@ Item {
             Accessible.name: page.title
         }
     }
+    Item {
+        id: footerItem
+        anchors.bottom: parent.bottom; anchors.horizontalCenter: parent.horizontalCenter
+        width: Math.min(parent.width, page.contentWidth)
+        height: page.footerHeight > 0 ? page.footerHeight + page.bottomInset : 0
+    }
     Flickable {
-        anchors.top: bar.bottom; anchors.bottom: parent.bottom
+        anchors.top: bar.bottom; anchors.bottom: footerItem.top
         anchors.horizontalCenter: parent.horizontalCenter
-        width: Math.min(parent.width, 640)       // a tablet does not stretch the rows over the whole screen
-        contentHeight: column.implicitHeight + page.bottomInset + 24
+        width: Math.min(parent.width, page.contentWidth)
+        contentHeight: column.implicitHeight + (page.footerHeight > 0 ? 0 : page.bottomInset) + 24
         boundsBehavior: Flickable.StopAtBounds
         clip: true
         ScrollIndicator.vertical: ScrollIndicator {}
