@@ -35,6 +35,7 @@ void sendPicture(const QString &file)
   else TxController::instance()->showPicture(file);
 }
 void notifyModeChanged() {if(uiMode::qml()) AppModel::instance()->modeChanged();}
+void notifyRouteChanged() {if(uiMode::qml()) emit AppModel::instance()->routeChanged();}
 void rxImageStarted(int w,int h) {if(uiMode::qml()) RxController::instance()->imageStarted(w,h);}
 void rxLine(int line) {if(uiMode::qml()) RxController::instance()->lineDrawn(line);}
 void rxImageSaved(const QString &file) {if(uiMode::qml()) RxController::instance()->imageSaved(file);}

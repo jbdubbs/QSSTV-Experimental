@@ -176,7 +176,7 @@ ApplicationWindow {
             bottomInset: root.inset.bottom
             onSetUpRadio: { AppModel.settingsOpen = true; Qt.callLater(function() { settings.page = 5 }) }
         }
-        ProblemDialog { id: problemDialog }
+        ProblemDialog { id: problemDialog; objectName: "problemDialog" }
         Connections {
             target: AppModel
             function onProblemShown(title, text) { problemDialog.show(title, text) }

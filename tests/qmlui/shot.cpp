@@ -213,7 +213,7 @@ int main(int argc, char **argv)
         {
           outputAudioDevice = savedOutputDevice;
           outputDeviceChanged = false;
-          emit app_->routeChanged();
+          qmlUi::notifyRouteChanged();
         }
       rx->setMode(scene == "rx-mode-fixed" || scene == "rx-modes-fixed" ? int(M1) : -1);   // Auto, except where the scene is about a chosen mode
       if (QQuickItem *v = findItem(win->contentItem(), "viewerScreen")) v->setProperty("infoOpen", false);
@@ -265,13 +265,13 @@ int main(int argc, char **argv)
               txWidgetPtr->setImage(picFile);
               QTest::qWait(300);
             }
-          if (scene == "tx-sending" || scene.startsWith("tx-digital-sending")) tx->setTestSending(0.38);
+          if (scene == "tx-sending" || scene == "tx-route-follows" || scene.startsWith("tx-digital-sending")) tx->setTestSending(0.38);
           if (scene == "tx-digital-sending-device")
             {
               // a long name of a sound device (a USB radio interface): the chip that names it must not run out of the window either (#175)
               outputAudioDevice = "USB: Digirig Lite audio interface (USB-C)";
               outputDeviceChanged = true;
-              emit app_->routeChanged();
+              qmlUi::notifyRouteChanged();
             }
           if (scene == "tx-sending-tool") tx->setTestSending(0.4, "Test tone, 1000 Hz", 5);
           if (scene == "tx-chips")
@@ -555,6 +555,32 @@ int main(int argc, char **argv)
                   printf("  hint ends y %.0f, Stop button starts y %.0f\n", hintBottom, stopTop);
                   if (hintBottom > stopTop + 0.5) fail("the text runs behind the Stop button");
                 }
+            }
+        }
+      if (scene == "tx-route-follows")
+        {
+          // the route chip names the output device chosen in the settings, at once: the choice goes through the settings controller and the
+          // sound restart (mainWindow::restartSound), which tells the screens (AppModel::routeChanged used to be emitted by nobody)
+          auto fail = [&](const char *what) {fprintf(stderr, "FAIL: tx-route-follows: %s\n", what); exitCode = 1;};
+          QQuickItem *route = findItem(content, "sendRouteChip");
+          if (!route) fail("no sendRouteChip item");
+          else
+            {
+              SettingsController *sc = SettingsController::instance();
+              const QString was = sc->outputDevice(), now = QStringLiteral("USB: Test radio interface");
+              const QString before = route->property("text").toString();
+              sc->setOutputDevice(now);
+              QTest::qWait(800);   // the sound restart is queued behind the tap that asked for it
+              const QString changed = route->property("text").toString();
+              sc->setOutputDevice(was);
+              QTest::qWait(800);
+              const QString back = route->property("text").toString();
+              printf("  route chip: \"%s\" -> \"%s\" -> \"%s\"\n", qPrintable(before), qPrintable(changed), qPrintable(back));
+              if (changed != now) fail("the route chip did not follow the new output device");
+              if (back != before) fail("the route chip did not follow the old output device back");
+              // there is no sound card here: the restarts said so in a "Soundcard error" box, which must not stay over the scenes that follow
+              if (QQuickItem *box = findItem(win->contentItem(), "problemDialog")) box->setProperty("open", false);
+              QTest::qWait(300);
             }
         }
       if (scene == "about") {win->setProperty("aboutOpen", true); QTest::qWait(500);}

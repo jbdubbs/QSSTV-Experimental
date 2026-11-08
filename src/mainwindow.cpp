@@ -578,6 +578,7 @@ void mainWindow::offerUpdateCheck()
 
 void mainWindow::restartSound(bool inStartUp)
 {
+  if(!inStartUp) qmlUi::notifyRouteChanged();   // the device was chosen just before: the route chip of the Qt Quick screens says so (at start-up it reads it itself)
   // Issue #11: a device change applied via slotConfigure() used to leave RX stuck
   // idle -- the new soundIOPtr below is opened but never told to startCapture(),
   // and nothing downstream of restartSound() noticed. Remember whether RX was

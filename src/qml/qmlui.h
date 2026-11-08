@@ -18,6 +18,8 @@ namespace qmlUi
   void show();
   //! the analog / digital (SSTV / DRM) mode changed (mainWindow::slotModeChange): the screens follow
   void notifyModeChanged();
+  //! the sound output was changed (mainWindow::restartSound, from the Qt Quick settings pages or the classic dialog): the route text follows
+  void notifyRouteChanged();
   // what the dispatcher tells the receive screen (GUI thread, from dispatcher::customEvent)
   void rxImageStarted(int width,int height);   //!< a picture is about to be received: the canvas has this size
   void rxLine(int line);                       //!< another line of it has been drawn
@@ -39,6 +41,7 @@ namespace qmlUi
 #else
   inline void show() {}
   inline void notifyModeChanged() {}
+  inline void notifyRouteChanged() {}
   inline void rxImageStarted(int,int) {}
   inline void rxLine(int) {}
   inline void rxImageEnded() {}
