@@ -22,6 +22,7 @@
 #include "rxcontroller.h"
 #include "txcontroller.h"
 #include "txwidget.h"
+#include "rigcontrol.h"
 #include "sstvparam.h"
 #include "imageviewer.h"
 #include "rxwidget.h"
@@ -255,6 +256,8 @@ int main(int argc, char **argv)
         for (QQuickItem *c : it->childItems()) closeStarters(c);
       };
       closeStarters(win->contentItem());
+      if (QQuickItem *box = findItem(win->contentItem(), "problemDialog")) box->setProperty("open", false);   // a scene that showed one does not leave it over the next
+      if (QQuickItem *box = findItem(win->contentItem(), "speakerDialog")) box->setProperty("open", false);
       TxController::instance()->setTestSending(-1);
       if (savedTxMode >= 0 && scene != "tx-chips") {TxController::instance()->setMode(savedTxMode); savedTxMode = -1;}
       if (outputDeviceChanged && scene != "tx-digital-sending-device")
@@ -368,12 +371,12 @@ int main(int argc, char **argv)
               QTest::qWait(300);
             }
         }
-      else if (scene.startsWith("settings"))
+      else if (scene.startsWith("settings") || scene == "speaker-many")
         {
           app_->setScreen(0);
           AppModel::instance()->setSettingsOpen(true);
           QQuickItem *st = findItem(win->contentItem(), "settingsScreen");
-          const int page = scene == "settings-operator" ? 1 : scene == "settings-pictures" || scene == "settings-format" ? 2 : scene == "settings-position" ? 3 : scene == "settings-advanced" ? 4 : scene == "settings-audio" || scene == "settings-audio-mismatch" || scene == "settings-mic" ? 5 : scene == "settings-radios" ? 6 : scene == "settings-receive" ? 7 : scene == "settings-cw" ? 8 : scene == "settings-appearance" ? 16 : 0;
+          const int page = scene == "settings-operator" ? 1 : scene == "settings-pictures" || scene == "settings-format" ? 2 : scene == "settings-position" ? 3 : scene == "settings-advanced" ? 4 : scene == "settings-audio" || scene == "settings-audio-mismatch" || scene == "settings-mic" || scene == "speaker-many" ? 5 : scene == "settings-radios" ? 6 : scene == "settings-receive" ? 7 : scene == "settings-cw" ? 8 : scene == "settings-appearance" ? 16 : 0;
           if (st) st->setProperty("page", page);
           if (scene == "settings-appearance")
             {
@@ -900,6 +903,94 @@ int main(int argc, char **argv)
           QQuickItem *page = findShown(content, "settingsVolumeNote");
           if (!page) fail("no note about the volume keys on the Audio and radio page");
           else if (!findShown(page, "volumeNoteSwitch")) fail("no Use system default button there");
+        }
+      if (scene == "problem-ptt" || scene == "problem-ptt-short")
+        {
+          // a dialog that says what went wrong (#184): the PTT failure of a USB adapter is a long text, longer still with a large text size or on a short
+          // screen. The dialog stays inside the window, the message scrolls, and the button that closes it is always there
+          auto fail = [&](const char *what) {fprintf(stderr, "FAIL: %s: %s\n", qPrintable(scene), what); exitCode = 1;};
+          const bool shortText = scene == "problem-ptt-short";
+          const QString reason = shortText ? QStringLiteral("Serial PTT is switched on, but no serial port is chosen.")
+                                           : QStringLiteral("The PTT serial port usb:0403:6001:0 cannot be opened (the permission was not given). Check that the adapter is plugged in and that the program may use it (the system asks), or switch Serial PTT off.");
+          qmlUi::problem(QStringLiteral("PTT problem"), rigControl::pttProblemText(reason));   // the text of the program itself
+          QTest::qWait(500);
+          QQuickItem *card = findShown(content, "problemCard"), *ok = findShown(content, "problemOk"), *message = findShown(content, "problemMessage");
+          if (!card || !ok) fail("no dialog or no OK button");
+          else
+            {
+              const QRectF window(0, 0, win->width(), win->height());
+              const QRectF c(card->mapToScene(QPointF(0, 0)), QSizeF(card->width(), card->height()));
+              const QRectF o(ok->mapToScene(QPointF(0, 0)), QSizeF(ok->width(), ok->height()));
+              printf("  dialog y %.0f..%.0f of a window %.0f high, OK y %.0f..%.0f%s\n", c.top(), c.bottom(), window.height(), o.top(), o.bottom(), message ? ", message scrolls" : "");
+              if (c.top() < -0.5 || c.bottom() > window.height() + 0.5) fail("the dialog is outside the window");
+              if (o.top() < c.top() - 0.5 || o.bottom() > c.bottom() + 0.5) fail("the OK button is outside the dialog");
+              if (message)
+                {
+                  // the message scrolls to its last line, and the last line is inside the dialog then
+                  const qreal content = message->property("contentHeight").toDouble(), shown = message->height();
+                  if (shortText && app_->fontScale() <= 1.0 && content > shown + 0.5) fail("a short message that has to be scrolled");   // (with a very large text even a short one does)
+                  message->setProperty("contentY", qMax(0.0, content - shown));
+                  QTest::qWait(200);
+                  if (message->property("contentY").toDouble() + shown < content - 1.0) fail("the end of the message cannot be reached");
+                  message->setProperty("contentY", 0.0);
+                  QTest::qWait(100);
+                }
+              // the button closes it
+              QTest::mouseClick(win, Qt::LeftButton, {}, ok->mapToScene(QPointF(ok->width() / 2, ok->height() / 2)).toPoint());
+              QTest::qWait(300);
+              if (findShown(content, "problemCard")) fail("OK does not close the dialog");
+              qmlUi::problem(QStringLiteral("PTT problem"), rigControl::pttProblemText(reason));   // for the screenshot
+              QTest::qWait(300);
+            }
+        }
+      if (scene == "speaker-many")
+        {
+          // a single-choice dialog with more options than fit: the options scroll, Cancel stays (#184). The Speaker dialog of the settings, with made-up devices
+          auto fail = [&](const char *what) {fprintf(stderr, "FAIL: speaker-many: %s\n", what); exitCode = 1;};
+          QQuickItem *dlg = findItem(content, "speakerDialog");
+          if (!dlg) fail("no speaker dialog");
+          else
+            {
+              // a few options: they all fit, nothing scrolls, and the dialog is as tall as they are
+              dlg->setProperty("options", QVariantList{QStringLiteral("System default"), QStringLiteral("Phone speaker"), QStringLiteral("USB audio: Digirig")});
+              dlg->setProperty("open", true);
+              QTest::qWait(400);
+              if (QQuickItem *few = findShown(content, "choiceList"))
+                {
+                  printf("  three options: %.0f high in a view of %.0f\n", few->property("contentHeight").toDouble(), few->height());
+                  // (on a window so low that the dialog is held to its largest height, a few options may scroll too)
+                  QQuickItem *fewCard = findShown(content, "choiceCard");
+                  const bool atLargest = fewCard && fewCard->height() >= win->height() - 120 - 0.5;
+                  if (!atLargest && few->property("contentHeight").toDouble() > few->height() + 0.5) fail("a few options that have to be scrolled");
+                }
+              else fail("no option list");
+              dlg->setProperty("open", false);
+              QTest::qWait(200);
+              QVariantList devices;
+              for (int i = 0; i < 14; i++) devices << QString("USB audio: Test interface %1 with a rather long name").arg(i + 1);
+              dlg->setProperty("options", devices);
+              dlg->setProperty("current", 2);
+              dlg->setProperty("open", true);
+              QTest::qWait(500);
+              QQuickItem *card = findShown(content, "choiceCard"), *cancel = findShown(content, "choiceCancel"), *list = findShown(content, "choiceList");
+              if (!card || !cancel) fail("no dialog or no Cancel button");
+              else
+                {
+                  const QRectF c(card->mapToScene(QPointF(0, 0)), QSizeF(card->width(), card->height()));
+                  const QRectF o(cancel->mapToScene(QPointF(0, 0)), QSizeF(cancel->width(), cancel->height()));
+                  printf("  dialog y %.0f..%.0f of a window %d high, Cancel y %.0f..%.0f%s\n", c.top(), c.bottom(), win->height(), o.top(), o.bottom(), list ? ", options scroll" : "");
+                  if (c.top() < -0.5 || c.bottom() > win->height() + 0.5) fail("the dialog is outside the window");
+                  if (o.top() < c.top() - 0.5 || o.bottom() > c.bottom() + 0.5) fail("the Cancel button is outside the dialog");
+                  if (list)
+                    {
+                      const qreal total = list->property("contentHeight").toDouble(), shown = list->height();
+                      list->setProperty("contentY", qMax(0.0, total - shown));
+                      QTest::qWait(200);
+                      if (list->property("contentY").toDouble() + shown < total - 1.0) fail("the last option cannot be reached");
+                      list->setProperty("contentY", 0.0);
+                    }
+                }
+            }
         }
       if (scene == "about") {win->setProperty("aboutOpen", true); QTest::qWait(500);}
       if (scene == "tx-tools")

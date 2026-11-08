@@ -480,6 +480,7 @@ Rectangle {
     }
     ChoiceDialog {
         id: speakerDialog
+        objectName: "speakerDialog"
         title: qsTr("Speaker")
         options: SettingsController.outputDevices.map(d => ({text: d === "default" ? qsTr("System default") : d}))
         current: SettingsController.outputDevices.indexOf(SettingsController.outputDevice)

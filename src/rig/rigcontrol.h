@@ -50,6 +50,8 @@ class rigControl: public QObject
   Q_OBJECT
 public:
   rigControl(int radioIndex);
+  //! what the box says when the radio could not be keyed (the reason is one sentence): the settings it names are the ones of the interface that is showing
+  static QString pttProblemText(const QString &problem);
   ~rigControl();
   bool init();
   bool enabled() {return rigControlEnabled;}

@@ -28,6 +28,7 @@
 #include "dispatcher.h"
 #include "dispatch/filedecoder.h"
 #include "supportfunctions.h"
+#include "uimode.h"
 
 
 #include <QSplashScreen>
@@ -537,9 +538,7 @@ void rigControl::activatePTT(bool b)
       addToLog(problem.isEmpty() ? "dispatcher: PTT activated" : "dispatcher: PTT not activated: "+problem,LOGDISPATCH);
       if(!problem.isEmpty())
         {
-          showProblem("PTT problem",QString("The radio was not keyed: %1\n\nThe picture is being sent anyway, but the radio only "
-                                            "transmits it if something else keys it, VOX for one. Stop ends the transmission. "
-                                            "Configuration > CAT has the PTT settings.").arg(problem));
+          showProblem("PTT problem",pttProblemText(problem));
         }
     }
   else
@@ -548,6 +547,15 @@ void rigControl::activatePTT(bool b)
     }
 }
 
+
+QString rigControl::pttProblemText(const QString &problem)
+{
+  // the Qt Quick interface has no Configuration dialog: its PTT settings are on the Audio and radio page
+  const QString where=uiMode::qml() ? QStringLiteral("Settings > Audio and radio > Push to talk has the PTT settings.")
+                                    : QStringLiteral("Configuration > CAT has the PTT settings.");
+  return QString("The radio was not keyed: %1\n\nThe picture is being sent anyway, but the radio only transmits it if something "
+                 "else keys it, VOX for one. Stop ends the transmission. %2").arg(problem,where);
+}
 
 int  rigControl::rawCommand(QByteArray ba)
 {
