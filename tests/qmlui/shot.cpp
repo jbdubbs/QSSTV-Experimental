@@ -194,6 +194,8 @@ int main(int argc, char **argv)
   QTest::qWait(300);
   int exitCode = 0;
   int savedTxMode = -1;   // the Transmit mode before a scene that changes it (tx-chips): put back by the next scene
+  bool outputDeviceChanged = false;   // a scene that names a long output device (tx-digital-sending-device): the next scene gets the old one back
+  const QString savedOutputDevice = outputAudioDevice;
   for (int i = 5; i < argc; i++)
     {
       const QString scene = argv[i];
@@ -207,6 +209,12 @@ int main(int argc, char **argv)
             if (s->property(prop).isValid()) s->setProperty(prop, false);
       TxController::instance()->setTestSending(-1);
       if (savedTxMode >= 0 && scene != "tx-chips") {TxController::instance()->setMode(savedTxMode); savedTxMode = -1;}
+      if (outputDeviceChanged && scene != "tx-digital-sending-device")
+        {
+          outputAudioDevice = savedOutputDevice;
+          outputDeviceChanged = false;
+          emit app_->routeChanged();
+        }
       rx->setMode(scene == "rx-mode-fixed" || scene == "rx-modes-fixed" ? int(M1) : -1);   // Auto, except where the scene is about a chosen mode
       if (QQuickItem *v = findItem(win->contentItem(), "viewerScreen")) v->setProperty("infoOpen", false);
       GalleryModel::instance()->closeViewer();
@@ -257,7 +265,14 @@ int main(int argc, char **argv)
               txWidgetPtr->setImage(picFile);
               QTest::qWait(300);
             }
-          if (scene == "tx-sending") tx->setTestSending(0.38);
+          if (scene == "tx-sending" || scene.startsWith("tx-digital-sending")) tx->setTestSending(0.38);
+          if (scene == "tx-digital-sending-device")
+            {
+              // a long name of a sound device (a USB radio interface): the chip that names it must not run out of the window either (#175)
+              outputAudioDevice = "USB: Digirig Lite audio interface (USB-C)";
+              outputDeviceChanged = true;
+              emit app_->routeChanged();
+            }
           if (scene == "tx-sending-tool") tx->setTestSending(0.4, "Test tone, 1000 Hz", 5);
           if (scene == "tx-chips")
             {
@@ -506,6 +521,39 @@ int main(int argc, char **argv)
                     }
                   tx->setMode(int(M2));   // the screenshot: the extra chip again, scrolled into view
                   QTest::qWait(900);
+                }
+            }
+        }
+      if (scene == "tx-sending" || scene.startsWith("tx-digital-sending"))
+        {
+          // the two chips under the ring (the mode, the way the sound goes) stay inside the window with the margin of the rest of the screen:
+          // side by side, centered, when both fit, one under the other, each centered, when they do not (#175)
+          auto fail = [&](const char *what) {fprintf(stderr, "FAIL: %s: %s\n", qPrintable(scene), what); exitCode = 1;};
+          QTest::qWait(300);
+          QQuickItem *mode = findItem(content, "sendModeChip"), *route = findItem(content, "sendRouteChip");
+          if (!mode || !route) fail("no sendModeChip / sendRouteChip item");
+          else
+            {
+              const QRectF m(mode->mapToScene(QPointF(0, 0)), QSizeF(mode->width(), mode->height()));
+              const QRectF r(route->mapToScene(QPointF(0, 0)), QSizeF(route->width(), route->height()));
+              printf("  chips: mode x %.0f..%.0f y %.0f, route x %.0f..%.0f y %.0f, window %d wide\n", m.left(), m.right(), m.top(), r.left(), r.right(), r.top(), width);
+              for (const QRectF &c : {m, r})
+                if (c.left() < 24 - 0.5 || c.right() > width - 24 + 0.5) fail("a chip is outside the margins of the window");
+              if (m.intersects(r)) fail("the chips overlap");
+              if (r.top() > m.bottom() - 0.5)   // stacked: each one centered
+                {
+                  for (const QRectF &c : {m, r})
+                    if (qAbs((c.left() + c.right()) / 2 - width / 2.0) > 1.0) fail("a stacked chip is not centered");
+                }
+              else if (qAbs(m.left() - (width - r.right())) > 2.0) fail("the chips side by side are not centered");
+              // the text under the chips ends above the Stop button (the picture gives way for it on a short screen)
+              QQuickItem *hint = findItem(content, "sendHint"), *stop = findItem(content, "sendStop");
+              if (!hint || !stop) fail("no sendHint / sendStop item");
+              else
+                {
+                  const qreal hintBottom = hint->mapToScene(QPointF(0, hint->height())).y(), stopTop = stop->mapToScene(QPointF(0, 0)).y();
+                  printf("  hint ends y %.0f, Stop button starts y %.0f\n", hintBottom, stopTop);
+                  if (hintBottom > stopTop + 0.5) fail("the text runs behind the Stop button");
                 }
             }
         }
