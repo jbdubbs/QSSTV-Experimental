@@ -62,6 +62,7 @@ void TxController::connectToPage()
 void TxController::refreshPicture()
 {
   if(!txWidgetPtr) return;
+  if(m_framingGesture && transmissionModeIndex==TRXDRM) return;   // the preview of a digital picture stays until the gesture is over
   imageViewer *v=txWidgetPtr->getImageViewerPtr();
   const QImage *im=v->hasValidImage() ? v->getDisplayedImage() : nullptr;
   m_picture=(im && !im->isNull()) ? *im : QImage();
@@ -108,14 +109,47 @@ bool TxController::framingMoved() const
   return v && v->freeFraming() && v->framingMoved();
 }
 
-bool TxController::adjustFraming(double scale,double focusX,double focusY,double shiftX,double shiftY)
+void TxController::beginFraming()
 {
   imageViewer *v=viewer();
-  if(!v || m_sending) return false;
-  const bool changed=v->adjustFree(scale,QPointF(focusX,focusY),QPointF(shiftX,shiftY));
-  // an analog picture is drawn again at once; a DRM one once the gesture has settled and has been encoded (txTimeChanged follows)
-  if(changed && transmissionModeIndex!=TRXDRM) refreshPicture();
+  if(!v || m_sending || !v->freeFraming()) return;
+  v->beginFreeGesture();
+  m_framingGesture=true;
+}
+
+bool TxController::moveFraming(double scale,double focusX,double focusY,double shiftX,double shiftY)
+{
+  imageViewer *v=viewer();
+  if(!v || !m_framingGesture || !v->setFreeGesture(scale,QPointF(focusX,focusY),QPointF(shiftX,shiftY))) return false;
+  if(transmissionModeIndex==TRXDRM)
+    {
+      // a digital picture is encoded once, at the end: the steps show a smaller one drawn from the whole picture
+      const QImage preview=v->freePreview(640);
+      if(preview.isNull()) return false;
+      m_picture=preview;
+      ++m_pictureRevision;
+      emit pictureChanged();
+    }
+  else refreshPicture();
+  return true;
+}
+
+void TxController::endFraming()
+{
+  imageViewer *v=viewer();
+  if(!m_framingGesture) return;
+  m_framingGesture=false;
+  if(v) v->endFreeGesture();   // the full size picture (a digital one is encoded now and comes back through imageChanged)
+  if(v && transmissionModeIndex!=TRXDRM) refreshPicture();
   poll();
+}
+
+bool TxController::adjustFraming(double scale,double focusX,double focusY,double shiftX,double shiftY)
+{
+  beginFraming();
+  if(!m_framingGesture) return false;
+  const bool changed=moveFraming(scale,focusX,focusY,shiftX,shiftY);
+  endFraming();
   return changed;
 }
 

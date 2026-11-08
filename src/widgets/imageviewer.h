@@ -109,8 +109,14 @@ public:
   bool freeFraming() const;   // Free framing with a picture loaded: zoom/pan have an effect
   bool framingMoved() const {return isFramed(curSlot());}   // zoom/pan differ from the whole picture, centered
   void resetFreeFraming() {slotResetFraming();}   // the whole picture, centered
-  // Zoom by scale about focus (a point of the frame, 0..1 of its width and height), then move by shift (the same units). Returns false when nothing changed.
-  bool adjustFree(double scale,const QPointF &focus,const QPointF &shift);
+  // A gesture of two fingers or one: zoom by scale about focus (a point of the frame, 0..1 of its width and height), then move by shift (the same
+  // units), both from the framing at the start of the gesture. Every step is drawn from the whole picture (not from the frame as it was), the
+  // picture of an analog mode with its template at once, a digital one through freePreview() while it is encoded once at the end.
+  void beginFreeGesture();
+  bool setFreeGesture(double scale,const QPointF &focus,const QPointF &shift);   // false when nothing changed
+  void endFreeGesture();   // the picture with the final framing, in full size (a digital one is encoded again)
+  QImage freePreview(int maxSide);   // a single digital picture as the framing now is: from a smaller copy, the template over it, not encoded
+  bool adjustFree(double scale,const QPointF &focus,const QPointF &shift);   // the three in one step
   int getFileSize(){return fileSize;}
   QString toCall;
   QString toOperator;
@@ -239,7 +245,11 @@ private:
   void resetFraming(int slot);
   const QImage &slotImage(int slot) const;
   QRect cellRect(int slot,const QSize &frame) const;
-  QPointF clampPan(int slot,const QSize &cell,const QPointF &pan) const;
+  QPointF clampPan(int slot,const QSize &cell,const QPointF &pan,double zoom=-1) const;   // zoom -1: the one of the slot
+  void framingFrom(int slot,double zoom0,const QPointF &pan0,double scale,const QPointF &focus,const QPointF &shift,double &zoom,QPointF &pan) const;
+  double gestureZoom;           // the framing at the start of a touch gesture
+  QPointF gesturePan;
+  QImage gestureSource;         // the picture smaller (a large photo is drawn many times during a gesture); null: the picture itself
   void drawCell(QPainter &painter,const QImage &img,const QRect &cell,int slot);
   QImage frameSingle(int tw,int th);
   bool templateInUse() const;

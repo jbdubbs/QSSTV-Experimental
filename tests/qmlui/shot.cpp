@@ -585,6 +585,18 @@ int main(int argc, char **argv)
           auto is = [](const QColor &a, const QColor &b) {return qAbs(a.red() - b.red()) + qAbs(a.green() - b.green()) + qAbs(a.blue() - b.blue()) < 100;};
           auto pageBox = [&]() {QComboBox *b = txWidgetPtr->findChild<QComboBox *>(QStringLiteral("sstvResizeComboBox")); return b ? b->currentIndex() : -1;};
           auto frame = [&](int mode) {tx->setFraming(mode); QTest::qWait(200); tx->picture().save(QString("%1/framing-%2x%3-%4.png").arg(outDir).arg(width).arg(height).arg(mode)); return tx->picture();};   // the frames are kept for looking at
+          // the width of the white square in the middle of the picture, in the middle row of a frame
+          auto whiteRun = [](const QImage &f) {
+            int best = 0, run = 0;
+            for (int x = 0; x < f.width(); x++)
+              {
+                const QColor c = QColor(f.pixel(x, f.height() / 2));
+                run = (c.red() > 220 && c.green() > 220 && c.blue() > 220) ? run + 1 : 0;
+                best = qMax(best, run);
+              }
+            return best;
+          };
+          int whiteBefore = 0;
           if (tx->picture().isNull()) fail("no picture to frame");
           printf("  frame %d x %d, picture 400 x 200\n", tx->picture().width(), tx->picture().height());
           if (!tx->framingChoice()) fail("no choice of framing in an analog mode");
@@ -603,6 +615,7 @@ int main(int argc, char **argv)
           if (tx->framing() != 3 || pageBox() != 3) fail("Free is not the page's framing");
           if (!tx->framingFree() || tx->framingMoved()) fail("Free is not ready to be placed, or already moved");
           if (!is(at(0.005, 0.5), green) || !is(at(0.5, 0.01), grey)) fail("Free does not begin with the whole picture");
+          whiteBefore = whiteRun(tx->picture());
           // the picture moves with a finger: one drag with the mouse on the picture
           QQuickItem *mover = findShown(content, "pictureMover");
           if (!mover) fail("no pictureMover item");
@@ -617,7 +630,6 @@ int main(int argc, char **argv)
               printf("  drag down: moved %d, bottom bar is %s\n", tx->framingMoved(), is(at(0.5, 0.99), grey) ? "still there" : "gone");
               if (!tx->framingMoved()) fail("a drag on the picture did not move it");
               else if (is(at(0.5, 0.99), grey)) fail("the picture did not move down");
-              if (mover->scale() != 1 || mover->x() != 0 || mover->y() != 0) fail("the preview of the drag stayed after the picture was drawn again");
               tx->resetFraming();
               QTest::qWait(200);
               if (tx->framingMoved() || !is(at(0.5, 0.99), grey)) fail("Reset did not bring the whole picture back");
@@ -633,9 +645,16 @@ int main(int argc, char **argv)
                   seq.commit();
                   QTest::qWait(15);
                 }
+              QTest::qWait(150);
+              const QImage live = tx->picture();   // while the fingers are down
               seq.release(0, from + QPoint(-d0 - 72, 0), win).release(1, from + QPoint(d0 + 72, 0), win);
               seq.commit();
               QTest::qWait(500);
+              // what is seen while pinching is what the picture is when the fingers lift (it used to be the frame zoomed, and then drawn again smaller)
+              const int liveWhite = whiteRun(live), finalWhite = whiteRun(tx->picture());
+              printf("  pinch: the white square is %d px wide while pinching, %d px after (and %d px before the pinch)\n", liveWhite, finalWhite, whiteBefore);
+              if (qAbs(liveWhite - finalWhite) > 3) fail("the picture is not the same while pinching and after the fingers lift");
+              if (finalWhite < whiteBefore * 2) fail("the pinch did not zoom in");
               printf("  pinch: moved %d, the green column is %s\n", tx->framingMoved(), is(at(0.005, 0.5), green) ? "still in the frame" : "out of the frame");
               if (!tx->framingMoved() || is(at(0.005, 0.5), green)) fail("a pinch on the picture did not zoom it");
             }
@@ -649,6 +668,23 @@ int main(int argc, char **argv)
               QTest::qWait(300);
               if (tx->framingMoved()) fail("the Reset button did not put the picture back");
             }
+          // a zoom about a point keeps that point where it was: about one at the left edge the green column stays in the frame (about the middle it would go out)
+          tx->resetFraming();
+          QTest::qWait(200);
+          tx->adjustFraming(2, 0.05, 0.5, 0, 0);
+          QTest::qWait(200);
+          if (!is(at(0.05, 0.5), green)) fail("a zoom about a point does not keep the point where it was");
+          // the whole picture moves, not only what was in the frame: zoomed in the green edge is out of the frame, moved as far as it goes it is in again
+          tx->resetFraming();
+          QTest::qWait(200);
+          tx->adjustFraming(3, 0.5, 0.5, 0, 0);
+          QTest::qWait(200);
+          if (is(at(0.02, 0.5), green)) fail("zoomed in, the green edge of the picture should be out of the frame");
+          tx->adjustFraming(1, 0.5, 0.5, 1.0, 0);
+          QTest::qWait(200);
+          if (!is(at(0.02, 0.5), green)) fail("moved as far as it goes, the edge of the picture that was out of the frame does not come in");
+          tx->resetFraming();
+          QTest::qWait(200);
           // a tap on the Stretch chip chooses it
           QQuickItem *chips = findShown(content, "framingChips");
           QQuickItem *stretch = nullptr;

@@ -111,7 +111,12 @@ public:
 
   //! every analog mode: [{mode, name, size, time, group}] for the "All modes" sheet
   Q_INVOKABLE QVariantList allModes() const;
-  //! zoom the free picture by scale about focus (a point of the frame, 0 to 1 each way), then move it by shift (the same units); false when nothing changed
+  //! a gesture on the free picture: begin, then moveFraming() for every step (the picture is drawn at once, from the whole picture), then end.
+  //! scale and shift are from the start of the gesture: zoom by scale about the focus (a point of the frame, 0 to 1 each way), then move by shift (the same units)
+  Q_INVOKABLE void beginFraming();
+  Q_INVOKABLE bool moveFraming(double scale,double focusX,double focusY,double shiftX,double shiftY);   //!< false when nothing changed
+  Q_INVOKABLE void endFraming();
+  //! the three in one step (scripts and tests); false when nothing changed
   Q_INVOKABLE bool adjustFraming(double scale,double focusX,double focusY,double shiftX,double shiftY);
   Q_INVOKABLE void resetFraming();   //!< the whole picture, centered
   Q_INVOKABLE void pickPhoto();     //!< the picture from the phone's photos
@@ -178,6 +183,7 @@ private:
   void startTool(const QString &name,int seconds);
   QString m_drmSignature;
   QString m_framingSignature;
+  bool m_framingGesture=false;   // fingers are on the picture: a digital picture shows the preview, not what the encoder sends back
   bool m_connected=false;
   bool m_test=false;
   QTimer m_timer;

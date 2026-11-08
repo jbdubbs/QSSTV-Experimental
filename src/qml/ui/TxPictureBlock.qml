@@ -13,54 +13,72 @@ Column {
         radius: Theme.radius
         color: Theme.surfaceHigh
         clip: true
-        // The picture moves with the fingers while Free framing is placed (#177): pinch to zoom, drag to move. The picture is drawn
-        // again once, when the fingers lift (the digital one is encoded again each time), so this is only the preview of it.
+        // Free framing is placed with the fingers (#177): pinch to zoom, drag to move. The picture is drawn again at every step from the whole picture
+        // (a digital one smaller, and encoded once when the fingers lift), so what is seen is what is sent, and the parts that were out of the frame
+        // come in when the picture is moved.
         Item {
             id: mover
             objectName: "pictureMover"
-            x: 0; y: 0
-            width: parent.width; height: parent.height
+            anchors.fill: parent
             visible: TxController.hasPicture
-            readonly property bool placing: TxController.framingFree && !TxController.sending && !holding
-            property bool holding: false   // the placement is made and the picture with it is not here yet
-            readonly property bool touching: pinch.active || drag.active
-            onTouchingChanged: if (!touching) commit()
-            onPlacingChanged: if (!placing && !holding) clear()
-            function clear() {
-                scale = 1; x = 0; y = 0
-                holding = false
-                hold.stop()
+            readonly property bool placing: TxController.framingFree && !TxController.sending
+            property bool gesturing: false
+            property point start   // where the pinch began (the middle of the two fingers)
+            property var pending: null   // the last step, until it is drawn
+            onPlacingChanged: if (!placing && gesturing) finish()
+            function begin() {
+                if (gesturing) return
+                gesturing = true
+                pending = null
+                TxController.beginFraming()
             }
-            function commit() {
-                if (scale === 1 && x === 0 && y === 0) return
+            function finish() {
+                if (!gesturing) return
+                flush()   // the last step is drawn before the picture is made final
+                gesturing = false
+                TxController.endFraming()
+            }
+            // the step from the start of the gesture: a zoom about the point where the fingers were, then a move; in parts of the picture's width and height
+            function queue() {
+                if (!gesturing) return
                 const pw = surface.paintedWidth, ph = surface.paintedHeight
-                holding = true   // set first: the picture of an analog mode is there before the call returns
-                hold.restart()
-                // scale about the middle of the frame, then moved: the movement is in parts of the picture's width and height
-                if (!TxController.adjustFraming(scale, 0.5, 0.5, pw > 0 ? x / pw : 0, ph > 0 ? y / ph : 0)) clear()
+                if (pw <= 0 || ph <= 0) return
+                const ox = (width - pw) / 2, oy = (height - ph) / 2
+                if (pinch.active)
+                    pending = [pinch.activeScale, (start.x - ox) / pw, (start.y - oy) / ph,
+                               (pinch.centroid.position.x - start.x) / pw, (pinch.centroid.position.y - start.y) / ph]
+                else if (drag.active)
+                    pending = [1, 0.5, 0.5, drag.translation.x / pw, drag.translation.y / ph]
+                else return
+                Qt.callLater(flush)   // one drawing for the steps that come together
             }
-            Connections {
-                target: TxController
-                function onPictureRevisionChanged() { if (mover.holding) mover.clear() }
+            function flush() {
+                if (!pending) return
+                const a = pending
+                pending = null
+                TxController.moveFraming(a[0], a[1], a[2], a[3], a[4])
             }
-            Timer { id: hold; interval: 6000; onTriggered: mover.clear() }   // never stays; a digital picture takes a moment to encode
             PinchHandler {
                 id: pinch
-                target: mover
+                target: null
                 enabled: mover.placing
-                minimumRotation: 0
-                maximumRotation: 0
-                minimumScale: 0.1
-                maximumScale: 12
                 grabPermissions: PointerHandler.CanTakeOverFromAnything
+                onActiveChanged: {
+                    if (active) { mover.start = centroid.position; mover.begin() }
+                    else mover.finish()
+                }
+                onActiveScaleChanged: mover.queue()
+                onCentroidChanged: mover.queue()
             }
             DragHandler {
                 id: drag
-                target: mover
+                target: null
                 enabled: mover.placing
                 minimumPointCount: 1
                 maximumPointCount: 1
                 grabPermissions: PointerHandler.CanTakeOverFromAnything
+                onActiveChanged: active ? mover.begin() : mover.finish()
+                onTranslationChanged: mover.queue()
             }
             ImageSurface {
                 id: surface
