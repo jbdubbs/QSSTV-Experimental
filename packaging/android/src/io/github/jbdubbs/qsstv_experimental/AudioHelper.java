@@ -85,6 +85,69 @@ public class AudioHelper
     }
 
     /**
+     * The id of the output the volume keys change: where Android sends music (the keys, getStreamVolume and setStreamVolume all act on the
+     * device the system picks for media, not on the one a program asks its own stream to use), 0 when that cannot be told. The protected
+     * loudspeaker is the loudspeaker for the user. Before Android 13 there is no call for it, and the order the system prefers is used:
+     * wired headset and headphones, Bluetooth, USB, the loudspeaker.
+     */
+    public static int volumeKeysDeviceId(Context context)
+    {
+        AudioManager am = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+        AudioDeviceInfo[] all = am.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
+        AudioDeviceInfo found = null;
+        if (Build.VERSION.SDK_INT >= 33)
+        {
+            try
+            {
+                AudioAttributes attributes = new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build();
+                List<AudioDeviceInfo> devices = am.getAudioDevicesForAttributes(attributes);
+                if (devices != null && !devices.isEmpty()) found = devices.get(0);
+            }
+            catch (RuntimeException | LinkageError e)
+            {
+                Log.w(TAG, "devices for media: " + e);
+            }
+        }
+        if (found == null)
+        {
+            int best = 0;
+            for (AudioDeviceInfo d : all)
+            {
+                int rank = outputRank(d.getType());
+                if (rank > best) {best = rank; found = d;}
+            }
+        }
+        if (found == null) return 0;
+        if (Build.VERSION.SDK_INT >= 30 && found.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER_SAFE)
+            for (AudioDeviceInfo d : all)
+                if (d.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) return d.getId();
+        return found.getId();
+    }
+
+    /** How much the system prefers an output for music: 0 for one that is never chosen on its own (the earpiece) */
+    private static int outputRank(int type)
+    {
+        switch (type)
+        {
+        case AudioDeviceInfo.TYPE_WIRED_HEADSET:
+        case AudioDeviceInfo.TYPE_WIRED_HEADPHONES:
+        case AudioDeviceInfo.TYPE_USB_HEADSET:
+        case AudioDeviceInfo.TYPE_LINE_ANALOG:
+        case AudioDeviceInfo.TYPE_LINE_DIGITAL: return 5;
+        case AudioDeviceInfo.TYPE_BLUETOOTH_A2DP:
+        case 26:   // TYPE_BLE_HEADSET
+        case 27: return 4;   // TYPE_BLE_SPEAKER
+        case AudioDeviceInfo.TYPE_USB_DEVICE:
+        case AudioDeviceInfo.TYPE_USB_ACCESSORY: return 3;
+        case AudioDeviceInfo.TYPE_BUILTIN_SPEAKER: return 1;
+        default: return 0;
+        }
+    }
+
+    /**
      * Name the media volume as the one the volume keys change while this window is in front. Without it the keys change the
      * stream that is playing, and when nothing is playing the ringer: the speaker is only open during a transmission, so before
      * a picture starts (and between two) the keys moved the ringer, the screen showed a volume bar all the same, and the picture

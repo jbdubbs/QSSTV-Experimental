@@ -338,9 +338,13 @@ void soundAndroid::preparePlayback()
   focusHeld=true;
   androidRequestTransmitFocus();   // other apps stop playing, so nothing sounds over the picture
   const int volume=androidMediaVolumePercent();
-  startVolumes=androidVolumeSummary();
-  ALOG("transmission starts, volumes: %s%s",qPrintable(startVolumes),volume<40 ? ", telling the user" : "");
-  if(volume<40) emit audioNotice(tr("The media volume is %1%. Raise it with the volume keys so the transmission is loud enough.").arg(volume));
+  // the volume keys act on the device Android plays music on, which is not the device of this stream when one is chosen under Settings (#182):
+  // the media volume says nothing about the loudness then
+  const androidVolumeRoute keys=androidVolumeRouteFor(outputAudioDevice);
+  startVolumes=androidVolumeSummary()+", keys act on "+(keys.keysDevice.isEmpty() ? QString("an unknown device") : keys.keysDevice)+(keys.mismatch ? " (not the output)" : "");
+  const bool tell=volume<40 && !keys.mismatch;
+  ALOG("transmission starts, volumes: %s%s",qPrintable(startVolumes),tell ? ", telling the user" : "");
+  if(tell) emit audioNotice(tr("The media volume is %1%. Raise it with the volume keys so the transmission is loud enough.").arg(volume));
 }
 
 void soundAndroid::idleTick()

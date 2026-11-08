@@ -6,6 +6,7 @@
 #include <QtQml/qqmlregistration.h>
 
 class QQmlEngine;
+class QTimer;
 class QJSEngine;
 
 /*!
@@ -25,7 +26,9 @@ class AppModel : public QObject
   Q_PROPERTY(QString routeText READ routeText NOTIFY routeChanged)                        //!< "Phone speaker", "USB: Digirig"
   Q_PROPERTY(qreal fontScale READ fontScale NOTIFY fontScaleChanged)                      //!< the system's text size setting, 1 = normal
   Q_PROPERTY(int mediaVolume READ mediaVolume WRITE setMediaVolume NOTIFY mediaVolumeChanged)   //!< the phone's media volume, 0 to 100: how loud a picture is sent
-  Q_PROPERTY(bool mediaVolumeAvailable READ mediaVolumeAvailable CONSTANT)                    //!< there is a media volume to set (Android)
+  Q_PROPERTY(bool mediaVolumeAvailable READ mediaVolumeAvailable NOTIFY mediaVolumeChanged)   //!< there is a media volume to set (Android)
+  Q_PROPERTY(QString volumeKeysDevice READ volumeKeysDevice NOTIFY volumeDeviceChanged)       //!< the output the volume keys change: "Phone speaker", "Bluetooth: Pixel Buds"
+  Q_PROPERTY(bool volumeMismatch READ volumeMismatch NOTIFY volumeDeviceChanged)              //!< the sound goes to a device the volume keys do not change (#182)
   Q_PROPERTY(QString versionText READ versionText CONSTANT)                                   //!< "10.1.1"
   Q_PROPERTY(bool startListening READ startListening CONSTANT)                            //!< the receiver starts with the program
   Q_PROPERTY(bool firstRun READ firstRun NOTIFY firstRunChanged)                       //!< the first start: the short setup shows
@@ -51,6 +54,8 @@ public:
   int mediaVolume() const;
   void setMediaVolume(int percent);
   bool mediaVolumeAvailable() const;
+  QString volumeKeysDevice() const {return m_keysDevice;}
+  bool volumeMismatch() const {return m_mismatch;}
   bool startListening() const {return true;}
   QString versionText() const;
   bool firstRun() const {return m_firstRun;}
@@ -64,8 +69,16 @@ public:
   void modeChanged() {emit digitalChanged();}
 
   //! Back was pressed on the first screen with nothing open: the app goes to the background and keeps receiving
-  //! look at the media volume again (the volume keys change it behind our back); a Timer on the screen that shows it calls this
+  //! look at the media volume again (the volume keys change it behind our back); the program does it by itself every moment while it is in front
   Q_INVOKABLE void refreshVolume();
+  //! the output device of the settings becomes "System default": the sound goes where the volume keys act
+  Q_INVOKABLE void useSystemDefaultOutput();
+  //! one look at the volume, and now and then at the device the keys act on (the timer of the program; the tests call it)
+  void pollVolume();
+  //! for the tests: a volume and a device the keys act on, in place of the phone's (on = false: the phone's again)
+  void setTestVolume(bool on,int percent=70,const QString &keysDevice=QString());
+  //! for the tests: the volume keys were pressed (the program sees it at its next look, pollVolume())
+  void setTestKeyPress(int percent) {m_testPercent=percent;}
   //! a short vibration (0 a tick, 1 a confirmation, 2 a refusal), where the phone has one
   Q_INVOKABLE void haptic(int kind);
   //! the icons of the system bars: dark ones where the screen under them is light
@@ -99,6 +112,7 @@ signals:
   void tintPicturesChanged();
   void reducedMotionChanged();
   void mediaVolumeChanged();
+  void volumeDeviceChanged();
   void settingsOpenChanged();
   void micDeniedChanged();
   void firstRunChanged();
@@ -117,6 +131,14 @@ private:
   bool m_reducedMotion=false;
   qreal m_fontScale=1.0;
   int m_volume=70;
+  QString m_keysDevice;            //!< the output the volume keys change, empty when not known
+  bool m_mismatch=false;
+  bool m_testVolume=false;
+  int m_testPercent=70;
+  QString m_testKeysDevice;
+  QTimer *m_volumeTimer=nullptr;
+  int m_polls=0;
+  void refreshVolumeDevice();
   bool m_settingsOpen=false;
   bool m_micDenied=false;
   bool m_firstRun=false;

@@ -50,6 +50,27 @@ bool androidIsBuiltInSpeaker(int outputDeviceId)
   return false;
 }
 
+androidVolumeRoute androidVolumeRouteFor(const QString &savedOutputName)
+{
+  androidVolumeRoute r;
+  const QJniObject ctx=context();
+  if(!ctx.isValid()) return r;
+  const int keysId=QJniObject::callStaticMethod<jint>(helper,"volumeKeysDeviceId","(Landroid/content/Context;)I",ctx.object<jobject>());
+  if(keysId==0) return r;
+  const QList<androidAudioDevice> devices=androidAudioDevices(false);
+  for(const androidAudioDevice &d:devices)
+    if(d.id==keysId) r.keysDevice=d.description;
+  if(r.keysDevice.isEmpty()) r.keysDevice=QObject::tr("another device");   // one the lists leave out (HDMI ...)
+  if(savedOutputName.isEmpty() || savedOutputName=="default") return r;
+  for(const androidAudioDevice &d:devices)
+    if(d.description==savedOutputName)
+      {
+        r.mismatch=(d.id!=keysId);   // a saved device that is gone is not a mismatch: the system chooses
+        break;
+      }
+  return r;
+}
+
 int androidMediaVolumePercent()
 {
   const QJniObject ctx=context();

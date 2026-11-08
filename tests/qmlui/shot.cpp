@@ -237,6 +237,7 @@ int main(int argc, char **argv)
   int savedTxMode = -1;   // the Transmit mode before a scene that changes it (tx-chips): put back by the next scene
   bool outputDeviceChanged = false;   // a scene that names a long output device (tx-digital-sending-device): the next scene gets the old one back
   const QString savedOutputDevice = outputAudioDevice;
+  bool volumeTest = false;   // a scene about the volume keys: the phone's volume and the device of the keys are made up
   for (int i = 5; i < argc; i++)
     {
       const QString scene = argv[i];
@@ -262,6 +263,25 @@ int main(int argc, char **argv)
           outputDeviceChanged = false;
           qmlUi::notifyRouteChanged();
         }
+      // the scenes about the volume keys (#182): a phone volume and a device the keys act on in place of the phone's; the others have none
+      {
+        const bool volumeScene = scene.contains("volume") || scene.contains("mismatch");
+        if (volumeScene)
+          {
+            const bool mismatch = scene.contains("mismatch");
+            outputAudioDevice = mismatch ? QStringLiteral("Phone speaker") : QStringLiteral("default");   // chosen by hand: the keys are on Bluetooth; default: they follow
+            volumeTest = true;
+            app_->setTestVolume(true, 70, mismatch ? QStringLiteral("Bluetooth: Pixel Buds") : QStringLiteral("Phone speaker"));
+            qmlUi::notifyRouteChanged();
+          }
+        else if (volumeTest)
+          {
+            volumeTest = false;
+            app_->setTestVolume(false);
+            outputAudioDevice = savedOutputDevice;
+            qmlUi::notifyRouteChanged();
+          }
+      }
       rx->setMode(scene == "rx-mode-fixed" || scene == "rx-modes-fixed" ? int(M1) : -1);   // Auto, except where the scene is about a chosen mode
       if (QQuickItem *v = findItem(win->contentItem(), "viewerScreen")) v->setProperty("infoOpen", false);
       GalleryModel::instance()->closeViewer();
@@ -315,7 +335,7 @@ int main(int argc, char **argv)
               txWidgetPtr->setImage(picFile);
               QTest::qWait(300);
             }
-          if (scene == "tx-sending" || scene == "tx-route-follows" || scene.startsWith("tx-digital-sending")) tx->setTestSending(0.38);
+          if (scene == "tx-sending" || scene == "tx-route-follows" || scene == "tx-sending-mismatch" || scene.startsWith("tx-digital-sending")) tx->setTestSending(0.38);
           if (scene == "tx-digital-sending-device")
             {
               // a long name of a sound device (a USB radio interface): the chip that names it must not run out of the window either (#175)
@@ -353,7 +373,7 @@ int main(int argc, char **argv)
           app_->setScreen(0);
           AppModel::instance()->setSettingsOpen(true);
           QQuickItem *st = findItem(win->contentItem(), "settingsScreen");
-          const int page = scene == "settings-operator" ? 1 : scene == "settings-pictures" || scene == "settings-format" ? 2 : scene == "settings-position" ? 3 : scene == "settings-advanced" ? 4 : scene == "settings-audio" || scene == "settings-mic" ? 5 : scene == "settings-radios" ? 6 : scene == "settings-receive" ? 7 : scene == "settings-cw" ? 8 : scene == "settings-appearance" ? 16 : 0;
+          const int page = scene == "settings-operator" ? 1 : scene == "settings-pictures" || scene == "settings-format" ? 2 : scene == "settings-position" ? 3 : scene == "settings-advanced" ? 4 : scene == "settings-audio" || scene == "settings-audio-mismatch" || scene == "settings-mic" ? 5 : scene == "settings-radios" ? 6 : scene == "settings-receive" ? 7 : scene == "settings-cw" ? 8 : scene == "settings-appearance" ? 16 : 0;
           if (st) st->setProperty("page", page);
           if (scene == "settings-appearance")
             {
@@ -733,7 +753,7 @@ int main(int argc, char **argv)
           if (!tx->framingMoved()) fail("the digital picture is not moved after a zoom");
           if (tx->pictureRevision() == before) fail("the digital picture was not drawn again");
         }
-      if (scene == "tx-sending" || scene.startsWith("tx-digital-sending"))
+      if (scene == "tx-sending" || scene == "tx-sending-mismatch" || scene.startsWith("tx-digital-sending"))
         {
           // the two chips under the ring (the mode, the way the sound goes) stay inside the window with the margin of the rest of the screen:
           // side by side, centered, when both fit, one under the other, each centered, when they do not (#175)
@@ -791,6 +811,95 @@ int main(int argc, char **argv)
               if (QQuickItem *box = findItem(win->contentItem(), "problemDialog")) box->setProperty("open", false);
               QTest::qWait(300);
             }
+        }
+      if (scene == "tx-volume")
+        {
+          // the volume card has its slider; while the picture is sent the percentage on the sending screen follows the volume keys (#182): the screen
+          // behind it is covered then, and nothing used to look at the volume. Where the sound follows the system default it names the device the keys act on
+          TxController *tx = TxController::instance();
+          auto fail = [&](const char *what) {fprintf(stderr, "FAIL: tx-volume: %s\n", what); exitCode = 1;};
+          if (!findShown(content, "mediaVolumeSlider")) fail("no volume slider on the Transmit screen");
+          if (findShown(content, "volumeNote")) fail("a note about the volume keys where the sound goes where they act");
+          tx->setTestSending(0.38);
+          QTest::qWait(400);
+          QQuickItem *route = findShown(content, "sendRouteChip");
+          if (!route) fail("no sendRouteChip item");
+          else
+            {
+              const QString first = route->property("text").toString();
+              app_->setTestKeyPress(40);   // the keys were pressed
+              QTest::qWait(300);
+              const QString unseen = route->property("text").toString();
+              app_->pollVolume();   // the program looks at the volume by itself every moment (a timer on the phone)
+              QTest::qWait(300);
+              const QString seen = route->property("text").toString();
+              app_->setTestVolume(true, 40, QStringLiteral("Bluetooth: Pixel Buds"));   // the system default is now Bluetooth: the keys act on it, and the sound goes there
+              QTest::qWait(300);
+              const QString bluetooth = route->property("text").toString();
+              printf("  route chip: \"%s\" -> keys pressed \"%s\" -> looked \"%s\" -> Bluetooth \"%s\"\n", qPrintable(first), qPrintable(unseen), qPrintable(seen), qPrintable(bluetooth));
+              if (first != QStringLiteral("Phone speaker  70 %")) fail("the chip does not say the device and the volume");
+              if (unseen != first) fail("the volume changed without anybody looking (the test is not what it says)");
+              if (seen != QStringLiteral("Phone speaker  40 %")) fail("the percentage did not follow the volume keys while sending");
+              if (bluetooth != QStringLiteral("Bluetooth: Pixel Buds  40 %")) fail("the system default is not named by the device the keys act on");
+              if (app_->volumeMismatch()) fail("a mismatch where the sound follows the system default");
+            }
+        }
+      if (scene == "tx-volume-mismatch")
+        {
+          // Phone speaker chosen by hand while the volume keys act on Bluetooth: the card says so instead of showing a slider that changes the wrong
+          // device, and "Use system default" puts the sound where the keys act (#182)
+          auto fail = [&](const char *what) {fprintf(stderr, "FAIL: tx-volume-mismatch: %s\n", what); exitCode = 1;};
+          QQuickItem *note = findShown(content, "volumeNote"), *text = findShown(content, "volumeNoteText");
+          if (!note || !text) fail("no note about the volume keys");
+          else
+            {
+              const QString said = text->property("text").toString();
+              printf("  note: \"%s\"\n", qPrintable(said));
+              if (!said.contains("Bluetooth: Pixel Buds") || !said.contains("Phone speaker")) fail("the note does not name both devices");
+            }
+          if (findShown(content, "mediaVolumeSlider")) fail("a volume slider that changes the wrong device");
+          if (!app_->volumeMismatch()) fail("no mismatch");
+          QQuickItem *button = findShown(content, "volumeNoteSwitch");
+          if (!button) fail("no Use system default button");
+          else
+            {
+              QTest::qWait(300);
+              revealItem(button);
+              QTest::mouseClick(win, Qt::LeftButton, {}, button->mapToScene(QPointF(button->width() / 2, button->height() / 2)).toPoint());
+              QTest::qWait(900);   // the sound restart is queued behind the tap that asked for it
+              printf("  after the button: output \"%s\", mismatch %d\n", qPrintable(outputAudioDevice), app_->volumeMismatch());
+              if (outputAudioDevice != QStringLiteral("default")) fail("the button did not choose the system default");
+              if (app_->volumeMismatch() || findShown(content, "volumeNote")) fail("the note stays after the sound follows the keys");
+              if (!findShown(content, "mediaVolumeSlider")) fail("no volume slider after the sound follows the keys");
+              if (app_->routeText() != QStringLiteral("Bluetooth: Pixel Buds")) fail("the route is not named by the device the keys act on");
+              // there is no sound card here: the restart said so in a "Soundcard error" box, which must not stay over the scenes that follow
+              if (QQuickItem *box = findItem(win->contentItem(), "problemDialog")) box->setProperty("open", false);
+              QTest::qWait(300);
+              // the screenshot: the mismatch again
+              outputAudioDevice = QStringLiteral("Phone speaker");
+              app_->setTestVolume(true, 70, QStringLiteral("Bluetooth: Pixel Buds"));
+              qmlUi::notifyRouteChanged();
+              QTest::qWait(300);
+            }
+        }
+      if (scene == "tx-sending-mismatch")
+        {
+          // on the sending screen the percentage of the wrong device is not shown, the note is, and there is no button (a new device would restart the sound)
+          auto fail = [&](const char *what) {fprintf(stderr, "FAIL: tx-sending-mismatch: %s\n", what); exitCode = 1;};
+          QTest::qWait(300);
+          QQuickItem *route = findShown(content, "sendRouteChip");
+          if (!route) fail("no sendRouteChip item");
+          else if (route->property("text").toString() != QStringLiteral("Phone speaker")) fail("the chip is not the device alone");
+          if (!findShown(content, "volumeNote")) fail("no note about the volume keys while sending");
+          if (findShown(content, "volumeNoteSwitch")) fail("a button that would restart the sound while sending");
+        }
+      if (scene == "settings-audio-mismatch")
+        {
+          auto fail = [&](const char *what) {fprintf(stderr, "FAIL: settings-audio-mismatch: %s\n", what); exitCode = 1;};
+          QTest::qWait(300);
+          QQuickItem *page = findShown(content, "settingsVolumeNote");
+          if (!page) fail("no note about the volume keys on the Audio and radio page");
+          else if (!findShown(page, "volumeNoteSwitch")) fail("no Use system default button there");
         }
       if (scene == "about") {win->setProperty("aboutOpen", true); QTest::qWait(500);}
       if (scene == "tx-tools")

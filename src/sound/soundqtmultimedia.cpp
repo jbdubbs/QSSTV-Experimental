@@ -49,6 +49,7 @@ void getCardList(QStringList &inputList, QStringList &outputList)
   // Qt names an Android device by its type only; androidAudioDevices() adds the product name of a USB or Bluetooth device, which
   // is what makes a saved choice find the same device again (and is what soundAndroid looks up)
   for(const androidAudioDevice &d : androidAudioDevices(true)) inputList.append(d.description);
+  outputList.append(QStringLiteral("default"));   // the system chooses (the screens say "System default"): the sound goes where the volume keys act (#182)
   for(const androidAudioDevice &d : androidAudioDevices(false)) outputList.append(d.description);
   return;
 #endif

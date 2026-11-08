@@ -190,8 +190,14 @@ Rectangle {
                 summary: SettingsController.outputDevice === "default" ? qsTr("System default") : SettingsController.outputDevice
                 onClicked: speakerDialog.open = true
             }
+            // the slider changes the device Android plays music on: when the speaker above is another one, the note says so instead
+            Item {
+                visible: AppModel.volumeMismatch
+                width: parent.width; height: mismatchNote.height + 8
+                VolumeNote { id: mismatchNote; objectName: "settingsVolumeNote"; x: 24; width: parent.width - 48 }
+            }
             SliderRow {
-                visible: AppModel.mediaVolumeAvailable
+                visible: AppModel.mediaVolumeAvailable && !AppModel.volumeMismatch
                 title: qsTr("Media volume"); summary: qsTr("Sets how loud a picture is sent")
                 from: 0; to: 100; stepSize: 1; value: AppModel.mediaVolume
                 valueText: AppModel.mediaVolume + " %"

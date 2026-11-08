@@ -257,13 +257,16 @@ Column {
                 }
                 Text {
                     anchors.right: parent.right
-                    visible: AppModel.mediaVolumeAvailable
+                    visible: AppModel.mediaVolumeAvailable && !AppModel.volumeMismatch
                     text: qsTr("Media volume %1 %").arg(AppModel.mediaVolume)
                     color: Theme.surfaceOn; font.pixelSize: Theme.sp(14); font.weight: Font.Medium
                 }
             }
+            // the slider and the keys act on the device Android plays music on: when the sound goes to another one, the note says so instead
+            VolumeNote { width: parent.width }
             ThemedSlider {
-                visible: AppModel.mediaVolumeAvailable
+                objectName: "mediaVolumeSlider"
+                visible: AppModel.mediaVolumeAvailable && !AppModel.volumeMismatch
                 width: parent.width
                 from: 0; to: 100; stepSize: 1
                 value: AppModel.mediaVolume
@@ -271,7 +274,7 @@ Column {
                 Accessible.name: qsTr("Media volume")
             }
             Text {
-                visible: AppModel.mediaVolumeAvailable && AppModel.mediaVolume === 0
+                visible: AppModel.mediaVolumeAvailable && !AppModel.volumeMismatch && AppModel.mediaVolume === 0
                 width: parent.width
                 wrapMode: Text.WordWrap
                 text: qsTr("The volume is off: the picture would be sent in silence. Turn it up with the slider or the volume keys.")
@@ -288,7 +291,6 @@ Column {
                 font.pixelSize: Theme.sp(13)
             }
         }
-        Timer { interval: 700; running: AppModel.mediaVolumeAvailable && block.visible; repeat: true; onTriggered: AppModel.refreshVolume() }
     }
     Item { width: 1; height: 8 }
 }

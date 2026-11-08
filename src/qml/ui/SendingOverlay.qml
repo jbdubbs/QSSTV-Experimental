@@ -16,7 +16,7 @@ Rectangle {
 
     // how tall the picture may be: what is between the title bar and the Stop button, less the rest of the column. On a short screen, or with the two chips
     // one under the other (#175), the picture gives way, so that the text under it does not run behind the button
-    readonly property real pictureRoom: stopButton.y - 8 - (bar.y + bar.height + 8) - (ring.height + chips.height + hint.height + 3 * body.spacing)
+    readonly property real pictureRoom: stopButton.y - 8 - (bar.y + bar.height + 8) - (ring.height + chips.height + hint.height + (volumeNote.visible ? volumeNote.height + body.spacing : 0) + 3 * body.spacing)
 
     Item {
         id: bar
@@ -88,9 +88,16 @@ Rectangle {
                 objectName: "sendRouteChip"
                 Layout.alignment: Qt.AlignHCenter
                 maxWidth: body.width
-                text: AppModel.routeText + (AppModel.mediaVolumeAvailable ? "  " + AppModel.mediaVolume + " %" : "")
+                // the percentage is the one of the device the keys change: not shown when the sound goes to another one (#182)
+                text: AppModel.routeText + (AppModel.mediaVolumeAvailable && !AppModel.volumeMismatch ? "  " + AppModel.mediaVolume + " %" : "")
                 icon: Icons.volume
             }
+        }
+        VolumeNote {
+            id: volumeNote
+            width: parent.width
+            canSwitch: false   // another device would restart the sound in the middle of the picture
+            textAlign: Text.AlignHCenter
         }
         Text {
             id: hint

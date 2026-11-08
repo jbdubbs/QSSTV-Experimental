@@ -3,6 +3,7 @@
 #include "configdialog.h"
 #include "mainwindow.h"
 #include "platformservice.h"
+#include "settingscontroller.h"
 #include "soundbase.h"
 #include "soundconfig.h"
 
@@ -45,14 +46,29 @@ AppModel::AppModel(QObject *parent) : QObject(parent)
   if(qEnvironmentVariableIsSet("QSSTV_QML_TINT")) m_tintPictures=qgetenv("QSSTV_QML_TINT")=="1";
   // "Remove animations" of the phone (and QSSTV_QML_REDUCED_MOTION=1 on the desktop); it is looked at again when the program comes to the front
   m_reducedMotion=systemAnimationsRemoved();
+  // the volume keys change the media volume behind our back, also while the picture is being sent (the screen that shows it is covered then):
+  // the program looks at it by itself while it is in front (#182)
+  m_volumeTimer=new QTimer(this);
+  m_volumeTimer->setInterval(400);
+  QObject::connect(m_volumeTimer,&QTimer::timeout,this,&AppModel::pollVolume);
+  QObject::connect(this,&AppModel::routeChanged,this,&AppModel::refreshVolumeDevice);   // the device was chosen: the keys may point elsewhere now
   QObject::connect(qApp,&QGuiApplication::applicationStateChanged,this,[this](Qt::ApplicationState state)
     {
+#ifdef Q_OS_ANDROID
+      if(state==Qt::ApplicationActive) {m_polls=0; pollVolume(); m_volumeTimer->start();}
+      else m_volumeTimer->stop();
+#endif
       if(state!=Qt::ApplicationActive) return;
       setReducedMotion(systemAnimationsRemoved());
       checkShortcut();   // a launcher shortcut brought the program to the front
     });
 #ifdef Q_OS_ANDROID
   androidShellInit();
+  if(qApp->applicationState()==Qt::ApplicationActive)
+    {
+      m_volumeTimer->start();   // the program is in front already: no state change tells
+      QTimer::singleShot(0,this,&AppModel::pollVolume);
+    }
   QTimer::singleShot(1500,this,[this] {checkShortcut();});   // the shortcut that started the program (the screens are up by then)
 #endif
   bool ok=false;
@@ -134,6 +150,7 @@ void AppModel::setDigital(bool on)
 
 bool AppModel::mediaVolumeAvailable() const
 {
+  if(m_testVolume) return true;
 #ifdef Q_OS_ANDROID
   return true;
 #else
@@ -146,7 +163,7 @@ int AppModel::mediaVolume() const
 #ifdef Q_OS_ANDROID
   return m_volume;
 #else
-  return 70;
+  return m_testVolume ? m_volume : 70;
 #endif
 }
 
@@ -259,16 +276,64 @@ void AppModel::keepScreenOn(bool on)
 
 void AppModel::refreshVolume()
 {
+  int v=m_volume;
+  if(m_testVolume) v=m_testPercent;
 #ifdef Q_OS_ANDROID
-  const int v=androidMediaVolumePercent();
-  if(v!=m_volume) {m_volume=v; emit mediaVolumeChanged();}
+  else v=androidMediaVolumePercent();
 #endif
+  if(v!=m_volume) {m_volume=v; emit mediaVolumeChanged();}
+}
+
+// Where the volume keys act, and whether that is where the sound goes (#182)
+void AppModel::refreshVolumeDevice()
+{
+  QString keys;
+  bool mismatch=false;
+#ifdef Q_OS_ANDROID
+  const androidVolumeRoute r=androidVolumeRouteFor(outputAudioDevice);
+  keys=r.keysDevice;
+  mismatch=r.mismatch;
+#endif
+  if(m_testVolume)
+    {
+      keys=m_testKeysDevice;
+      mismatch=!keys.isEmpty() && !outputAudioDevice.isEmpty() && outputAudioDevice!="default" && outputAudioDevice!=keys;
+    }
+  if(keys==m_keysDevice && mismatch==m_mismatch) return;
+  const bool routeNamed=(outputAudioDevice.isEmpty() || outputAudioDevice=="default");   // the route text names the device the keys act on
+  m_keysDevice=keys;
+  m_mismatch=mismatch;
+  emit volumeDeviceChanged();
+  if(routeNamed) emit routeChanged();
+}
+
+void AppModel::pollVolume()
+{
+  refreshVolume();
+  if(m_polls++%5==0) refreshVolumeDevice();   // the first look, and then about every two seconds
+}
+
+void AppModel::setTestVolume(bool on,int percent,const QString &keysDevice)
+{
+  m_testVolume=on;
+  m_testPercent=percent;
+  m_testKeysDevice=keysDevice;
+  emit mediaVolumeChanged();   // also: the volume is available (or not) now
+  refreshVolume();
+  refreshVolumeDevice();
+}
+
+void AppModel::useSystemDefaultOutput()
+{
+  SettingsController::instance()->setOutputDevice(QStringLiteral("default"));   // the sound restarts, as for any change of the Speaker setting
+  refreshVolumeDevice();
+  emit routeChanged();
 }
 
 QString AppModel::routeText() const
 {
   const QString out=outputAudioDevice;
-  if(out.isEmpty() || out=="default") return tr("Phone speaker");
+  if(out.isEmpty() || out=="default") return m_keysDevice.isEmpty() ? tr("Phone speaker") : m_keysDevice;   // the system default is the device the keys act on
   return out;
 }
 
