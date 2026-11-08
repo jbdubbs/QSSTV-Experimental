@@ -205,6 +205,7 @@ int main(int argc, char **argv)
           for (const char *prop : {"optionsOpen", "modesOpen", "detailsOpen", "digitalOpen", "toolsOpen", "templatesOpen", "open"})
             if (s->property(prop).isValid()) s->setProperty(prop, false);
       TxController::instance()->setTestSending(-1);
+      rx->setMode(scene == "rx-mode-fixed" || scene == "rx-modes-fixed" ? int(M1) : -1);   // Auto, except where the scene is about a chosen mode
       if (QQuickItem *v = findItem(win->contentItem(), "viewerScreen")) v->setProperty("infoOpen", false);
       GalleryModel::instance()->closeViewer();
       if (TouchTemplateEditor::instance()->isOpen()) TouchTemplateEditor::instance()->close();
@@ -455,6 +456,35 @@ int main(int argc, char **argv)
         {
           QQuickItem *r = findItem(content, "receiveScreen");
           if (r) r->setProperty("optionsOpen", true);
+          QTest::qWait(500);
+        }
+      if (scene == "rx-mode")
+        {
+          // the receive mode chosen on the Mode chip's list (#173): the page's box gets it, the setting is saved, Auto comes back
+          auto fail = [&](const char *what) {fprintf(stderr, "FAIL: rx-mode: %s\n", what); exitCode = 1;};
+          if (rx->mode() != -1 || rx->modeName() != QStringLiteral("Auto") || int(sstvModeIndexRx) != 0) fail("not Auto to begin with");
+          QSignalSpy changed(rx, &RxController::optionsChanged);
+          rx->setMode(int(M1));
+          if (int(sstvModeIndexRx) != int(M1) + 1) fail("the receiver's mode is still the old one");
+          if (rx->mode() != int(M1)) fail("the controller's mode is still the old one");
+          if (rx->modeName() != QString(SSTVTable[M1].name)) fail("the mode name is not the new mode's");
+          if (changed.isEmpty()) fail("no optionsChanged");
+          rx->setMode(-2);
+          rx->setMode(int(NUMSSTVMODES));
+          if (rx->mode() != int(M1)) fail("a mode out of range was taken");
+          QTest::qWait(1500);   // the page writes its settings a second after the change
+          if (QSettings().value("RX/sstvModeIndexRx").toInt() != int(M1) + 1) fail("the mode is not in the settings file");
+          rx->setMode(-1);
+          if (rx->mode() != -1 || rx->modeName() != QStringLiteral("Auto") || int(sstvModeIndexRx) != 0) fail("Auto did not come back");
+          printf("  mode  Auto -> %s -> Auto\n", qPrintable(QString(SSTVTable[M1].name)));
+        }
+      if (scene == "rx-mode-fixed" || scene == "rx-modes" || scene == "rx-modes-fixed")
+        {
+          qmlUi::rxLine(0);   // listening and idle (no picture coming in), whatever the scene before left
+          qmlUi::rxImageEnded();
+          qmlUi::rxStatus(false, "Listening");
+          QQuickItem *r = findItem(content, "receiveScreen");
+          if (scene != "rx-mode-fixed" && (!r || !r->setProperty("modesOpen", true))) fprintf(stderr, "cannot open the list of modes\n");
           QTest::qWait(500);
         }
       if (qEnvironmentVariableIsSet("QSSTV_QML_AUDIT")) auditTree(win->contentItem(), scene);

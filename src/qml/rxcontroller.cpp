@@ -7,6 +7,7 @@
 #include "rxfunctions.h"
 #include "rxwidget.h"
 #include "soundbase.h"
+#include "sstvparam.h"
 #include "sstvrx.h"
 
 #include <QCheckBox>
@@ -100,6 +101,24 @@ void RxController::setMinCompletion(int percent)
 {
   if(rxWidgetPtr)
     if(QSpinBox *box=rxWidgetPtr->findChild<QSpinBox *>("completeSpinBox")) box->setValue(qBound(0,percent,100));
+  emit optionsChanged();
+}
+
+// sstvModeIndexRx holds 0 for Auto and the esstvMode plus one for a chosen mode (see rxWidget::rebuildModeComboBox())
+int RxController::mode() const {return sstvModeIndexRx==(esstvMode)0 ? -1 : int(sstvModeIndexRx)-1;}
+
+QString RxController::modeName() const
+{
+  const int m=mode();
+  return m<0 ? tr("Auto") : QString(SSTVTable[m].name);
+}
+
+void RxController::setMode(int m)
+{
+  if(m<-1 || m>=NUMSSTVMODES || !rxWidgetPtr) return;
+  // the page's own box: its row 0 is Auto and row n+1 is mode n. Unlike the Transmit box it is wired to currentIndexChanged(), so a change in
+  // code gets the page's slot (reads the box, saves the setting, restarts a running receiver on the new filter)
+  if(QComboBox *box=rxWidgetPtr->findChild<QComboBox *>("sstvModeComboBox")) box->setCurrentIndex(m+1);
   emit optionsChanged();
 }
 

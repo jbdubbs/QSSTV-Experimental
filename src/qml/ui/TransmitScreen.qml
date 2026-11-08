@@ -71,7 +71,7 @@ Item {
             }
         }
     }
-    ModeSheet { id: modes }
+    ModeSheet { id: modes; onPicked: (m) => TxController.mode = m }
     DrmSheet { id: digital; onEditProfiles: { digital.open = false; screen.editProfiles() } }
     ToolsSheet { id: tools }
     DetailsSheet { id: details }

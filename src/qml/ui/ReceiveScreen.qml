@@ -8,7 +8,14 @@ Item {
     id: screen
     property bool wide: width >= 600 && width > height * 1.1   // a tablet held upright stacks the parts like a phone
     property alias optionsOpen: options.open
+    property alias modesOpen: modes.open
     signal openRoute()
+
+    // a picture that starts while the list is open: a new mode would restart the receiver and lose it
+    Connections {
+        target: RxController
+        function onStateChanged() { if (RxController.receiving) modes.open = false }
+    }
 
     ModeStrip {
         id: strip
@@ -47,6 +54,7 @@ Item {
             x: Theme.margin
             y: canvas.y + canvas.height + 6
             width: canvas.width
+            onOpenModes: modes.open = true
         }
         ProgressLine {
             visible: RxController.receiving && RxController.lines > 0
@@ -81,6 +89,14 @@ Item {
         danger: RxController.listening
         emphasized: !RxController.listening
         onClicked: RxController.toggle()
+    }
+
+    ModeSheet {
+        id: modes
+        title: qsTr("Receive mode")
+        withAuto: true
+        current: RxController.mode
+        onPicked: (m) => RxController.mode = m
     }
 
     BottomSheet {
