@@ -13,6 +13,7 @@
 #include "dispatcher.h"
 #include "dispatch/filedecoder.h"
 #include "supportfunctions.h"
+#include "uimode.h"
 #include "gallerywidget.h"
 #include "waterfalltext.h"
 
@@ -552,12 +553,19 @@ bool txWidget::busyNotice()
   nobody told (#162). The status bar says it, and a box does when somebody pressed the button (a beacon, a repeater and a
   calibration have their own way of reporting, and a headless run has nobody to read a box).
 */
+QString txWidget::noSoundOutputText()
+{
+  // the Qt Quick interface has no Configuration dialog: the sound devices are on the Audio and radio page
+  return QString("Nothing was transmitted: there is no working sound output.\n\nChoose the sound card in %1.")
+         .arg(uiMode::qml() ? QStringLiteral("Settings > Audio and radio") : QStringLiteral("Configuration > Sound"));
+}
+
 void txWidget::startFailedNotice(bool attended)
 {
   QString text;
   if(soundIOPtr && !soundIOPtr->driverOK())
     {
-      text="Nothing was transmitted: there is no working sound output.\n\nChoose the sound card in Configuration > Sound.";
+      text=noSoundOutputText();
     }
   else
     {

@@ -22,6 +22,7 @@
 #include "rxcontroller.h"
 #include "txcontroller.h"
 #include "txwidget.h"
+#include "soundbase.h"
 #include "rigcontrol.h"
 #include "sstvparam.h"
 #include "imageviewer.h"
@@ -991,6 +992,27 @@ int main(int argc, char **argv)
                     }
                 }
             }
+        }
+      if (scene == "tx-pointers")
+        {
+          // the texts that name a place of the program name one of the phone, not of the desktop (the Configuration dialog, the TX tab): the PTT problem, no sound
+          // output, no sound device, and the macros of the template editor
+          auto fail = [&](const char *what) {fprintf(stderr, "FAIL: tx-pointers: %s\n", what); exitCode = 1;};
+          auto check = [&](const QString &what, const QString &text) {
+            printf("  %s: \"%s\"\n", qPrintable(what), qPrintable(text.left(150).replace('\n', ' ')));
+            if (text.contains("Configuration") || text.contains("TX tab") || text.contains("see configuration")) fail(qPrintable(what + " names a place of the desktop"));
+          };
+          check(QStringLiteral("PTT problem"), rigControl::pttProblemText(QStringLiteral("x")));
+          check(QStringLiteral("no sound output"), txWidget::noSoundOutputText());
+          check(QStringLiteral("no sound device"), soundBase::noDeviceText());
+          if (!txWidget::noSoundOutputText().contains("Settings > Audio and radio") || !soundBase::noDeviceText().contains("Settings > Audio and radio")) fail("the sound texts do not name Settings > Audio and radio");
+          int macros = 0;
+          for (const QVariant &m : TouchTemplateEditor::instance()->macros())
+            {
+              check(QString("macro %%1").arg(m.toMap().value("tag").toString()), m.toMap().value("description").toString());
+              macros++;
+            }
+          if (macros < 15) fail("the macro list is short");
         }
       if (scene == "about") {win->setProperty("aboutOpen", true); QTest::qWait(500);}
       if (scene == "tx-tools")

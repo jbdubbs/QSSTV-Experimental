@@ -1,4 +1,5 @@
 #include "touchtemplateeditor.h"
+#include <QCoreApplication>
 #include "appglobal.h"
 #include "directoriesconfig.h"
 #include "templatepresets.h"
@@ -775,6 +776,26 @@ void TouchTemplateEditor::clearAll()
   refreshSelection();
 }
 
+// The descriptions of the macro table (src/template) name the places of the desktop: the TX tab, Configuration > GPS. On the phone the same things are in
+// the Details of the Transmit screen and under Settings > Position, and the three comment lines have no box at all.
+static QString phoneDescription(QChar tag,const QString &generic)
+{
+  auto t=[](const char *s) {return QCoreApplication::translate("TouchTemplateEditor",s);};
+  switch(tag.unicode())
+    {
+    case 'c': return t("Call sign of the station you are sending to (Details on the Transmit screen)");
+    case 'r': return t("RSV report (Details on the Transmit screen)");
+    case 'o': return t("Name of the operator you are sending to (Details on the Transmit screen)");
+    case 'x': return t("First comment line (the phone has no box for it)");
+    case 'y': return t("Second comment line (the phone has no box for it)");
+    case 'z': return t("Third comment line (the phone has no box for it)");
+    case 'a': return t("Latitude of the phone's position, in decimal degrees (north positive) or as 47 36.37N, see Settings > Position");
+    case 'b': return t("Longitude of the phone's position, in decimal degrees (east positive) or as 122 19.93W, see Settings > Position");
+    case 'g': return t("City and state of the position (looked up on the internet from the phone's position, see Settings > Position)");
+    default: return generic;
+    }
+}
+
 QVariantList TouchTemplateEditor::macros() const
 {
   QVariantList l;
@@ -783,7 +804,7 @@ QVariantList TouchTemplateEditor::macros() const
       QVariantMap v;
       v["tag"]=QString(m.tag);
       v["name"]=m.name;
-      v["description"]=m.description;
+      v["description"]=phoneDescription(m.tag,m.description);
       v["sample"]=m.sample;
       l.append(v);
     }

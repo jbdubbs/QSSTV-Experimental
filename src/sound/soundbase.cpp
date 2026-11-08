@@ -3,6 +3,7 @@
 #include "configparams.h"
 #include "arraydumper.h"
 #include "rawclock.h"
+#include "uimode.h"
 
 #include <QDebug>
 #include <QApplication>
@@ -259,7 +260,7 @@ bool soundBase::startListen()
 {
   if(!soundDriverOK)
     {
-      errorHandler("No valid sound device (see configuration)","");
+      errorHandler(noDeviceText(),"");
       return false;
     }
   switchPlaybackState(PBINIT);
@@ -353,7 +354,7 @@ bool soundBase::startCapture()
       {
         if(!soundDriverOK)
           {
-            errorHandler("No valid sound device (see configuration)","");
+            errorHandler(noDeviceText(),"");
             return false;
           }
         if(!waveOut.openFileForWrite("",true,true)) // always output stereo
@@ -366,7 +367,7 @@ bool soundBase::startCapture()
     case SNDINCARD:
       if(!soundDriverOK)
         {
-          errorHandler("No valid sound device (see configuration)","");
+          errorHandler(noDeviceText(),"");
           return false;
         }
       break;
@@ -464,7 +465,7 @@ bool soundBase::startPlayback()
   switchCaptureState(CPINIT);
   if(!soundDriverOK && txFileName.isEmpty())
     {
-      errorHandler("No valid sound device (see configuration)","");
+      errorHandler(noDeviceText(),"");
       return false;
     }
   storedFrames=0;
@@ -493,6 +494,11 @@ bool soundBase::startPlayback()
   return true;
 }
 
+
+QString soundBase::noDeviceText()
+{
+  return uiMode::qml() ? QStringLiteral("No valid sound device (see Settings > Audio and radio)") : QStringLiteral("No valid sound device (see configuration)");
+}
 
 void soundBase::errorHandler(QString title, QString info)
 {

@@ -55,6 +55,8 @@ public:
   void idleTX();
   void stopSoundThread();
   virtual void getCardList() {;}
+  //! the error when there is no usable sound device: where to choose one depends on the interface that is showing
+  static QString noDeviceText();
 
   bool startCapture();
   bool startPlayback();

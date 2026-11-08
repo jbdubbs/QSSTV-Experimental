@@ -183,6 +183,10 @@ private:
   bool attendedTx() const;
   //! the transmitter could not be started: the status bar says why, and a box too when somebody pressed the button (#162)
   void startFailedNotice(bool attended);
+public:
+  //! what the box says when there is no working sound output: the place it names is the one of the interface that is showing
+  static QString noSoundOutputText();
+private:
   void restoreAfterCalibrationTx();
   void enableButtons(bool enable);
   //! a scheduled beacon could not transmit: report it, and retry in 30 s
