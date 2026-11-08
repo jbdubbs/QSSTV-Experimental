@@ -34,6 +34,7 @@ class TxController : public QObject
   Q_PROPERTY(QString totalText READ totalText NOTIFY progressChanged)            //!< what the whole transmission takes
   Q_PROPERTY(QString toolName READ toolName NOTIFY toolChanged)                  //!< while a tone, text or CW is sent: what it is; empty for a picture
   Q_PROPERTY(bool useTemplate READ useTemplateOn WRITE setUseTemplate NOTIFY detailsChanged)
+  Q_PROPERTY(bool templateOn READ templateOn NOTIFY detailsChanged)   //!< a template is on the picture: switched on and there is one to use
   Q_PROPERTY(QString templateName READ templateName NOTIFY detailsChanged)   //!< the template that goes on the picture; empty when there is none
   Q_PROPERTY(QString templateFile READ templateFile NOTIFY detailsChanged)   //!< its file
   Q_PROPERTY(QString toCall READ toCall WRITE setToCall NOTIFY detailsChanged)
@@ -70,6 +71,7 @@ public:
   QString totalText() const;
   QString toolName() const {return m_toolName;}
   bool useTemplateOn() const;
+  bool templateOn() const;
   QString templateName() const;
   QString templateFile() const;
   void setUseTemplate(bool on);

@@ -10,12 +10,39 @@ BottomSheet {
     property var items: []
     onOpenChanged: if (open) items = TxController.templates()
 
+    // no template: the picture goes as it is
+    Item {
+        id: noneRow
+        width: parent.width; height: 72
+        readonly property bool chosen: !TxController.templateOn
+        Rectangle { anchors.fill: parent; color: Theme.primaryContainer; visible: noneRow.chosen }
+        Rectangle {
+            id: noneTile
+            x: 24; anchors.verticalCenter: parent.verticalCenter
+            width: 72; height: 56; radius: 8; color: Theme.surfaceHigh
+            Icon { path: Icons.close; color: Theme.surfaceVariantOn; anchors.centerIn: parent }
+        }
+        Text {
+            anchors.left: noneTile.right; anchors.leftMargin: 16
+            anchors.right: noneTick.left; anchors.rightMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
+            text: qsTr("None"); elide: Text.ElideRight
+            color: Theme.surfaceOn; font.pixelSize: Theme.sp(16)
+        }
+        Icon { id: noneTick; visible: noneRow.chosen; path: Icons.check; color: Theme.primary
+               anchors.right: parent.right; anchors.rightMargin: 24; anchors.verticalCenter: parent.verticalCenter }
+        TapHandler { onTapped: { TxController.useTemplate = false; sheet.open = false } }
+        Accessible.role: Accessible.RadioButton
+        Accessible.name: qsTr("None")
+        Accessible.checked: noneRow.chosen
+        Accessible.onPressAction: { TxController.useTemplate = false; sheet.open = false }
+    }
     Text {
         visible: sheet.items.length === 0
         width: parent.width
         text: qsTr("There are no templates yet.")
         color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(14)
-        leftPadding: 24; rightPadding: 24; bottomPadding: 12
+        leftPadding: 24; rightPadding: 24; bottomPadding: 12; topPadding: 12
     }
     ListView {
         id: list
@@ -27,7 +54,8 @@ BottomSheet {
         delegate: Item {
             required property var modelData
             width: list.width; height: 72
-            Rectangle { anchors.fill: parent; color: Theme.primaryContainer; visible: parent.modelData.current === true }
+            readonly property bool chosen: modelData.current === true && TxController.templateOn   // with None chosen no template is ticked
+            Rectangle { anchors.fill: parent; color: Theme.primaryContainer; visible: parent.chosen }
             Rectangle {
                 id: thumb
                 x: 24; anchors.verticalCenter: parent.verticalCenter
@@ -42,17 +70,17 @@ BottomSheet {
                 text: modelData.name; elide: Text.ElideRight
                 color: Theme.surfaceOn; font.pixelSize: Theme.sp(16)
             }
-            Icon { id: tick; visible: modelData.current === true; path: Icons.check; color: Theme.primary
+            Icon { id: tick; visible: parent.chosen; path: Icons.check; color: Theme.primary
                    anchors.right: parent.right; anchors.rightMargin: 24; anchors.verticalCenter: parent.verticalCenter }
             TapHandler { onTapped: { TxController.chooseTemplate(parent.modelData.path); sheet.open = false } }
             Accessible.role: Accessible.RadioButton
             Accessible.name: modelData.name
-            Accessible.checked: modelData.current === true
+            Accessible.checked: chosen
             Accessible.onPressAction: { TxController.chooseTemplate(modelData.path); sheet.open = false }
         }
     }
     PreferenceRow {
-        visible: TxController.templateFile !== ""
+        visible: TxController.templateFile !== "" && TxController.templateOn   // with None there is no template to change
         icon: Icons.edit
         title: qsTr("Edit this template")
         summary: TxController.templateName

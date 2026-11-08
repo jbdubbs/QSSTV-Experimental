@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls.Material
 import QSSTV
 
-// The template toggle, the mode, what it takes, and how loud it will be
+// The template and its details, the mode, what it takes, and how loud it will be
 Column {
     id: block
     signal openDetails()
@@ -18,38 +18,13 @@ Column {
         Chip { icon: Icons.radio; text: Frequencies.chipText; onClicked: Frequencies.pickerOpen = true }
     }
 
-    // put my details on the picture: the text opens the details, the switch turns the template on and off
+    // which template: the sheet lists them (None first), changes this one or begins a new one
     Item {
-        width: parent.width
-        height: Math.max(56, textCol.implicitHeight + 16)
-        Column {
-            id: textCol
-            anchors.left: parent.left; anchors.leftMargin: 24
-            anchors.right: templateSwitch.left; anchors.rightMargin: 12
-            anchors.verticalCenter: parent.verticalCenter
-            Text { text: qsTr("Put my details on the picture"); color: Theme.surfaceOn; font.pixelSize: Theme.sp(16); width: parent.width; wrapMode: Text.WordWrap }
-            Text {
-                text: TxController.detailsSummary !== "" ? TxController.detailsSummary : qsTr("Tap to add your call sign, who it is for and a report")
-                color: Theme.surfaceVariantOn
-                font.pixelSize: Theme.sp(13)
-                width: parent.width
-                elide: Text.ElideRight
-            }
-            TapHandler { margin: Theme.tapMargin(parent); onTapped: block.openDetails() }
-            Accessible.onPressAction: { block.openDetails() }
-        }
-        ToggleSwitch {
-            id: templateSwitch
-            anchors.right: parent.right; anchors.rightMargin: 24
-            anchors.verticalCenter: parent.verticalCenter
-            checked: TxController.useTemplate
-            onToggled: TxController.useTemplate = checked
-            Accessible.name: qsTr("Put my details on the picture")
-        }
-    }
-
-    // which template: the sheet lists them, changes this one or begins a new one
-    Item {
+        id: tplRow
+        objectName: "templateRow"
+        // None when the picture goes without a template; "None yet" when there is not one to choose
+        readonly property string current: TxController.templateName === "" ? qsTr("None yet. Tap to make one")
+                                          : TxController.templateOn ? TxController.templateName : qsTr("None")
         width: parent.width
         height: Math.max(56, tplCol.implicitHeight + 16)
         Column {
@@ -59,7 +34,7 @@ Column {
             anchors.verticalCenter: parent.verticalCenter
             Text { text: qsTr("Template"); color: Theme.surfaceOn; font.pixelSize: Theme.sp(16); width: parent.width; wrapMode: Text.WordWrap }
             Text {
-                text: TxController.templateName !== "" ? TxController.templateName : qsTr("None yet. Tap to make one")
+                text: tplRow.current
                 color: Theme.surfaceVariantOn
                 font.pixelSize: Theme.sp(13)
                 width: parent.width
@@ -69,8 +44,35 @@ Column {
         Icon { id: tplChevron; path: Icons.chevron; color: Theme.outline; anchors.right: parent.right; anchors.rightMargin: 20; anchors.verticalCenter: parent.verticalCenter }
         TapHandler { margin: Theme.tapMargin(parent); onTapped: block.openTemplates() }
         Accessible.role: Accessible.Button
-        Accessible.name: qsTr("Template") + ", " + (TxController.templateName !== "" ? TxController.templateName : qsTr("none yet"))
+        Accessible.name: qsTr("Template") + ", " + tplRow.current
         Accessible.onPressAction: { block.openTemplates() }
+    }
+
+    // the details a template shows (whom it is for, the operator, the report); only while a template is on the picture
+    Item {
+        objectName: "detailsRow"
+        visible: TxController.templateOn
+        width: parent.width
+        height: visible ? Math.max(56, detailsCol.implicitHeight + 16) : 0
+        Column {
+            id: detailsCol
+            anchors.left: parent.left; anchors.leftMargin: 24
+            anchors.right: detailsChevron.left; anchors.rightMargin: 12
+            anchors.verticalCenter: parent.verticalCenter
+            Text { text: qsTr("Details"); color: Theme.surfaceOn; font.pixelSize: Theme.sp(16); width: parent.width; wrapMode: Text.WordWrap }
+            Text {
+                text: TxController.detailsSummary !== "" ? TxController.detailsSummary : qsTr("Tap to add your call sign, who it is for and a report")
+                color: Theme.surfaceVariantOn
+                font.pixelSize: Theme.sp(13)
+                width: parent.width
+                elide: Text.ElideRight
+            }
+        }
+        Icon { id: detailsChevron; path: Icons.chevron; color: Theme.outline; anchors.right: parent.right; anchors.rightMargin: 20; anchors.verticalCenter: parent.verticalCenter }
+        TapHandler { margin: Theme.tapMargin(parent); onTapped: block.openDetails() }
+        Accessible.role: Accessible.Button
+        Accessible.name: qsTr("Details") + ", " + (TxController.detailsSummary !== "" ? TxController.detailsSummary : qsTr("not set"))
+        Accessible.onPressAction: { block.openDetails() }
     }
 
     // analog: the mode, what it takes

@@ -458,6 +458,11 @@ QString TxController::templateName() const
   return b ? b->currentText() : QString();
 }
 
+bool TxController::templateOn() const
+{
+  return ::useTemplate && !templateName().isEmpty();   // a saved "on" with no template left to use is not a template on the picture
+}
+
 QString TxController::templateFile() const
 {
   const QComboBox *b=templateBox();

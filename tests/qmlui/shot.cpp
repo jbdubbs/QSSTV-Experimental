@@ -26,6 +26,7 @@
 #include "rxwidget.h"
 #include "spectrumwidget.h"
 #include "gallerymodel.h"
+#include "gallerywidget.h"
 #include "settingscontroller.h"
 #include "touchtemplateeditor.h"
 #include "calibrationcontroller.h"
@@ -258,6 +259,7 @@ int main(int argc, char **argv)
         {
           app_->setScreen(1);
           TxController *tx = TxController::instance();
+          tx->setUseTemplate(false);   // no template to begin with: the scenes after tx-template do not inherit its choice
           if (scene != "tx")   // tx-picture, tx-modes, tx-sending, tx-details: a picture is loaded
             {
               const QString picFile = scratch + "/tx-test.png";
@@ -596,12 +598,38 @@ int main(int argc, char **argv)
           if (t) t->setProperty("digitalOpen", true);
           QTest::qWait(500);
         }
-      if (scene == "tx-template") {txWidgetPtr->setupTemplatesComboBox(); QTest::qWait(500);}
-      if (scene == "tx-modes" || scene == "tx-details" || scene == "tx-template")
+      if (scene == "tx-details" || scene == "tx-template" || scene == "tx-template-none")
+        {
+          // the template (#176): choosing one from the list puts it on the picture and the Details row appears under it; None takes it off
+          // (the row goes, the page's switch is off, the list ticks None) and the page keeps the template it had
+          TxController *tx = TxController::instance();
+          auto fail = [&](const char *what) {fprintf(stderr, "FAIL: %s: %s\n", qPrintable(scene), what); exitCode = 1;};
+          auto ticked = [&]() {int n = 0; for (const QVariant &v : tx->templates()) if (v.toMap().value("current").toBool()) n++; return n;};
+          auto detailsRowShown = [&]() {QQuickItem *r = findItem(content, "detailsRow"); return r && r->isVisible();};
+          galleryWidgetPtr->changedMatrix(imageViewer::TEMPLATETHUMB);   // the page's list of templates reads the folder
+          txWidgetPtr->setupTemplatesComboBox();
+          tx->chooseTemplate(templatesPath + "synthetic.templ");
+          QTest::qWait(300);
+          if (!tx->property("useTemplate").toBool()) fail("choosing a template does not put it on the picture");
+          if (tx->templateName() != QStringLiteral("synthetic")) fail("the template is not the one chosen");
+          if (ticked() != 1) fail("the chosen template is not the one ticked");
+          if (!detailsRowShown()) fail("no Details row while a template is on the picture");
+          if (scene == "tx-template-none")
+            {
+              tx->setUseTemplate(false);   // what the None row of the list does
+              QTest::qWait(300);
+              QCheckBox *useBox = txWidgetPtr->findChild<QCheckBox *>(QStringLiteral("templateCheckBox"));
+              if (tx->property("useTemplate").toBool() || !useBox || useBox->isChecked()) fail("None leaves the template on the picture");
+              if (tx->templateName() != QStringLiteral("synthetic")) fail("None forgot the template of the page");
+              if (detailsRowShown()) fail("a Details row with no template on the picture");
+              printf("  template  synthetic -> None (the page keeps %s)\n", qPrintable(tx->templateName()));
+            }
+        }
+      if (scene == "tx-modes" || scene == "tx-details" || scene == "tx-template" || scene == "tx-template-none")
         {
           QQuickItem *t = findItem(content, "transmitScreen");
           if (!t) fprintf(stderr, "no transmitScreen item\n");
-          else if (!t->setProperty(scene == "tx-modes" ? "modesOpen" : scene == "tx-template" ? "templatesOpen" : "detailsOpen", true)) fprintf(stderr, "cannot set the sheet property\n");
+          else if (!t->setProperty(scene == "tx-modes" ? "modesOpen" : scene.startsWith("tx-template") ? "templatesOpen" : "detailsOpen", true)) fprintf(stderr, "cannot set the sheet property\n");
           QTest::qWait(500);
         }
       if (scene.endsWith("-freq-sheet")) {FrequencyController::instance()->setPickerOpen(true); QTest::qWait(500);}
