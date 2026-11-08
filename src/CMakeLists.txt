@@ -484,7 +484,7 @@ endif()
 if(QSSTV_QML_UI)
   target_compile_definitions(qsstv PRIVATE QSSTV_QML_UI)
   target_link_libraries(qsstv PRIVATE Qt6::Qml Qt6::Quick Qt6::QuickControls2)
-  set(QSSTV_QML_FILES Main.qml Theme.qml Icons.qml Icon.qml Chip.qml ModeStrip.qml AppBar.qml NavItem.qml NavBar.qml NavRail.qml
+  set(QSSTV_QML_FILES Main.qml Theme.qml Icons.qml Icon.qml Chip.qml ChipScroller.qml ModeStrip.qml AppBar.qml NavItem.qml NavBar.qml NavRail.qml
       ExtendedFab.qml LevelMeter.qml BottomSheet.qml PreferenceRow.qml PictureCanvas.qml SpectrumStrip.qml StatusRow.qml
       ProgressLine.qml ReceiveScreen.qml PlaceholderScreen.qml ProgressRing.qml WideButton.qml ModeSheet.qml DetailsSheet.qml
       TxPictureBlock.qml TxOptionsBlock.qml TransmitScreen.qml SendingOverlay.qml DrmSheet.qml CameraScreen.qml Snackbar.qml ToolsSheet.qml AboutSheet.qml SegmentedTabs.qml ThumbCell.qml GalleryScreen.qml SelectionBar.qml ZoomImage.qml ViewerScreen.qml PrefGroup.qml RadioRow.qml RadioMark.qml ToggleSwitch.qml ThemedSlider.qml ThemedButton.qml ThemedSpinBox.qml ThemedMenuItem.qml Field.qml TextRow.qml ChoiceDialog.qml InlineBanner.qml ProblemDialog.qml FirstRunScreen.qml Stepper.qml ColorSwatches.qml AskDialog.qml EditPanel.qml StartersSheet.qml TemplateSheet.qml TemplateEditorScreen.qml HowSteps.qml QualityBar.qml CalibrationPage.qml CalibrationNtpPage.qml CalibrationWwvPage.qml CalibrationSstvPage.qml CalibrationOverviewPage.qml DrmProfilesPage.qml DrmProfilePage.qml FrequencySheet.qml FrequenciesPage.qml TuneSheet.qml SettingsPage.qml SliderRow.qml SettingsScreen.qml)

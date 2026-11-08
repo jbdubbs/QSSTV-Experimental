@@ -96,28 +96,38 @@ Column {
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("All modes")
         }
-        Flow {
-            x: Theme.margin
-            width: parent.width - 2 * Theme.margin
-            spacing: 8
+        // one row; it scrolls sideways when the buttons are wider than the screen (#174)
+        ChipScroller {
+            id: modeChips
+            objectName: "modeChips"
+            width: parent.width
             Repeater {
                 model: TxController.favorites
                 delegate: Chip {
+                    id: favourite
                     required property var modelData
+                    anchors.verticalCenter: parent.verticalCenter
                     text: modelData.name
                     icon: selected ? Icons.check : ""
                     readonly property bool selected: TxController.mode === modelData.mode
                     tone: selected ? "selected" : "plain"
                     onClicked: TxController.mode = modelData.mode
+                    onSelectedChanged: if (selected) Qt.callLater(modeChips.reveal, favourite)
+                    Component.onCompleted: if (selected) Qt.callLater(modeChips.reveal, favourite)
                 }
             }
             // a mode chosen under "All modes" that is not a favourite
             Chip {
                 id: other
+                objectName: "otherModeChip"
+                anchors.verticalCenter: parent.verticalCenter
                 visible: !TxController.favorites.some(f => f.mode === TxController.mode)
                 text: TxController.modeName
                 icon: Icons.check
                 tone: "selected"
+                onVisibleChanged: if (visible) Qt.callLater(modeChips.reveal, other)
+                onTextChanged: if (visible) Qt.callLater(modeChips.reveal, other)
+                Component.onCompleted: if (visible) Qt.callLater(modeChips.reveal, other)
             }
         }
         Text {
@@ -161,20 +171,24 @@ Column {
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("Digital settings, details")
         }
-        Flow {
-            x: Theme.margin
-            width: parent.width - 2 * Theme.margin
-            spacing: 8
+        ChipScroller {
+            id: profileChips
+            objectName: "profileChips"
+            width: parent.width
             Repeater {
                 model: TxController.drmProfiles
                 delegate: Chip {
+                    id: profile
                     required property int index
                     required property string modelData
+                    anchors.verticalCenter: parent.verticalCenter
                     readonly property bool selected: TxController.drmProfile === index
                     text: modelData
                     icon: selected ? Icons.check : ""
                     tone: selected ? "selected" : "plain"
                     onClicked: TxController.drmProfile = index
+                    onSelectedChanged: if (selected) Qt.callLater(profileChips.reveal, profile)
+                    Component.onCompleted: if (selected) Qt.callLater(profileChips.reveal, profile)
                 }
             }
         }

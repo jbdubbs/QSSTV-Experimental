@@ -193,6 +193,7 @@ int main(int argc, char **argv)
   win->resize(width, height);
   QTest::qWait(300);
   int exitCode = 0;
+  int savedTxMode = -1;   // the Transmit mode before a scene that changes it (tx-chips): put back by the next scene
   for (int i = 5; i < argc; i++)
     {
       const QString scene = argv[i];
@@ -205,6 +206,7 @@ int main(int argc, char **argv)
           for (const char *prop : {"optionsOpen", "modesOpen", "detailsOpen", "digitalOpen", "toolsOpen", "templatesOpen", "open"})
             if (s->property(prop).isValid()) s->setProperty(prop, false);
       TxController::instance()->setTestSending(-1);
+      if (savedTxMode >= 0 && scene != "tx-chips") {TxController::instance()->setMode(savedTxMode); savedTxMode = -1;}
       rx->setMode(scene == "rx-mode-fixed" || scene == "rx-modes-fixed" ? int(M1) : -1);   // Auto, except where the scene is about a chosen mode
       if (QQuickItem *v = findItem(win->contentItem(), "viewerScreen")) v->setProperty("infoOpen", false);
       GalleryModel::instance()->closeViewer();
@@ -257,6 +259,12 @@ int main(int argc, char **argv)
             }
           if (scene == "tx-sending") tx->setTestSending(0.38);
           if (scene == "tx-sending-tool") tx->setTestSending(0.4, "Test tone, 1000 Hz", 5);
+          if (scene == "tx-chips")
+            {
+              savedTxMode = tx->mode();
+              tx->setMode(int(M2));   // not a favourite: the extra chip appears next to the four
+              QTest::qWait(300);
+            }
           if (scene == "tx-mode")
             {
               // a mode chosen on the page (a chip, or a row of "All modes") takes effect at once (#170): the page's own combo box emits
@@ -428,6 +436,77 @@ int main(int argc, char **argv)
                 }
               rx->setTestLevel(0.97);   // the screenshot: the worst case
               QTest::qWait(300);
+            }
+        }
+      if (scene == "tx-chips")
+        {
+          // the favourite modes are ONE row that scrolls sideways when it is wider than the screen (#174), and the chosen mode is in view
+          TxController *tx = TxController::instance();
+          auto fail = [&](const char *what) {fprintf(stderr, "FAIL: tx-chips: %s\n", what); exitCode = 1;};
+          QQuickItem *chips = findItem(content, "modeChips"), *other = findItem(content, "otherModeChip");
+          if (!chips || !other) fail("no modeChips / otherModeChip item");
+          else
+            {
+              // a short screen: the page scrolls up and down, bring the row into view as a finger would
+              for (QQuickItem *p = chips->parentItem(); p; p = p->parentItem())
+                if (QString::fromLatin1(p->metaObject()->className()) == "QQuickFlickable" && p->property("contentHeight").toDouble() > p->height())
+                  {
+                    QQuickItem *ci = qvariant_cast<QQuickItem *>(p->property("contentItem"));
+                    const qreal y = chips->mapToItem(ci, QPointF(0, 0)).y();
+                    p->setProperty("contentY", qBound(0.0, y - 60, p->property("contentHeight").toDouble() - p->height()));
+                    break;
+                  }
+              QTest::qWait(500);   // the chosen chip slides into view
+              printf("  chips: row %.0f dp high, content %.0f in a view of %.0f, x = %.0f\n", chips->height(), chips->property("contentWidth").toDouble(), chips->width(), chips->property("contentX").toDouble());
+              if (!qFuzzyCompare(chips->height() + 1, 48.0 + 1)) fail("the row is not one row high");
+              QQuickItem *row = nullptr;
+              for (QQuickItem *c : qvariant_cast<QQuickItem *>(chips->property("contentItem"))->childItems())
+                if (QString::fromLatin1(c->metaObject()->className()).startsWith("QQuickRow")) row = c;
+              if (!row) fail("no Row in the scroller");
+              else
+                {
+                  qreal y0 = -1;
+                  int shown = 0;
+                  for (QQuickItem *c : row->childItems())
+                    if (c->isVisible() && c->width() > 0)
+                      {
+                        ++shown;
+                        if (y0 < 0) y0 = c->y();
+                        else if (!qFuzzyCompare(c->y() + 1, y0 + 1)) fail("the chips are not on one line");
+                      }
+                  if (shown != 5) fail("not the four favourites and the extra chip");
+                }
+              const qreal over = chips->property("contentWidth").toDouble() - chips->width();
+              if (width <= 360 && over <= 0) fail("at this width the chips should be wider than the view (so they scroll)");
+              const QPointF p = other->mapToItem(chips, QPointF(0, 0));
+              if (p.x() < -0.5 || p.x() + other->width() > chips->width() + 0.5) fail("the chosen mode's chip is out of view");
+              if (over > 0)
+                {
+                  // a drag scrolls the row, a tap still chooses a mode
+                  const double x1 = chips->property("contentX").toDouble();
+                  const QPoint from = chips->mapToScene(QPointF(chips->width() * 0.5, chips->height() * 0.5)).toPoint();
+                  QTest::mousePress(win, Qt::LeftButton, {}, from);
+                  for (int k = 1; k <= 12; k++) QTest::mouseMove(win, from + QPoint(k * 12, 0));
+                  QTest::mouseRelease(win, Qt::LeftButton, {}, from + QPoint(144, 0));
+                  QTest::qWait(900);
+                  const double x2 = chips->property("contentX").toDouble();
+                  printf("  drag right: x %.0f -> %.0f\n", x1, x2);
+                  if (x1 > 0 && !(x2 < x1)) fail("a drag to the right did not scroll the row back");
+                  if (tx->mode() != int(M2)) fail("a drag changed the mode");
+                  QQuickItem *martin = nullptr;
+                  for (QQuickItem *c : row->childItems())
+                    if (c->isVisible() && c->property("text").toString() == QString(SSTVTable[M1].name)) martin = c;
+                  if (!martin) fail("no Martin 1 chip");
+                  else
+                    {
+                      const QPoint at = martin->mapToScene(QPointF(martin->width() * 0.5, martin->height() * 0.5)).toPoint();
+                      QTest::mouseClick(win, Qt::LeftButton, {}, at);
+                      QTest::qWait(300);
+                      if (tx->mode() != int(M1)) fail("a tap on a chip did not choose its mode");
+                    }
+                  tx->setMode(int(M2));   // the screenshot: the extra chip again, scrolled into view
+                  QTest::qWait(900);
+                }
             }
         }
       if (scene == "about") {win->setProperty("aboutOpen", true); QTest::qWait(500);}
