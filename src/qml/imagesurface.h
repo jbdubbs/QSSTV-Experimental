@@ -17,6 +17,8 @@ class ImageSurface : public QQuickPaintedItem
   Q_PROPERTY(int revision READ revision WRITE setRevision NOTIFY revisionChanged)
   Q_PROPERTY(bool fill READ fill WRITE setFill NOTIFY fillChanged)               //!< cover the item (crop) instead of fitting inside it
   Q_PROPERTY(bool empty READ empty NOTIFY revisionChanged)                       //!< there is nothing to paint
+  Q_PROPERTY(qreal paintedWidth READ paintedWidth NOTIFY paintedChanged)         //!< the size the picture is drawn at inside the item (as Image has), 0 without a picture
+  Q_PROPERTY(qreal paintedHeight READ paintedHeight NOTIFY paintedChanged)
   Q_PROPERTY(bool tint READ tint WRITE setTint NOTIFY tintChanged)               //!< painted in red only (the Night look): the light of each pixel, no blue or green
 
 public:
@@ -29,19 +31,26 @@ public:
   bool fill() const {return m_fill;}
   void setFill(bool f);
   bool empty() const;
+  qreal paintedWidth() const {return painted().width();}
+  qreal paintedHeight() const {return painted().height();}
   bool tint() const {return m_tint;}
   void setTint(bool t);
   //! the picture with only its light left, in the red of the Night look (also for the tests)
   static QImage tinted(const QImage &image);
 
 signals:
+  void paintedChanged();
   void tintChanged();
   void sourceChanged();
   void revisionChanged();
   void fillChanged();
 
+protected:
+  void geometryChange(const QRectF &newGeometry,const QRectF &oldGeometry) override;
+
 private:
   const QImage &image() const;
+  QSizeF painted() const;
   int m_source=0;
   int m_revision=0;
   bool m_fill=false;

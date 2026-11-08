@@ -103,6 +103,14 @@ public:
   void setFitMode(int mode);   // framing of the active image / grid cell: Stretch, Crop, Fit or Free (zoom/pan)
   void setDefaultFit(int mode);   // the framing of every grid cell, before any picture is loaded (the saved setting)
   int fitMode() const {return segFit.value(curSlot());}
+  // touch framing (the Android Transmit screen): the same zoom/pan as the wheel and the drag, set from outside
+  bool drmSingleImage() const {return drmSingle();}   // a single DRM picture: Free is its only framing
+  int activeFit() const {return fitOf(curSlot());}   // the framing in force (Free for a single DRM picture)
+  bool freeFraming() const;   // Free framing with a picture loaded: zoom/pan have an effect
+  bool framingMoved() const {return isFramed(curSlot());}   // zoom/pan differ from the whole picture, centered
+  void resetFreeFraming() {slotResetFraming();}   // the whole picture, centered
+  // Zoom by scale about focus (a point of the frame, 0..1 of its width and height), then move by shift (the same units). Returns false when nothing changed.
+  bool adjustFree(double scale,const QPointF &focus,const QPointF &shift);
   int getFileSize(){return fileSize;}
   QString toCall;
   QString toOperator;

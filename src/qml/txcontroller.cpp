@@ -69,6 +69,65 @@ void TxController::refreshPicture()
   emit pictureChanged();
 }
 
+// How the picture is fitted to the frame (#177): the page's Framing box, and the zoom and pan of Free, are the imageViewer's
+static imageViewer *viewer()
+{
+  return txWidgetPtr ? txWidgetPtr->getImageViewerPtr() : nullptr;
+}
+
+int TxController::framing() const
+{
+  const imageViewer *v=viewer();
+  return v ? v->activeFit() : 0;
+}
+
+void TxController::setFraming(int mode)
+{
+  if(!txWidgetPtr || m_sending || mode<0 || mode>3 || !framingChoice()) return;
+  // the page's own box and what a choice there does (both boxes, the viewer, the template, the saving): the box emits no activated()
+  // for a change made in code, so the page's slot is run here, as for the mode (#170)
+  QMetaObject::invokeMethod(txWidgetPtr,"slotResizeChanged",Q_ARG(int,mode));   // draws the picture again and tells (txTimeChanged)
+  poll();
+}
+
+bool TxController::framingChoice() const
+{
+  const imageViewer *v=viewer();
+  return v && !v->drmSingleImage();   // a single DRM picture is always Free: the page disables the box
+}
+
+bool TxController::framingFree() const
+{
+  const imageViewer *v=viewer();
+  return v && v->freeFraming();
+}
+
+bool TxController::framingMoved() const
+{
+  const imageViewer *v=viewer();
+  return v && v->freeFraming() && v->framingMoved();
+}
+
+bool TxController::adjustFraming(double scale,double focusX,double focusY,double shiftX,double shiftY)
+{
+  imageViewer *v=viewer();
+  if(!v || m_sending) return false;
+  const bool changed=v->adjustFree(scale,QPointF(focusX,focusY),QPointF(shiftX,shiftY));
+  // an analog picture is drawn again at once; a DRM one once the gesture has settled and has been encoded (txTimeChanged follows)
+  if(changed && transmissionModeIndex!=TRXDRM) refreshPicture();
+  poll();
+  return changed;
+}
+
+void TxController::resetFraming()
+{
+  imageViewer *v=viewer();
+  if(!v || m_sending || !v->freeFraming()) return;
+  v->resetFreeFraming();
+  if(transmissionModeIndex!=TRXDRM) refreshPicture();
+  poll();
+}
+
 int TxController::mode() const {return int(sstvModeIndexTx);}
 
 void TxController::setMode(int m)
@@ -552,6 +611,12 @@ void TxController::poll()
       m_drmSignature=sig;
       ++m_drmRevision;
       emit drmChanged();
+    }
+  const QString framingSig=QString("%1|%2|%3|%4").arg(framing()).arg(framingChoice()).arg(framingFree()).arg(framingMoved());
+  if(framingSig!=m_framingSignature)
+    {
+      m_framingSignature=framingSig;
+      emit framingChanged();   // from the page itself, from the digital switch, a new picture, a reset
     }
   if(m_test) return;
   const bool sending=txWidgetPtr->functionsPtr() && txWidgetPtr->functionsPtr()->txBusy();

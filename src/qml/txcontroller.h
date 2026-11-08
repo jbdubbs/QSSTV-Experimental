@@ -41,6 +41,11 @@ class TxController : public QObject
   Q_PROPERTY(QString toOperator READ toOperator WRITE setToOperator NOTIFY detailsChanged)
   Q_PROPERTY(QString report READ report WRITE setReport NOTIFY detailsChanged)
   Q_PROPERTY(QString detailsSummary READ detailsSummary NOTIFY detailsChanged)   //!< "NT0Y · To W1AW · 59"
+  // how the picture is fitted to the mode's frame (#177): Stretch, Crop, Fit or Free (zoom and pan)
+  Q_PROPERTY(int framing READ framing WRITE setFraming NOTIFY framingChanged)             //!< 0 Stretch, 1 Crop, 2 Fit, 3 Free; a single DRM picture is always Free
+  Q_PROPERTY(bool framingChoice READ framingChoice NOTIFY framingChanged)                 //!< the four choices are offered (not for a single DRM picture)
+  Q_PROPERTY(bool framingFree READ framingFree NOTIFY framingChanged)                     //!< the picture can be pinched and dragged
+  Q_PROPERTY(bool framingMoved READ framingMoved NOTIFY framingChanged)                   //!< zoom and pan are not the whole picture centered
   Q_PROPERTY(bool cameraOpen READ cameraOpen WRITE setCameraOpen NOTIFY cameraOpenChanged)   //!< the camera screen is showing
   Q_PROPERTY(bool cameraAvailable READ cameraAvailable CONSTANT)                              //!< the device has a camera
   // digital (DRM)
@@ -83,6 +88,11 @@ public:
   void setReport(const QString &s);
   QString detailsSummary() const;
 
+  int framing() const;
+  void setFraming(int mode);
+  bool framingChoice() const;
+  bool framingFree() const;
+  bool framingMoved() const;
   bool cameraOpen() const {return m_cameraOpen;}
   void setCameraOpen(bool open);
   bool cameraAvailable() const;
@@ -101,6 +111,9 @@ public:
 
   //! every analog mode: [{mode, name, size, time, group}] for the "All modes" sheet
   Q_INVOKABLE QVariantList allModes() const;
+  //! zoom the free picture by scale about focus (a point of the frame, 0 to 1 each way), then move it by shift (the same units); false when nothing changed
+  Q_INVOKABLE bool adjustFraming(double scale,double focusX,double focusY,double shiftX,double shiftY);
+  Q_INVOKABLE void resetFraming();   //!< the whole picture, centered
   Q_INVOKABLE void pickPhoto();     //!< the picture from the phone's photos
   Q_INVOKABLE void pickFile();      //!< the picture from a file
   // the tools of the Transmit menu (the Widgets versions are dialogs, which cannot be shown over this interface)
@@ -140,6 +153,7 @@ signals:
   void progressChanged();
   void detailsChanged();
   void drmChanged();
+  void framingChanged();
   void cameraOpenChanged();
   void toolChanged();
   void cameraBlocked();   //!< the user refused the camera: the screen says where to allow it
@@ -163,6 +177,7 @@ private:
   int m_toolSeconds=0;
   void startTool(const QString &name,int seconds);
   QString m_drmSignature;
+  QString m_framingSignature;
   bool m_connected=false;
   bool m_test=false;
   QTimer m_timer;

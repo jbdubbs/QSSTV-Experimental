@@ -1415,6 +1415,34 @@ void imageViewer::slotResetFraming()
   framingChanged(curSlot());
 }
 
+bool imageViewer::freeFraming() const
+{
+  return ttype==TXIMG && !displayedImage.isNull() && fitOf(curSlot())==FITFREE && !slotImage(curSlot()).isNull();
+}
+
+// The wheel's zoom about the cursor and the drag's pan in one step, for a touch gesture that has ended (the Android Transmit screen)
+bool imageViewer::adjustFree(double scale,const QPointF &focus,const QPointF &shift)
+{
+  if(!freeFraming() || scale<=0.0) return false;
+  int slot=curSlot();
+  QSize frame=displayedImage.size();
+  QRect cell=cellRect(slot,frame);
+  double z=segZoom.value(slot,1.0);
+  double nz=qBound(0.25,z*scale,8.0);
+  QPointF p(focus.x()*frame.width(),focus.y()*frame.height());
+  // keep the image point under the focus where it was, then move
+  QPointF centre(cell.x()+cell.width()/2.0+segPan.value(slot).x()*cell.width(),
+                 cell.y()+cell.height()/2.0+segPan.value(slot).y()*cell.height());
+  QPointF nc=p-(p-centre)*(nz/z)+QPointF(shift.x()*frame.width(),shift.y()*frame.height());
+  QPointF pan=clampPan(slot,cell.size(),QPointF((nc.x()-cell.x()-cell.width()/2.0)/cell.width(),
+                                                (nc.y()-cell.y()-cell.height()/2.0)/cell.height()));
+  if(nz==z && pan==segPan.value(slot)) return false;
+  segZoom[slot]=nz;
+  segPan[slot]=pan;
+  framingChanged(slot);
+  return true;
+}
+
 // the original image of a slot (the composed frame replaces sourceImage while a grid is active)
 const QImage &imageViewer::slotImage(int slot) const
 {

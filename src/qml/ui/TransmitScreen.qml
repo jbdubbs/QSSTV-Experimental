@@ -59,7 +59,16 @@ Item {
         Item {
             visible: screen.wide
             anchors.fill: parent
-            TxPictureBlock { width: parent.width * 0.5; maxCanvasHeight: body.height - 60 }
+            // the picture, the framing and the ways to get a picture: they scroll when the screen is too low for them (a phone on its side)
+            Flickable {
+                anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
+                width: parent.width * 0.5
+                contentWidth: width
+                contentHeight: wideBlock.height
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                TxPictureBlock { id: wideBlock; width: parent.width; maxCanvasHeight: Math.max(150, body.height - wideBlock.belowHeight) }
+            }
             Flickable {
                 anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom
                 width: parent.width * 0.5

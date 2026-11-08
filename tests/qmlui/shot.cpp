@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <vector>
+#include <functional>
 #include "appglobal.h"
 #include "configparams.h"
 #include "dispatcher.h"
@@ -48,6 +49,16 @@ static QQuickItem *findItem(QQuickItem *root, const QString &name)
   if (root->objectName() == name) return root;
   for (QQuickItem *c : root->childItems())
     if (QQuickItem *f = findItem(c, name)) return f;
+  return nullptr;
+}
+
+// the item that is shown: the narrow and the wide layout of a screen both hold the item, and only one of them is visible
+static QQuickItem *findShown(QQuickItem *root, const QString &name)
+{
+  if (!root->isVisible()) return nullptr;
+  if (root->objectName() == name) return root;
+  for (QQuickItem *c : root->childItems())
+    if (QQuickItem *f = findShown(c, name)) return f;
   return nullptr;
 }
 
@@ -89,6 +100,35 @@ static QImage testPicture(int w, int h, int lines)
   // only the lines received so far are there
   for (int y = lines; y < h; y++) memset(im.scanLine(y), 0, size_t(im.bytesPerLine()));
   return im;
+}
+
+// 2:1, a green column at the left edge and a magenta one at the right on blue, a white square in the middle: how a mode of another shape
+// frames it (Stretch, Crop, Fit or Free) shows in what is left of the columns and of the blue (#177)
+static QImage framingPicture()
+{
+  QImage im(400, 200, QImage::Format_ARGB32);
+  im.fill(QColor("#2060c0"));
+  QPainter p(&im);
+  p.fillRect(0, 0, 40, 200, QColor("#20c040"));
+  p.fillRect(360, 0, 40, 200, QColor("#e020c0"));
+  p.fillRect(190, 90, 20, 20, Qt::white);
+  p.end();
+  return im;
+}
+
+// Scroll the page (the Flickable around an item) so that the item is in view, as a finger would; an earlier scene may have left it scrolled
+static void revealItem(QQuickItem *item)
+{
+  for (QQuickItem *p = item->parentItem(); p; p = p->parentItem())
+    if (QString::fromLatin1(p->metaObject()->className()) == "QQuickFlickable" && p->property("contentHeight").toDouble() > p->height())
+      {
+        QQuickItem *ci = qvariant_cast<QQuickItem *>(p->property("contentItem"));
+        const qreal y = item->mapToItem(ci, QPointF(0, 0)).y();
+        p->setProperty("contentY", qBound(0.0, y - 8, p->property("contentHeight").toDouble() - p->height()));
+        QTest::qWait(150);
+        for (int i = 0; i < 40 && (p->property("moving").toBool() || p->property("flicking").toBool()); i++) QTest::qWait(50);   // a press on a page that is still moving only stops it
+        return;
+      }
 }
 
 // pictures in the gallery folders, of today, yesterday, last week and last year, so that the grid has its day headings
@@ -208,6 +248,12 @@ int main(int argc, char **argv)
         if (QQuickItem *s = findItem(win->contentItem(), screenName))
           for (const char *prop : {"optionsOpen", "modesOpen", "detailsOpen", "digitalOpen", "toolsOpen", "templatesOpen", "open"})
             if (s->property(prop).isValid()) s->setProperty(prop, false);
+      // the sheet of starting points for a template (tpl-starters) is a popup over every screen: it must not stay for the scenes that follow
+      std::function<void(QQuickItem *)> closeStarters = [&](QQuickItem *it) {
+        if (QString::fromLatin1(it->metaObject()->className()).startsWith("StartersSheet")) it->setProperty("open", false);
+        for (QQuickItem *c : it->childItems()) closeStarters(c);
+      };
+      closeStarters(win->contentItem());
       TxController::instance()->setTestSending(-1);
       if (savedTxMode >= 0 && scene != "tx-chips") {TxController::instance()->setMode(savedTxMode); savedTxMode = -1;}
       if (outputDeviceChanged && scene != "tx-digital-sending-device")
@@ -260,10 +306,12 @@ int main(int argc, char **argv)
           app_->setScreen(1);
           TxController *tx = TxController::instance();
           tx->setUseTemplate(false);   // no template to begin with: the scenes after tx-template do not inherit its choice
+          const bool framingScene = scene.contains("-framing");
+          if (!framingScene) {tx->resetFraming(); tx->setFraming(0);}   // Stretch and the whole picture: the scenes after tx-framing do not inherit its choice (#177)
           if (scene != "tx")   // tx-picture, tx-modes, tx-sending, tx-details: a picture is loaded
             {
               const QString picFile = scratch + "/tx-test.png";
-              testPicture(320, 256, 256).save(picFile);
+              (framingScene ? framingPicture() : testPicture(320, 256, 256)).save(picFile);
               txWidgetPtr->setImage(picFile);
               QTest::qWait(300);
             }
@@ -525,6 +573,129 @@ int main(int argc, char **argv)
                   QTest::qWait(900);
                 }
             }
+        }
+      if (scene == "tx-framing")
+        {
+          // Stretch, Crop, Fit and Free for a picture of another shape than the mode's, the zoom and move of Free by finger, and Reset (#177)
+          TxController *tx = TxController::instance();
+          auto fail = [&](const char *what) {fprintf(stderr, "FAIL: tx-framing: %s\n", what); exitCode = 1;};
+          const QColor green("#20c040"), blue("#2060c0");
+          const QColor grey = imageBackGroundColor;
+          auto at = [&](double fx, double fy) {const QImage f = tx->picture(); return QColor(f.pixel(qBound(0, int(fx * f.width()), f.width() - 1), qBound(0, int(fy * f.height()), f.height() - 1)));};
+          auto is = [](const QColor &a, const QColor &b) {return qAbs(a.red() - b.red()) + qAbs(a.green() - b.green()) + qAbs(a.blue() - b.blue()) < 100;};
+          auto pageBox = [&]() {QComboBox *b = txWidgetPtr->findChild<QComboBox *>(QStringLiteral("sstvResizeComboBox")); return b ? b->currentIndex() : -1;};
+          auto frame = [&](int mode) {tx->setFraming(mode); QTest::qWait(200); tx->picture().save(QString("%1/framing-%2x%3-%4.png").arg(outDir).arg(width).arg(height).arg(mode)); return tx->picture();};   // the frames are kept for looking at
+          if (tx->picture().isNull()) fail("no picture to frame");
+          printf("  frame %d x %d, picture 400 x 200\n", tx->picture().width(), tx->picture().height());
+          if (!tx->framingChoice()) fail("no choice of framing in an analog mode");
+          frame(0);   // Stretch: everything of the picture, the green column at the left edge, no bars
+          if (tx->framing() != 0 || pageBox() != 0) fail("Stretch is not the page's framing");
+          if (!is(at(0.005, 0.5), green) || !is(at(0.5, 0.01), blue)) fail("Stretch does not fill the frame with the whole picture");
+          frame(1);   // Crop: fills the frame, the edges are cut off (a 2:1 picture in a frame near 5:4)
+          if (tx->framing() != 1 || pageBox() != 1) fail("Crop is not the page's framing");
+          if (is(at(0.005, 0.5), green) || !is(at(0.5, 0.01), blue)) fail("Crop does not cut the edges and fill the frame");
+          frame(2);   // Fit: the whole picture, bars above and below
+          if (tx->framing() != 2 || pageBox() != 2) fail("Fit is not the page's framing");
+          // the bars of Fit are empty (they go out black); the ones of Free are the background color of the pictures
+          if (!is(at(0.005, 0.5), green) || !is(at(0.5, 0.01), QColor(Qt::black)) || !is(at(0.5, 0.99), QColor(Qt::black))) fail("Fit does not show the whole picture between bars");
+          if (tx->framingFree() || tx->framingMoved()) fail("Fit is placed by hand");
+          frame(3);   // Free: as Fit to begin with
+          if (tx->framing() != 3 || pageBox() != 3) fail("Free is not the page's framing");
+          if (!tx->framingFree() || tx->framingMoved()) fail("Free is not ready to be placed, or already moved");
+          if (!is(at(0.005, 0.5), green) || !is(at(0.5, 0.01), grey)) fail("Free does not begin with the whole picture");
+          // the picture moves with a finger: one drag with the mouse on the picture
+          QQuickItem *mover = findShown(content, "pictureMover");
+          if (!mover) fail("no pictureMover item");
+          else
+            {
+              revealItem(mover);
+              const QPoint from = mover->mapToScene(QPointF(mover->width() / 2, mover->height() / 2)).toPoint();
+              QTest::mousePress(win, Qt::LeftButton, {}, from);
+              for (int k = 1; k <= 12; k++) {QTest::mouseMove(win, from + QPoint(0, k * 8)); QTest::qWait(10);}
+              QTest::mouseRelease(win, Qt::LeftButton, {}, from + QPoint(0, 96));
+              QTest::qWait(500);
+              printf("  drag down: moved %d, bottom bar is %s\n", tx->framingMoved(), is(at(0.5, 0.99), grey) ? "still there" : "gone");
+              if (!tx->framingMoved()) fail("a drag on the picture did not move it");
+              else if (is(at(0.5, 0.99), grey)) fail("the picture did not move down");
+              if (mover->scale() != 1 || mover->x() != 0 || mover->y() != 0) fail("the preview of the drag stayed after the picture was drawn again");
+              tx->resetFraming();
+              QTest::qWait(200);
+              if (tx->framingMoved() || !is(at(0.5, 0.99), grey)) fail("Reset did not bring the whole picture back");
+              // and two fingers pinch it larger: the columns at the edges go out of the frame
+              QPointingDevice *touch = QTest::createTouchDevice();
+              auto seq = QTest::touchEvent(win, touch);
+              const int d0 = 30;
+              seq.press(0, from + QPoint(-d0, 0), win).press(1, from + QPoint(d0, 0), win);
+              seq.commit();
+              for (int k = 1; k <= 12; k++)
+                {
+                  seq.move(0, from + QPoint(-d0 - k * 6, 0), win).move(1, from + QPoint(d0 + k * 6, 0), win);
+                  seq.commit();
+                  QTest::qWait(15);
+                }
+              seq.release(0, from + QPoint(-d0 - 72, 0), win).release(1, from + QPoint(d0 + 72, 0), win);
+              seq.commit();
+              QTest::qWait(500);
+              printf("  pinch: moved %d, the green column is %s\n", tx->framingMoved(), is(at(0.005, 0.5), green) ? "still in the frame" : "out of the frame");
+              if (!tx->framingMoved() || is(at(0.005, 0.5), green)) fail("a pinch on the picture did not zoom it");
+            }
+          // the Reset button is in the screen while the picture is moved, and a tap on it puts the picture back
+          QQuickItem *reset = findShown(content, "framingReset");
+          if (!reset || !reset->isVisible()) fail("no Reset button while the picture is moved");
+          else
+            {
+              revealItem(reset);
+              QTest::mouseClick(win, Qt::LeftButton, {}, reset->mapToScene(QPointF(reset->width() / 2, reset->height() / 2)).toPoint());
+              QTest::qWait(300);
+              if (tx->framingMoved()) fail("the Reset button did not put the picture back");
+            }
+          // a tap on the Stretch chip chooses it
+          QQuickItem *chips = findShown(content, "framingChips");
+          QQuickItem *stretch = nullptr;
+          if (chips)
+            if (QQuickItem *ci = qvariant_cast<QQuickItem *>(chips->property("contentItem")))
+              for (QQuickItem *row : ci->childItems())
+                for (QQuickItem *c : row->childItems())
+                  if (c->isVisible() && c->property("text").toString() == QStringLiteral("Stretch")) stretch = c;
+          if (!stretch) fail("no Stretch chip");
+          else
+            {
+              revealItem(stretch);
+              QTest::mouseClick(win, Qt::LeftButton, {}, stretch->mapToScene(QPointF(stretch->width() / 2, stretch->height() / 2)).toPoint());
+              QTest::qWait(300);
+              if (tx->framing() != 0) fail("a tap on the Stretch chip did not choose Stretch");
+            }
+          // while a transmission goes on the picture is not placed
+          tx->setFraming(3);
+          QTest::qWait(200);
+          tx->setTestSending(0.3);
+          tx->setFraming(1);
+          if (tx->framing() != 3) fail("the framing was changed during a transmission");
+          if (tx->adjustFraming(2, 0.5, 0.5, 0, 0)) fail("the picture was zoomed during a transmission");
+          tx->setTestSending(-1);
+          // the screenshot: Free, zoomed a little, with the hint and Reset
+          if (!tx->adjustFraming(1.6, 0.5, 0.5, 0.05, 0)) fail("no zoom by program");
+          QTest::qWait(400);
+          if (!tx->framingMoved()) fail("not moved after a zoom");
+          if (pageBox() != 3) fail("the page's framing box was left in another position");
+        }
+      if (scene == "tx-digital-framing")
+        {
+          // a single digital picture is always Free: no choice, zoom and move only (#177)
+          TxController *tx = TxController::instance();
+          auto fail = [&](const char *what) {fprintf(stderr, "FAIL: tx-digital-framing: %s\n", what); exitCode = 1;};
+          QTest::qWait(1500);   // the picture is encoded
+          if (tx->framingChoice()) fail("a choice of framing for a single digital picture");
+          if (tx->framing() != 3) fail("a single digital picture is not Free");
+          if (!tx->framingFree()) fail("a single digital picture cannot be placed");
+          tx->setFraming(0);
+          if (tx->framing() != 3) fail("the framing of a single digital picture was changed");
+          const int before = tx->pictureRevision();
+          if (!tx->adjustFraming(1.5, 0.5, 0.5, 0, 0)) fail("no zoom of the digital picture");
+          QTest::qWait(2500);   // it is drawn and encoded again once the movement has settled
+          printf("  digital zoom: moved %d, picture revision %d -> %d\n", tx->framingMoved(), before, tx->pictureRevision());
+          if (!tx->framingMoved()) fail("the digital picture is not moved after a zoom");
+          if (tx->pictureRevision() == before) fail("the digital picture was not drawn again");
         }
       if (scene == "tx-sending" || scene.startsWith("tx-digital-sending"))
         {

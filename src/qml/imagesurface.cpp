@@ -21,6 +21,19 @@ bool ImageSurface::empty() const
   return image().isNull();
 }
 
+QSizeF ImageSurface::painted() const
+{
+  const QImage &im=image();
+  if(im.isNull() || width()<1 || height()<1) return QSizeF(0,0);
+  return QSizeF(im.size()).scaled(QSizeF(width(),height()),m_fill ? Qt::KeepAspectRatioByExpanding : Qt::KeepAspectRatio);
+}
+
+void ImageSurface::geometryChange(const QRectF &newGeometry,const QRectF &oldGeometry)
+{
+  QQuickPaintedItem::geometryChange(newGeometry,oldGeometry);
+  if(newGeometry.size()!=oldGeometry.size()) emit paintedChanged();
+}
+
 void ImageSurface::setSource(int s)
 {
   if(s==m_source) return;
@@ -28,6 +41,7 @@ void ImageSurface::setSource(int s)
   m_tinted=QImage();
   emit sourceChanged();
   emit revisionChanged();
+  emit paintedChanged();
   update();
 }
 
@@ -36,6 +50,7 @@ void ImageSurface::setRevision(int r)
   if(r==m_revision) return;
   m_revision=r;
   emit revisionChanged();
+  emit paintedChanged();
   update();
 }
 
@@ -44,6 +59,7 @@ void ImageSurface::setFill(bool f)
   if(f==m_fill) return;
   m_fill=f;
   emit fillChanged();
+  emit paintedChanged();
   update();
 }
 
