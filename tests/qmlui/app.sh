@@ -18,11 +18,11 @@ eval $LINK /usr/lib64/libQt6Test.so
 rc=0
 run() {   # theme width height scenes...
   local theme=$1 w=$2 h=$3; shift 3
-  local label=$theme${TINT:+-tint}
+  local label=$theme${TINT:+-tint}${QSSTV_QML_FONTSCALE:+-x$QSSTV_QML_FONTSCALE}
   mkdir -p "$SCRATCH/home-$label-$w"
   env ${TINT:+QSSTV_QML_TINT=1} QSSTV_QML_THEME=$theme timeout 120 "$SCRATCH/shot" "$SCRATCH/home-$label-$w" "$OUT/$label" "$w" "$h" "$@" || rc=1
 }
-SCENES=${QMLUI_SCENES:-"idle receiving options digital stopped quiet tx tx-picture tx-modes tx-details tx-template tx-digital tx-digital-details tx-tools tx-sending tx-sending-tool about gallery gallery-sent gallery-templates gallery-select gallery-viewer gallery-info gallery-delete saved gallery-empty settings settings-operator settings-pictures settings-format settings-position settings-advanced settings-audio settings-mic settings-radios settings-receive settings-cw settings-appearance mic-denied firstrun-1 firstrun-2 tpl-editor tpl-text tpl-style tpl-place tpl-add tpl-layers tpl-more tpl-macros tpl-keep tpl-name tpl-starters tpl-drag cal-overview cal-overview-done cal-reset cal-ntp cal-ntp-early cal-ntp-good cal-ntp-problem cal-wwv cal-wwv-measuring cal-sstv cal-sstv-got cal-sstv-send cal-sstv-sending drm-profiles-factory drm-profiles drm-profile freq-empty freq freq-edit freq-new freq-noradio rx-freq rx-freq-sheet tx-freq tx-mode"}
+SCENES=${QMLUI_SCENES:-"idle receiving options digital stopped quiet level-steady tx tx-picture tx-modes tx-details tx-template tx-digital tx-digital-details tx-tools tx-sending tx-sending-tool about gallery gallery-sent gallery-templates gallery-select gallery-viewer gallery-info gallery-delete saved gallery-empty settings settings-operator settings-pictures settings-format settings-position settings-advanced settings-audio settings-mic settings-radios settings-receive settings-cw settings-appearance mic-denied firstrun-1 firstrun-2 tpl-editor tpl-text tpl-style tpl-place tpl-add tpl-layers tpl-more tpl-macros tpl-keep tpl-name tpl-starters tpl-drag cal-overview cal-overview-done cal-reset cal-ntp cal-ntp-early cal-ntp-good cal-ntp-problem cal-wwv cal-wwv-measuring cal-sstv cal-sstv-got cal-sstv-send cal-sstv-sending drm-profiles-factory drm-profiles drm-profile freq-empty freq freq-edit freq-new freq-noradio rx-freq rx-freq-sheet tx-freq tx-mode"}
 run light 411 800 $SCENES
 run dark 411 800 $SCENES
 # the looks of Settings > Appearance: Dim and Night (pictures red too in the second Night run: $OUT/night-tint; the thumbnails of the gallery and the viewer are
@@ -32,7 +32,8 @@ run dim 411 800 $LOOK
 run night 411 800 $LOOK
 TINT=1 run night 411 800 idle receiving tx-picture tx-sending gallery settings-appearance
 run light 360 640 idle receiving tx-picture tpl-text tpl-place
-run light 320 640 idle receiving tx-picture tpl-text tpl-style
+run light 320 640 idle receiving tx-picture tpl-text tpl-style level-steady
+QSSTV_QML_FONTSCALE=1.3 run light 411 800 receiving level-steady   # a large text size: the meter is taller and its words wrap
 run light 850 411 idle receiving tx-picture gallery gallery-viewer settings settings-audio firstrun-2 tpl-editor tpl-text tpl-add cal-overview-done cal-ntp-good drm-profile freq freq-edit
 run light 800 1200 idle receiving tx-picture gallery gallery-viewer settings settings-audio firstrun-2 tpl-editor tpl-style tpl-layers cal-ntp-good cal-sstv-got drm-profiles freq rx-freq-sheet
 echo "screenshots: $OUT"

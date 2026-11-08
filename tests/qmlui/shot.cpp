@@ -409,6 +409,26 @@ int main(int argc, char **argv)
         }
       QTest::qWait(400);
       QQuickItem *content = win->contentItem();
+      if (scene == "level-steady")
+        {
+          // the picture keeps its size whatever the input level (#171: a warning line under the meter used to make the card taller and the picture smaller)
+          QQuickItem *canvas = findItem(content, "pictureCanvas");
+          if (!canvas) {fprintf(stderr, "FAIL: level-steady: no pictureCanvas item\n"); exitCode = 1;}
+          else
+            {
+              qreal first = -1;
+              for (qreal level : {0.55, 0.1, 0.97, 0.55})   // good, too quiet, too loud, good again
+                {
+                  rx->setTestLevel(level);
+                  QTest::qWait(300);
+                  if (first < 0) first = canvas->height();
+                  printf("  level %.2f: the picture is %.0f dp high, the meter says \"%s\"\n", level, canvas->height(), qPrintable(rx->levelWord()));
+                  if (!qFuzzyCompare(canvas->height() + 1, first + 1)) {fprintf(stderr, "FAIL: level-steady: the picture changed size with the level (%.0f -> %.0f)\n", first, canvas->height()); exitCode = 1;}
+                }
+              rx->setTestLevel(0.97);   // the screenshot: the worst case
+              QTest::qWait(300);
+            }
+        }
       if (scene == "about") {win->setProperty("aboutOpen", true); QTest::qWait(500);}
       if (scene == "tx-tools")
         {

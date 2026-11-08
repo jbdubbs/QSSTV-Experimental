@@ -35,6 +35,7 @@ Item {
 
         PictureCanvas {
             id: canvas
+            objectName: "pictureCanvas"
             x: Theme.margin
             y: 0
             width: screen.wide ? body.width * 0.58 - Theme.margin : body.width - 2 * Theme.margin
@@ -66,7 +67,6 @@ Item {
                 zoneStart: RxController.zoneStart
                 zoneEnd: RxController.zoneEnd
                 word: RxController.levelWord
-                hint: RxController.levelHint
                 active: RxController.listening
             }
             SpectrumStrip { width: parent.width; height: screen.wide ? 110 : 56 }

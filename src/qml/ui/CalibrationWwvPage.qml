@@ -21,6 +21,5 @@ CalibrationPage {
         active: Calibration.running
         word: Calibration.level < 0.25 ? qsTr("Too quiet") : Calibration.level < RxController.zoneStart ? qsTr("Low")
             : Calibration.level > 0.95 ? qsTr("Too loud") : Calibration.level > RxController.zoneEnd ? qsTr("Loud") : qsTr("Good")
-        hint: Calibration.level < 0.25 ? qsTr("Raise the radio volume or move the phone closer.") : Calibration.level > 0.95 ? qsTr("Lower the radio volume or move the phone away.") : ""
     }
 }

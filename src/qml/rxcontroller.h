@@ -30,7 +30,6 @@ class RxController : public QObject
   Q_PROPERTY(qreal progress READ progress NOTIFY progressChanged)        //!< 0 to 1
   Q_PROPERTY(qreal level READ level NOTIFY meterChanged)                 //!< input level, 0 to 1 on the meter's scale
   Q_PROPERTY(QString levelWord READ levelWord NOTIFY meterChanged)       //!< "Too quiet", "Good", "Too loud"
-  Q_PROPERTY(QString levelHint READ levelHint NOTIFY meterChanged)       //!< what to do about it, or empty
   Q_PROPERTY(qreal zoneStart READ zoneStart CONSTANT)                    //!< the good zone of the meter, 0 to 1
   Q_PROPERTY(qreal zoneEnd READ zoneEnd CONSTANT)
   Q_PROPERTY(qreal sync READ sync NOTIFY meterChanged)                   //!< sync quality, 0 to 1
@@ -63,7 +62,6 @@ public:
   qreal progress() const {return m_lines>0 ? qBound(0.0,qreal(m_line)/m_lines,1.0) : 0.0;}
   qreal level() const {return m_level;}
   QString levelWord() const;
-  QString levelHint() const;
   qreal zoneStart() const {return 0.35;}
   qreal zoneEnd() const {return 0.85;}
   qreal sync() const {return m_sync;}

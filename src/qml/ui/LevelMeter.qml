@@ -1,13 +1,12 @@
 import QtQuick
 
-// The input level with its good zone, said in words, and what to do when it is not good
+// The input level with its good zone, said in words. The card is always the same height: a line that came and went under the meter made the picture above it jump (#171)
 Rectangle {
     id: card
     property real level: 0
     property real zoneStart: 0.35
     property real zoneEnd: 0.85
     property string word
-    property string hint
     property bool active: true
     color: Theme.surfaceContainer
     radius: Theme.radius
@@ -44,20 +43,6 @@ Rectangle {
             Text { id: lab1; text: qsTr("Too quiet"); color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(12) }
             Text { anchors.horizontalCenter: parent.horizontalCenter; x: (card.zoneStart + card.zoneEnd) / 2 * parent.width - width / 2; text: qsTr("Good"); color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(12) }
             Text { anchors.right: parent.right; text: qsTr("Too loud"); color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(12) }
-        }
-        Row {
-            visible: card.hint !== ""
-            spacing: 6
-            width: parent.width
-            Icon { path: Icons.warning; size: 18; color: Theme.warn; anchors.verticalCenter: parent.verticalCenter }
-            Text {
-                width: parent.width - 24
-                text: card.hint
-                color: Theme.warn
-                font.pixelSize: Theme.sp(13)
-                wrapMode: Text.WordWrap
-                anchors.verticalCenter: parent.verticalCenter
-            }
         }
     }
     Accessible.role: Accessible.ProgressBar

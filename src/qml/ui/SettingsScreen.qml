@@ -182,7 +182,7 @@ Rectangle {
             LevelMeter {
                 x: 24; width: parent.width - 48
                 level: RxController.level; zoneStart: RxController.zoneStart; zoneEnd: RxController.zoneEnd
-                word: RxController.levelWord; hint: RxController.levelHint; active: RxController.listening
+                word: RxController.levelWord; active: RxController.listening
             }
             PrefGroup { text: qsTr("Sound out") }
             PreferenceRow {

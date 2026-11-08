@@ -56,14 +56,6 @@ QString RxController::levelWord() const
   return tr("Good");
 }
 
-QString RxController::levelHint() const
-{
-  if(!m_listening) return QString();
-  if(m_level<0.25) return tr("Raise the radio volume or move the phone closer.");
-  if(m_level>0.95) return tr("Lower the radio volume or move the phone away.");
-  return QString();
-}
-
 QString RxController::signalText() const
 {
   if(!m_receiving) return QString();
