@@ -25,6 +25,7 @@ QSizeF ImageSurface::painted() const
 {
   const QImage &im=image();
   if(im.isNull() || width()<1 || height()<1) return QSizeF(0,0);
+  if(m_stretch) return QSizeF(width(),height());
   return QSizeF(im.size()).scaled(QSizeF(width(),height()),m_fill ? Qt::KeepAspectRatioByExpanding : Qt::KeepAspectRatio);
 }
 
@@ -59,6 +60,15 @@ void ImageSurface::setFill(bool f)
   if(f==m_fill) return;
   m_fill=f;
   emit fillChanged();
+  emit paintedChanged();
+  update();
+}
+
+void ImageSurface::setStretch(bool s)
+{
+  if(s==m_stretch) return;
+  m_stretch=s;
+  emit stretchChanged();
   emit paintedChanged();
   update();
 }
@@ -108,7 +118,7 @@ void ImageSurface::paint(QPainter *painter)
   if(im.isNull() || width()<1 || height()<1) return;
   painter->setRenderHint(QPainter::SmoothPixmapTransform,true);
   const QSizeF target(width(),height());
-  QSizeF drawn=QSizeF(im.size()).scaled(target,m_fill ? Qt::KeepAspectRatioByExpanding : Qt::KeepAspectRatio);
+  QSizeF drawn=m_stretch ? target : QSizeF(im.size()).scaled(target,m_fill ? Qt::KeepAspectRatioByExpanding : Qt::KeepAspectRatio);
   const QRectF r((target.width()-drawn.width())/2,(target.height()-drawn.height())/2,drawn.width(),drawn.height());
   painter->setClipRect(QRectF(QPointF(0,0),target));
   painter->drawImage(r,im);

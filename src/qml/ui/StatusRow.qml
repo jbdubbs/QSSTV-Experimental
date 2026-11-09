@@ -1,12 +1,25 @@
 import QtQuick
 import QSSTV
 
-// What the receiver is doing, as chips: listening / receiving, the mode that was detected, the line, the signal
+// What the receiver is doing, as chips: listening / receiving, the mode that was detected, the line, the signal.
+// The first chip is also the switch (#181): "Listening" stops the receiver, "Stopped" starts it. While a picture comes in it is not offered
 Flow {
     spacing: 8
     signal openModes()
-    Chip { visible: !RxController.listening; text: qsTr("Stopped"); tone: "warn" }
-    Chip { visible: RxController.listening && !RxController.receiving; icon: Icons.mic; text: qsTr("Listening"); tone: "good" }
+    Chip {
+        objectName: "stoppedChip"
+        visible: !RxController.listening
+        icon: Icons.play; text: qsTr("Stopped"); tone: "warn"
+        onClicked: RxController.toggle()
+        Accessible.name: qsTr("Stopped, tap to start")
+    }
+    Chip {
+        objectName: "listeningChip"
+        visible: RxController.listening && !RxController.receiving
+        icon: Icons.stop; text: qsTr("Listening"); tone: "good"
+        onClicked: RxController.toggle()
+        Accessible.name: qsTr("Listening, tap to stop")
+    }
     Chip { visible: RxController.receiving && RxController.modeText === ""; text: AppModel.digital ? qsTr("Receiving digital") : qsTr("Receiving"); tone: "selected" }
     Chip { visible: RxController.modeText !== ""; text: RxController.modeText; tone: "selected" }
     Chip {

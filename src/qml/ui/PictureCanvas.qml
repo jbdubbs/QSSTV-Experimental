@@ -33,7 +33,7 @@ Rectangle {
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
             text: canvas.listening ? qsTr("Hold the phone near the radio's speaker. A picture starts by itself when a signal arrives.")
-                                   : qsTr("Press Listen to start the receiver.")
+                                   : qsTr("Tap Stopped, below the picture, to start the receiver.")
             color: Theme.surfaceVariantOn
             font.pixelSize: Theme.sp(14)
         }

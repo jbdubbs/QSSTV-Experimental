@@ -325,7 +325,7 @@ int main(int argc, char **argv)
       // the receiver does not run here: tell the screens what a running one would
       rx->setTestListening(scene == "stopped" ? 0 : 1);
       rx->setTestLevel(scene == "quiet" ? 0.1 : scene == "loud" ? 0.97 : 0.55);
-      feedWaterfall(60);
+      feedWaterfall(140);   // more rows than the waterfall keeps (128): it is full
       if (scene == "receiving" || scene == "done" || scene == "options")
         {
           const int w = 320, h = 256;
@@ -1188,6 +1188,56 @@ int main(int argc, char **argv)
           rx->setMode(-1);
           if (rx->mode() != -1 || rx->modeName() != QStringLiteral("Auto") || int(sstvModeIndexRx) != 0) fail("Auto did not come back");
           printf("  mode  Auto -> %s -> Auto\n", qPrintable(QString(SSTVTable[M1].name)));
+        }
+      if (scene == "rx-listen")
+        {
+          // the Listening / Stopped chip under the picture is the start / stop switch (#181): no button at the bottom, the waterfall reaches down
+          auto fail = [&](const char *what) {fprintf(stderr, "FAIL: rx-listen: %s\n", what); exitCode = 1;};
+          QQuickItem *r = findItem(content, "receiveScreen");
+          if (!r) fail("no receiveScreen item");
+          else
+            {
+              auto tap = [&](QQuickItem *it) {QTest::mouseClick(win, Qt::LeftButton, {}, it->mapToScene(QPointF(it->width() / 2, it->height() / 2)).toPoint()); QTest::qWait(300);};
+              auto shown = [&](const char *name) {QQuickItem *it = findShown(r, name); return it && it->isVisible();};
+              std::function<bool(QQuickItem *)> hasFab = [&](QQuickItem *it) {
+                if (it->isVisible() && QString::fromLatin1(it->metaObject()->className()).startsWith("ExtendedFab")) return true;
+                for (QQuickItem *c : it->childItems()) if (hasFab(c)) return true;
+                return false;
+              };
+              qmlUi::rxLine(0);   // listening and idle (no picture coming in), whatever the scene before left
+              qmlUi::rxImageEnded();
+              qmlUi::rxStatus(false, "Listening");
+              rx->setTestListening(1);
+              QTest::qWait(300);
+              if (hasFab(r)) fail("there is still a button at the bottom of Receive");
+              if (!shown("listeningChip") || shown("stoppedChip")) fail("idle: the Listening chip is not the only one shown");
+              if (QQuickItem *chip = findItem(r, "listeningChip")) tap(chip);
+              if (rx->listening() || !shown("stoppedChip") || shown("listeningChip")) fail("a tap on Listening did not stop (Stopped should show)");
+              if (QQuickItem *chip = findItem(r, "stoppedChip")) tap(chip);
+              if (!rx->listening() || !shown("listeningChip") || shown("stoppedChip")) fail("a tap on Stopped did not start (Listening should show)");
+              // a picture coming in: the chips that say what it is take the row, and the switch is not offered
+              rxWidgetPtr->getImageViewerPtr()->createImage(QSize(320, 256), QColor(16, 20, 28), true);
+              qmlUi::rxImageStarted(320, 256);
+              qmlUi::rxStatus(false, "Receiving Martin 1");
+              qmlUi::rxLine(100);
+              QTest::qWait(300);
+              if (!rx->receiving()) fail("the test picture is not being received");
+              if (shown("listeningChip") || shown("stoppedChip")) fail("the switch is offered while a picture comes in");
+              qmlUi::rxLine(0);
+              qmlUi::rxImageEnded();
+              qmlUi::rxStatus(false, "Listening");
+              QTest::qWait(300);
+              // the waterfall ends 16 dp above the bar (narrow) or level with the foot of the chips under the picture (wide)
+              QQuickItem *strip = findItem(r, "spectrumStrip");
+              if (!strip) fail("no spectrumStrip item");
+              else
+                {
+                  const qreal bottom = strip->mapToItem(r, QPointF(0, strip->height())).y(), room = r->height() - bottom;
+                  printf("  waterfall %.0f x %.0f dp, its foot %.1f dp above the foot of the screen\n", strip->width(), strip->height(), room);
+                  if (room < 15.5) fail("the waterfall runs lower than 16 dp above the foot of the screen");
+                  if (room > 17.5) fail("the waterfall does not reach down to 16 dp above the foot of the screen");
+                }
+            }
         }
       if (scene == "rx-mode-fixed" || scene == "rx-modes" || scene == "rx-modes-fixed")
         {

@@ -7,10 +7,11 @@ Rectangle {
     radius: Theme.radius
     color: Theme.waterfallBackground
     clip: true
+    objectName: "spectrumStrip"
     ImageSurface {
         anchors.fill: parent
         source: 1
-        fill: true
+        stretch: true   // all of 200 to 2900 Hz across the width, whatever the height (the markers and the caption count on it)
         tint: Theme.night   // the waterfall is red in Night, whatever is chosen for the pictures
         revision: RxController.waterfallRevision
     }

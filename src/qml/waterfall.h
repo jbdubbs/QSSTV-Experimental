@@ -15,7 +15,7 @@ public:
   static constexpr int lowHz=200;
   static constexpr int highHz=2900;
   static constexpr int columns=400;
-  static constexpr int rows=64;
+  static constexpr int rows=128;   //!< the strip is about twice as tall as it was (#181): about the same dp per row, twice the history
 
   Waterfall();
   //! the FFT of the receiver: fftLength points at samplingRate Hz

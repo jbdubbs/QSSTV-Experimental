@@ -136,6 +136,7 @@ void RxController::stop()
 
 void RxController::toggle()
 {
+  if(m_testListening>=0) {setTestListening(m_listening ? 0 : 1); return;}   // the screenshot harness has no receiver to start or stop: it says what one would do
   if(m_listening) stop(); else start();
 }
 

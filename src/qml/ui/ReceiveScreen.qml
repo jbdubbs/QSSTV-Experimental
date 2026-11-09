@@ -3,10 +3,14 @@ import QtQuick.Controls.Material
 import QtQuick.Layouts
 import QSSTV
 
-// Receive: the picture comes first, the signal is explained in words, one button listens or stops
+// Receive: the picture comes first, the signal is explained in words, the Listening / Stopped chip under the picture listens or stops (#181)
 Item {
     id: screen
     property bool wide: width >= 600 && width > height * 1.1   // a tablet held upright stacks the parts like a phone
+    // the waterfall takes the room the Listen button used to keep free. Narrow: twice its old height, or what is left when the picture would
+    // drop below its 120 dp (the picture is what gives on a tall screen); wide: the whole right column down to the foot of the chips under the picture
+    readonly property real spectrumHeight: wide ? Math.max(110, body.height - 12 - level.height - 8)
+                                                : Math.max(56, Math.min(112, body.height - status.height - 6 - 14 - level.height - 8 - 120))
     property alias optionsOpen: options.open
     property alias modesOpen: modes.open
     signal openRoute()
@@ -38,7 +42,7 @@ Item {
         id: body
         anchors.top: micBanner.visible ? micBanner.bottom : strip.bottom; anchors.topMargin: 6
         anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-        anchors.bottomMargin: 80    // room for the button
+        anchors.bottomMargin: screen.wide ? 4 : Theme.margin    // the foot of the waterfall (wide: of the chips) ends 16 dp above the bar
 
         PictureCanvas {
             id: canvas
@@ -47,7 +51,7 @@ Item {
             y: 0
             width: screen.wide ? body.width * 0.58 - Theme.margin : body.width - 2 * Theme.margin
             height: screen.wide ? body.height - 6 - status.height - 12
-                                : Math.max(120, body.height - status.height - 6 - meterBlock.height - 8)
+                                : Math.max(120, body.height - status.height - 6 - 14 - meterBlock.height)   // 6 under the picture, 14 under the chips
         }
         StatusRow {
             id: status
@@ -70,6 +74,7 @@ Item {
             width: screen.wide ? body.width - x - Theme.margin : body.width - 2 * Theme.margin
             spacing: 8
             LevelMeter {
+                id: level
                 width: parent.width
                 level: RxController.level
                 zoneStart: RxController.zoneStart
@@ -77,18 +82,8 @@ Item {
                 word: RxController.levelWord
                 active: RxController.listening
             }
-            SpectrumStrip { width: parent.width; height: screen.wide ? 110 : 56 }
+            SpectrumStrip { width: parent.width; height: screen.spectrumHeight }
         }
-    }
-
-    ExtendedFab {
-        anchors.right: parent.right; anchors.rightMargin: Theme.margin
-        anchors.bottom: parent.bottom; anchors.bottomMargin: Theme.margin
-        text: RxController.listening ? qsTr("Stop") : qsTr("Listen")
-        icon: RxController.listening ? Icons.stop : Icons.mic
-        danger: RxController.listening
-        emphasized: !RxController.listening
-        onClicked: RxController.toggle()
     }
 
     ModeSheet {
