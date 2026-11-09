@@ -276,7 +276,12 @@ QVariantList GalleryModel::info(int index) const
   if(!it.badge.isEmpty()) add(tr("Mode"),it.badge);
   if(!it.isTemplate)
     {
-      const QSize s=QImageReader(it.path).size();
+      QSize s=QImageReader(it.path).size();
+      if(!s.isValid())
+        {
+          QImage im;
+          if(loadImageAutoRotate(im,it.path)) s=im.size();   // AVIF without the Qt plugin (Android)
+        }
       if(s.isValid()) add(tr("Picture"),tr("%1 x %2 pixels").arg(s.width()).arg(s.height()));
     }
   add(tr("File size"),QLocale().formattedDataSize(fi.size()));

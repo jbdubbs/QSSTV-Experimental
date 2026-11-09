@@ -55,8 +55,8 @@ sudo cmake --install build</code></pre>
 <p>If your distribution's Hamlib is too old or missing, build Hamlib yourself and pass
 <code class="wrap"><span class="nb">-DHAMLIB_ROOT=/path/to/hamlib/install</span></code> to the first <code>cmake</code> command. Debug builds additionally need
 Qwt. <code>BUILDING.md</code> also covers the AppImage build, the arm64 build, and the Windows cross-compile from Fedora.</p>
-<p>When you build from source, the AVIF and HEIC image formats depend on the Qt image-format plugins installed on your system.
-The AppImage and Windows packages include them.</p>
+<p>When you build from source, AVIF needs libavif (the one the DRM AVIF option uses) and HEIC depends on the Qt image-format plugins installed on your system.
+The AppImage and Windows packages include both.</p>
 
 <h2 id="first">First run checklist</h2>
 <p>Open <span class="ui">Options &gt; Configuration</span> and work through these pages. Click <span class="ui">OK</span> when you are

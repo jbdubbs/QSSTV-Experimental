@@ -3,6 +3,7 @@
 
 #include <QByteArray>
 #include <QImage>
+#include <QString>
 #include <atomic>
 
 // AVIF through libavif directly (libaom encoder); the Qt image plugin is not involved, so DRM AVIF works without it.
@@ -19,6 +20,10 @@ QByteArray avifEncode(const QImage &image,int targetBytes,QImage *decoded=nullpt
 // One encode at a fixed quality (1..99). speed 0 (slowest) .. 10, chroma 420 or 444.
 // avifEncode() uses fixed settings; this is for tests/benchmarks.
 QByteArray avifEncodeQuality(const QImage &image,int quality,int speed,int chroma);
+
+// Save an image as an AVIF file at a fixed high quality (the "Picture file format" choice): near-lossless to the eye, still
+// much smaller than PNG. False if libavif is missing, the encode fails or the file cannot be written.
+bool avifWriteFile(const QImage &image,const QString &fileName);
 
 // Decode an AVIF file held in memory. Null image on failure. If the file carries rotation/mirror transforms, they are
 // not applied and *transformed (optional) is set, so a caller can prefer a loader that honours them.

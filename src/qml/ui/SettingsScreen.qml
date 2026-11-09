@@ -476,7 +476,7 @@ Rectangle {
     ChoiceDialog {
         id: formatDialog
         title: qsTr("Picture file format")
-        options: SettingsController.imageFormats.map(f => ({text: f.toUpperCase(), hint: f === "png" ? qsTr("No loss, larger files") : f === "jpg" || f === "jpeg" ? qsTr("Smaller files") : ""}))
+        options: SettingsController.imageFormats.map(f => ({text: f.toUpperCase(), hint: f === "png" ? qsTr("No loss, larger files") : f === "jpg" || f === "jpeg" ? qsTr("Smaller files") : f === "avif" ? qsTr("Smallest files") : ""}))
         current: SettingsController.imageFormats.indexOf(SettingsController.imageFormat)
         onPicked: (i) => SettingsController.imageFormat = SettingsController.imageFormats[i]
     }

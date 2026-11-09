@@ -76,9 +76,9 @@ picture can still be viewed.</li>
 and fine texture can look slightly smoothed. AVIF is all or nothing: there is no preview while receiving and a damaged picture cannot be shown, so consider
 Reed-Solomon (Rs) with it. Encoding takes a fraction of a second per slider change.</li>
 </ul>
-<p>The receiver needs no setting: it recognizes the format from the received data. To <em>view</em> an AVIF picture the receiving station needs the AVIF image plugin
-(included in the Windows and AppImage builds; the same one that is needed to open AVIF files). Without it the file is still saved. If AVIF cannot be written on your
-system the option is grayed out, and if encoding fails the picture is sent as JPEG2000.</p>
+<p>The receiver needs no setting: it recognizes the format from the received data. The program reads and writes AVIF itself, so no AVIF image plugin is needed to view
+a received picture or to send one. If AVIF cannot be written on your
+system (a build without libavif) the option is grayed out, and if encoding fails the picture is sent as JPEG2000.</p>
 
 <h2 id="rx">Receiving</h2>
 <p>Select the <strong>DRM</strong> settings tab on the Receive tab and leave the receiver running. The status indicators TIME, FRAME, FAC and MSC turn on as the signal is

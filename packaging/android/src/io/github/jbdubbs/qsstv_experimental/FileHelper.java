@@ -5,6 +5,9 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.ColorSpace;
+import android.graphics.ImageDecoder;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.MediaStore;
@@ -12,6 +15,7 @@ import android.provider.OpenableColumns;
 import android.util.Log;
 
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Locale;
@@ -71,6 +75,50 @@ public class FileHelper
         }
     }
 
+    /** Longest side of a decoded HEIC picture: more than the program ever sends, and a 50 MP photo does not fill the memory */
+    private static final int MAX_DECODED_SIDE = 2560;
+
+    /**
+     * Decode a HEIC/HEIF picture with the phone's own decoder (the program has no HEVC decoder of its own) and write it as a
+     * PNG in the same folder, in sRGB, rotated as the file says. Returns the PNG's path, or "" when the phone cannot decode it.
+     */
+    public static String decodeToPng(String path)
+    {
+        try
+        {
+            ImageDecoder.Source source = ImageDecoder.createSource(new java.io.File(path));
+            Bitmap bitmap = ImageDecoder.decodeBitmap(source, new ImageDecoder.OnHeaderDecodedListener()
+            {
+                @Override
+                public void onHeaderDecoded(ImageDecoder decoder, ImageDecoder.ImageInfo info, ImageDecoder.Source src)
+                {
+                    decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE);   // a bitmap in graphics memory cannot be compressed
+                    decoder.setTargetColorSpace(ColorSpace.get(ColorSpace.Named.SRGB));
+                    int w = info.getSize().getWidth();
+                    int h = info.getSize().getHeight();
+                    int longSide = Math.max(w, h);
+                    if (longSide > MAX_DECODED_SIDE)
+                    {
+                        float k = (float) MAX_DECODED_SIDE / longSide;
+                        decoder.setTargetSize(Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k)));
+                    }
+                }
+            });
+            String out = path.replaceFirst("\\.[^./]*$", "") + ".png";
+            try (FileOutputStream stream = new FileOutputStream(out))
+            {
+                if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)) throw new java.io.IOException("PNG not written");
+            }
+            bitmap.recycle();
+            return out;
+        }
+        catch (java.io.IOException | RuntimeException | OutOfMemoryError e)
+        {
+            Log.w(TAG, "decodeToPng " + path + ": " + e);
+            return "";
+        }
+    }
+
     private static String imageMimeType(String name)
     {
         String n = name.toLowerCase(Locale.ROOT);
@@ -79,7 +127,8 @@ public class FileHelper
         if (n.endsWith(".webp")) return "image/webp";
         if (n.endsWith(".bmp")) return "image/bmp";
         if (n.endsWith(".gif")) return "image/gif";
-        return null;   // JPEG 2000, AVIF and the like: no gallery entry
+        if (n.endsWith(".avif")) return "image/avif";
+        return null;   // JPEG 2000 and the like: no gallery entry
     }
 
     /**

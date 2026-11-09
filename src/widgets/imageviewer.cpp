@@ -1199,7 +1199,7 @@ void imageViewer::save(QString fileName,QString fmt,bool convertRGB, bool source
       if(source) im=sourceImage.convertToFormat(QImage::Format_RGB32);
       else im=displayedImage.convertToFormat(QImage::Format_RGB32);
     }
-  im.save(fileName,fmt.toUpper().toLatin1().data());
+  saveImageFile(im,fileName,fmt);
 }
 
 // Compress for DRM with the selected codec. JPEG2000 aims for a compression ratio, AVIF for the byte budget compressSize.

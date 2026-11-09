@@ -12,7 +12,8 @@ namespace platformFiles
 {
   /*!
     A file the user picked. Returns a path the program can open: a content:// URI is copied into the app's cache first
-    (the copy keeps the file's name and extension). Returns an empty string when it cannot be copied.
+    (the copy keeps the file's name and extension). A HEIC/HEIF picture is decoded by the phone and the PNG is returned,
+    because the program has no HEVC decoder. Returns an empty string when it cannot be copied.
   */
   QString importPicked(const QString &picked);
 

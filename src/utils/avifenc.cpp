@@ -1,4 +1,5 @@
 #include "avifenc.h"
+#include <QFile>
 #include <QThread>
 
 #define AVIFMINQUALITY 1
@@ -12,6 +13,7 @@
 #define AVIFSPEEDBIG 6
 #define AVIFBIGPIXELS 200000
 #define AVIFCHROMA 444
+#define AVIFFILEQUALITY 90   // a picture saved as a file: much smaller than PNG and the eye sees no difference (PNG stays the lossless choice)
 
 bool avifSniff(const QByteArray &data)
 {
@@ -91,6 +93,17 @@ bool avifWriteSupported() { return false; }
 QByteArray avifEncodeQuality(const QImage &,int,int,int) { return QByteArray(); }
 QImage avifDecode(const QByteArray &,bool *transformed) { if(transformed) *transformed=false; return QImage(); }
 #endif
+
+bool avifWriteFile(const QImage &image,const QString &fileName)
+{
+  if(image.isNull() || !avifWriteSupported()) return false;
+  const int speed=(image.width()*image.height()>AVIFBIGPIXELS) ? AVIFSPEEDBIG : AVIFSPEED;
+  const QByteArray data=avifEncodeQuality(image,AVIFFILEQUALITY,speed,AVIFCHROMA);
+  if(data.isEmpty()) return false;
+  QFile f(fileName);
+  if(!f.open(QIODevice::WriteOnly|QIODevice::Truncate)) return false;
+  return f.write(data)==data.size() && f.flush();
+}
 
 QByteArray avifEncode(const QImage &image,int targetBytes,QImage *decoded,int *qualityUsed,int hintQuality,const std::atomic_bool *cancel)
 {

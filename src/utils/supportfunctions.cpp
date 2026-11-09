@@ -21,9 +21,12 @@
 
 #include "supportfunctions.h"
 #include "appglobal.h"
+#include "avifenc.h"
 #include <QDateTime>
 #include <QDebug>
 #include <QImageReader>
+#include <QImageWriter>
+#include <QFile>
 #include <QSet>
 #include <QToolButton>
 #include <QApplication>
@@ -362,6 +365,21 @@ QStringList commonImageFormats()
   return QStringList()<<"png"<<"jpg"<<"jpeg"<<"gif"<<"bmp"<<"webp"<<"avif"<<"heic"<<"heif";
 }
 
+QStringList writableImageFormats()
+{
+  QStringList l;
+  foreach(QByteArray fmt,QImageWriter::supportedImageFormats()) l<<QString::fromLatin1(fmt).toLower();
+  // libavif is linked for DRM anyway; the Qt AVIF plugin (KDE kimageformats) is missing on Android and in some source builds
+  if(avifWriteSupported() && !l.contains("avif")) l<<"avif";
+  return l;
+}
+
+bool saveImageFile(const QImage &im, const QString &fileName, const QString &fmt)
+{
+  if(fmt.compare("avif",Qt::CaseInsensitive)==0 && avifWriteSupported()) return avifWriteFile(im,fileName);
+  return im.save(fileName,fmt.toUpper().toLatin1().data());
+}
+
 /*!
   Windows 10 draws raised tool buttons with the grey (225) button face, which looks dark against the white tab page.
   Its style takes that colour from the visual theme, not QPalette::Button, so force a lighter face with a
@@ -391,6 +409,16 @@ bool loadImageAutoRotate(QImage &im, const QString &fileName)
   QImageReader r(fileName);
   r.setAutoTransform(true);
   im=r.read();
+  if(im.isNull() && avifWriteSupported())
+    {
+      // no AVIF plugin (Android): libavif reads it. A rotation tag in the file is not applied on this path.
+      QFile f(fileName);
+      if(f.open(QIODevice::ReadOnly))
+        {
+          const QByteArray data=f.readAll();
+          if(avifSniff(data)) im=avifDecode(data);
+        }
+    }
   return !im.isNull();
 }
 
@@ -407,9 +435,11 @@ QString imageNameFilter(const QString &extra)
   const QStringList common=commonImageFormats();
   QSet<QString> readable;
   QStringList all;
-  foreach(QByteArray fmt,QImageReader::supportedImageFormats())
+  QStringList readers;
+  foreach(QByteArray fmt,QImageReader::supportedImageFormats()) readers<<QString::fromLatin1(fmt).toLower();
+  if(avifWriteSupported()) readers<<"avif";   // libavif opens it without the Qt plugin
+  foreach(QString f,readers)
     {
-      QString f=QString::fromLatin1(fmt).toLower();
       if(readable.contains(f)) continue;
       readable.insert(f);
       all.append("*."+f);

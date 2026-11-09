@@ -8,6 +8,7 @@
 #include "txwidget.h"
 #include "gallerywidget.h"
 #include "imageviewer.h"
+#include "supportfunctions.h"
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -633,6 +634,7 @@ void TouchTemplateEditor::addImage(const QString &file,qreal cx,qreal cy)
   QImageReader reader(file);
   reader.setAutoTransform(true);
   QImage img=reader.read();
+  if(img.isNull()) loadImageAutoRotate(img,file);   // AVIF without the Qt plugin (Android): libavif
   if(img.isNull()) {m_error=reader.errorString(); return;}
   const QRectF c=m_doc.doc().canvas;
   tpl::Element e=defaultElement(tpl::ItemType::Image);

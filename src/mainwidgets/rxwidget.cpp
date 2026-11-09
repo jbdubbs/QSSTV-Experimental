@@ -33,8 +33,7 @@ rxWidget::rxWidget(QWidget *parent):QWidget(parent),ui(new Ui::rxWidget)
 
 
   rebuildModeComboBox();
-  QStringList writable;
-  for (const QByteArray &format : QImageWriter::supportedImageFormats()) writable << QString::fromLatin1(format).toLower();
+  const QStringList writable=writableImageFormats();
   foreach(QString f,commonImageFormats())
     {
       if(writable.contains(f)) ui->defaultImageFormatComboBox->addItem(f);
