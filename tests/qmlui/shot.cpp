@@ -65,6 +65,16 @@ static QQuickItem *findShown(QQuickItem *root, const QString &name)
   return nullptr;
 }
 
+// is an item that is shown holding exactly this text (a Text, a chip, a pill)?
+static bool shownText(QQuickItem *root, const QString &word)
+{
+  if (!root->isVisible()) return false;
+  if (root->property("text").isValid() && root->property("text").toString() == word) return true;
+  for (QQuickItem *c : root->childItems())
+    if (shownText(c, word)) return true;
+  return false;
+}
+
 static void feedWaterfall(int frames)
 {
   // what the receiver sends the spectrum display: tones of an SSTV line and some noise
@@ -258,6 +268,8 @@ int main(int argc, char **argv)
         for (QQuickItem *c : it->childItems()) closeStarters(c);
       };
       closeStarters(win->contentItem());
+      // the list of the framing pill (tx-framing-menu) is a popup too
+      if (findShown(win->contentItem(), "framingStretch")) {QTest::keyClick(win, Qt::Key_Escape); QTest::qWait(300);}
       if (QQuickItem *box = findItem(win->contentItem(), "problemDialog")) box->setProperty("open", false);   // a scene that showed one does not leave it over the next
       if (QQuickItem *box = findItem(win->contentItem(), "speakerDialog")) box->setProperty("open", false);
       TxController::instance()->setTestSending(-1);
@@ -610,6 +622,9 @@ int main(int argc, char **argv)
           auto is = [](const QColor &a, const QColor &b) {return qAbs(a.red() - b.red()) + qAbs(a.green() - b.green()) + qAbs(a.blue() - b.blue()) < 100;};
           auto pageBox = [&]() {QComboBox *b = txWidgetPtr->findChild<QComboBox *>(QStringLiteral("sstvResizeComboBox")); return b ? b->currentIndex() : -1;};
           auto frame = [&](int mode) {tx->setFraming(mode); QTest::qWait(200); tx->picture().save(QString("%1/framing-%2x%3-%4.png").arg(outDir).arg(width).arg(height).arg(mode)); return tx->picture();};   // the frames are kept for looking at
+          // the framing is a pill on the picture (#178): it names the framing, and the hint on how to place the picture is there while Free is not moved
+          auto pillWord = [&]() {QQuickItem *p = findShown(content, "framingChip"); return p ? p->property("text").toString() : QString();};
+          auto hintShown = [&]() {return findShown(content, "framingHint") != nullptr;};
           // the width of the white square in the middle of the picture, in the middle row of a frame
           auto whiteRun = [](const QImage &f) {
             int best = 0, run = 0;
@@ -627,18 +642,24 @@ int main(int argc, char **argv)
           if (!tx->framingChoice()) fail("no choice of framing in an analog mode");
           frame(0);   // Stretch: everything of the picture, the green column at the left edge, no bars
           if (tx->framing() != 0 || pageBox() != 0) fail("Stretch is not the page's framing");
+          if (pillWord() != QStringLiteral("Stretch") || hintShown()) fail("the pill does not say Stretch, or there is a hint to place the picture");
+          if (shownText(content, QStringLiteral("Framing"))) fail("the word Framing is still on the screen");
           if (!is(at(0.005, 0.5), green) || !is(at(0.5, 0.01), blue)) fail("Stretch does not fill the frame with the whole picture");
           frame(1);   // Crop: fills the frame, the edges are cut off (a 2:1 picture in a frame near 5:4)
           if (tx->framing() != 1 || pageBox() != 1) fail("Crop is not the page's framing");
+          if (pillWord() != QStringLiteral("Crop") || hintShown()) fail("the pill does not say Crop, or there is a hint to place the picture");
           if (is(at(0.005, 0.5), green) || !is(at(0.5, 0.01), blue)) fail("Crop does not cut the edges and fill the frame");
           frame(2);   // Fit: the whole picture, bars above and below
           if (tx->framing() != 2 || pageBox() != 2) fail("Fit is not the page's framing");
+          if (pillWord() != QStringLiteral("Fit") || hintShown()) fail("the pill does not say Fit, or there is a hint to place the picture");
           // the bars of Fit are empty (they go out black); the ones of Free are the background color of the pictures
           if (!is(at(0.005, 0.5), green) || !is(at(0.5, 0.01), QColor(Qt::black)) || !is(at(0.5, 0.99), QColor(Qt::black))) fail("Fit does not show the whole picture between bars");
           if (tx->framingFree() || tx->framingMoved()) fail("Fit is placed by hand");
           frame(3);   // Free: as Fit to begin with
           if (tx->framing() != 3 || pageBox() != 3) fail("Free is not the page's framing");
           if (!tx->framingFree() || tx->framingMoved()) fail("Free is not ready to be placed, or already moved");
+          if (pillWord() != QStringLiteral("Free") || !hintShown()) fail("the pill does not say Free, or there is no hint to place the picture");
+          if (findShown(content, "framingReset")) fail("a Reset pill for a picture that is not moved");
           if (!is(at(0.005, 0.5), green) || !is(at(0.5, 0.01), grey)) fail("Free does not begin with the whole picture");
           whiteBefore = whiteRun(tx->picture());
           // the picture moves with a finger: one drag with the mouse on the picture
@@ -655,6 +676,8 @@ int main(int argc, char **argv)
               printf("  drag down: moved %d, bottom bar is %s\n", tx->framingMoved(), is(at(0.5, 0.99), grey) ? "still there" : "gone");
               if (!tx->framingMoved()) fail("a drag on the picture did not move it");
               else if (is(at(0.5, 0.99), grey)) fail("the picture did not move down");
+              if (hintShown()) fail("the hint to place the picture stays after the picture was moved");
+              if (!findShown(content, "framingReset")) fail("no Reset pill after the picture was moved");
               tx->resetFraming();
               QTest::qWait(200);
               if (tx->framingMoved() || !is(at(0.5, 0.99), grey)) fail("Reset did not bring the whole picture back");
@@ -710,21 +733,26 @@ int main(int argc, char **argv)
           if (!is(at(0.02, 0.5), green)) fail("moved as far as it goes, the edge of the picture that was out of the frame does not come in");
           tx->resetFraming();
           QTest::qWait(200);
-          // a tap on the Stretch chip chooses it
-          QQuickItem *chips = findShown(content, "framingChips");
-          QQuickItem *stretch = nullptr;
-          if (chips)
-            if (QQuickItem *ci = qvariant_cast<QQuickItem *>(chips->property("contentItem")))
-              for (QQuickItem *row : ci->childItems())
-                for (QQuickItem *c : row->childItems())
-                  if (c->isVisible() && c->property("text").toString() == QStringLiteral("Stretch")) stretch = c;
-          if (!stretch) fail("no Stretch chip");
+          // a tap on the framing pill lists the choices (the chosen one checked); a tap on Stretch chooses it, and the picture is not moved by the taps
+          QQuickItem *pill = findShown(content, "framingChip");
+          if (!pill) fail("no framing pill on the picture");
           else
             {
-              revealItem(stretch);
-              QTest::mouseClick(win, Qt::LeftButton, {}, stretch->mapToScene(QPointF(stretch->width() / 2, stretch->height() / 2)).toPoint());
-              QTest::qWait(300);
-              if (tx->framing() != 0) fail("a tap on the Stretch chip did not choose Stretch");
+              revealItem(pill);
+              QTest::mouseClick(win, Qt::LeftButton, {}, pill->mapToScene(QPointF(pill->width() / 2, pill->height() / 2)).toPoint());
+              QTest::qWait(500);
+              QQuickItem *stretch = findShown(win->contentItem(), "framingStretch"), *free = findShown(win->contentItem(), "framingFree");
+              if (!stretch || !free) fail("a tap on the framing pill did not list the choices");
+              else
+                {
+                  if (!free->property("marked").toBool() || stretch->property("marked").toBool()) fail("the list does not check the chosen framing (Free)");
+                  QTest::mouseClick(win, Qt::LeftButton, {}, stretch->mapToScene(QPointF(stretch->width() / 2, stretch->height() / 2)).toPoint());
+                  QTest::qWait(400);
+                  if (tx->framing() != 0) fail("a tap on Stretch in the list did not choose Stretch");
+                  if (pillWord() != QStringLiteral("Stretch")) fail("the pill does not follow the choice");
+                  if (tx->framingMoved()) fail("the taps on the pill moved the picture");
+                  if (findShown(win->contentItem(), "framingStretch")) fail("the list stays open after a choice");
+                }
             }
           // while a transmission goes on the picture is not placed
           tx->setFraming(3);
@@ -733,12 +761,40 @@ int main(int argc, char **argv)
           tx->setFraming(1);
           if (tx->framing() != 3) fail("the framing was changed during a transmission");
           if (tx->adjustFraming(2, 0.5, 0.5, 0, 0)) fail("the picture was zoomed during a transmission");
+          QTest::qWait(300);
+          if (hintShown()) fail("the hint to place the picture is shown during a transmission");
+          if (QQuickItem *p = findShown(content, "framingChip")) {if (p->isEnabled()) fail("the framing pill can be tapped during a transmission");}
           tx->setTestSending(-1);
+          QTest::qWait(300);
           // the screenshot: Free, zoomed a little, with the hint and Reset
           if (!tx->adjustFraming(1.6, 0.5, 0.5, 0.05, 0)) fail("no zoom by program");
           QTest::qWait(400);
           if (!tx->framingMoved()) fail("not moved after a zoom");
           if (pageBox() != 3) fail("the page's framing box was left in another position");
+        }
+      if (scene == "tx-framing-free" || scene == "tx-framing-menu")
+        {
+          // Free and not moved yet: the hint is on the picture (the screenshot); tx-framing-menu leaves the list of the framing pill open (the screenshot)
+          TxController *tx = TxController::instance();
+          auto fail = [&](const char *what) {fprintf(stderr, "FAIL: %s: %s\n", qPrintable(scene), what); exitCode = 1;};
+          tx->setFraming(3);
+          QTest::qWait(400);
+          QQuickItem *hint = findShown(content, "framingHint");
+          if (!hint) fail("no hint to place the free picture");
+          else if (hint->mapToScene(QPointF(0, 0)).x() < 0 || hint->mapToScene(QPointF(hint->width(), 0)).x() > width) fail("the hint runs out of the window");
+          if (scene == "tx-framing-menu")
+            {
+              QQuickItem *pill = findShown(content, "framingChip");
+              if (!pill) fail("no framing pill");
+              else
+                {
+                  QTest::mouseClick(win, Qt::LeftButton, {}, pill->mapToScene(QPointF(pill->width() / 2, pill->height() / 2)).toPoint());
+                  QTest::qWait(500);
+                  QQuickItem *crop = findShown(win->contentItem(), "framingCrop");
+                  if (!crop) fail("the list of choices is not open");
+                  else if (crop->mapToScene(QPointF(0, 0)).x() < 0 || crop->mapToScene(QPointF(crop->width(), 0)).x() > width) fail("the list runs out of the window");
+                }
+            }
         }
       if (scene == "tx-digital-framing")
         {
@@ -749,6 +805,8 @@ int main(int argc, char **argv)
           if (tx->framingChoice()) fail("a choice of framing for a single digital picture");
           if (tx->framing() != 3) fail("a single digital picture is not Free");
           if (!tx->framingFree()) fail("a single digital picture cannot be placed");
+          if (findShown(content, "framingChip")) fail("a framing pill for a single digital picture");
+          if (!findShown(content, "framingHint")) fail("no hint to place the digital picture");
           tx->setFraming(0);
           if (tx->framing() != 3) fail("the framing of a single digital picture was changed");
           const int before = tx->pictureRevision();
@@ -756,6 +814,8 @@ int main(int argc, char **argv)
           QTest::qWait(2500);   // it is drawn and encoded again once the movement has settled
           printf("  digital zoom: moved %d, picture revision %d -> %d\n", tx->framingMoved(), before, tx->pictureRevision());
           if (!tx->framingMoved()) fail("the digital picture is not moved after a zoom");
+          if (!findShown(content, "framingReset")) fail("no Reset pill for the moved digital picture");
+          if (findShown(content, "framingHint")) fail("the hint to place the digital picture stays after it was moved");
           if (tx->pictureRevision() == before) fail("the digital picture was not drawn again");
         }
       if (scene == "tx-sending" || scene == "tx-sending-mismatch" || scene.startsWith("tx-digital-sending"))
@@ -815,6 +875,24 @@ int main(int argc, char **argv)
               // there is no sound card here: the restarts said so in a "Soundcard error" box, which must not stay over the scenes that follow
               if (QQuickItem *box = findItem(win->contentItem(), "problemDialog")) box->setProperty("open", false);
               QTest::qWait(300);
+            }
+        }
+      if (scene == "tx-volume-room")
+        {
+          // the volume card (the device, the percentage, the slider) is in view above the Send bar without scrolling the page (#178: the framing row under the
+          // picture used to push it out of view). On a tall phone that is a failure; on a small one, with large text, or a phone on its side, it is only reported
+          auto fail = [&](const char *what) {fprintf(stderr, "FAIL: tx-volume-room: %s\n", what); exitCode = 1;};
+          QQuickItem *slider = findShown(content, "mediaVolumeSlider"), *send = findShown(content, "sendBar");
+          if (!slider || !send) fail("no mediaVolumeSlider / sendBar item");
+          else
+            {
+              for (QQuickItem *p = slider->parentItem(); p; p = p->parentItem())   // the page at its top, as a phone shows it after a start
+                if (QString::fromLatin1(p->metaObject()->className()) == "QQuickFlickable") {p->setProperty("contentY", 0); break;}
+              QTest::qWait(300);
+              const qreal bottom = slider->mapToScene(QPointF(0, slider->height())).y(), top = send->mapToScene(QPointF(0, 0)).y();
+              const bool tallPhone = width < 600 && height >= 800 && app_->fontScale() <= 1.0;
+              printf("  volume slider bottom at %.0f, Send bar top at %.0f: %.0f dp %s (window %d x %d)\n", bottom, top, qAbs(top - bottom), bottom <= top ? "to spare" : "short", width, height);
+              if (tallPhone && bottom > top) fail("the volume slider is below the Send bar on a tall phone without scrolling");
             }
         }
       if (scene == "tx-volume")

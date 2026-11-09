@@ -1,7 +1,8 @@
 import QtQuick
+import QtQuick.Controls.Material
 import QSSTV
 
-// The picture that will be sent, and where a picture comes from
+// The picture that will be sent, how it is framed, and where a picture comes from
 Column {
     id: block
     spacing: 8
@@ -111,12 +112,61 @@ Column {
                 font.pixelSize: Theme.sp(14)
             }
         }
-        Rectangle {
-            visible: TxController.hasPicture && !AppModel.digital
-            anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 8
-            radius: 10; color: Theme.pictureShade
-            width: sizeText.implicitWidth + 16; height: sizeText.implicitHeight + 4
-            Text { id: sizeText; anchors.centerIn: parent; text: TxController.pictureSize; color: Theme.onPicture; font.pixelSize: Theme.sp(12) }
+        // at the top right, one under the other: the size of the picture; how it is framed (a tap lists Stretch, Crop, Fit and Free); Reset, once the
+        // free picture has been moved (#178: they were a row of their own under the picture, which took the room of the volume)
+        Column {
+            x: 8; y: 8
+            width: parent.width - 16
+            spacing: 12
+            PicturePill {
+                x: parent.width - width
+                visible: TxController.hasPicture && !AppModel.digital
+                text: TxController.pictureSize
+            }
+            PicturePill {
+                id: framingChip
+                objectName: "framingChip"
+                x: parent.width - width
+                visible: TxController.hasPicture && TxController.framingChoice
+                tappable: true
+                enabled: !TxController.sending
+                readonly property string name: [qsTr("Stretch"), qsTr("Crop"), qsTr("Fit"), qsTr("Free")][TxController.framing] || ""
+                text: name
+                trailingIcon: Icons.expand
+                onClicked: framingMenu.open()
+                Accessible.name: qsTr("Framing") + ", " + name
+                Menu {
+                    id: framingMenu
+                    objectName: "framingMenu"
+                    x: parent.width - width
+                    y: parent.height + 4
+                    background: Rectangle { implicitWidth: 160; color: Theme.surfaceHigh; radius: 4; border.width: 1; border.color: Theme.outlineVariant }
+                    ThemedMenuItem { objectName: "framingStretch"; text: qsTr("Stretch"); markColumn: true; marked: TxController.framing === 0; onTriggered: TxController.framing = 0 }
+                    ThemedMenuItem { objectName: "framingCrop"; text: qsTr("Crop"); markColumn: true; marked: TxController.framing === 1; onTriggered: TxController.framing = 1 }
+                    ThemedMenuItem { objectName: "framingFit"; text: qsTr("Fit"); markColumn: true; marked: TxController.framing === 2; onTriggered: TxController.framing = 2 }
+                    ThemedMenuItem { objectName: "framingFree"; text: qsTr("Free"); markColumn: true; marked: TxController.framing === 3; onTriggered: TxController.framing = 3 }
+                }
+            }
+            PicturePill {
+                objectName: "framingReset"
+                x: parent.width - width
+                visible: TxController.framingMoved
+                tappable: true
+                enabled: !TxController.sending
+                icon: Icons.reset
+                text: qsTr("Reset")
+                onClicked: TxController.resetFraming()
+                Accessible.name: qsTr("Reset zoom and position")
+            }
+        }
+        // how to place a free picture; gone once the picture has been moved (the Reset pill is there then)
+        PicturePill {
+            objectName: "framingHint"
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom; anchors.bottomMargin: 8
+            visible: TxController.hasPicture && TxController.framingFree && !TxController.framingMoved && !TxController.sending
+            announced: true
+            text: qsTr("Pinch to zoom, drag to move.")
         }
         Accessible.role: Accessible.Graphic
         Accessible.name: TxController.hasPicture ? qsTr("Picture to send, %1").arg(TxController.pictureSize) : qsTr("No picture chosen")
@@ -124,8 +174,7 @@ Column {
     // the highest the picture may be in a screen that is short (set by the screen)
     property real maxCanvasHeight: 400
     // what lies under the picture (for a screen that shows this block beside the options and keeps the picture from taking all the height)
-    readonly property real belowHeight: (framing.visible ? framing.height + spacing : 0) + pickers.height + spacing
-    FramingBlock { id: framing; width: parent.width }
+    readonly property real belowHeight: pickers.height + spacing
     Flow {
         id: pickers
         x: Theme.margin

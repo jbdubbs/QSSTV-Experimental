@@ -22,6 +22,7 @@ Item {
     // Send, at the thumb, under everything
     Item {
         id: sendBar
+        objectName: "sendBar"
         anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
         height: 56 + 16
         WideButton {
@@ -59,7 +60,7 @@ Item {
         Item {
             visible: screen.wide
             anchors.fill: parent
-            // the picture, the framing and the ways to get a picture: they scroll when the screen is too low for them (a phone on its side)
+            // the picture (with its framing) and the ways to get a picture: they scroll when the screen is too low for them (a phone on its side)
             Flickable {
                 anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
                 width: parent.width * 0.5
