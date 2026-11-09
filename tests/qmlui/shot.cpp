@@ -36,6 +36,7 @@
 #include "drmprofilescontroller.h"
 #include "frequencycontroller.h"
 #include "soundconfig.h"
+#include "operatorconfig.h"
 #include "directoriesconfig.h"
 
 static QQuickWindow *theWindow()
@@ -1013,6 +1014,28 @@ int main(int argc, char **argv)
               macros++;
             }
           if (macros < 15) fail("the macro list is short");
+        }
+      if (scene == "firstrun-1")
+        {
+          // who is on the air (#186): First name, Last name and City are three fields, each one into its own setting (a full name used to go
+          // all into the first name). The rows' own onCommitted handlers run, as when the field is left.
+          auto fail = [&](const char *what) {fprintf(stderr, "FAIL: firstrun-1: %s\n", what); exitCode = 1;};
+          const struct {const char *row, *text;} rows[] = {{"firstRunFirstName", "Jane"}, {"firstRunLastName", "Doe"}, {"firstRunCity", "Springfield"}};
+          for (const auto &r : rows)
+            {
+              QQuickItem *row = findItem(win->contentItem(), r.row);
+              if (!row) {fail(r.row); continue;}
+              QMetaObject::invokeMethod(row, "committed", Q_ARG(QString, QString::fromLatin1(r.text)));
+            }
+          QTest::qWait(100);
+          if (myFirstname != QStringLiteral("Jane")) fail("the first name is not in the first name");
+          if (myLastname != QStringLiteral("Doe")) fail("the last name is not in the last name");
+          if (myQth != QStringLiteral("Springfield")) fail("the city is not in the city");
+          printf("  operator  first \"%s\", last \"%s\", city \"%s\"\n", qPrintable(myFirstname), qPrintable(myLastname), qPrintable(myQth));
+          SettingsController::instance()->setFirstName(QString());   // the screenshot, and the scenes that follow, start with empty fields
+          SettingsController::instance()->setLastName(QString());
+          SettingsController::instance()->setQth(QString());
+          QTest::qWait(100);
         }
       if (scene == "about") {win->setProperty("aboutOpen", true); QTest::qWait(500);}
       if (scene == "tx-tools")

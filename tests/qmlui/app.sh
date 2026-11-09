@@ -32,9 +32,9 @@ run dim 411 800 $LOOK
 run night 411 800 $LOOK
 TINT=1 run night 411 800 idle receiving tx-picture tx-sending gallery settings-appearance
 run light 360 640 idle receiving tx-picture tx-framing tx-digital-framing tx-volume-mismatch tx-sending-mismatch settings-audio-mismatch problem-ptt problem-ptt-short speaker-many tx-chips tx-digital tpl-text tpl-place tx-sending tx-digital-sending tx-digital-sending-device
-run light 320 640 idle receiving tx-picture tx-framing tx-digital-framing tx-volume-mismatch tx-sending-mismatch settings-audio-mismatch problem-ptt problem-ptt-short speaker-many tx-chips tx-digital tpl-text tpl-style level-steady rx-modes-fixed tx-sending tx-digital-sending tx-digital-sending-device
+run light 320 640 firstrun-1 idle receiving tx-picture tx-framing tx-digital-framing tx-volume-mismatch tx-sending-mismatch settings-audio-mismatch problem-ptt problem-ptt-short speaker-many tx-chips tx-digital tpl-text tpl-style level-steady rx-modes-fixed tx-sending tx-digital-sending tx-digital-sending-device
 QSSTV_QML_FONTSCALE=1.3 run light 411 800 receiving level-steady rx-mode-fixed rx-modes tx-chips tx-framing tx-volume-mismatch tx-sending-mismatch problem-ptt problem-ptt-short speaker-many tx-digital tx-sending tx-digital-sending tx-digital-sending-device   # a large text size: the meter is taller and its words wrap
-run light 850 411 idle receiving rx-modes tx-picture tx-framing problem-ptt speaker-many gallery gallery-viewer settings settings-audio firstrun-2 tpl-editor tpl-text tpl-add cal-overview-done cal-ntp-good drm-profile freq freq-edit
+run light 850 411 firstrun-1 idle receiving rx-modes tx-picture tx-framing problem-ptt speaker-many gallery gallery-viewer settings settings-audio firstrun-2 tpl-editor tpl-text tpl-add cal-overview-done cal-ntp-good drm-profile freq freq-edit
 run light 800 1200 idle receiving tx-picture gallery gallery-viewer settings settings-audio firstrun-2 tpl-editor tpl-style tpl-layers cal-ntp-good cal-sstv-got drm-profiles freq rx-freq-sheet
 echo "screenshots: $OUT"
 exit $rc
