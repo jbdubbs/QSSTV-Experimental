@@ -133,6 +133,10 @@ Rectangle {
                 onToggled: (on) => SettingsController.placeLookup = on
             }
             PreferenceRow {
+                visible: SettingsController.placeLookup && SettingsController.gpsOn
+                icon: Icons.pin; title: qsTr("Location now"); summary: SettingsController.placeSummary
+            }
+            PreferenceRow {
                 icon: Icons.tune; title: qsTr("Coordinate format"); summary: SettingsController.coordFormat === 1 ? qsTr("Degrees and minutes (APRS)") : qsTr("Decimal degrees")
                 chevron: true; enabledRow: SettingsController.gpsOn
                 onClicked: coordDialog.open = true

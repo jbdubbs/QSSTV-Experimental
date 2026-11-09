@@ -42,6 +42,9 @@
 #include "operatorconfig.h"
 #include "directoriesconfig.h"
 #include "gpsconfig.h"
+#include "gpsreader.h"
+#include "placelookup.h"
+#include "../gps/fakeservice.h"
 
 static QQuickWindow *theWindow()
 {
@@ -255,6 +258,10 @@ int main(int argc, char **argv)
   bool outputDeviceChanged = false;   // a scene that names a long output device (tx-digital-sending-device): the next scene gets the old one back
   const QString savedOutputDevice = outputAudioDevice;
   bool volumeTest = false;   // a scene about the volume keys: the phone's volume and the device of the keys are made up
+  bool placeSceneDirty = false;   // a scene about the city and state lookup: the next scene gets the lookup off, the boxes empty and the real service back
+  std::unique_ptr<fakeService> placeFake;
+  const QUrl realPlaceService = placeLookupPtr->service();
+  const QString realGpsPort = gpsPort;
   for (int i = 5; i < argc; i++)
     {
       const QString scene = argv[i];
@@ -276,6 +283,19 @@ int main(int argc, char **argv)
       if (findShown(win->contentItem(), "framingStretch")) {QTest::keyClick(win, Qt::Key_Escape); QTest::qWait(300);}
       if (QQuickItem *box = findItem(win->contentItem(), "problemDialog")) box->setProperty("open", false);   // a scene that showed one does not leave it over the next
       if (QQuickItem *box = findItem(win->contentItem(), "speakerDialog")) box->setProperty("open", false);
+      if (placeSceneDirty)
+        {
+          SettingsController *sc0 = SettingsController::instance();
+          sc0->setGpsOn(false);
+          sc0->setPlaceLookup(false);
+          placeLookupPtr->setServiceUrl(realPlaceService);
+          placeFake.reset();
+          gpsPort = realGpsPort;
+          for (const char *box : {"latLineEdit", "lonLineEdit", "placeLineEdit"})
+            if (QLineEdit *e = txWidgetPtr->findChild<QLineEdit *>(box)) e->setText(QString());
+          txWidgetPtr->slotGetParams();
+          placeSceneDirty = false;
+        }
       TxController::instance()->setTestSending(-1);
       if (savedTxMode >= 0 && scene != "tx-chips") {TxController::instance()->setMode(savedTxMode); savedTxMode = -1;}
       if (outputDeviceChanged && scene != "tx-digital-sending-device")
@@ -395,7 +415,7 @@ int main(int argc, char **argv)
           app_->setScreen(0);
           AppModel::instance()->setSettingsOpen(true);
           QQuickItem *st = findItem(win->contentItem(), "settingsScreen");
-          const int page = scene == "settings-operator" ? 1 : scene == "settings-pictures" || scene == "settings-format" ? 2 : scene == "settings-position" ? 3 : scene == "settings-advanced" ? 4 : scene == "settings-audio" || scene == "settings-audio-mismatch" || scene == "settings-mic" || scene == "speaker-many" ? 5 : scene == "settings-radios" ? 6 : scene == "settings-receive" ? 7 : scene == "settings-cw" ? 8 : scene == "settings-appearance" ? 16 : 0;
+          const int page = scene == "settings-operator" ? 1 : scene == "settings-pictures" || scene == "settings-format" ? 2 : scene == "settings-position" || scene.startsWith("settings-location") ? 3 : scene == "settings-advanced" ? 4 : scene == "settings-audio" || scene == "settings-audio-mismatch" || scene == "settings-mic" || scene == "speaker-many" ? 5 : scene == "settings-radios" ? 6 : scene == "settings-receive" ? 7 : scene == "settings-cw" ? 8 : scene == "settings-appearance" ? 16 : 0;
           if (st) st->setProperty("page", page);
           if (scene == "settings-position")
             {
@@ -430,6 +450,56 @@ int main(int argc, char **argv)
                 }
               sc->setGpsOn(false);
               gpsPort = port0;
+            }
+          if (scene == "settings-location" || scene == "settings-location-failed")
+            {
+              // "Location now" (#188): flipping "Look up city and state" on asks for the place at once, and the row shows what the lookup does and finds.
+              // The place service is a server of this harness; the position is what the phone's location source reports.
+              auto fail = [&](const QString &what) {fprintf(stderr, "FAIL: %s: %s\n", qPrintable(scene), qPrintable(what)); exitCode = 1;};
+              SettingsController *sc = SettingsController::instance();
+              auto onPage = [&](const QString &word) {return st && shownText(st, word);};
+              auto waitFor = [&](const std::function<bool()> &cond) {for (int t = 0; t < 40 && !cond(); t++) QTest::qWait(100); return cond();};
+              placeFake = std::make_unique<fakeService>();
+              const bool second = scene == "settings-location-failed";   // the lookup keeps its last answer for any position within a kilometre: each scene has a city of its own
+              const double lat0 = second ? 46.8721 : 47.6062, lon0 = second ? -113.9940 : -122.3321;
+              const QString city = second ? "Missoula, MT" : "Seattle, WA";
+              placeFake->body = second ? missoula : seattle;
+              placeLookupPtr->setServiceUrl(placeFake->url());
+              gpsPort = "/dev/qsstv-test-no-such-port";   // never a real serial port of this computer
+              placeSceneDirty = true;
+              sc->setGpsOn(true);
+              sc->setPlaceLookup(true);
+              QTest::qWait(300);
+              if (!onPage("Location now")) fail("the row is not on the page while the lookup is on");
+              if (sc->placeSummary() != "Waiting for the position") fail("no position yet, the row says: " + sc->placeSummary());
+              if (placeFake->hits != 0) fail("a lookup went out without a position");
+              sc->setPlaceLookup(false);
+              QTest::qWait(300);
+              if (onPage("Location now")) fail("the row is on the page while the lookup is off");
+              emit gpsReaderPtr->positionUpdated(lat0, lon0);   // a position, with the lookup off: nothing is asked
+              QTest::qWait(300);
+              if (placeFake->hits != 0) fail("a lookup went out with the lookup off");
+              sc->setPlaceLookup(true);   // the flip: the place of the position that is there is asked for at once
+              if (txWidgetPtr->placeLookupState() != txWidget::PLACELOOKING) fail("switching the lookup on did not start one");
+              if (sc->placeSummary() != "Looking up the city and state") fail("while it looks, the row says: " + sc->placeSummary());
+              if (!waitFor([&] {return sc->placeSummary() == city;})) fail("the row never shows the place: " + sc->placeSummary());
+              if (placeFake->hits != 1) fail(QString("%1 requests for the first lookup").arg(placeFake->hits));
+              if (scene == "settings-location-failed")
+                {
+                  placeFake->status = 500;
+                  emit gpsReaderPtr->positionUpdated(10.5, 20.5);   // another area, and the service fails
+                  if (!waitFor([&] {return txWidgetPtr->placeLookupState() == txWidget::PLACEFAILED;})) fail("the lookup did not fail");
+                  if (!sc->placeSummary().startsWith("Could not look it up") || !sc->placeSummary().contains("500")) fail("a failed lookup says: " + sc->placeSummary());
+                  emit gpsReaderPtr->positionUpdated(lat0, lon0);   // the next answer replaces the failure (a minute later in real life)
+                  placeFake->status = 200;
+                  txWidgetPtr->lookupPlaceNow();
+                  if (!waitFor([&] {return sc->placeSummary() == city;})) fail("the failure stays after a lookup that works: " + sc->placeSummary());
+                  placeFake->status = 500;
+                  emit gpsReaderPtr->positionUpdated(10.5, 20.5);
+                  waitFor([&] {return txWidgetPtr->placeLookupState() == txWidget::PLACEFAILED;});
+                }
+              QTest::qWait(300);
+              if (!onPage("Location now") || !onPage(sc->placeSummary())) fail("the row on the page does not show: " + sc->placeSummary());
             }
           if (scene == "settings-appearance")
             {

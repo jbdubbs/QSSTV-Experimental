@@ -38,6 +38,7 @@ class SettingsController : public QObject
   Q_PROPERTY(int gpsState READ gpsState NOTIFY positionChanged)                        //!< 0 off, 1 waiting for a position, 2 position known, 3 cannot get one
   Q_PROPERTY(QString gpsReason READ gpsReason NOTIFY positionChanged)                  //!< why not (permission, service off ...)
   Q_PROPERTY(QString positionText READ positionText NOTIFY positionChanged)            //!< the position now, in the chosen format
+  Q_PROPERTY(QString placeSummary READ placeSummary NOTIFY positionChanged)            //!< the city and state now ("Location now"), or what the lookup is doing
   // audio and radio
   Q_PROPERTY(QString audioSummary READ audioSummary NOTIFY audioChanged)
   Q_PROPERTY(QStringList inputDevices READ inputDevices NOTIFY audioChanged)
@@ -96,6 +97,7 @@ public:
   int gpsState() const;
   QString gpsReason() const {return m_gpsReason;}
   QString positionText() const;
+  QString placeSummary() const;
 
   QString audioSummary() const;
   QStringList inputDevices() const;

@@ -1994,7 +1994,25 @@ bool txWidget::requestPlace()
   placeCellKnown=true;
   placeLat=lat;
   placeLon=lon;
+  placeState=PLACELOOKING;
+  emit placeStateChanged();
   return true;
+}
+
+QString txWidget::placeNow() const
+{
+  return imageViewerPtr->place;
+}
+
+void txWidget::lookupPlaceNow()
+{
+  placeFailedAt.invalidate();   // a failure of before does not hold the new try back
+  placeCellKnown=false;         // and a lookup of before does not count as this one: the tracking asks again with the next position
+  placeKey.clear();
+  placeState=PLACEIDLE;
+  placeReason.clear();
+  requestPlace();               // without a position in the boxes (yet) nothing is asked: the first position that arrives asks
+  emit placeStateChanged();
 }
 
 void txWidget::slotPlaceReady(bool ok,const QString &place,const QString &reason)
@@ -2004,6 +2022,8 @@ void txWidget::slotPlaceReady(bool ok,const QString &place,const QString &reason
   if(ok)
     {
       placeFailedAt.invalidate();
+      placeState=PLACEIDLE;
+      placeReason.clear();
       setValue(place,ui->placeLineEdit);
       slotGetParams();   // takes the place over and renders the template again
     }
@@ -2016,7 +2036,10 @@ void txWidget::slotPlaceReady(bool ok,const QString &place,const QString &reason
       const QString message=QString("Place lookup: %1, keeping the last place").arg(reason);
       addToLog(message,LOGTXMAIN);
       if((gpsTracking && first) || beaconRunning) statusBarPtr->showMessage(message,20000);
+      placeState=PLACEFAILED;
+      placeReason=reason;
     }
+  emit placeStateChanged();
 }
 
 // Writes both boxes in the given format. Text that is no coordinate (free text such as 47°N or a name) stays as it is.

@@ -339,7 +339,7 @@ set(QSSTV_SOURCES
 
 if(ANDROID)
   # the native sound backend (AAudio through Oboe); the other platforms use soundqtmultimedia.cpp only
-  list(APPEND QSSTV_SOURCES sound/soundandroid.cpp android/openwith.cpp android/androidaudio.cpp android/androidusb.cpp android/qtlocationsource.cpp android/photopicker.cpp android/androidshell.cpp)
+  list(APPEND QSSTV_SOURCES sound/soundandroid.cpp android/openwith.cpp android/androidaudio.cpp android/androidusb.cpp android/qtlocationsource.cpp android/photopicker.cpp android/androidshell.cpp android/androidhttp.cpp)
 endif()
 
 # Video capture used to be Linux/macOS-only V4L2 (excluded on macOS via the original

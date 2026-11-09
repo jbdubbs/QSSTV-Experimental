@@ -48,6 +48,8 @@ SettingsController::SettingsController(QObject *parent):QObject(parent)
           emit positionChanged();
         });
     }
+  // the city and state lookup of the Transmit tab (also asked for by the tracking and by typed-in coordinates): the Position page shows what it does
+  if(txWidgetPtr) connect(txWidgetPtr,&txWidget::placeStateChanged,this,&SettingsController::positionChanged);
 }
 
 SettingsController *SettingsController::instance()
@@ -186,6 +188,7 @@ void SettingsController::setPlaceLookup(bool on)
   qSettings.beginGroup("GPS");
   qSettings.setValue("placeLookup",on);
   qSettings.endGroup();
+  if(on && txWidgetPtr) txWidgetPtr->lookupPlaceNow();   // switched on: the place is looked up at once, so the page shows it works (#188)
   emit positionChanged();
 }
 
@@ -208,6 +211,18 @@ int SettingsController::gpsState() const
   if(m_trackState==gpsReader::TRACKFAILED) return 3;
   if(m_haveFix && m_trackState==gpsReader::TRACKFIXED) return 2;
   return 1;
+}
+
+// the row "Location now": the city and state the pictures carry, or what the lookup is doing about it
+QString SettingsController::placeSummary() const
+{
+  if(!txWidgetPtr) return QString();
+  if(txWidgetPtr->placeLookupState()==txWidget::PLACELOOKING) return tr("Looking up the city and state");
+  if(txWidgetPtr->placeLookupState()==txWidget::PLACEFAILED)
+    return tr("Could not look it up: %1. It is tried again in a minute.").arg(txWidgetPtr->placeLookupReason());
+  const QString place=txWidgetPtr->placeNow();
+  if(!place.isEmpty()) return place;
+  return m_haveFix ? tr("Looking up the city and state") : tr("Waiting for the position");
 }
 
 QString SettingsController::positionText() const

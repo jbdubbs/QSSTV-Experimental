@@ -57,6 +57,13 @@ public:
   //! the GPS button is on: the GPS is read all the time and the Lat and Long boxes follow it
   bool gpsTracks() const {return gpsTracking;}
   void setGpsTracking(bool on);   //!< the GPS button, set from the Qt Quick settings: the same as pressing it, without the box
+  //! what the city and state lookup is doing, for the Position page of the Qt Quick settings (#188)
+  enum PlaceState {PLACEIDLE,PLACELOOKING,PLACEFAILED};
+  int placeLookupState() const {return placeState;}
+  QString placeLookupReason() const {return placeReason;}   //!< why the last lookup failed (PLACEFAILED)
+  QString placeNow() const;                                  //!< the place the pictures carry now (the %g macro), empty when there is none
+  //! "Look up city and state" was just switched on: the place of the position in the boxes is asked for at once, so it can be seen working
+  void lookupPlaceNow();
   //  void repeat(QImage *im,esstvMode sm);
   void sendRepeaterImage(esstvMode rxMode=NOTVALID);
   void setImage(QImage *ima);
@@ -160,6 +167,7 @@ signals:
   void txStopped();
   void progressChanged(int percent); //!< TX progress 0..100 (calibration dialog)
   void txTimeChanged();              //!< the time the picture takes (txSeconds()) or the picture itself changed (Qt Quick screen)
+  void placeStateChanged();          //!< the city and state lookup started, answered or failed (the Position page of the Qt Quick settings)
   void calibrationTxFinished();
   void calibrationTxFailed(const QString &why); //!< a calibration / --encode transmission could not start or went wrong; calibrationTxFinished() follows
   void beaconCountdownChanged(const QString &text,bool error); //!< status bar text for the running webcam beacon (countdown, or the reason it is not transmitting); empty: not running
@@ -239,6 +247,8 @@ private:
   QString gpsBaseSheet;         // the sheet styleToolButtons() gave the GPS button (empty except on Windows): the sheets of its colors come after it
   QString snapshotBaseSheet;    // the same for the camera / beacon button
   bool placeAwaiting=false;     // a place lookup of this widget is in flight (the Test button of Configuration > GPS does not count)
+  int placeState=PLACEIDLE;     // what the lookup of this widget is doing (shown on the Position page of the Qt Quick settings)
+  QString placeReason;          // ... and why it failed
   bool placeCellKnown=false;    // placeLat / placeLon hold the position of the last lookup started by the tracking
   double placeLat=0,placeLon=0;
   QElapsedTimer placeFailedAt;  // when the last lookup of the tracking failed: not tried again for a minute (no request every second when offline)
