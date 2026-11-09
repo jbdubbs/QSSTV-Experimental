@@ -58,7 +58,7 @@ Rectangle {
                 Text { width: parent.width; leftPadding: 24; rightPadding: 24; topPadding: 12; bottomPadding: 16
                        text: qsTr("Your call sign, name and city can go on the pictures you send. You can leave them empty and set them later.")
                        color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(15); wrapMode: Text.WordWrap }
-                TextRow { label: qsTr("Call sign"); hint: qsTr("Call sign"); capitalization: Qt.ImhUppercaseOnly | Qt.ImhNoAutoUppercase
+                TextRow { objectName: "firstRunCallsign"; label: qsTr("Call sign"); hint: qsTr("Call sign"); capitalization: Qt.ImhUppercaseOnly | Qt.ImhNoAutoUppercase
                           text: SettingsController.callsign; onCommitted: (t) => SettingsController.callsign = t }
                 TextRow { objectName: "firstRunFirstName"; label: qsTr("First name"); hint: qsTr("First name"); text: SettingsController.firstName; onCommitted: (t) => SettingsController.firstName = t }
                 TextRow { objectName: "firstRunLastName"; label: qsTr("Last name"); hint: qsTr("Last name"); text: SettingsController.lastName; onCommitted: (t) => SettingsController.lastName = t }

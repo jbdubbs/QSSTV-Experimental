@@ -1219,9 +1219,39 @@ int main(int argc, char **argv)
           if (myLastname != QStringLiteral("Doe")) fail("the last name is not in the last name");
           if (myQth != QStringLiteral("Springfield")) fail("the city is not in the city");
           printf("  operator  first \"%s\", last \"%s\", city \"%s\"\n", qPrintable(myFirstname), qPrintable(myLastname), qPrintable(myQth));
+          // the call sign also fills "Text sent as CW" (#192), which the CW tool and the CW at the end of a picture send, until the operator
+          // writes a text of their own
+          SettingsController *sc = SettingsController::instance();
+          auto cwNow = [&]() {return sc->cwText();};
+          auto cwFile = [&]() {return QSettings().value("CW/cwtext").toString();};
+          auto callsign = [&](const char *text)
+            {
+              QQuickItem *row = findItem(win->contentItem(), "firstRunCallsign");
+              if (!row) {fail("firstRunCallsign"); return;}
+              QMetaObject::invokeMethod(row, "committed", Q_ARG(QString, QString::fromLatin1(text)));
+              QTest::qWait(100);
+            };
+          if (!cwNow().isEmpty()) fail("the CW text is not empty before the call sign");
+          callsign("w1aw");
+          if (sc->callsign() != QStringLiteral("W1AW")) fail("the call sign is not in the call sign");
+          if (cwNow() != QStringLiteral("W1AW") || cwFile() != QStringLiteral("W1AW")) fail("the call sign does not fill the CW text (and the settings file)");
+          callsign("K1ABC");
+          if (cwNow() != QStringLiteral("K1ABC")) fail("the CW text does not follow a changed call sign");
+          sc->setCwText(QStringLiteral("CQ DE K1ABC"));
+          callsign("N0XYZ");
+          if (cwNow() != QStringLiteral("CQ DE K1ABC") || cwFile() != QStringLiteral("CQ DE K1ABC")) fail("a CW text of the operator's own was replaced");
+          callsign(" ");
+          if (cwNow() != QStringLiteral("CQ DE K1ABC")) fail("clearing the call sign cleared a CW text of the operator's own");
+          sc->setCwText(QString());
+          callsign("w1aw");
+          callsign("");
+          if (!cwNow().isEmpty()) fail("clearing the call sign did not clear the CW text that followed it");
+          printf("  cw text   follows the call sign, keeps the operator's own text\n");
           SettingsController::instance()->setFirstName(QString());   // the screenshot, and the scenes that follow, start with empty fields
           SettingsController::instance()->setLastName(QString());
           SettingsController::instance()->setQth(QString());
+          sc->setCallsign(QString());
+          sc->setCwText(QString());
           QTest::qWait(100);
         }
       if (scene == "about") {win->setProperty("aboutOpen", true); QTest::qWait(500);}

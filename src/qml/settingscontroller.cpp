@@ -87,9 +87,14 @@ void SettingsController::saveOperator()
 
 void SettingsController::setCallsign(const QString &s)
 {
+  const QString old=callsign();   // what the page showed: empty while it is "NOCALL"
   const QString v=s.trimmed().toUpper();
   myCallsign=v.isEmpty() ? QStringLiteral("NOCALL") : v;
   saveOperator();
+  // The CW tool and the CW at the end of a picture send the "Text sent as CW", which is empty on a new install and would be silence. It follows
+  // the call sign until the operator writes a text of their own: empty or still the old call sign (CW has no case) is replaced, anything else is kept (#192).
+  const QString now=callsign();
+  if((::cwText.isEmpty() || ::cwText.compare(old,Qt::CaseInsensitive)==0) && ::cwText!=now) setCwText(now);
 }
 
 void SettingsController::setFirstName(const QString &s)
