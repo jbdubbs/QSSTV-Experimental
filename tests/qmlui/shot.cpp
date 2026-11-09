@@ -361,6 +361,7 @@ int main(int argc, char **argv)
               qmlUi::notifyRouteChanged();
             }
           if (scene == "tx-sending-tool") tx->setTestSending(0.4, "Test tone, 1000 Hz", 5);
+          if (scene == "tx-sending-sample") tx->setTestSending(0.4, "Test picture, B/W 8", 12);   // Settings > Test sound (#185)
           if (scene == "tx-chips")
             {
               savedTxMode = tx->mode();

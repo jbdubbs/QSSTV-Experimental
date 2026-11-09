@@ -599,6 +599,7 @@ bool txWidget::sendCalibrationImage(esstvMode mode,const QImage &image)
   calSavedFile=imageViewerPtr->getFilename();
   calSavedMode=sstvModeIndexTx;
   calSavedUseTemplate=useTemplate;
+  imageViewerPtr->framingState(calSavedZoom,calSavedPan);
   calTxActive=true;
   sstvModeIndexTx=mode;
   useTemplate=false;
@@ -617,6 +618,7 @@ bool txWidget::sendDrmTestImage(const drmTxParams &params,const QImage &image,ui
   calSavedFile=imageViewerPtr->getFilename();
   calSavedMode=sstvModeIndexTx;
   calSavedUseTemplate=useTemplate;
+  imageViewerPtr->framingState(calSavedZoom,calSavedPan);
   calTxActive=true;
   useTemplate=false;
   copyProfile(params);
@@ -647,6 +649,7 @@ void txWidget::restoreAfterCalibrationTx()
     {
       imageViewerPtr->openImage(calSavedImage);
       imageViewerPtr->setFilename(calSavedFile);
+      imageViewerPtr->setFramingState(calSavedZoom,calSavedPan);   // before applyTemplate() below draws the picture
     }
   else imageViewerPtr->clear();
   calSavedImage=QImage();

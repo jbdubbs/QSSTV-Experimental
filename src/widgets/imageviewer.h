@@ -109,6 +109,10 @@ public:
   bool freeFraming() const;   // Free framing with a picture loaded: zoom/pan have an effect
   bool framingMoved() const {return isFramed(curSlot());}   // zoom/pan differ from the whole picture, centered
   void resetFreeFraming() {slotResetFraming();}   // the whole picture, centered
+  // The zoom and pan of the active image: openImage() resets them, so a caller that puts another picture in for a moment (a calibration, the test
+  // picture) keeps them here and sets them again after it has put the user's picture back.
+  void framingState(double &zoom,QPointF &pan) const {zoom=segZoom.value(curSlot(),1.0); pan=segPan.value(curSlot());}
+  void setFramingState(double zoom,const QPointF &pan) {const int s=curSlot(); if(s>=0 && s<segZoom.size() && s<segPan.size()) {segZoom[s]=zoom; segPan[s]=pan;}}
   // A gesture of two fingers or one: zoom by scale about focus (a point of the frame, 0..1 of its width and height), then move by shift (the same
   // units), both from the framing at the start of the gesture. Every step is drawn from the whole picture (not from the frame as it was), the
   // picture of an analog mode with its template at once, a digital one through freePreview() while it is encoded once at the end.

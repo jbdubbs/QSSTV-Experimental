@@ -209,9 +209,14 @@ Rectangle {
                     x: 24; anchors.verticalCenter: parent.verticalCenter
                     text: qsTr("Test sound"); highlighted: true
                     enabled: !TxController.sending
-                    onClicked: TxController.sendTone(1000, 3)
-                    Accessible.name: qsTr("Play a test tone")
+                    onClicked: TxController.sendSampleImage()
+                    Accessible.name: qsTr("Send a short test picture")
                 }
+            }
+            Text {
+                width: parent.width; leftPadding: 24; rightPadding: 24; bottomPadding: 8
+                text: qsTr("Sends a short picture, about 12 seconds. With a radio connected it goes on the air.")
+                color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(13); wrapMode: Text.WordWrap
             }
             Text {
                 visible: SettingsController.routeDetail !== ""

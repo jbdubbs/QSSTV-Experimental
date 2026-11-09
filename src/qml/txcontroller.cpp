@@ -56,6 +56,7 @@ void TxController::connectToPage()
   connect(txWidgetPtr,&txWidget::progressChanged,this,&TxController::progressTick);
   connect(txWidgetPtr,&txWidget::txTimeChanged,this,[this]{refreshPicture(); emit timeChanged();});
   connect(txWidgetPtr->getImageViewerPtr(),&imageViewer::imageChanged,this,&TxController::refreshPicture);
+  connect(txWidgetPtr,&txWidget::calibrationTxFailed,this,&TxController::sampleFailed);
   refreshPicture();
 }
 
@@ -473,6 +474,77 @@ void TxController::sendSweep(int lowerFrequency,int upperFrequency,int seconds)
   dispatcherPtr->startTX(txFunctions::TXSENDTONE);
 }
 
+// The picture of the test sound (#185). B/W 8 is the shortest mode and carries gray only: eight steps over a ramp, so that a sound which is
+// distorted or clipped shows in the steps and a weak or noisy one in the ramp.
+static QImage sampleImage()
+{
+  const int w=SSTVTable[BW8].numberOfPixels;
+  const int h=SSTVTable[BW8].numberOfDisplayLines;
+  QImage im(w,h,QImage::Format_ARGB32_Premultiplied);
+  for(int y=0;y<h;y++)
+    {
+      QRgb *line=reinterpret_cast<QRgb *>(im.scanLine(y));
+      for(int x=0;x<w;x++)
+        {
+          const int g=y<h/2 ? (x*8/w)*255/7 : x*255/(w-1);
+          line[x]=qRgb(g,g,g);
+        }
+    }
+  return im;
+}
+
+/*!
+  Settings > Audio and radio > Test sound: the picture goes through the normal SSTV send path (the way the Calibration screen sends its reference
+  picture), so the VIS header, the picture and the call sign ID sound as a real transmission does. txWidget puts the user's picture, mode and
+  framing back when it is over or stopped. SSTV cannot be sent from the digital page: that is switched to analog for the time, and poll() switches
+  it back once the transmitter is idle again (endSample()).
+*/
+void TxController::sendSampleImage()
+{
+  if(!txWidgetPtr || m_sending || m_sample) return;
+  AppModel *app=AppModel::instance();
+  const bool wasDigital=app->digital();
+  if(wasDigital)
+    {
+      app->setDigital(false);
+      if(app->digital())
+        {
+          emit app->noticeShown(tr("The test picture cannot be sent now: a picture is being received or sent."));
+          return;
+        }
+    }
+  if(!txWidgetPtr->sendCalibrationImage(BW8,sampleImage()))
+    {
+      if(wasDigital) app->setDigital(true);
+      emit app->noticeShown(tr("The test picture cannot be sent now: a picture is being received or sent."));
+      return;
+    }
+  m_sample=true;
+  m_sampleWasDigital=wasDigital;
+  // what the page says it takes, with the header and the call sign ID (sendCalibrationImage() has worked it out for B/W 8 by now)
+  const int seconds=txWidgetPtr->txSeconds();
+  startTool(tr("Test picture, %1").arg(SSTVTable[BW8].name),seconds>0 ? seconds : int(SSTVTable[BW8].imageTime+0.5)+4);
+  poll();   // the overlay now, not at the next tick
+}
+
+// the test picture could not be started or went wrong (no sound output, ...); the page is unlocked and restored by txWidget
+void TxController::sampleFailed(const QString &why)
+{
+  if(!m_sample) return;
+  QString reason=why.trimmed();
+  while(reason.endsWith('.')) reason.chop(1);
+  emit AppModel::instance()->problemShown(tr("Test sound"),tr("The test picture was not sent: %1.\n\nCheck the speaker in Settings > Audio and radio.").arg(reason));
+}
+
+// the transmitter is idle again: the digital page, if that is where the test began, is switched back
+void TxController::endSample()
+{
+  m_sample=false;
+  if(!m_sampleWasDigital) return;
+  m_sampleWasDigital=false;
+  AppModel::instance()->setDigital(true);
+}
+
 
 void TxController::pickFile()
 {
@@ -653,7 +725,9 @@ void TxController::poll()
       emit framingChanged();   // from the page itself, from the digital switch, a new picture, a reset
     }
   if(m_test) return;
-  const bool sending=txWidgetPtr->functionsPtr() && txWidgetPtr->functionsPtr()->txBusy();
+  // the test picture counts as sending from the call until the page is restored: between its preparation and the start of the transmitter
+  // there is a moment with an idle thread, which would end the overlay and clear the name of the tool
+  const bool sending=(txWidgetPtr->functionsPtr() && txWidgetPtr->functionsPtr()->txBusy()) || (m_sample && txWidgetPtr->calibrationTxActive());
   if(sending!=m_sending)
     {
       m_sending=sending;
@@ -665,4 +739,5 @@ void TxController::poll()
         }
       emit sendingChanged();
     }
+  if(m_sample && !sending) endSample();
 }

@@ -215,6 +215,8 @@ private:
   QString calSavedFile;
   esstvMode calSavedMode=NOTVALID;
   bool calSavedUseTemplate=false;
+  double calSavedZoom=1.0;   // the Free framing of the picture: openImage() puts it back to the whole picture
+  QPointF calSavedPan;
   txFunctions *txFunctionsPtr;
 
   QTimer *repeaterTimer;

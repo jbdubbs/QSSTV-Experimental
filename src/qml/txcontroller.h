@@ -128,6 +128,9 @@ public:
   Q_INVOKABLE void sendCwId();
   Q_INVOKABLE void sendTone(int frequency,int seconds);
   Q_INVOKABLE void sendSweep(int lowerFrequency,int upperFrequency,int seconds);
+  //! Settings > Audio and radio > Test sound (#185): a short SSTV picture (B/W 8, gray steps) through the normal send path; the picture, mode and
+  //! framing of the Transmit screen are put back when it ends, and a digital page is switched to analog for it and back
+  Q_INVOKABLE void sendSampleImage();
   //! the values the tone and sweep sheets start from (the ones of the last time): {tone, duration, low, high, sweepDuration}
   Q_INVOKABLE QVariantMap toolDefaults() const;
   Q_INVOKABLE void camera();        //!< a picture from the camera: asks for the permission first, then the camera screen shows
@@ -167,6 +170,7 @@ private slots:
   void refreshPicture();
   void poll();
   void progressTick(int percent);
+  void sampleFailed(const QString &why);
 
 private:
   explicit TxController(QObject *parent=nullptr);
@@ -181,6 +185,9 @@ private:
   QString m_toolName;
   int m_toolSeconds=0;
   void startTool(const QString &name,int seconds);
+  bool m_sample=false;            // the test picture is on its way (from the call until the transmitter is back, a moment between its steps included)
+  bool m_sampleWasDigital=false;  // the page was Digital: it goes back to it when the test picture is over
+  void endSample();
   QString m_drmSignature;
   QString m_framingSignature;
   bool m_framingGesture=false;   // fingers are on the picture: a digital picture shows the preview, not what the encoder sends back
