@@ -374,7 +374,7 @@ Rectangle {
                 onCommitted: (v) => SettingsController.wfFontSize = v
             }
             PreferenceRow {
-                icon: Icons.mic; title: qsTr("Bold letters"); checkable: true; checked: SettingsController.wfBold
+                icon: Icons.bold; title: qsTr("Bold letters"); checkable: true; checked: SettingsController.wfBold
                 onToggled: (on) => SettingsController.wfBold = on
             }
             PrefGroup { text: qsTr("Markers in the waterfall") }
