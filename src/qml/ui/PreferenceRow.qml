@@ -37,12 +37,14 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         width: row.checkable ? sw.implicitWidth : (row.chevron ? 24 : 0)
         height: Theme.tap
-        ToggleSwitch { id: sw; Accessible.ignored: true; interactive: false; visible: row.checkable; enabled: row.enabledRow; anchors.centerIn: parent; checked: row.checked }
+        ToggleSwitch { id: sw; objectName: "rowSwitch"; Accessible.ignored: true; interactive: false; visible: row.checkable; enabled: row.enabledRow; anchors.centerIn: parent; checked: row.checked }
         Icon { visible: row.chevron; anchors.centerIn: parent; path: Icons.chevron }
     }
     TapHandler { margin: Theme.tapMargin(parent); enabled: !row.checkable && row.enabledRow; onTapped: row.clicked() }
-    TapHandler { margin: Theme.tapMargin(parent); enabled: row.checkable && row.enabledRow; onTapped: { sw.toggle(); row.toggled(sw.checked) } }
-    Accessible.onPressAction: if (row.enabledRow) { if (row.checkable) { sw.toggle(); row.toggled(sw.checked) } else row.clicked() }
+    // The switch is never turned by the tap: it only shows `checked`, which the page binds to the setting. A tap asks for the other value; if the setting
+    // does not take it (the system said no, the settings changed behind the page's back) the switch keeps showing what is true (#187: toggle() cut the binding).
+    TapHandler { margin: Theme.tapMargin(parent); enabled: row.checkable && row.enabledRow; onTapped: row.toggled(!row.checked) }
+    Accessible.onPressAction: if (row.enabledRow) { if (row.checkable) row.toggled(!row.checked); else row.clicked() }
     Accessible.role: checkable ? Accessible.CheckBox : Accessible.Button
     Accessible.name: summary !== "" ? title + ", " + summary : title
 }

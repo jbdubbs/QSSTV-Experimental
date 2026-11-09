@@ -15,7 +15,10 @@
 #include "appglobal.h"
 #include "configparams.h"
 #include "dispatcher.h"
+// mainWindow::writeSettings() is private: the settings-position scene runs it, as the program does when a system box covers it on Android
+#define private public
 #include "mainwindow.h"
+#undef private
 #include "uimode.h"
 #include "qmlui.h"
 #include "appmodel.h"
@@ -38,6 +41,7 @@
 #include "soundconfig.h"
 #include "operatorconfig.h"
 #include "directoriesconfig.h"
+#include "gpsconfig.h"
 
 static QQuickWindow *theWindow()
 {
@@ -393,6 +397,40 @@ int main(int argc, char **argv)
           QQuickItem *st = findItem(win->contentItem(), "settingsScreen");
           const int page = scene == "settings-operator" ? 1 : scene == "settings-pictures" || scene == "settings-format" ? 2 : scene == "settings-position" ? 3 : scene == "settings-advanced" ? 4 : scene == "settings-audio" || scene == "settings-audio-mismatch" || scene == "settings-mic" || scene == "speaker-many" ? 5 : scene == "settings-radios" ? 6 : scene == "settings-receive" ? 7 : scene == "settings-cw" ? 8 : scene == "settings-appearance" ? 16 : 0;
           if (st) st->setProperty("page", page);
+          if (scene == "settings-position")
+            {
+              // The system box that asks for the phone's position covers the program: Android makes it Inactive and mainWindow::writeSettings() runs.
+              // It must not undo the switch that was just turned on (#187: the classic GPS page, hidden, was written back from its old check box, and the
+              // position was off again once the box was answered). The same call, here, without the state change.
+              auto fail = [&](const char *what) {fprintf(stderr, "FAIL: settings-position: %s\n", what); exitCode = 1;};
+              SettingsController *sc = SettingsController::instance();
+              const QString port0 = gpsPort;
+              gpsPort = "/dev/qsstv-test-no-such-port";   // never a real serial port of this computer
+              sc->setGpsOn(true);
+              if (!sc->gpsOn()) fail("the switch did not turn the position on");
+              mainWindowPtr->writeSettings();
+              if (!sc->gpsOn()) fail("the position is off after the program wrote its settings (a system box was over it)");
+              if (!gpsEnabled) fail("the GPS is off in the settings of the program after they were written");
+              if (!QSettings().value("GPS/enabled").toBool()) fail("GPS/enabled in the settings file is off after they were written");
+              sc->setGpsOn(false);   // the picture is of the page as it starts
+              // the switch of the page shows the setting, whatever was tapped before: a tap asks for the other value, and a change that the page did
+              // not make (here: the same write as above, gone wrong) is shown at once (a tapped switch used to lose its binding to the setting)
+              QTest::qWait(300);
+              QQuickItem *sw = st ? findShown(st, "rowSwitch") : nullptr;
+              if (!sw) fail("the first switch of the page was not found");
+              else
+                {
+                  QTest::mouseClick(win, Qt::LeftButton, {}, sw->mapToScene(QPointF(sw->width() / 2, sw->height() / 2)).toPoint());
+                  QTest::qWait(300);
+                  if (!sc->gpsOn()) fail("tapping the switch did not turn the position on");
+                  if (!sw->property("checked").toBool()) fail("the switch is not on after the tap");
+                  sc->setGpsOn(false);   // behind the page's back
+                  QTest::qWait(100);
+                  if (sw->property("checked").toBool()) fail("the switch shows on, but the setting went off (a tapped switch does not follow it)");
+                }
+              sc->setGpsOn(false);
+              gpsPort = port0;
+            }
           if (scene == "settings-appearance")
             {
               // the look is kept in the settings file at once, and comes back (the classic pages must not undo it)
