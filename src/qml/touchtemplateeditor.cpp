@@ -11,6 +11,9 @@
 #include "supportfunctions.h"
 #include <QDir>
 #include <QFile>
+#include <QElapsedTimer>
+#include <QFontDatabase>
+#include <QRawFont>
 #include <QFileInfo>
 #include <QImageReader>
 #include <QJSEngine>
@@ -266,6 +269,8 @@ QVariantMap TouchTemplateEditor::sel() const
   m["hasRadius"]=e->type==tpl::ItemType::Rect;
   m["freeSize"]=e->type!=tpl::ItemType::Text;
   m["text"]=e->text;
+  m["fontFamily"]=e->font.family;
+  m["fontInstalled"]=e->font.family.isEmpty() || QFontDatabase::hasFamily(e->font.family);   // false: the name stays in the file, another font draws it
   m["fontSize"]=e->font.pointSize;
   m["bold"]=e->font.weight>=600;
   m["italic"]=e->font.italic;
@@ -695,6 +700,7 @@ void TouchTemplateEditor::setProp(const QString &name,const QVariant &value)
   QString key=name+QLatin1Char(':')+e.id;
   bool followAnchors=true;
   if(name==QLatin1String("text")) e.text=value.toString().left(tpl::limits::maxTextLength);
+  else if(name==QLatin1String("fontFamily")) {e.font.family=value.toString().trimmed().left(tpl::limits::maxStringLength); key.clear();}   // each choice is its own step to undo
   else if(name==QLatin1String("fontSize")) e.font.pointSize=qBound(4.0,value.toDouble(),400.0);
   else if(name==QLatin1String("bold")) e.font.weight=value.toBool() ? 700 : 400;
   else if(name==QLatin1String("italic")) e.font.italic=value.toBool();
@@ -811,4 +817,55 @@ QVariantList TouchTemplateEditor::macros() const
       l.append(v);
     }
   return l;
+}
+
+//! true when the family's own file has the letters and digits a template is written with (not the fonts Qt would fall back to for a missing letter)
+static bool drawsLatinText(const QString &family)
+{
+  const QRawFont raw=QRawFont::fromFont(QFont(family,12));
+  if(!raw.isValid()) return false;
+  for(const QChar c:QLatin1String("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"))
+    if(!raw.supportsCharacter(c)) return false;
+  return true;
+}
+
+//! true when the font is made for a script other than the Latin-based ones (Arabic, Thai, Khmer, Chinese ...): it has the letters, but is not what one writes a call sign in
+static bool forOtherScript(const QString &family)
+{
+  for(const QFontDatabase::WritingSystem w:QFontDatabase::writingSystems(family))
+    switch(w)
+      {
+      case QFontDatabase::Any: case QFontDatabase::Latin: case QFontDatabase::Greek: case QFontDatabase::Cyrillic:
+      case QFontDatabase::Vietnamese: case QFontDatabase::Symbol: break;   // (Other is the same value as Symbol)
+      default: return true;
+      }
+  return false;
+}
+
+QVariantList TouchTemplateEditor::fontFamilies() const
+{
+  // what the device has: on a phone Qt reads the system's font folder, so this is the phone's own list. Qt says "Latin" of every Noto font for another
+  // script too (they carry a few digits and punctuation marks), so the letters themselves are tried; an emoji or symbol font has none and goes. The fonts
+  // made for another script (the Chinese, Japanese and Korean ones, Khmer ...) come last, with other=true, so that they do not crowd the list but are not
+  // lost: a vendor's own font may well cover more scripts. The names that start with "@" (the vertical forms of the Asian fonts) and duplicates are left out.
+  // The fonts do not change while the program runs.
+  if(m_fontFamilies.isEmpty())
+    {
+      QElapsedTimer t;
+      t.start();
+      QStringList main,other,seen;
+      for(const QString &f:QFontDatabase::families(QFontDatabase::Latin))
+        {
+          if(f.isEmpty() || f.startsWith(QLatin1Char('@')) || seen.contains(f,Qt::CaseInsensitive) || !drawsLatinText(f)) continue;
+          seen.append(f);
+          (forOtherScript(f) ? other : main).append(f);
+        }
+      main.sort(Qt::CaseInsensitive);
+      other.sort(Qt::CaseInsensitive);
+      for(const QString &f:main) m_fontFamilies.append(QVariantMap{{"name",f},{"other",false}});
+      for(const QString &f:other) m_fontFamilies.append(QVariantMap{{"name",f},{"other",true}});
+      qInfo("template editor: %lld fonts draw Latin text (%lld for other scripts), found in %lld ms",static_cast<long long>(seen.size()),
+            static_cast<long long>(other.size()),static_cast<long long>(t.elapsed()));
+    }
+  return m_fontFamilies;
 }

@@ -36,7 +36,7 @@ class TouchTemplateEditor : public QObject
   Q_PROPERTY(qreal canvasHeight READ canvasHeight NOTIFY changed)
   Q_PROPERTY(QString selectedId READ selectedId NOTIFY selectionChanged)
   Q_PROPERTY(bool hasSelection READ hasSelection NOTIFY selectionChanged)
-  Q_PROPERTY(QVariantMap sel READ sel NOTIFY selectionChanged)               //!< what the selected item has: kind, text, fontSize, bold, italic, fill, opacity, ...
+  Q_PROPERTY(QVariantMap sel READ sel NOTIFY selectionChanged)               //!< what the selected item has: kind, text, fontFamily, fontSize, bold, italic, fill, opacity, ...
   Q_PROPERTY(QVariantList handles READ handles NOTIFY selectionChanged)      //!< 8 points {x,y} in canvas units: TL, T, TR, R, BR, B, BL, L (of the item, turned with it)
   Q_PROPERTY(QPointF turnHandle READ turnHandle NOTIFY selectionChanged)    //!< where the turn handle is, in canvas units
   Q_PROPERTY(QVariantList layers READ layers NOTIFY changed)                  //!< [{id, kind, label, locked}] the one in front first
@@ -113,6 +113,7 @@ public:
   Q_INVOKABLE void redo();
   Q_INVOKABLE void clearAll();
   Q_INVOKABLE QVariantList macros() const;             //!< [{tag, name, description, sample}]
+  Q_INVOKABLE QVariantList fontFamilies() const;       //!< [{name, other}] the fonts of this device that draw Latin letters; other: made for another script (listed last)
 
 signals:
   void openChanged();
@@ -144,6 +145,7 @@ private:
   QString m_selected;
   QString m_error;
   QVariantList m_guides;
+  mutable QVariantList m_fontFamilies;   //!< fontFamilies(), worked out on first use
   // a gesture in progress
   tpl::Element m_before;                 //!< the selected item as it was when the gesture began
   bool m_gesture=false;

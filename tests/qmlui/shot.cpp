@@ -586,7 +586,65 @@ int main(int argc, char **argv)
               QTest::qWait(300);
               QQuickItem *ed = findItem(win->contentItem(), "templateEditorScreen");
               const QString what = scene.mid(4);
-              if (ed && what != "editor" && !what.startsWith("drag")) QMetaObject::invokeMethod(ed, "harness", Q_ARG(QVariant, what));
+              if (what == "font")
+                {
+                  // the font of a text (#196): the list is the device's, a choice is one step to undo, it is saved and read back, a name this device
+                  // lacks stays in the item and is reported as not installed
+                  auto fail = [&](const QString &why) {fprintf(stderr, "FAIL: tpl-font: %s\n", qPrintable(why)); exitCode = 1;};
+                  auto family = [&]() {return te->property("sel").toMap().value("fontFamily").toString();};
+                  auto selectText = [&]() {for (const QVariant &l : te->layers()) if (l.toMap().value("kind").toString() == "text") {te->select(l.toMap().value("id").toString()); return;}};
+                  QStringList fams;
+                  bool otherSeen = false, orderOk = true;   // the fonts for other scripts come after all the others
+                  for (const QVariant &v : te->fontFamilies())
+                    {
+                      const QVariantMap m = v.toMap();
+                      fams << m.value("name").toString();
+                      if (m.value("other").toBool()) otherSeen = true;
+                      else if (otherSeen) orderOk = false;
+                    }
+                  if (!orderOk) fail("a font for another script comes before one for Latin");
+                  QStringList seen;
+                  for (const QString &f : fams) {if (seen.contains(f, Qt::CaseInsensitive)) fail("the list has " + f + " twice"); seen << f;}
+                  if (fams.isEmpty()) fail("the list of fonts is empty");
+                  else
+                    {
+                      const QString before = family();
+                      QString pick = fams.first();
+                      for (const QString &f : fams) if (f.compare(before, Qt::CaseInsensitive) != 0) {pick = f; break;}
+                      te->setProp("fontFamily", pick);
+                      if (family() != pick || !te->property("sel").toMap().value("fontInstalled").toBool()) fail("the chosen font " + pick + " is not in the item");
+                      te->undo();
+                      if (family() != before) fail("undo did not bring back " + before + " (got " + family() + ")");
+                      te->redo();
+                      if (family() != pick) fail("redo did not bring back " + pick);
+                      te->setProp("fontFamily", "  No Such Font 196  ");
+                      if (family() != "No Such Font 196" || te->property("sel").toMap().value("fontInstalled").toBool()) fail("a font this device lacks was not kept and reported");
+                      te->setProp("fontFamily", pick);
+                      if (!te->save("fonttest")) fail("save: " + te->lastError());
+                      else
+                        {
+                          const QString file = templatesPath + "fonttest.qtempl";
+                          if (!te->openFile(file)) fail("the saved template does not open");
+                          else
+                            {
+                              selectText();
+                              if (family() != pick) fail("the font did not come back from the file (" + family() + " instead of " + pick + ")");
+                            }
+                          QFile::remove(file);
+                        }
+                      printf("  font  %d fonts, %s -> %s, undo/redo, unknown name kept, saved and read back\n", int(fams.size()), qPrintable(before), qPrintable(pick));
+                    }
+                  te->newTemplate(3);   // the screenshot: a new template, the chosen font in its text
+                  selectText();
+                  if (!fams.isEmpty()) te->setProp("fontFamily", fams.at(fams.size() / 3));
+                }
+              if (what == "font-missing")
+                {
+                  // a font this device lacks: the chip is amber and the list says so (#196)
+                  te->setProp("fontFamily", "Gone Font 196");
+                  if (te->property("sel").toMap().value("fontInstalled").toBool()) {fprintf(stderr, "FAIL: tpl-font-missing: a font that does not exist is reported as installed\n"); exitCode = 1;}
+                }
+              if (ed && what != "editor" && !what.startsWith("drag")) QMetaObject::invokeMethod(ed, "harness", Q_ARG(QVariant, what == "font-missing" ? QString("font") : what));
               if (ed && what.startsWith("drag"))
                 {
                   // a finger on the handle at the bottom right of the chosen item, pulled outward: it must grow, and the finger must keep the handle

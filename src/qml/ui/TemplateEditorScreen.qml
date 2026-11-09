@@ -32,7 +32,8 @@ Rectangle {
     }
     function goBack() {
         if (!TemplateEditor.open) return false
-        if (macroSheet.open) macroSheet.open = false
+        if (fontSheet.open) fontSheet.open = false
+        else if (macroSheet.open) macroSheet.open = false
         else if (addSheet.open) addSheet.open = false
         else if (layersSheet.open) layersSheet.open = false
         else if (moreSheet.open) moreSheet.open = false
@@ -52,7 +53,7 @@ Rectangle {
     onVisibleChanged: if (!visible) closeAll()
     function closeAll() {
         panelOpen = false
-        macroSheet.open = false; addSheet.open = false; layersSheet.open = false; moreSheet.open = false
+        fontSheet.open = false; macroSheet.open = false; addSheet.open = false; layersSheet.open = false; moreSheet.open = false
         nameDialog.open = false; keepDialog.open = false; clearDialog.open = false
     }
 
@@ -66,6 +67,7 @@ Rectangle {
         else if (what === "layers") layersSheet.open = true
         else if (what === "more") moreSheet.open = true
         else if (what === "macros") macroSheet.open = true
+        else if (what === "font") { panelOpen = true; panel.tab = 0; fontSheet.open = true }
         else if (what === "keep") keepDialog.open = true
         else if (what === "name") { nameDialog.inputText = "My bar"; nameDialog.open = true }
     }
@@ -188,6 +190,7 @@ Rectangle {
         height: screen.wide ? screen.height - screen.topInset - 0 : above ? typingHeight : phoneHeight
         bottomInset: screen.wide ? screen.bottomInset : 0
         onOpenMacros: macroSheet.open = true
+        onOpenFonts: fontSheet.open = true
     }
 
     // ---- the stage: the picture ----
@@ -474,6 +477,71 @@ Rectangle {
             title: qsTr("Clear everything"); chevron: false
             onClicked: { moreSheet.open = false; clearDialog.open = true }
         }
+    }
+    // the fonts of the phone, each name in its own letters; the one in use is ticked
+    BottomSheet {
+        id: fontSheet
+        objectName: "fontSheet"
+        title: qsTr("Font")
+        property var families: []
+        readonly property string current: (screen.s.fontFamily !== undefined ? screen.s.fontFamily : "").toLowerCase()
+        onOpenChanged: {
+            if (!open) return
+            families = TemplateEditor.fontFamilies()
+            Qt.callLater(function() { const i = families.findIndex(f => f.name.toLowerCase() === current); if (i >= 0) fontList.positionViewAtIndex(i, ListView.Center); else fontList.positionViewAtBeginning() })
+        }
+        Text {
+            visible: screen.s.fontInstalled === false
+            width: parent.width; leftPadding: 24; rightPadding: 24; bottomPadding: 10; wrapMode: Text.WordWrap
+            text: qsTr("\"%1\" is not on this phone, so another font is used. The template keeps the name. Choose a font of this phone to change it.").arg(screen.s.fontFamily)
+            color: Theme.warn; font.pixelSize: Theme.sp(13)
+        }
+        ListView {
+            id: fontList
+            objectName: "fontList"
+            width: parent.width; height: Math.min(contentHeight, screen.height * 0.55)
+            clip: true
+            model: fontSheet.families
+            // the fonts made for other scripts come last, under their own heading
+            section.property: "other"
+            section.delegate: Item {   // (no heading over the first group: no height, and clipped, since the view makes the root item visible itself)
+                required property string section
+                width: fontList.width; height: section === "true" ? moreLabel.implicitHeight : 0
+                clip: true
+                Text {
+                    id: moreLabel
+                    width: parent.width
+                    text: qsTr("More fonts"); color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(13)
+                    leftPadding: 24; topPadding: 12; bottomPadding: 4
+                }
+            }
+            delegate: Item {
+                id: fontItem
+                required property var modelData
+                readonly property string family: modelData.name
+                readonly property bool chosen: family.toLowerCase() === fontSheet.current
+                width: fontList.width; height: 56
+                Rectangle { anchors.fill: parent; color: Theme.primaryContainer; visible: fontItem.chosen }
+                Text {
+                    anchors.left: parent.left; anchors.leftMargin: 24
+                    anchors.right: fontTick.left; anchors.rightMargin: 8
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: fontItem.family; font.family: fontItem.family; elide: Text.ElideRight
+                    color: Theme.surfaceOn; font.pixelSize: Theme.sp(18)
+                }
+                Icon { id: fontTick; visible: fontItem.chosen; path: Icons.check; color: Theme.primary
+                       anchors.right: parent.right; anchors.rightMargin: 24; anchors.verticalCenter: parent.verticalCenter }
+                TapHandler { onTapped: screen.chooseFont(fontItem.family) }
+                Accessible.role: Accessible.RadioButton
+                Accessible.name: family
+                Accessible.checked: chosen
+                Accessible.onPressAction: screen.chooseFont(family)
+            }
+        }
+    }
+    function chooseFont(family) {
+        fontSheet.open = false
+        TemplateEditor.setProp("fontFamily", family)
     }
     BottomSheet {
         id: macroSheet

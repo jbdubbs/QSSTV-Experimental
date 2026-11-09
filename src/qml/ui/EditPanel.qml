@@ -11,6 +11,7 @@ Rectangle {
     property int tab: 0
     property real bottomInset: 0
     signal openMacros()
+    signal openFonts()
     signal closeRequested()
     readonly property var s: TemplateEditor.sel
     readonly property bool isText: s.kind === "text"
@@ -98,15 +99,28 @@ Rectangle {
                     Chip { anchors.verticalCenter: parent.verticalCenter; text: qsTr("All..."); tone: "selected"; onClicked: panel.openMacros() }
                 }
             }
+            Row {
+                x: 16; spacing: 8; height: 56
+                // the font: its name in its own letters, a tap opens the list of the phone's fonts; one that this phone lacks is amber (another font draws it)
+                Chip {
+                    id: fontChip
+                    objectName: "fontChip"
+                    anchors.verticalCenter: parent.verticalCenter
+                    readonly property string family: panel.s.fontFamily !== undefined ? panel.s.fontFamily : ""
+                    text: family !== "" ? family : qsTr("Font")
+                    fontFamily: family; dropdown: true
+                    tone: panel.s.fontInstalled === false ? "warn" : "plain"
+                    maxWidth: panel.width - 32 - 2 * 8 - boldChip.implicitWidth - italicChip.implicitWidth
+                    onClicked: panel.openFonts()
+                    Accessible.name: qsTr("Font") + (family !== "" ? ", " + family : "") + (panel.s.fontInstalled === false ? ", " + qsTr("not on this phone") : "")
+                }
+                Chip { id: boldChip; anchors.verticalCenter: parent.verticalCenter; text: qsTr("Bold"); tone: panel.s.bold === true ? "selected" : "plain"; onClicked: TemplateEditor.setProp("bold", !(panel.s.bold === true)) }
+                Chip { id: italicChip; anchors.verticalCenter: parent.verticalCenter; text: qsTr("Italic"); tone: panel.s.italic === true ? "selected" : "plain"; onClicked: TemplateEditor.setProp("italic", !(panel.s.italic === true)) }
+            }
             SliderRow {
                 title: qsTr("Size"); from: 6; to: 120; stepSize: 1; value: panel.s.fontSize !== undefined ? panel.s.fontSize : 24
                 valueText: Math.round(value)
                 onMoved: (v) => TemplateEditor.setProp("fontSize", v)
-            }
-            Row {
-                x: 16; spacing: 8; height: 56
-                Chip { anchors.verticalCenter: parent.verticalCenter; text: qsTr("Bold"); tone: panel.s.bold === true ? "selected" : "plain"; onClicked: TemplateEditor.setProp("bold", !(panel.s.bold === true)) }
-                Chip { anchors.verticalCenter: parent.verticalCenter; text: qsTr("Italic"); tone: panel.s.italic === true ? "selected" : "plain"; onClicked: TemplateEditor.setProp("italic", !(panel.s.italic === true)) }
             }
         }
 
