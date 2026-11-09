@@ -16,6 +16,7 @@
 #include "ftpthread.h"
 #include "dispatch/filedecoder.h"
 #include "ui_rxwidget.h"
+#include "uimode.h"
 #include <QHBoxLayout>
 
 
@@ -114,7 +115,9 @@ void rxWidget::readSettings()
 {
   QSettings qSettings;
   qSettings.beginGroup("RX");
-  autoSlantAdjust=qSettings.value("autoSlantAdjust",false).toBool();
+  // The Qt Quick (phone) interface starts with the slant correction on (#190): the sound clock of a phone is not calibrated until
+  // the user does it, and a picture that leans is then straightened without a visit to the settings. The desktop keeps it off.
+  autoSlantAdjust=qSettings.value("autoSlantAdjust",uiMode::qml()).toBool();
   autoSave=qSettings.value("autoSave",true).toBool();
   sensitivity=qSettings.value("sensitivity",1).toInt();
   sstvModeIndexRx=(esstvMode)qSettings.value("sstvModeIndexRx",0).toInt();

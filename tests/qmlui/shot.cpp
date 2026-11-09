@@ -1278,6 +1278,22 @@ int main(int argc, char **argv)
           if (r) r->setProperty("optionsOpen", true);
           QTest::qWait(500);
         }
+      if (scene == "rx-defaults")
+        {
+          // a fresh profile starts with the slant correction on (#190) and saving on; a choice of the user is kept
+          auto fail = [&](const char *what) {fprintf(stderr, "FAIL: rx-defaults: %s\n", what); exitCode = 1;};
+          QCheckBox *box = rxWidgetPtr->findChild<QCheckBox *>("autoSlantAdjustCheckBox");
+          if (!autoSlantAdjust || !rx->autoSlant()) fail("Correct slant is not on in a new profile");
+          if (!box || !box->isChecked()) fail("the page's Auto Slant box is not checked");
+          if (!autoSave || !rx->autoSave()) fail("saving pictures is not on");
+          rx->setAutoSlant(false);
+          if (autoSlantAdjust || rx->autoSlant() || (box && box->isChecked())) fail("switching it off did not hold");
+          QTest::qWait(1500);   // the page writes its settings a second after the change
+          if (!QSettings().contains("RX/autoSlantAdjust") || QSettings().value("RX/autoSlantAdjust").toBool()) fail("the off choice is not in the settings file");
+          rx->setAutoSlant(true);
+          if (!autoSlantAdjust || !rx->autoSlant()) fail("switching it on again did not hold");
+          printf("  slant  on by default, off, on\n");
+        }
       if (scene == "rx-mode")
         {
           // the receive mode chosen on the Mode chip's list (#173): the page's box gets it, the setting is saved, Auto comes back
