@@ -108,6 +108,12 @@ public:
   Q_INVOKABLE void duplicateSelected();
   Q_INVOKABLE void setLocked(const QString &id,bool locked);
   Q_INVOKABLE void setProp(const QString &name,const QVariant &value);         //!< one property of the selected item
+  // the stops of the gradient of the selected item (fillKind is not solid); colors are "#aarrggbb", positions 0..1 and stay between the neighbors
+  Q_INVOKABLE void setGradientStopColor(int index,const QString &color);
+  Q_INVOKABLE void setGradientStopPos(int index,qreal pos);
+  Q_INVOKABLE int addGradientStop(int afterIndex);     //!< a stop between this one and the next (the last: and the one before); the index of the new one
+  Q_INVOKABLE int removeGradientStop(int index);       //!< never fewer than two; the index to show next
+  Q_INVOKABLE void reverseGradient();                  //!< the same colors the other way round
   Q_INVOKABLE void moveLayer(int from,int to);         //!< in the list of layers (the front one is 0)
   Q_INVOKABLE void undo();
   Q_INVOKABLE void redo();

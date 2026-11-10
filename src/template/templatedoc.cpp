@@ -323,6 +323,7 @@ static const struct { Qt::PenCapStyle v; const char *name; } capNames[] = {
 static const struct { Qt::PenStyle v; const char *name; } styleNames[] = {
   {Qt::SolidLine, "solid"}, {Qt::DashLine, "dash"}, {Qt::DotLine, "dot"}, {Qt::DashDotLine, "dashdot"},
   {Qt::DashDotDotLine, "dashdotdot"}, {Qt::NoPen, "none"}};
+static const struct { StrokePos v; const char *name; } strokePosNames[] = {{StrokePos::Center, "center"}, {StrokePos::Outside, "outside"}};
 static const struct { Gradient::Kind v; const char *name; } kindNames[] = {
   {Gradient::Linear, "linear"}, {Gradient::Radial, "radial"}, {Gradient::Conical, "conical"}};
 static const struct { AnchorH v; const char *name; } anchorHNames[] = {
@@ -417,9 +418,11 @@ static Gradient gradientFromJson(const QJsonObject &o)
 
 static QJsonObject outlineToJson(const Outline &o)
 {
-  return QJsonObject{{"color", colorToString(o.color)}, {"w", o.width}, {"join", nameOf(joinNames, o.join, "bevel")},
-                     {"cap", nameOf(capNames, o.cap, "square")}, {"style", nameOf(styleNames, o.style, "solid")},
-                     {"miter", o.miterLimit}};
+  QJsonObject j{{"color", colorToString(o.color)}, {"w", o.width}, {"join", nameOf(joinNames, o.join, "bevel")},
+                {"cap", nameOf(capNames, o.cap, "square")}, {"style", nameOf(styleNames, o.style, "solid")},
+                {"miter", o.miterLimit}};
+  if (o.position != StrokePos::Center) j["pos"] = nameOf(strokePosNames, o.position, "center");   // a file with only centered outlines has no new field
+  return j;
 }
 
 static Outline outlineFromJson(const QJsonObject &o)
@@ -431,6 +434,7 @@ static Outline outlineFromJson(const QJsonObject &o)
   r.cap = valueOf(capNames, jstr(o, "cap"), r.cap);
   r.style = valueOf(styleNames, jstr(o, "style"), r.style);
   r.miterLimit = jnum(o, "miter", r.miterLimit);
+  r.position = valueOf(strokePosNames, jstr(o, "pos"), r.position);
   return r;
 }
 

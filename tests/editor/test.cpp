@@ -1680,6 +1680,11 @@ static void testOutlineOffPanel()
   const QString tx = add(*d, make(tpl::ItemType::Text, QPointF(50, 150)));
   const QString ln = add(*d, make(tpl::ItemType::Line, QPointF(50, 220), QSizeF(100, 2)));
   const QString im = add(*d, make(tpl::ItemType::Image, QPointF(200, 150), QSizeF(40, 20)));
+  {
+    tpl::Element e0 = get(*d, el);   // an ellipse of an old template: its outline is centered on the edge
+    e0.outline.position = tpl::StrokePos::Center;
+    d->modifyItems(QVector<tpl::Element>() << e0, "centered");
+  }
   d->undoStack()->clear();
   QGroupBox *box = panelChild<QGroupBox>(p, "outlineBox");
   QDoubleSpinBox *width = panelChild<QDoubleSpinBox>(p, "outlineWidthSpin");
@@ -1694,15 +1699,18 @@ static void testOutlineOffPanel()
   check(box->isCheckable() && box->isChecked() && width->isEnabled(), "an ellipse has an outline: the Outline box is ticked, its fields are active");
   check(style->findData(int(Qt::NoPen)) < 0, "the style list has no 'None' any more");
   check(near(width->minimum(), 0.5), "the width starts at 0.5 pixel");
+  check(get(*d, el).outline.position == tpl::StrokePos::Center, "an item nobody has touched keeps the centered outline it has (old templates look as they did)");
   const int base = d->undoStack()->index();
   box->setChecked(false);
   QApplication::processEvents();
   check(get(*d, el).outline.style == Qt::NoPen && d->undoStack()->index() == base + 1, "unticking the box switches the outline off, in one undo step");
+  check(get(*d, el).outline.position == tpl::StrokePos::Outside, "and from then on its stroke lies outside the edge");
   check(!width->isEnabled() && !style->isEnabled() && !panelChild<QPushButton>(p, "outlineColorButton")->isEnabled(), "and greys out the rest of the section");
   d->undoStack()->undo();
   QApplication::processEvents();
   QApplication::processEvents();
   check(get(*d, el).outline.style == Qt::SolidLine && box->isChecked() && width->isEnabled(), "undo brings the outline back, and the box follows");
+  check(get(*d, el).outline.position == tpl::StrokePos::Center, "as it was, centered");
   d->undoStack()->redo();
   QApplication::processEvents();
   QApplication::processEvents();
@@ -1722,12 +1730,24 @@ static void testOutlineOffPanel()
   QApplication::processEvents();
   check(get(*d, el).outline.style == Qt::NoPen && get(*d, el).outline.width >= 0.5 && !box->isChecked(), "an outline of width 0 handed to the document means no outline, and the panel shows it");
 
+  // editing the width or the style of a centered outline makes it a stroke outside the edge, and the defaults of new items are strokes
+  const tpl::Element made = EditorCanvas::defaultElement(tpl::ItemType::Text);
+  check(made.outline.position == tpl::StrokePos::Outside && EditorCanvas::defaultElement(tpl::ItemType::Ellipse).outline.position == tpl::StrokePos::Outside,
+        "a new text and a new ellipse have their stroke outside");
+  tpl::Element old = get(*d, el);
+  old.outline.position = tpl::StrokePos::Center;
+  d->modifyItems(QVector<tpl::Element>() << old, "centered");
+  select(QStringList());
+  select(QStringList(el));
+  width->setValue(3);
+  check(get(*d, el).outline.position == tpl::StrokePos::Outside, "a change of the width of a centered outline makes it a stroke outside");
+
   // selecting an item shows its state without creating undo steps
   select(QStringList(rc));
   const int idx = d->undoStack()->index();
   check(!box->isChecked() && !width->isEnabled(), "a new rectangle has no outline: the box is not ticked");
   select(QStringList(tx));
-  check(box->isChecked() && box->title() == "Outline", "text has an outline");
+  check(box->isChecked() && box->title() == "Stroke", "text has a stroke");
   select(QStringList(ln));
   check(box->isChecked() && box->title() == "Line", "a line's section is called Line");
   select(QStringList(im));

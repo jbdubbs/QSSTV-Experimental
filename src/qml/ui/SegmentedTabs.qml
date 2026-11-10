@@ -5,6 +5,7 @@ Rectangle {
     id: tabs
     property var model: []
     property int currentIndex: 0
+    property bool check: true             // a check mark in the chosen one (not when the words need the room)
     signal picked(int index)
     implicitHeight: 40
     radius: height / 2
@@ -27,8 +28,10 @@ Rectangle {
                 Row {
                     anchors.centerIn: parent
                     spacing: 6
-                    Icon { visible: selected; path: Icons.check; size: 18; color: Theme.primaryContainerOn; anchors.verticalCenter: parent.verticalCenter }
+                    Icon { visible: selected && tabs.check; path: Icons.check; size: 18; color: Theme.primaryContainerOn; anchors.verticalCenter: parent.verticalCenter }
                     Text {
+                        width: Math.min(implicitWidth, tabs.width / tabs.model.length - 8)
+                        elide: Text.ElideRight
                         text: modelData
                         color: selected ? Theme.primaryContainerOn : Theme.surfaceVariantOn
                         font.pixelSize: Theme.sp(14)

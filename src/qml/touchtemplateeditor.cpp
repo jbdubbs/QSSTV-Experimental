@@ -20,6 +20,7 @@
 #include <QQmlEngine>
 #include <QRegularExpression>
 #include <QtMath>
+#include <algorithm>
 
 static TouchTemplateEditor *theEditor=nullptr;
 
@@ -256,6 +257,23 @@ void TouchTemplateEditor::refreshSelection()
   emit selectionChanged();
 }
 
+// The colors QML gets and gives are "#aarrggbb" (what Qt.color and Rectangle.color read); the file format has its own order (#rrggbbaa)
+static QString qmlColor(const QColor &c)
+{
+  return c.name(QColor::HexArgb);
+}
+
+// A color from QML. A swatch has no transparency of its own ("#rrggbb": the item keeps the one it has); the color sheet sends "#aarrggbb"
+static QColor colorFromQml(const QString &s,const QColor &old)
+{
+  QColor c(s.trimmed());
+  if(!c.isValid()) return old;
+  if(s.trimmed().length()<=7) c.setAlpha(old.alpha());
+  return c;
+}
+
+static const char *const fillKinds[]={"solid","linear","radial","conical"};
+
 QVariantMap TouchTemplateEditor::sel() const
 {
   QVariantMap m;
@@ -274,13 +292,23 @@ QVariantMap TouchTemplateEditor::sel() const
   m["fontSize"]=e->font.pointSize;
   m["bold"]=e->font.weight>=600;
   m["italic"]=e->font.italic;
-  m["fill"]=tpl::colorToString(e->fill);
+  m["fill"]=qmlColor(e->fill);
+  m["fillKind"]=QString::fromLatin1(fillKinds[e->gradient.isActive() ? int(e->gradient.kind) : 0]);
+  m["gradientAngle"]=((e->gradient.angle%360)+360)%360;
+  QVariantList stops;
+  for(const tpl::GradientStop &s:e->gradient.stops) stops.append(QVariantMap{{"pos",s.pos},{"color",qmlColor(s.color)}});
+  m["gradientStops"]=stops;
+  m["maxStops"]=tpl::limits::maxGradientStops;
   m["opacity"]=e->opacity;
   m["outlineOn"]=e->outline.style!=Qt::NoPen && e->outline.width>0;
   m["outlineWidth"]=e->outline.width;
-  m["outlineColor"]=tpl::colorToString(e->outline.color);
+  m["outlineColor"]=qmlColor(e->outline.color);
   m["radius"]=e->radius;
   m["shadow"]=e->shadow.on;
+  m["shadowColor"]=qmlColor(e->shadow.color);
+  m["shadowDx"]=e->shadow.dx;
+  m["shadowDy"]=e->shadow.dy;
+  m["shadowBlur"]=e->shadow.blur;
   m["locked"]=e->locked;
   m["rotation"]=e->rotation;
   const QRectF b=outlineOf(*e).boundingRect();
@@ -569,6 +597,7 @@ static tpl::Element defaultElement(tpl::ItemType type)
       e.outline.color=Qt::black;
       e.outline.width=2;
       e.outline.join=Qt::RoundJoin;
+      e.outline.position=tpl::StrokePos::Outside;
       e.font.family=QStringLiteral("Roboto");
       e.font.pointSize=24;
       e.font.weight=700;
@@ -581,6 +610,7 @@ static tpl::Element defaultElement(tpl::ItemType type)
       e.fill=QColor(255,255,255,120);
       e.outline.color=Qt::white;
       e.outline.width=2;
+      e.outline.position=tpl::StrokePos::Outside;
       break;
     case tpl::ItemType::Line:
       e.outline.color=Qt::white;
@@ -692,6 +722,36 @@ void TouchTemplateEditor::setLocked(const QString &id,bool locked)
   if(id==m_selected) refreshSelection();
 }
 
+// the color a gradient stands for when it is turned into a solid color: its most opaque stop (a bar that fades out becomes the bar at its edge)
+static QColor gradientBody(const tpl::Gradient &g)
+{
+  QColor best=g.stops.isEmpty() ? QColor(Qt::black) : g.stops.first().color;
+  for(const tpl::GradientStop &s:g.stops)
+    if(s.color.alpha()>best.alpha()) best=s.color;
+  return best;
+}
+
+// two stops from the fill of the item: the color, and the same color the other way round in lightness
+static void seedGradient(tpl::Element &e)
+{
+  tpl::GradientStop a,b;
+  a.pos=0;
+  a.color=e.fill;
+  b.pos=1;
+  b.color=e.fill.lightness()>128 ? e.fill.darker(250) : e.fill.lighter(250);
+  b.color.setAlpha(e.fill.alpha());
+  e.gradient.stops={a,b};
+}
+
+// an outline that is switched on has to be seen: a hairline on a picture of 320 x 256 is not (and on a bar across the whole picture,
+// half of it lies outside)
+static void showOutline(tpl::Element &e,const QRectF &canvas)
+{
+  if(e.outline.style!=Qt::NoPen && e.outline.width>0) return;   // already on: the width is the one that was chosen
+  e.outline.width=qMax(e.outline.width,qMax(2.0,double(qRound(canvas.height()*0.01))));
+  e.outline.style=Qt::SolidLine;
+}
+
 void TouchTemplateEditor::setProp(const QString &name,const QVariant &value)
 {
   const tpl::Element *cur=selectedElementConst();
@@ -704,24 +764,37 @@ void TouchTemplateEditor::setProp(const QString &name,const QVariant &value)
   else if(name==QLatin1String("fontSize")) e.font.pointSize=qBound(4.0,value.toDouble(),400.0);
   else if(name==QLatin1String("bold")) e.font.weight=value.toBool() ? 700 : 400;
   else if(name==QLatin1String("italic")) e.font.italic=value.toBool();
-  else if(name==QLatin1String("fill"))
+  else if(name==QLatin1String("fill")) e.fill=colorFromQml(value.toString(),e.fill);
+  else if(name==QLatin1String("fillKind"))
     {
-      const QString v=value.toString();
-      QColor c=tpl::colorFromString(v,e.fill);
-      if(v.length()<=7) c.setAlpha(e.fill.alpha());   // a swatch has no transparency of its own: the item keeps its own
-      e.fill=c;
+      const QString k=value.toString();
+      if(k==QLatin1String("solid"))
+        {
+          if(e.gradient.isActive()) e.fill=gradientBody(e.gradient);   // the solid color looks like what was there, not like a fill that was long forgotten
+          e.gradient.kind=tpl::Gradient::None;
+        }
+      else
+        {
+          e.gradient.kind=k==QLatin1String("radial") ? tpl::Gradient::Radial : k==QLatin1String("conical") ? tpl::Gradient::Conical : tpl::Gradient::Linear;
+          if(e.gradient.stops.size()<2) seedGradient(e);
+          if(e.type==tpl::ItemType::Text) e.image=QImage();   // as in the editor of a computer: a gradient replaces a picture in the letters
+        }
+      key.clear();
     }
+  else if(name==QLatin1String("gradientAngle")) e.gradient.angle=qBound(0,qRound(value.toDouble()),359);
   else if(name==QLatin1String("opacity")) e.opacity=qBound(0.0,value.toDouble(),1.0);
-  else if(name==QLatin1String("outlineColor")) {e.outline.color=tpl::colorFromString(value.toString(),e.outline.color); if(e.outline.style==Qt::NoPen) {e.outline.style=Qt::SolidLine; if(e.outline.width<=0) e.outline.width=2;}}
+  else if(name==QLatin1String("outlineColor")) {e.outline.color=colorFromQml(value.toString(),e.outline.color); showOutline(e,m_doc.doc().canvas); e.outline.position=tpl::StrokePos::Outside;}
   else if(name==QLatin1String("outlineWidth"))
     {
       e.outline.width=qBound(0.0,value.toDouble(),50.0);
       e.outline.style=e.outline.width>0 ? Qt::SolidLine : Qt::NoPen;
+      e.outline.position=tpl::StrokePos::Outside;
     }
   else if(name==QLatin1String("outlineOn"))
     {
-      if(value.toBool()) {e.outline.style=Qt::SolidLine; if(e.outline.width<=0) e.outline.width=2;}
+      if(value.toBool()) showOutline(e,m_doc.doc().canvas);
       else e.outline.style=Qt::NoPen;
+      e.outline.position=tpl::StrokePos::Outside;   // a stroke is outside the edge; an item of a template of the old kind changes when its stroke is
     }
   else if(name==QLatin1String("radius")) e.radius=qBound(0.0,value.toDouble(),200.0);
   else if(name==QLatin1String("shadow"))
@@ -729,6 +802,10 @@ void TouchTemplateEditor::setProp(const QString &name,const QVariant &value)
       e.shadow.on=value.toBool();
       if(e.shadow.on && e.shadow.blur==0) e.shadow.blur=3;
     }
+  else if(name==QLatin1String("shadowColor")) e.shadow.color=colorFromQml(value.toString(),e.shadow.color);
+  else if(name==QLatin1String("shadowDx")) e.shadow.dx=qBound(-tpl::limits::maxShadowOffset,value.toDouble(),tpl::limits::maxShadowOffset);
+  else if(name==QLatin1String("shadowDy")) e.shadow.dy=qBound(-tpl::limits::maxShadowOffset,value.toDouble(),tpl::limits::maxShadowOffset);
+  else if(name==QLatin1String("shadowBlur")) e.shadow.blur=qBound(0.0,value.toDouble(),tpl::limits::maxShadowBlur);
   else if(name==QLatin1String("rotation"))
     {
       double r=value.toDouble();
@@ -752,6 +829,72 @@ void TouchTemplateEditor::setProp(const QString &name,const QVariant &value)
   else if(name==QLatin1String("locked")) {e.locked=value.toBool(); key.clear();}
   else return;
   m_doc.modifyItems({e},tr("Change"),key,followAnchors);
+  refreshSelection();
+}
+
+void TouchTemplateEditor::setGradientStopColor(int index,const QString &color)
+{
+  const tpl::Element *cur=selectedElementConst();
+  if(!cur || cur->locked || index<0 || index>=cur->gradient.stops.size()) return;
+  tpl::Element e=*cur;
+  e.gradient.stops[index].color=colorFromQml(color,e.gradient.stops[index].color);
+  m_doc.modifyItems({e},tr("Change"),QStringLiteral("gradientStopColor:%1:%2").arg(index).arg(e.id),true);
+  refreshSelection();
+}
+
+void TouchTemplateEditor::setGradientStopPos(int index,qreal pos)
+{
+  const tpl::Element *cur=selectedElementConst();
+  if(!cur || cur->locked || index<0 || index>=cur->gradient.stops.size()) return;
+  tpl::Element e=*cur;
+  QVector<tpl::GradientStop> &st=e.gradient.stops;
+  const double lo=index>0 ? st[index-1].pos : 0.0;
+  const double hi=qMax(lo,index<st.size()-1 ? st[index+1].pos : 1.0);
+  st[index].pos=qBound(lo,double(pos),hi);   // between the neighbors, so that the index of a stop stays what it is
+  m_doc.modifyItems({e},tr("Change"),QStringLiteral("gradientStopPos:%1:%2").arg(index).arg(e.id),true);
+  refreshSelection();
+}
+
+int TouchTemplateEditor::addGradientStop(int afterIndex)
+{
+  const tpl::Element *cur=selectedElementConst();
+  if(!cur || cur->locked) return afterIndex;
+  tpl::Element e=*cur;
+  QVector<tpl::GradientStop> &st=e.gradient.stops;
+  const int n=st.size();
+  if(n<2 || n>=tpl::limits::maxGradientStops) return afterIndex;
+  const int i=qBound(0,afterIndex,n-1);
+  const int lo=i<n-1 ? i : i-1;   // the new one goes between lo and lo + 1
+  const tpl::GradientStop &a=st[lo],&b=st[lo+1];
+  tpl::GradientStop mid;
+  mid.pos=(a.pos+b.pos)/2;
+  mid.color=QColor::fromRgbF((a.color.redF()+b.color.redF())/2,(a.color.greenF()+b.color.greenF())/2,
+                             (a.color.blueF()+b.color.blueF())/2,(a.color.alphaF()+b.color.alphaF())/2);
+  st.insert(lo+1,mid);
+  m_doc.modifyItems({e},tr("Add color stop"),QString(),true);
+  refreshSelection();
+  return lo+1;
+}
+
+int TouchTemplateEditor::removeGradientStop(int index)
+{
+  const tpl::Element *cur=selectedElementConst();
+  if(!cur || cur->locked || cur->gradient.stops.size()<=2 || index<0 || index>=cur->gradient.stops.size()) return index;
+  tpl::Element e=*cur;
+  e.gradient.stops.remove(index);
+  m_doc.modifyItems({e},tr("Remove color stop"),QString(),true);
+  refreshSelection();
+  return qMin(index,int(e.gradient.stops.size())-1);
+}
+
+void TouchTemplateEditor::reverseGradient()
+{
+  const tpl::Element *cur=selectedElementConst();
+  if(!cur || cur->locked || cur->gradient.stops.size()<2) return;
+  tpl::Element e=*cur;
+  std::reverse(e.gradient.stops.begin(),e.gradient.stops.end());
+  for(tpl::GradientStop &s:e.gradient.stops) s.pos=1.0-s.pos;
+  m_doc.modifyItems({e},tr("Reverse colors"),QString(),true);
   refreshSelection();
 }
 

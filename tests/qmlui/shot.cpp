@@ -644,7 +644,146 @@ int main(int argc, char **argv)
                   te->setProp("fontFamily", "Gone Font 196");
                   if (te->property("sel").toMap().value("fontInstalled").toBool()) {fprintf(stderr, "FAIL: tpl-font-missing: a font that does not exist is reported as installed\n"); exitCode = 1;}
                 }
-              if (ed && what != "editor" && !what.startsWith("drag")) QMetaObject::invokeMethod(ed, "harness", Q_ARG(QVariant, what == "font-missing" ? QString("font") : what));
+              if (what.startsWith("fill") || what == "color")
+                {
+                  // the color bar of the Add sheet: a rectangle with a fade. The Style tab changes its fill, its gradient, its outline and its shadow (#201)
+                  te->newTemplate(0);
+                  te->addItem("bar", 160, 230);
+                  auto fail = [&](const QString &why) {fprintf(stderr, "FAIL: tpl-%s: %s\n", qPrintable(what), qPrintable(why)); exitCode = 1;};
+                  auto sel = [&]() {return te->property("sel").toMap();};
+                  auto stops = [&]() {return sel().value("gradientStops").toList();};
+                  auto stopColor = [&](int i) {return stops().at(i).toMap().value("color").toString();};
+                  auto stopPos = [&](int i) {return stops().at(i).toMap().value("pos").toDouble();};
+                  // what the canvas draws at a point of the bar: the template laid over nothing
+                  auto pixel = [&](int x, int y) {
+                    QImage im(320, 256, QImage::Format_ARGB32_Premultiplied);
+                    im.fill(0);
+                    QPainter p(&im);
+                    tpl::paintDocument(p, te->document(), QRectF(0, 0, 320, 256), te->renderOptions());
+                    p.end();
+                    return QColor::fromRgba(im.pixel(x, y));
+                  };
+                  if (what == "fill")
+                    {
+                      if (sel().value("fillKind").toString() != "linear" || stops().size() < 2) fail("a color bar is not a linear gradient of two stops or more");
+                      const QVariantList was = stops();
+                      const double a0 = pixel(160, 224).alphaF(), a1 = pixel(160, 254).alphaF();
+                      if (qAbs(a0 - a1) < 0.3) fail(QString("the bar does not fade (alpha %1 at the inner edge, %2 at the outer)").arg(a0).arg(a1));
+                      te->setProp("fillKind", "solid");
+                      if (sel().value("fillKind").toString() != "solid") fail("Solid did not switch the gradient off");
+                      const QColor solid = pixel(160, 238);
+                      if (solid.alpha() < 150) fail("the solid bar is as faint as the faded end of the gradient (alpha " + QString::number(solid.alpha()) + ")");
+                      te->setProp("fill", "#00ff00");   // a swatch: the color only
+                      const QColor green = pixel(160, 238);
+                      if (green.green() < 200 || green.red() > 40) fail(QString("the solid fill is not green: %1,%2,%3").arg(green.red()).arg(green.green()).arg(green.blue()));
+                      if (!qFuzzyCompare(pixel(160, 224).alphaF() + 1, pixel(160, 254).alphaF() + 1)) fail("a solid bar fades");
+                      if (qAbs(QColor(sel().value("fill").toString()).alpha() - solid.alpha()) > 2) fail("a swatch changed the opacity of the fill");
+                      te->setProp("fill", "#4000ff00");   // the chooser: with its own opacity (a=0x40)
+                      if (QColor(sel().value("fill").toString()).alpha() != 0x40) fail("the chooser's opacity was not taken");
+                      te->setProp("fill", "#ff00ff00");   // fully opaque must be taken too, not mistaken for a swatch
+                      if (QColor(sel().value("fill").toString()).alpha() != 255) fail("an opaque color from the chooser kept the old opacity");
+                      te->setProp("fillKind", "linear");
+                      if (stops() != was) fail("the gradient did not come back as it was");
+                      te->undo();   // back to solid
+                      if (sel().value("fillKind").toString() != "solid") fail("undo of Linear did not bring back Solid");
+                      te->redo();
+                      // the stops
+                      te->setGradientStopColor(0, "#ff112233");
+                      if (stopColor(0) != "#ff112233") fail("a color of a stop: " + stopColor(0));
+                      te->setGradientStopColor(0, "#ff4455");   // a swatch keeps the opacity of the stop
+                      if (QColor(stopColor(0)).alpha() != 255 || QColor(stopColor(0)).red() != 0xff) fail("a swatch for a stop: " + stopColor(0));
+                      te->setGradientStopPos(0, 0.95);
+                      if (stopPos(0) > stopPos(1) + 1e-9) fail("a stop moved past its neighbor");
+                      te->setGradientStopPos(0, 0.0);
+                      const int n0 = stops().size();
+                      const int added = te->addGradientStop(0);
+                      if (stops().size() != n0 + 1 || added != 1 || !(stopPos(1) > stopPos(0) && stopPos(1) < stopPos(2))) fail("Add did not put a color between the first and the next");
+                      const int last = te->addGradientStop(stops().size() - 1);
+                      if (last != stops().size() - 2) fail("Add at the last stop did not go before it");
+                      te->removeGradientStop(last);
+                      te->removeGradientStop(1);
+                      if (stops().size() != n0) fail("Remove did not bring back the number of stops");
+                      te->removeGradientStop(0);
+                      if (stops().size() != 2) fail("Remove went below two stops");
+                      const QString first = stopColor(0), second = stopColor(1);
+                      te->reverseGradient();
+                      if (stopColor(0) != second || stopColor(1) != first || qAbs(stopPos(0) - (1 - stopPos(1))) > 1e-9) fail("Reverse");
+                      te->setProp("gradientAngle", 400);
+                      if (sel().value("gradientAngle").toInt() != 359) fail("the angle is not kept to 359");
+                      te->setProp("gradientAngle", 90);
+                      te->setProp("fillKind", "radial");
+                      if (sel().value("fillKind").toString() != "radial") fail("Radial");
+                      te->setProp("fillKind", "conical");
+                      if (sel().value("fillKind").toString() != "conical") fail("Conical");
+                      te->setProp("fillKind", "linear");
+                      // the text: a gradient replaces a picture in the letters; a line has no gradient
+                      // the outline: switching it on gives a line that can be seen
+                      if (sel().value("outlineOn").toBool()) fail("a color bar starts with an outline");
+                      te->setProp("outlineOn", true);
+                      if (!sel().value("outlineOn").toBool() || sel().value("outlineWidth").toDouble() < 3) fail("an outline switched on is a hairline");
+                      te->setProp("outlineWidth", 1);
+                      te->setProp("outlineColor", "#ff0000");
+                      if (sel().value("outlineWidth").toDouble() != 1) fail("the outline color changed the width that was chosen");
+                      if (QColor(sel().value("outlineColor").toString()) != QColor(255, 0, 0)) fail("outline color " + sel().value("outlineColor").toString());
+                      // it is a stroke: it lies OUTSIDE the edge of the bar (the top edge is at y = 220.16), not half of it inside
+                      const QColor above = pixel(160, 219), below = pixel(160, 221);
+                      if (above.red() < 200 || above.green() > 60 || above.alpha() < 150) fail(QString("no stroke above the top edge of the bar: %1,%2,%3 alpha %4").arg(above.red()).arg(above.green()).arg(above.blue()).arg(above.alpha()));
+                      {
+                        // inside the edge the picture is the bar's own: the same with the stroke switched off
+                        tpl::TemplateDocument bare = te->document();
+                        for (tpl::Element &it : bare.items) it.outline.style = Qt::NoPen;
+                        QImage im(320, 256, QImage::Format_ARGB32_Premultiplied);
+                        im.fill(0);
+                        QPainter bp(&im);
+                        tpl::paintDocument(bp, bare, QRectF(0, 0, 320, 256), te->renderOptions());
+                        bp.end();
+                        const QColor was = QColor::fromRgba(im.pixel(160, 221));
+                        if (qAbs(was.red() - below.red()) > 3 || qAbs(was.green() - below.green()) > 3 || qAbs(was.alpha() - below.alpha()) > 3) fail("the stroke is on the bar, not outside it");
+                      }
+                      // the shadow: color, distance and blur
+                      te->setProp("shadow", true);
+                      te->setProp("shadowColor", "#ff0000");
+                      if (QColor(sel().value("shadowColor").toString()).red() != 255 || QColor(sel().value("shadowColor").toString()).alpha() != 160) fail("shadow color " + sel().value("shadowColor").toString());
+                      te->setProp("shadowColor", "#80102030");
+                      if (QColor(sel().value("shadowColor").toString()).alpha() != 0x80) fail("the opacity of the shadow color");
+                      te->setProp("shadowDx", 7); te->setProp("shadowDy", -5); te->setProp("shadowBlur", 12);
+                      if (sel().value("shadowDx").toDouble() != 7 || sel().value("shadowDy").toDouble() != -5 || sel().value("shadowBlur").toDouble() != 12) fail("shadow distance and blur");
+                      te->setProp("shadowBlur", 1e9); te->setProp("shadowDx", -1e9);
+                      if (sel().value("shadowBlur").toDouble() > 100 || sel().value("shadowDx").toDouble() < -200) fail("the shadow is not kept in bounds");
+                      te->setProp("shadowDx", 7); te->setProp("shadowBlur", 12);
+                      // saved and read back
+                      const QVariantMap before = sel();
+                      if (!te->save("filltest")) fail("save: " + te->lastError());
+                      else
+                        {
+                          const QString file = templatesPath + "filltest.qtempl";
+                          if (!te->openFile(file)) fail("the saved template does not open");
+                          else
+                            {
+                              for (const QVariant &l : te->layers()) if (l.toMap().value("kind").toString() == "rect") {te->select(l.toMap().value("id").toString()); break;}
+                              for (const char *k : {"fillKind", "gradientAngle", "gradientStops", "shadowColor", "shadowDx", "shadowDy", "shadowBlur", "outlineColor", "outlineWidth"})
+                                if (sel().value(k) != before.value(k)) fail(QString("%1 did not come back from the file").arg(k));
+                            }
+                          QFile::remove(file);
+                        }
+                      // a rectangle, new: its fill shows its own opacity in the color the editor reports (a swatch ring has to find it)
+                      te->addItem("rect", 100, 100);
+                      if (QColor(sel().value("fill").toString()).alpha() != 150 || QColor(sel().value("fill").toString()).red() != 0) fail("the fill of a new rectangle is read as " + sel().value("fill").toString());
+                      // a text takes a gradient as well, and a line has none
+                      te->addItem("text", 100, 100);
+                      te->setProp("fillKind", "radial");
+                      if (sel().value("fillKind").toString() != "radial" || stops().size() < 2) fail("a text did not take a gradient");
+                      te->setProp("fillKind", "solid");
+                      if (sel().value("fillKind").toString() != "solid") fail("a text did not go back to Solid");
+                      te->addItem("line", 100, 100);
+                      if (sel().value("hasFill").toBool()) fail("a line has a fill");
+                      printf("  fill  solid/gradient, %d stops edited, outline, shadow, undo, saved and read back\n", n0);
+                      te->newTemplate(0);
+                      te->addItem("bar", 160, 230);
+                    }
+                  if (what == "fill-shadow") te->setProp("shadow", true);
+                }
+              if (ed && what != "editor" && !what.startsWith("drag")) QMetaObject::invokeMethod(ed, "harness", Q_ARG(QVariant, what == "font-missing" ? QString("font") : what == "fill" ? QString("style") : what == "fill-stops" ? QString("style@0.45") : what == "fill-shadow" ? QString("style@1") : what == "color" ? QString("color:stop") : what));
               if (ed && what.startsWith("drag"))
                 {
                   // a finger on the handle at the bottom right of the chosen item, pulled outward: it must grow, and the finger must keep the handle

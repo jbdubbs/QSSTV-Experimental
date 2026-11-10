@@ -36,7 +36,7 @@ bool sameElement(const tpl::Element &a, const tpl::Element &b)
          && a.skewH == b.skewH && a.skewV == b.skewV && a.opacity == b.opacity && a.locked == b.locked && a.fill == b.fill
          && sameGradient(a.gradient, b.gradient) && a.outline.color == b.outline.color && a.outline.width == b.outline.width
          && a.outline.join == b.outline.join && a.outline.cap == b.outline.cap && a.outline.style == b.outline.style
-         && a.outline.miterLimit == b.outline.miterLimit && a.text == b.text && a.font.family == b.font.family
+         && a.outline.miterLimit == b.outline.miterLimit && a.outline.position == b.outline.position && a.text == b.text && a.font.family == b.font.family
          && a.font.pointSize == b.font.pointSize && a.font.weight == b.font.weight && a.font.italic == b.font.italic
          && a.font.underline == b.font.underline && a.font.strikeOut == b.font.strikeOut && a.font.stretch == b.font.stretch
          && a.font.letterSpacing == b.font.letterSpacing && (a.image.cacheKey() == b.image.cacheKey() || a.image == b.image)

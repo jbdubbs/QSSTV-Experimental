@@ -601,6 +601,144 @@ static void testTextBox()
   check(gi.width() == 400 && !ink(gi).isNull(), "a gradient text in a box renders");
 }
 
+// --- the stroke: an outline that lies outside the edge ------------------------------------------------------------------
+
+static void testStrokeOutside()
+{
+  printf("== stroke outside the edge\n");
+  // the file: only a stroke outside has the new key, and it reads back; a file without it is centered
+  tpl::TemplateDocument d;
+  tpl::Element a = element(tpl::ItemType::Rect, QPointF(0, 0), QRectF(0, 0, 10, 10));
+  a.id = "a";
+  a.outline.position = tpl::StrokePos::Outside;
+  tpl::Element b = a;
+  b.id = "b";
+  b.outline.position = tpl::StrokePos::Center;
+  d.items << a << b;
+  const QByteArray json = tpl::toJson(d);
+  const tpl::LoadResult r = tpl::loadJson(json);
+  check(r.ok && r.doc.items.size() == 2 && r.doc.items.at(0).outline.position == tpl::StrokePos::Outside && r.doc.items.at(1).outline.position == tpl::StrokePos::Center, "the side of a stroke survives the file");
+  check(json.count("\"pos\"") == 1, "and only a stroke outside writes it");
+  check(tpl::toJson(r.doc) == json, "the write is stable");
+  tpl::TemplateDocument plain;
+  plain.items << b;
+  check(!tpl::toJson(plain).contains("\"pos\""), "a centered outline writes nothing new");
+
+  auto render = [](const tpl::Element &e, int w = 120, int h = 120) {
+    tpl::TemplateDocument doc;
+    doc.canvas = QRectF(0, 0, w, h);
+    doc.items << e;
+    return tpl::overlay(doc, transparent(w, h), tpl::RenderOptions());
+  };
+  auto rect = [](QColor fill, double width, tpl::StrokePos pos) {
+    tpl::Element e = element(tpl::ItemType::Rect, QPointF(0, 0), QRectF(30, 30, 60, 40));
+    e.fill = fill;
+    e.outline.color = Qt::blue;
+    e.outline.width = width;
+    e.outline.position = pos;
+    return e;
+  };
+  // 10 px wide: centered it reaches 5 px each way, outside it reaches 10 px and leaves the whole fill
+  const QImage center = render(rect(Qt::red, 10, tpl::StrokePos::Center));
+  const QImage out = render(rect(Qt::red, 10, tpl::StrokePos::Outside));
+  check(ink(center) == QRect(25, 25, 70, 50), QString("centered: the stroke reaches 5 px out (%1,%2 %3x%4)").arg(ink(center).x()).arg(ink(center).y()).arg(ink(center).width()).arg(ink(center).height()));
+  check(ink(out) == QRect(20, 20, 80, 60), QString("outside: it reaches the whole width out (%1,%2 %3x%4)").arg(ink(out).x()).arg(ink(out).y()).arg(ink(out).width()).arg(ink(out).height()));
+  check(qRed(out.pixel(31, 31)) == 255 && qBlue(out.pixel(31, 31)) == 0 && qRed(out.pixel(60, 50)) == 255, "the fill is not covered by it, to the very edge");
+  check(qBlue(out.pixel(25, 50)) == 255 && qRed(out.pixel(25, 50)) == 0 && qAlpha(out.pixel(25, 50)) == 255, "the band beside the item is the stroke");
+  check(qBlue(out.pixel(60, 24)) == 255 && qBlue(out.pixel(94, 50)) == 255 && qBlue(out.pixel(60, 74)) == 255, "on every side");
+  check(qAlpha(out.pixel(19, 50)) == 0 && qAlpha(out.pixel(100, 50)) == 0, "and ends where the width ends");
+  // along the whole edge, nothing of the picture shows between the stroke and the fill (two antialiased shapes that only touch show
+  // a hairline of it): looked for on a turned item, whose edge lies between the pixels
+  tpl::Element turned = rect(Qt::red, 6, tpl::StrokePos::Outside);
+  turned.pos = QPointF(10, 10);
+  turned.rotation = 20;
+  const QImage t = render(turned);
+  const QRect ti = ink(t, 1);
+  int hollow = 0, minAlpha = 255;   // pixels inside the outer outline of the turned item that are not nearly opaque
+  for (int y = ti.top(); y <= ti.bottom(); y++)
+    {
+      int first = -1, last = -1;
+      for (int x = ti.left(); x <= ti.right(); x++)
+        if (qAlpha(t.pixel(x, y)) >= 250) { if (first < 0) first = x; last = x; }
+      for (int x = first + 1; first >= 0 && x < last; x++)
+        if (qAlpha(t.pixel(x, y)) < 235) { hollow++; minAlpha = qMin(minAlpha, qAlpha(t.pixel(x, y))); }
+    }
+  check(hollow == 0, QString("no gap between the stroke and the fill, also when the item is turned (%1 pixels, least alpha %2)").arg(hollow).arg(minAlpha));
+  // a transparent fill stays clean: the stroke does not show through it, which is why it is a band and not a stroke under the fill
+  tpl::Element glassNo = rect(QColor(255, 0, 0, 100), 10, tpl::StrokePos::Outside);
+  glassNo.outline.style = Qt::NoPen;
+  const QImage plainT = render(glassNo);
+  const QImage glass = render(rect(QColor(255, 0, 0, 100), 10, tpl::StrokePos::Outside));
+  bool same = true;
+  for (int y = 33; y < 67 && same; y++)
+    for (int x = 33; x < 87 && same; x++)
+      if (glass.pixel(x, y) != plainT.pixel(x, y)) same = false;
+  check(same, "inside a transparent fill nothing of the stroke shows");
+  const QImage glassCenter = render(rect(QColor(255, 0, 0, 100), 10, tpl::StrokePos::Center));
+  check(glassCenter.pixel(33, 50) != plainT.pixel(33, 50), "(a centered one does show through it)");
+  // the other shapes: a rounded rectangle, an ellipse, a text
+  tpl::Element rr = rect(Qt::red, 8, tpl::StrokePos::Outside);
+  rr.radius = 15;
+  const QImage rri = render(rr);
+  check(qBlue(rri.pixel(60, 24)) == 255 && qRed(rri.pixel(60, 40)) == 255 && qAlpha(rri.pixel(22, 22)) == 0, "a rounded rectangle: the band follows the corners");
+  tpl::Element el = element(tpl::ItemType::Ellipse, QPointF(0, 0), QRectF(30, 30, 60, 40));
+  el.fill = Qt::red;
+  el.outline.color = Qt::blue;
+  el.outline.width = 8;
+  el.outline.position = tpl::StrokePos::Outside;
+  const QImage eli = render(el);
+  check(qRed(eli.pixel(60, 50)) == 255 && qBlue(eli.pixel(60, 50)) == 0 && qBlue(eli.pixel(60, 26)) > 200 && qAlpha(eli.pixel(60, 20)) == 0 && ink(eli).top() >= 21 && ink(eli).top() <= 23,
+        QString("an ellipse (top of the stroke at %1)").arg(ink(eli).top()));
+  tpl::Element tx = element(tpl::ItemType::Text, QPointF(10, 70), QRectF(0, 0, 100, 40));
+  tx.text = "HI";
+  tx.font.family = "Montserrat";
+  tx.font.pointSize = 40;
+  tx.fill = Qt::white;
+  tx.outline.color = Qt::black;
+  tx.outline.width = 6;
+  tx.outline.position = tpl::StrokePos::Outside;
+  tpl::Element txc = tx;
+  txc.outline.position = tpl::StrokePos::Center;
+  tpl::Element txn = tx;
+  txn.outline.style = Qt::NoPen;
+  const QImage ti1 = render(tx), ti0 = render(txc), tin = render(txn);
+  auto whites = [](const QImage &im) {
+    int n = 0;
+    for (int y = 0; y < im.height(); y++)
+      for (int x = 0; x < im.width(); x++)
+        if (qAlpha(im.pixel(x, y)) > 250 && qRed(im.pixel(x, y)) > 250) n++;
+    return n;
+  };
+  check(whites(ti1) >= whites(tin) * 0.97 && whites(ti0) < whites(tin) * 0.9, QString("a text keeps all of its letter when the stroke is outside (%1 white pixels, none %2, centered %3)").arg(whites(ti1)).arg(whites(tin)).arg(whites(ti0)));
+  check(ink(ti1).width() >= ink(tin).width() + 10 && ink(ti1).height() >= ink(tin).height() + 10, "and the stroke is the whole width round it");
+  // dashes: the band has gaps
+  tpl::Element da = rect(Qt::red, 6, tpl::StrokePos::Outside);
+  da.outline.style = Qt::DashLine;
+  const QImage dai = render(da);
+  int on = 0, off = 0;
+  for (int x = 30; x < 90; x++) (qAlpha(dai.pixel(x, 26)) > 128 ? on : off)++;
+  check(on > 5 && off > 5, QString("a dashed stroke has dashes (%1 on, %2 off along the top)").arg(on).arg(off));
+  // the shadow has the stroke in it
+  tpl::Element sh = rect(Qt::red, 10, tpl::StrokePos::Outside);
+  sh.shadow.on = true;
+  sh.shadow.color = QColor(0, 0, 0, 255);
+  sh.shadow.dx = 0;
+  sh.shadow.dy = 0;
+  sh.outline.color = QColor(0, 255, 0, 255);
+  QImage shadowOnly = render(sh);
+  check(qAlpha(shadowOnly.pixel(25, 50)) == 255 && qGreen(shadowOnly.pixel(25, 50)) == 255, "the stroke is on top of its own shadow");
+  sh.shadow.dx = 40;
+  const QImage moved = render(sh, 200, 120);
+  check(qAlpha(moved.pixel(136, 50)) == 255 && qRed(moved.pixel(136, 50)) == 0 && qGreen(moved.pixel(136, 50)) == 0, "the shadow of a stroked item is as wide as the item with its stroke (shifted: to 140)");
+  // a line and a picture are not changed by it
+  tpl::Element ln = element(tpl::ItemType::Line, QPointF(0, 0), QRectF(20, 60, 80, 2));
+  ln.outline.color = Qt::white;
+  ln.outline.width = 6;
+  tpl::Element ln2 = ln;
+  ln2.outline.position = tpl::StrokePos::Outside;
+  check(sameImage(render(ln), render(ln2)), "a line is its thickness: the side makes no difference");
+}
+
 static void testShadowAndCorners()
 {
   printf("== shadow and rounded corners\n");
@@ -679,6 +817,64 @@ static void testShadowAndCorners()
   check(qAlpha(sh.pixel(20, 20)) > 180, "and is still strong in the middle");
   check(qAlpha(sh.pixel(60, 20)) == 0 && qAlpha(sh.pixel(20, 70)) == 0, "but ends within the blur radius's reach");
   check(ink(sh, 1).width() > ink(hd, 1).width() + 10, "the blurred shadow is wider than the hard one");
+  // a gradient casts a shadow as transparent as the gradient is (#201: a bar that fades out cast a gray slab): left to right, red from
+  // opaque to fully transparent; the shadow lies below the item (dy = 30), so that it can be looked at alone
+  tpl::Element fade = rect(QRectF(10, 10, 40, 20), Qt::red);
+  fade.gradient.kind = tpl::Gradient::Linear;
+  fade.gradient.angle = 0;
+  fade.gradient.stops = {{0, QColor(255, 0, 0, 255)}, {1, QColor(255, 0, 0, 0)}};
+  fade.shadow.on = true;
+  fade.shadow.color = QColor(0, 0, 0, 200);
+  fade.shadow.dx = 0;
+  fade.shadow.dy = 30;
+  const QImage fs = render(fade);
+  check(qAlpha(fs.pixel(12, 50)) > 170 && qAlpha(fs.pixel(30, 50)) > 60 && qAlpha(fs.pixel(30, 50)) < 140 && qAlpha(fs.pixel(48, 50)) < 40,
+        QString("the shadow of a fading item fades the same way (alpha %1, %2, %3)").arg(qAlpha(fs.pixel(12, 50))).arg(qAlpha(fs.pixel(30, 50))).arg(qAlpha(fs.pixel(48, 50))));
+  check(qRed(fs.pixel(12, 50)) == 0 && qGreen(fs.pixel(12, 50)) == 0 && qBlue(fs.pixel(12, 50)) == 0, "in the color of the shadow, not of the gradient");
+  tpl::Element solidShadow = rect(QRectF(10, 10, 40, 20), Qt::red);
+  solidShadow.shadow = fade.shadow;
+  tpl::Element opaqueFade = fade;
+  opaqueFade.gradient.stops = {{0, QColor(255, 0, 0, 255)}, {1, QColor(0, 0, 255, 255)}};
+  {
+    // an opaque gradient casts the very shadow a solid fill does (rows 40 to 69: the shadow alone)
+    const QImage a = render(opaqueFade), b = render(solidShadow);
+    bool same = true;
+    for (int y = 40; y < 70 && same; y++)
+      for (int x = 0; x < 100 && same; x++)
+        if (a.pixel(x, y) != b.pixel(x, y)) same = false;
+    check(same, "an opaque gradient casts the same shadow as a solid fill");
+  }
+  // blurred, the layer path draws the same fade
+  tpl::Element softFade = fade;
+  softFade.shadow.blur = 4;
+  const QImage sf = render(softFade);
+  check(qAlpha(sf.pixel(14, 50)) > qAlpha(sf.pixel(46, 50)) + 60, "a blurred shadow fades as well");
+  // a text with a gradient too: white letters fading out to the right, the shadow 60 px below them (rows from 50 on are only shadow)
+  tpl::Element tg = element(tpl::ItemType::Text, QPointF(10, 40), QRectF(0, 0, 40, 20));
+  tg.text = "MMMM";
+  tg.font.family = "Montserrat";
+  tg.font.pointSize = 24;
+  tg.outline.style = Qt::NoPen;
+  tg.gradient.kind = tpl::Gradient::Linear;
+  tg.gradient.angle = 0;
+  tg.gradient.stops = {{0, QColor(255, 255, 255, 255)}, {1, QColor(255, 255, 255, 0)}};
+  tg.shadow.on = true;
+  tg.shadow.color = QColor(0, 0, 0, 255);
+  tg.shadow.dx = 0;
+  tg.shadow.dy = 60;
+  {
+    const QImage shadowOnly = render(tg, 160, 140).copy(0, 50, 160, 90);
+    const QRect si = ink(shadowOnly, 1);
+    int left = 0, right = 0;
+    for (int y = 0; y < shadowOnly.height(); y++)
+      for (int x = 0; x < shadowOnly.width(); x++)
+        {
+          const int a = qAlpha(shadowOnly.pixel(x, y));
+          if (x < si.left() + si.width() / 3) left = qMax(left, a);
+          else if (x > si.right() - si.width() / 6) right = qMax(right, a);
+        }
+    check(!si.isNull() && left > 150 && right < 80, QString("the shadow of a gradient text fades too (left %1, right %2)").arg(left).arg(right));
+  }
   // shadows of the other kinds
   for (tpl::ItemType t : {tpl::ItemType::Ellipse, tpl::ItemType::Line, tpl::ItemType::Image, tpl::ItemType::Replay, tpl::ItemType::Text})
     {
@@ -966,6 +1162,7 @@ int main(int argc, char **argv)
   testAnchoredLayout(fx, gd);
   testTextBox();
   testShadowAndCorners();
+  testStrokeOutside();
   testOutlineOff(fx);
   testMacros();
   testFuzz(fx);

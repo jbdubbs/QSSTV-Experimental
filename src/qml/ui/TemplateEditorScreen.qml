@@ -34,6 +34,7 @@ Rectangle {
         if (!TemplateEditor.open) return false
         if (fontSheet.open) fontSheet.open = false
         else if (macroSheet.open) macroSheet.open = false
+        else if (panel.colorTarget !== "") panel.closeColor()
         else if (addSheet.open) addSheet.open = false
         else if (layersSheet.open) layersSheet.open = false
         else if (moreSheet.open) moreSheet.open = false
@@ -53,6 +54,7 @@ Rectangle {
     onVisibleChanged: if (!visible) closeAll()
     function closeAll() {
         panelOpen = false
+        panel.closeColor()
         fontSheet.open = false; macroSheet.open = false; addSheet.open = false; layersSheet.open = false; moreSheet.open = false
         nameDialog.open = false; keepDialog.open = false; clearDialog.open = false
     }
@@ -60,9 +62,12 @@ Rectangle {
     // for the screenshots of the test harness (tests/qmlui): open a part of the editor
     function harness(what) {
         closeAll()
+        panel.harnessScroll(0)
         if (what === "text") { panelOpen = true; panel.tab = 0 }
         else if (what === "style") { panelOpen = true; panel.tab = 1 }
         else if (what === "place") { panelOpen = true; panel.tab = 2 }
+        else if (what.indexOf("style@") === 0) { panelOpen = true; panel.tab = 1; panel.harnessScroll(parseFloat(what.substring(6))) }   // the Style tab scrolled (0 top, 1 bottom)
+        else if (what.indexOf("color:") === 0) { panelOpen = true; panel.tab = 1; panel.openColor(what.substring(6)) }      // the page for any color: fill, outline, shadow, stop
         else if (what === "add") addSheet.open = true
         else if (what === "layers") layersSheet.open = true
         else if (what === "more") moreSheet.open = true

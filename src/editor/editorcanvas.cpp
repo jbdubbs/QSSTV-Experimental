@@ -1387,6 +1387,7 @@ tpl::Element EditorCanvas::defaultElement(tpl::ItemType type)
       e.outline.color = Qt::black;
       e.outline.width = 2;
       e.outline.join = Qt::RoundJoin;
+      e.outline.position = tpl::StrokePos::Outside;
       e.font.family = QFontDatabase::systemFont(QFontDatabase::GeneralFont).family();
       e.font.pointSize = 24;
       e.font.weight = 700;
@@ -1399,6 +1400,7 @@ tpl::Element EditorCanvas::defaultElement(tpl::ItemType type)
       e.fill = QColor(255, 255, 255, 120);
       e.outline.color = Qt::white;
       e.outline.width = 2;
+      e.outline.position = tpl::StrokePos::Outside;
       break;
     case tpl::ItemType::Line:
       e.outline.color = Qt::white;

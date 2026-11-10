@@ -16,6 +16,36 @@ Rectangle {
     readonly property var s: TemplateEditor.sel
     readonly property bool isText: s.kind === "text"
     readonly property bool hasSel: TemplateEditor.hasSelection
+    readonly property bool hasFill: s.hasFill === true
+    // the line round the item: a stroke outside its edge; the border of the replay window lies inside its frame
+    readonly property string strokeWord: s.kind === "replay" ? qsTr("Border") : qsTr("Stroke")
+    readonly property bool solidFill: s.hasFill === true && (s.fillKind === undefined || s.fillKind === "solid")
+    // the page for any color covers the panel: it is for the fill, the stroke, the shadow or a color of the gradient
+    property string colorTarget: ""
+    readonly property string itemId: s.id !== undefined ? s.id : ""
+    onItemIdChanged: colorTarget = ""
+    onVisibleChanged: if (!visible) colorTarget = ""
+    function openColor(target) {
+        let from = "#ffffffff", heading = ""
+        if (target === "fill") { from = s.kind === "line" ? s.outlineColor : s.fill; heading = s.kind === "line" ? qsTr("Color") : qsTr("Fill color") }
+        else if (target === "outline") { from = s.outlineColor; heading = qsTr("%1 color").arg(strokeWord) }
+        else if (target === "shadow") { from = s.shadowColor; heading = qsTr("Shadow color") }
+        else if (target === "stop") { from = gradEdit.cur.color; heading = qsTr("Color %1").arg(gradEdit.at + 1) }
+        else return
+        colorPage.title = heading
+        colorPage.start(from)
+        colorTarget = target
+    }
+    function closeColor() { colorTarget = "" }
+    function applyColor(c) {
+        if (colorTarget === "fill") TemplateEditor.setProp(s.kind === "line" ? "outlineColor" : "fill", c)
+        else if (colorTarget === "outline") TemplateEditor.setProp("outlineColor", c)
+        else if (colorTarget === "shadow") TemplateEditor.setProp("shadowColor", c)
+        else if (colorTarget === "stop") TemplateEditor.setGradientStopColor(gradEdit.at, c)
+    }
+    // for the screenshots of the test harness: the part of the Style tab to look at (0 top, 1 bottom)
+    function harnessScroll(f) { scrollTimer.f = f; scrollTimer.restart() }
+    Timer { id: scrollTimer; property real f: 0; interval: 300; onTriggered: body.contentY = Math.max(0, (body.contentHeight - body.height) * f) }
     // the words are being typed: the panel shrinks to the field and the codes and sits above the keyboard (the screen moves it). It does so as
     // soon as the field has the focus, before the keyboard is up, so that Android has no reason to shift the whole window up
     readonly property bool typing: textField.activeFocus
@@ -29,6 +59,7 @@ Rectangle {
         }
     }
     onIsTextChanged: if (!isText && tab === 0) tab = 1
+    onTabChanged: body.contentY = 0
 
     // the segmented tabs
     Row {
@@ -60,7 +91,7 @@ Rectangle {
         anchors.top: panel.typing ? parent.top : tabs.bottom; anchors.topMargin: panel.typing ? 4 : 8
         anchors.bottom: parent.bottom; anchors.bottomMargin: panel.bottomInset
         width: parent.width
-        contentHeight: Math.max(textTab.height, styleTab.height, placeTab.height) + 16
+        contentHeight: (panel.tab === 0 && panel.isText ? textTab.height : panel.tab === 1 ? styleTab.height : placeTab.height) + 16   // the tab that shows: the Style tab is long, and the others must not scroll into emptiness
         clip: true
         boundsBehavior: Flickable.StopAtBounds
 
@@ -130,16 +161,34 @@ Rectangle {
             visible: panel.tab === 1
             width: parent.width
             spacing: 4
-            PrefGroup { visible: panel.s.hasFill === true || panel.s.kind === "line"; text: panel.s.hasFill ? qsTr("Fill") : qsTr("Color") }
+            // the fill: one color or a gradient (a line has only a color)
+            PrefGroup { visible: panel.hasFill || panel.s.kind === "line"; text: panel.hasFill ? qsTr("Fill") : qsTr("Color") }
+            SegmentedTabs {
+                id: fillKinds
+                objectName: "fillKinds"
+                visible: panel.hasFill
+                x: 16; width: parent.width - 32
+                check: false
+                readonly property var kinds: ["solid", "linear", "radial", "conical"]
+                model: [qsTr("Solid"), qsTr("Linear"), qsTr("Radial"), qsTr("Conical")]
+                currentIndex: Math.max(0, kinds.indexOf(panel.s.fillKind))
+                onPicked: (i) => TemplateEditor.setProp("fillKind", kinds[i])
+            }
             Item {
-                visible: panel.s.hasFill === true || panel.s.kind === "line"
+                visible: panel.solidFill || panel.s.kind === "line"
                 x: 16; width: parent.width - 32; height: swFill.implicitHeight
                 ColorSwatches {
                     id: swFill
                     width: parent.width
                     current: panel.s.kind === "line" ? (panel.s.outlineColor || "") : (panel.s.fill || "")
                     onPicked: (c) => TemplateEditor.setProp(panel.s.kind === "line" ? "outlineColor" : "fill", c)
+                    onCustomRequested: panel.openColor("fill")
                 }
+            }
+            GradientEditor {
+                id: gradEdit
+                visible: panel.hasFill && !panel.solidFill
+                onCustomRequested: panel.openColor("stop")
             }
             SliderRow {
                 title: qsTr("Opacity"); from: 0; to: 100; stepSize: 1; value: Math.round((panel.s.opacity !== undefined ? panel.s.opacity : 1) * 100)
@@ -148,7 +197,7 @@ Rectangle {
             }
             PreferenceRow {
                 visible: panel.s.hasOutline === true && panel.s.kind !== "line"
-                title: panel.isText ? qsTr("Edge of the letters") : qsTr("Outline"); checkable: true; checked: panel.s.outlineOn === true
+                title: panel.isText ? qsTr("Stroke of the letters") : panel.strokeWord; checkable: true; checked: panel.s.outlineOn === true
                 onToggled: (on) => TemplateEditor.setProp("outlineOn", on)
             }
             Item {
@@ -159,11 +208,12 @@ Rectangle {
                     width: parent.width
                     current: panel.s.outlineColor || ""
                     onPicked: (c) => TemplateEditor.setProp("outlineColor", c)
+                    onCustomRequested: panel.openColor("outline")
                 }
             }
             SliderRow {
                 visible: panel.s.outlineOn === true || panel.s.kind === "line"
-                title: panel.s.kind === "line" ? qsTr("Thickness") : qsTr("Outline width"); from: 1; to: 20; stepSize: 1
+                title: panel.s.kind === "line" ? qsTr("Thickness") : qsTr("%1 width").arg(panel.strokeWord); from: 1; to: 20; stepSize: 1
                 value: panel.s.outlineWidth !== undefined ? panel.s.outlineWidth : 1
                 valueText: Math.round(value)
                 onMoved: (v) => TemplateEditor.setProp("outlineWidth", v)
@@ -175,8 +225,38 @@ Rectangle {
                 onMoved: (v) => TemplateEditor.setProp("radius", v)
             }
             PreferenceRow {
+                objectName: "shadowRow"
                 title: qsTr("Shadow"); checkable: true; checked: panel.s.shadow === true
                 onToggled: (on) => TemplateEditor.setProp("shadow", on)
+            }
+            Item {
+                visible: panel.s.shadow === true
+                x: 16; width: parent.width - 32; height: swShadow.implicitHeight
+                ColorSwatches {
+                    id: swShadow
+                    width: parent.width
+                    current: panel.s.shadowColor || ""
+                    onPicked: (c) => TemplateEditor.setProp("shadowColor", c)
+                    onCustomRequested: panel.openColor("shadow")
+                }
+            }
+            SliderRow {
+                visible: panel.s.shadow === true
+                title: qsTr("Shadow to the right"); from: -40; to: 40; stepSize: 1; value: panel.s.shadowDx !== undefined ? panel.s.shadowDx : 2
+                valueText: (value > 0 ? "+" : "") + Math.round(value)
+                onMoved: (v) => TemplateEditor.setProp("shadowDx", v)
+            }
+            SliderRow {
+                visible: panel.s.shadow === true
+                title: qsTr("Shadow downward"); from: -40; to: 40; stepSize: 1; value: panel.s.shadowDy !== undefined ? panel.s.shadowDy : 2
+                valueText: (value > 0 ? "+" : "") + Math.round(value)
+                onMoved: (v) => TemplateEditor.setProp("shadowDy", v)
+            }
+            SliderRow {
+                visible: panel.s.shadow === true
+                title: qsTr("Shadow blur"); from: 0; to: 30; stepSize: 1; value: panel.s.shadowBlur !== undefined ? panel.s.shadowBlur : 0
+                valueText: Math.round(value)
+                onMoved: (v) => TemplateEditor.setProp("shadowBlur", v)
             }
         }
 
@@ -214,5 +294,13 @@ Rectangle {
             PrefGroup { text: qsTr("When the picture is another size") }
             Text { x: 24; width: parent.width - 48; text: panel.s.anchorText !== undefined ? panel.s.anchorText : ""; color: Theme.surfaceOn; font.pixelSize: Theme.sp(15); wrapMode: Text.WordWrap }
         }
+    }
+    ColorPage {
+        id: colorPage
+        visible: panel.colorTarget !== ""
+        anchors.fill: parent
+        z: 5
+        onPicked: (c) => panel.applyColor(c)
+        onDone: panel.closeColor()
     }
 }

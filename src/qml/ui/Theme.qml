@@ -59,6 +59,11 @@ QtObject {
     // the length of a movement of the interface in ms; 0 where the phone's "Remove animations" is on. What shows the live state (the picture
     // that grows, the waterfall, the level and the progress) is not a movement of the interface and keeps going.
     readonly property bool reducedMotion: AppModel.reducedMotion
+    // a color as the editor's "#aarrggbb" (a color's own string leaves the alpha out when it is 1)
+    function colorString(c) {
+        const h = v => { const x = Math.round(v * 255).toString(16); return x.length < 2 ? "0" + x : x }
+        return "#" + h(c.a) + h(c.r) + h(c.g) + h(c.b)
+    }
     function ms(n) { return reducedMotion ? 0 : n }
 
     readonly property string fontFamily: Qt.platform.os === "android" ? "Roboto" : Qt.application.font.family

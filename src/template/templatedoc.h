@@ -66,8 +66,15 @@ struct Gradient
   QGradient build(const QRectF &r) const;  //!< port of the legacy buildGradient()
 };
 
+/*! Where the line of an outline lies on the edge of the item. Center is the line of the legacy editor, half inside and half
+    outside the edge; Outside (a "stroke") lies entirely outside it, so the item keeps its size and its fill is not covered.
+    Only text, rectangles and ellipses use it; a line is its thickness, and the border of a picture or of the replay window
+    always lies inside the frame. */
+enum class StrokePos { Center, Outside };
+
 struct Outline
 {
+  StrokePos position = StrokePos::Center;
   QColor color = Qt::black;
   double width = 1.0;
   Qt::PenJoinStyle join = Qt::MiterJoin;
