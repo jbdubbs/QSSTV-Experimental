@@ -766,8 +766,13 @@ if(ANDROID)
   # The QML files import QtQuick.Controls.Material (never the plain QtQuick.Controls): the qmldir of QtQuick.Controls lists all five
   # styles as optional imports, so androiddeployqt would pack Fusion, Imagine, Universal and FluentWinUI3 as well (about 10 MB). The CI
   # build fails when one of them is in the package.
-  # versionName follows the release; versionCode must only ever grow (Google Play): major*1000000 + minor*10000 + patch*100,
-  # so 10.1 -> 10010000 and a later 10.1.1 -> 10010100. The two digits in between are free for a rebuild of the same release.
+  # versionName follows the release; versionCode must only ever grow (Google Play): major*1000000 + minor*10000 + patch*100 + build,
+  # so 10.1 -> 10010000 and a later 10.1.1 -> 10010100. The build number (0 to 99, -DQSSTV_ANDROID_BUILD, the "build" input of the
+  # Android workflow) is for another upload of the same release, e.g. a fix found by the testers of a closed test.
+  set(QSSTV_ANDROID_BUILD 0 CACHE STRING "Build number 0-99 of this program version (the two last digits of the Android versionCode)")
+  if(NOT QSSTV_ANDROID_BUILD MATCHES "^[0-9]+$" OR QSSTV_ANDROID_BUILD GREATER 99)
+    message(FATAL_ERROR "QSSTV_ANDROID_BUILD must be a number from 0 to 99, not \"${QSSTV_ANDROID_BUILD}\"")
+  endif()
   set(QSSTV_ANDROID_VERSION_NAME "${CPACK_PACKAGE_VERSION}")
   string(REGEX MATCH "^([0-9]+)\\.([0-9]+)(\\.([0-9]+))?" _ver "${QSSTV_ANDROID_VERSION_NAME}")
   if(NOT _ver)
@@ -776,7 +781,7 @@ if(ANDROID)
   if(NOT CMAKE_MATCH_4)
     set(CMAKE_MATCH_4 0)
   endif()
-  math(EXPR QSSTV_ANDROID_VERSION_CODE "${CMAKE_MATCH_1}*1000000 + ${CMAKE_MATCH_2}*10000 + ${CMAKE_MATCH_4}*100")
+  math(EXPR QSSTV_ANDROID_VERSION_CODE "${CMAKE_MATCH_1}*1000000 + ${CMAKE_MATCH_2}*10000 + ${CMAKE_MATCH_4}*100 + ${QSSTV_ANDROID_BUILD}")
   set_target_properties(qsstv PROPERTIES
       # the application id: permanent once the app is published, and an Android package name cannot contain a hyphen
       QT_ANDROID_PACKAGE_NAME "io.github.jbdubbs.qsstv_experimental"

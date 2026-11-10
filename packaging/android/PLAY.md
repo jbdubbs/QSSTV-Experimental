@@ -38,9 +38,15 @@ other without uninstalling first (and the settings go). Decide whether GitHub re
 
 ## 3. Versions
 
-`versionName` is the program version (`CPACK_PACKAGE_VERSION`), and `versionCode` is made from it: `major*1000000 + minor*10000 + patch*100`
-(10.1.1 gives 10010100). Play wants a higher `versionCode` for every upload, so every upload needs a new program version (10.1.2,
-10.2, ...). Never reuse a number, even for a build that was only uploaded to the internal track.
+`versionName` is the program version (`CPACK_PACKAGE_VERSION`), and `versionCode` is made from it plus a build number:
+`major*1000000 + minor*10000 + patch*100 + build` (10.1.1 build 0 gives 10010100, build 3 gives 10010103). Play wants a higher `versionCode` for every upload
+and never lets a number be used twice, even for a build that was only uploaded to the internal track.
+
+- **Test uploads of one version** (internal and closed testing, a fix found by a tester): run the *Android build* workflow by hand (Actions, Run workflow) with the
+  `build` input 1, 2, 3 ... (0 to 99; a push always builds 0), and upload the AAB of that run. The users see the same version name.
+- **The production upload** needs a build number above every test upload of that version (tested 10.2 up to build 3: upload build 4), or a new program version
+  (10.2.1) with build 0.
+- A new program version (10.2, 10.1.2, ...) restarts the build number at 0, because the version part of the code is higher.
 
 ## 4. Release tracks
 
@@ -78,7 +84,7 @@ Requirements the build already meets: target API 36, 64-bit libraries only, **16
 
 - **What's new** (500, per release): the draft is in `RELEASE-NOTES.md`, with the GitHub release text.
 - **Privacy policy URL:** `https://jbdubbs.github.io/QSSTV-Experimental/pages/privacy.html` (the guide is published from `main`).
-- **Graphics:** app icon 512x512 PNG (`packaging/linux/icons/qsstv-experimental-512.png`), **feature graphic 1024x500 (still to make)**, phone screenshots (at least 2, 16:9 or 9:16;
+- **Graphics:** app icon 512x512 PNG (`packaging/linux/icons/qsstv-experimental-512.png`), **feature graphic 1024x500** (a draft is `packaging/android/store/feature-graphic.png`, drawn by `make-feature-graphic.py` there: edit the script and run it again to change it), phone screenshots (at least 2, 16:9 or 9:16;
   take them on a real phone: Receive with a picture, Transmit, Gallery, Settings) and, if tablets are supported, 7" and 10" tablet screenshots.
 
 ## 6. Data safety form
@@ -108,10 +114,13 @@ Anything the user transmits by radio is public by its nature (see the privacy po
 | `INTERNET`, `ACCESS_NETWORK_STATE` | The optional place lookup; the User's Guide server on the phone itself (127.0.0.1) and the CAT bridge to the USB adapter (127.0.0.1) |
 | `MODIFY_AUDIO_SETTINGS` | Audio focus and routing while a picture is sent |
 
-**Foreground service declaration (type `microphone`).** The Console asks what the service does and for a video.
-Text: *"The user starts reception with the Receive tab. QSSTV-Experimental decodes slow-scan television audio from the microphone and has to keep listening when the screen turns off or
-another app is in front, otherwise a picture that takes one to five minutes is lost. A notification is shown for as long as it runs, and More > Exit (or Stop) ends it."*
-Video (under 2 minutes): open the app, allow the microphone, start receiving, play an SSTV recording from another device next to the phone, press Home, show the notification, turn the screen off and on and show that the picture went on, then Exit.
+**Foreground service declaration (type `microphone`).** The Console asks what the service does and for a video (the wording of what it wants changes: follow the
+prompt in the Console, App content > Foreground service permissions).
+Text: *"QSSTV-Experimental decodes slow-scan television audio from the microphone. Reception starts when the user opens the app and allows the microphone, and the user ends it with the
+Listening button on the Receive screen or with the Stop button of the notification. A picture takes one to five minutes to arrive, so the receiver has to keep listening when the screen turns off
+or another app is in front; otherwise the picture is lost. While it runs, a notification says "Listening for pictures". Stop ends it, and the service ends with it."*
+Video (under 2 minutes): open the app, allow the microphone, show the Listening chip under the picture, play an SSTV recording from another device next to the phone, press Home, pull down the
+notification ("Listening for pictures", with Stop), turn the screen off and on and show that the picture went on, then press Stop in the notification.
 
 **Content rating questionnaire:** a utility app: no violence, no user-generated content shared between users, no purchases, no ads, no gambling. **Target audience:** 18 and over
 (not designed for children). **Ads:** none. **News, government, health, finance, VPN:** no.
@@ -119,5 +128,5 @@ Video (under 2 minutes): open the app, allow the microphone, start receiving, pl
 ## 8. Before a first upload: still to do on the project side
 
 - The real-phone pass of everything (BUILDING.md): RX/TX on the built-in speaker, DRM, USB adapter PTT and CAT, GPS, the camera, the screen-off soak.
-- A feature graphic and screenshots, a contact address.
+- A feature graphic (a draft is in `packaging/android/store/`, waiting for your approval), screenshots from a real phone, a contact address.
 - Decide about the APK on GitHub releases (section 2) and whether the version in Play follows the desktop releases.

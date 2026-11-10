@@ -15,6 +15,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:     # manual run from the Actions tab
+    inputs:
+      build:
+        description: "Build number 0-99 of this program version: Google Play wants a higher versionCode for every upload (PLAY.md section 3)"
+        default: "0"
 permissions:
   contents: read
 concurrency:
@@ -97,13 +101,16 @@ jobs:
         run: ABIS=${{ matrix.abi }} tools/build-android-deps.sh
 
       - name: Configure
+        env:
+          BUILD_NUMBER: ${{ inputs.build }}     # empty on a push
         run: |
           set -e
           DEPS="$PWD/third_party/android-deps/${{ matrix.abi }}"
           export PKG_CONFIG_LIBDIR="$DEPS/lib/pkgconfig"
           ~/Qt/$QT_VERSION/${{ matrix.qtabi }}/bin/qt-cmake -S src -B build-android -G Ninja \
             -DQT_HOST_PATH=$HOME/Qt/$QT_VERSION/gcc_64 -DANDROID_SDK_ROOT="$ANDROID_HOME" -DANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" \
-            -DCMAKE_BUILD_TYPE=RelWithDebInfo -DHAMLIB_ROOT="$DEPS" -DCMAKE_FIND_ROOT_PATH="$DEPS"
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo -DHAMLIB_ROOT="$DEPS" -DCMAKE_FIND_ROOT_PATH="$DEPS" \
+            -DQSSTV_ANDROID_BUILD="${BUILD_NUMBER:-0}"
 
       - name: Build the APK
         run: cmake --build build-android
