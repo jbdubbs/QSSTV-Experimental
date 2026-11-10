@@ -70,6 +70,8 @@
 #include <QTimer>
 #include <QApplication>
 #include "filewatcher.h"
+#include "busycursor.h"
+#include <memory>
 #include "ftpfunctions.h"
 
 
@@ -363,9 +365,11 @@ static void openUrlOrWarn(QWidget *parent,const QUrl &url)
 void mainWindow::slotCheckForUpdates()
 {
   QString msg;
-  QApplication::setOverrideCursor(Qt::WaitCursor);
-  int r=appImageIntegration::checkForUpdate(msg);
-  QApplication::restoreOverrideCursor();
+  int r;
+  {
+    busyCursor busy;
+    r=appImageIntegration::checkForUpdate(msg);
+  }
   if(r==0)
     {
       QMessageBox::information(this,tr("Check for updates"),tr("You are running the latest version."));
@@ -418,10 +422,10 @@ static void showUpdateResult(QWidget *parent,const updateChecker::Result &r,bool
 void mainWindow::slotCheckForUpdatesWeb()
 {
   updateChecker *uc=new updateChecker(this);
-  QApplication::setOverrideCursor(Qt::WaitCursor);
-  connect(uc,&updateChecker::finished,this,[this,uc](const updateChecker::Result &r)
+  auto busy=std::make_shared<busyCursor>();   // until the answer is in
+  connect(uc,&updateChecker::finished,this,[this,uc,busy](const updateChecker::Result &r)
   {
-    QApplication::restoreOverrideCursor();
+    busy->release();
     QSettings().setValue("update/lastCheck",QDateTime::currentDateTime());
     showUpdateResult(this,r,false);
     uc->deleteLater();

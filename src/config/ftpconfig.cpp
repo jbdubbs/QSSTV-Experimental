@@ -23,6 +23,7 @@
 #include "appglobal.h"
 #include "ui_ftpconfig.h"
 #include "ftpfunctions.h"
+#include "busycursor.h"
 
 #include <QImageWriter>
 #include <QMessageBox>
@@ -170,7 +171,7 @@ void ftpConfig::slotTestFTPPushButton()
   ftpFunctions ff;
   QString resultSSTVStr;
   QString resultDRMStr;
-  QApplication::setOverrideCursor(Qt::WaitCursor);
+  busyCursor busy;
   ui->testFTPPushButton->setDisabled(true);
   getParams();
   ff.test("Ftp Test sstvdir",ftpRemoteHost,ftpPort,ftpLogin,ftpPassword,ftpRemoteSSTVDirectory,true);
@@ -183,7 +184,7 @@ void ftpConfig::slotTestFTPPushButton()
       ff.test("Ftp Test drmdir",ftpRemoteHost,ftpPort,ftpLogin,ftpPassword,ftpRemoteDRMDirectory,false);
       ff.getLastErrorStr(resultDRMStr);
     }
-  QApplication::restoreOverrideCursor();
+  busy.release();
   ui->testFTPPushButton->setDisabled(false);
   QMessageBox::information(this,"FTP Site Test",resultSSTVStr+"\n"+resultDRMStr,QMessageBox::Ok);
 }

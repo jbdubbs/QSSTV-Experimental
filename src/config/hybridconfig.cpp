@@ -22,6 +22,7 @@
 #include "hybridconfig.h"
 #include "ui_hybridconfig.h"
 #include "ftpfunctions.h"
+#include "busycursor.h"
 #include "hybridcrypt.h"
 
 #include <QMessageBox>
@@ -153,7 +154,7 @@ void hybridConfig::slotTestHybridPushButton()
   QString resultStr3;
 
 
-  QApplication::setOverrideCursor(Qt::WaitCursor);
+  busyCursor busy;
   ui->testHybridPushButton->setDisabled(true);
   getParams();
   ff.test("Hybrid Ftp Test",hybridFtpRemoteHost,hybridFtpPort,hybridFtpLogin,hybridFtpPassword,hybridFtpRemoteDirectory+"/"+hybridFtpHybridFilesDirectory,true);
@@ -164,7 +165,7 @@ void hybridConfig::slotTestHybridPushButton()
   ff.test("OnlineStus Ftp Test",hybridFtpRemoteHost,hybridFtpPort,hybridFtpLogin,hybridFtpPassword,hybridFtpRemoteDirectory+"/"+onlineStatusDir,false);
   ff.getLastErrorStr(resultStr3);
 
-  QApplication::restoreOverrideCursor();
+  busy.release();
   ui->testHybridPushButton->setDisabled(false);
   QMessageBox::information(this,"FTP Site Test",QString("%1\n%2\n%3").arg(resultStr1).arg(resultStr2).arg(resultStr3),QMessageBox::Ok);
 
