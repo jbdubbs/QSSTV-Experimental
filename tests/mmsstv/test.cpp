@@ -397,7 +397,18 @@ int main(int argc, char **argv)
       CHECK(editor.saveTo(root + "/editor.qtempl"));
       CHECK(!editor.document()->isModified());
       CHECK(editor.openFile(root + "/editor.qtempl"));
-      CHECK(tpl::renderThumbnail(editor.document()->doc()) == imported);
+      // The importer leaves the strokes of the texts centered, like a template from before the stroke had a side, and opening the
+      // file moves them outside the letters (#202; one undo step). Nothing else changes, and once moved they stay where they are.
+      auto outside = r.doc;
+      for (auto &e : outside.items)
+        if (e.type == tpl::ItemType::Text && e.outline.style != Qt::NoPen && e.outline.width > 0 && e.outline.position == tpl::StrokePos::Center)
+          e.outline.position = tpl::StrokePos::Outside;
+      const auto movedLook = tpl::renderThumbnail(outside);
+      CHECK(movedLook != imported);   // the template has a stroked text: this really exercises the move
+      CHECK(tpl::renderThumbnail(editor.document()->doc()) == movedLook);
+      CHECK(editor.saveTo(root + "/editor2.qtempl"));
+      CHECK(editor.openFile(root + "/editor2.qtempl"));
+      CHECK(tpl::renderThumbnail(editor.document()->doc()) == movedLook);
       CHECK(QDir(root).mkdir("UI batch"));
       const QString uiDir = root + "/UI batch";
       const QString broken = root + "/broken.mtm";
