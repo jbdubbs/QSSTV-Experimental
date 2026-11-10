@@ -3,13 +3,14 @@ import QtQuick.Controls.Material
 import QtQuick.Layouts
 import QSSTV
 
-// Receive: the picture comes first, the signal is explained in words, the Listening / Stopped chip under the picture listens or stops (#181)
+// Receive: the picture comes first, the signal is explained in words, the Listening / Stopped chip under the picture listens or stops (#181); on a
+// screen held on its side the chips are at the top of the right column, above the level meter, and the picture has the whole height (#206)
 Item {
     id: screen
     property bool wide: width >= 600 && width > height * 1.1   // a tablet held upright stacks the parts like a phone
     // the waterfall takes the room the Listen button used to keep free. Narrow: twice its old height, or what is left when the picture would
-    // drop below its 120 dp (the picture is what gives on a tall screen); wide: the whole right column down to the foot of the chips under the picture
-    readonly property real spectrumHeight: wide ? Math.max(110, body.height - 12 - level.height - 8)
+    // drop below its 120 dp (the picture is what gives on a tall screen); wide: the right column under the chips and the meter, down to the foot of the picture
+    readonly property real spectrumHeight: wide ? Math.max(110, body.height - 12 - status.height - 8 - level.height - 8)
                                                 : Math.max(56, Math.min(112, body.height - status.height - 6 - 14 - level.height - 8 - 120))
     property alias optionsOpen: options.open
     property alias modesOpen: modes.open
@@ -50,31 +51,32 @@ Item {
             x: Theme.margin
             y: 0
             width: screen.wide ? body.width * 0.58 - Theme.margin : body.width - 2 * Theme.margin
-            height: screen.wide ? body.height - 6 - status.height - 12
+            height: screen.wide ? body.height - 12   // the whole column; its foot and the waterfall's are 16 dp above the foot of the screen
                                 : Math.max(120, body.height - status.height - 6 - 14 - meterBlock.height)   // 6 under the picture, 14 under the chips
         }
         StatusRow {
             id: status
-            x: Theme.margin
-            y: canvas.y + canvas.height + 6
-            width: canvas.width
+            x: screen.wide ? meterBlock.x : Theme.margin
+            y: screen.wide ? 0 : canvas.y + canvas.height + 6
+            width: screen.wide ? meterBlock.width : canvas.width
             onOpenModes: modes.open = true
         }
         ProgressLine {
             visible: RxController.receiving && RxController.lines > 0
             value: RxController.progress
-            x: Theme.margin
-            y: status.y + status.height + 4
-            width: canvas.width
+            x: status.x
+            y: status.y + status.height + (screen.wide ? 2 : 4)   // in the gap under the chips
+            width: status.width
         }
         Column {
             id: meterBlock
             x: screen.wide ? canvas.x + canvas.width + Theme.margin : Theme.margin
-            y: screen.wide ? 0 : status.y + status.height + 14
+            y: screen.wide ? status.height + 8 : status.y + status.height + 14
             width: screen.wide ? body.width - x - Theme.margin : body.width - 2 * Theme.margin
             spacing: 8
             LevelMeter {
                 id: level
+                objectName: "levelMeter"
                 width: parent.width
                 level: RxController.level
                 zoneStart: RxController.zoneStart

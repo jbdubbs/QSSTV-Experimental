@@ -1722,6 +1722,25 @@ int main(int argc, char **argv)
                   printf("  waterfall %.0f x %.0f dp, its foot %.1f dp above the foot of the screen\n", strip->width(), strip->height(), room);
                   if (room < 15.5) fail("the waterfall runs lower than 16 dp above the foot of the screen");
                   if (room > 17.5) fail("the waterfall does not reach down to 16 dp above the foot of the screen");
+                  // the chips: under the picture on a phone upright; at the top of the right column, above the level meter, on a screen held on its side, where the
+                  // picture is as high as the column and ends where the waterfall ends (#206)
+                  QQuickItem *canvas = findItem(r, "pictureCanvas"), *meter = findItem(r, "levelMeter"), *chip = findShown(r, "listeningChip");
+                  if (!canvas || !meter || !chip) fail("no pictureCanvas / levelMeter / listeningChip item");
+                  else
+                    {
+                      auto box = [&](QQuickItem *it) {return QRectF(it->mapToItem(r, QPointF(0, 0)), QSizeF(it->width(), it->height()));};
+                      const QRectF c = box(canvas), m = box(meter), k = box(chip);
+                      const bool wide = width >= 600 && width > height * 1.1;
+                      printf("  %s: picture y %.0f..%.0f, chips x %.0f y %.0f..%.0f, level meter y %.0f..%.0f, waterfall foot %.1f\n", wide ? "wide" : "narrow", c.top(), c.bottom(),
+                             k.left(), k.top(), k.bottom(), m.top(), m.bottom(), bottom);
+                      if (wide)
+                        {
+                          if (k.left() < c.right()) fail("wide: the chips are not in the right column");
+                          if (k.bottom() > m.top()) fail("wide: the chips are not above the level meter");
+                          if (qAbs(c.bottom() - bottom) > 0.5) fail("wide: the picture does not end where the waterfall ends");
+                        }
+                      else if (k.top() < c.bottom()) fail("narrow: the chips are not under the picture");
+                    }
                 }
             }
         }
