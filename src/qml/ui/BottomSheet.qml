@@ -1,5 +1,5 @@
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Material
 
 // A modal bottom sheet: the content slides up over a scrim. open it with open = true; Back and a tap on the scrim close it.
 Item {

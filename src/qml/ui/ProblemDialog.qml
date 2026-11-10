@@ -1,5 +1,5 @@
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Material
 
 // Something went wrong and the person has to know: a title, what happened, one button
 Item {

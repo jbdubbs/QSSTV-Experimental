@@ -763,6 +763,9 @@ if(ANDROID)
   if(COMMAND qt_policy)
     qt_policy(SET QTP0002 NEW)   # android-specific target properties may hold generator expressions, as valid JSON strings
   endif()
+  # The QML files import QtQuick.Controls.Material (never the plain QtQuick.Controls): the qmldir of QtQuick.Controls lists all five
+  # styles as optional imports, so androiddeployqt would pack Fusion, Imagine, Universal and FluentWinUI3 as well (about 10 MB). The CI
+  # build fails when one of them is in the package.
   # versionName follows the release; versionCode must only ever grow (Google Play): major*1000000 + minor*10000 + patch*100,
   # so 10.1 -> 10010000 and a later 10.1.1 -> 10010100. The two digits in between are free for a rebuild of the same release.
   set(QSSTV_ANDROID_VERSION_NAME "${CPACK_PACKAGE_VERSION}")

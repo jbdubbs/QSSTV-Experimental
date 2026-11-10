@@ -132,6 +132,16 @@ jobs:
           echo "$n libraries checked"
           [ "$n" -gt 0 ] && [ "$bad" = 0 ]
 
+      # A plain "import QtQuick.Controls" in any QML file makes androiddeployqt pack all five Controls styles (about 10 MB); the program
+      # uses Material only, and imports it directly ("import QtQuick.Controls.Material").
+      - name: Check that only the Material and Basic styles are packed
+        run: |
+          APK=build-android/android-build/build/outputs/apk/release/android-build-release-unsigned.apk
+          if unzip -l "$APK" | grep -E 'Controls2(Fusion|Imagine|Universal|FluentWinUI3)|Controls_(Fusion|Imagine|Universal|FluentWinUI3)'; then
+            echo "an unused Quick Controls style is in the package: find the QML file that says 'import QtQuick.Controls' without .Material"; exit 1
+          fi
+          echo "only Material and Basic are packed"
+
       - name: Sign
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
