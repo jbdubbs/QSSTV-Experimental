@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Material
+import QtQuick.Layouts
 import QSSTV
 
 // The template and its details, the mode, what it takes, and how loud it will be
@@ -248,15 +249,21 @@ Column {
             x: 14; y: 12
             width: parent.width - 28
             spacing: 4
-            Item {
-                width: parent.width; height: routeLabel.implicitHeight
-                Row {
-                    spacing: 6
-                    Icon { path: Icons.volume; size: 18; color: Theme.surfaceVariantOn; anchors.verticalCenter: parent.verticalCenter }
-                    Text { id: routeLabel; text: AppModel.routeText; color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(13); anchors.verticalCenter: parent.verticalCenter }
+            // the name of the device takes the room the percentage leaves and is cut with "..." when it is long (a Bluetooth speaker, a USB interface): the
+            // percentage stays whole (#203)
+            RowLayout {
+                width: parent.width
+                spacing: 6
+                Icon { path: Icons.volume; size: 18; color: Theme.surfaceVariantOn; Layout.alignment: Qt.AlignVCenter }
+                Text {
+                    id: routeLabel; objectName: "volumeRoute"
+                    text: AppModel.routeText
+                    color: Theme.surfaceVariantOn; font.pixelSize: Theme.sp(13)
+                    elide: Text.ElideRight
+                    Layout.fillWidth: true
                 }
                 Text {
-                    anchors.right: parent.right
+                    objectName: "volumeLevel"
                     visible: AppModel.mediaVolumeAvailable && !AppModel.volumeMismatch
                     text: qsTr("Media volume %1 %").arg(AppModel.mediaVolume)
                     color: Theme.surfaceOn; font.pixelSize: Theme.sp(14); font.weight: Font.Medium

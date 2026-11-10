@@ -312,7 +312,8 @@ int main(int argc, char **argv)
             const bool mismatch = scene.contains("mismatch");
             outputAudioDevice = mismatch ? QStringLiteral("Phone speaker") : QStringLiteral("default");   // chosen by hand: the keys are on Bluetooth; default: they follow
             volumeTest = true;
-            app_->setTestVolume(true, 70, mismatch ? QStringLiteral("Bluetooth: Pixel Buds") : QStringLiteral("Phone speaker"));
+            const bool deviceScene = scene == "tx-volume-device";   // a long name of the device the keys act on (#203)
+            app_->setTestVolume(true, deviceScene ? 60 : 70, mismatch ? QStringLiteral("Bluetooth: Pixel Buds") : deviceScene ? QStringLiteral("Bluetooth: Anker SoundCore") : QStringLiteral("Phone speaker"));
             qmlUi::notifyRouteChanged();
           }
         else if (volumeTest)
@@ -1266,6 +1267,35 @@ int main(int argc, char **argv)
               printf("  volume slider bottom at %.0f, Send bar top at %.0f: %.0f dp %s (window %d x %d)\n", bottom, top, qAbs(top - bottom), bottom <= top ? "to spare" : "short", width, height);
               if (tallPhone && bottom > top) fail("the volume slider is below the Send bar on a tall phone without scrolling");
             }
+        }
+      if (scene == "tx-volume-device")
+        {
+          // the head of the volume card: the name of the sound device on the left, "Media volume 60 %" on the right. A long name (a Bluetooth speaker, a USB
+          // interface) is cut with "..." and does not run under the percentage, which stays whole (#203)
+          auto fail = [&](const char *what) {fprintf(stderr, "FAIL: tx-volume-device: %s\n", what); exitCode = 1;};
+          auto check = [&](const char *label) {
+            QTest::qWait(300);
+            QQuickItem *route = findShown(content, "volumeRoute"), *level = findShown(content, "volumeLevel"), *slider = findShown(content, "mediaVolumeSlider");
+            if (!route || !level || !slider) {fail("no volumeRoute / volumeLevel / mediaVolumeSlider item"); return;}
+            revealItem(level);
+            const QString name = route->property("text").toString();
+            const QRectF r(route->mapToScene(QPointF(0, 0)), QSizeF(route->width(), route->height()));
+            const QRectF l(level->mapToScene(QPointF(0, 0)), QSizeF(level->width(), level->height()));
+            const qreal cardLeft = slider->mapToScene(QPointF(0, 0)).x(), cardRight = cardLeft + slider->width();
+            const bool cut = route->property("truncated").toBool();
+            printf("  %s: \"%s\" x %.0f..%.0f, \"%s\" x %.0f..%.0f, card x %.0f..%.0f, name %s\n", label, qPrintable(name), r.left(), r.right(),
+                   qPrintable(level->property("text").toString()), l.left(), l.right(), cardLeft, cardRight, cut ? "cut" : "whole");
+            if (l.left() < r.right() - 0.5 && l.top() < r.bottom() && r.top() < l.bottom()) fail("the name runs under the percentage");
+            if (r.left() < cardLeft - 0.5 || l.right() > cardRight + 0.5) fail("the head of the card is wider than the card");
+            if (level->property("text").toString() != QStringLiteral("Media volume 60 %")) fail("the percentage is not whole");
+            if (level->implicitWidth() > level->width() + 0.5) fail("the percentage is cut");
+            if (name.isEmpty()) fail("no name");
+          };
+          check("Anker SoundCore");
+          app_->setTestVolume(true, 60, QStringLiteral("Bluetooth: Anker SoundCore Liberty 4 NC Wireless Earbuds"));   // longer than any phone is wide
+          qmlUi::notifyRouteChanged();
+          check("longer name");
+          if (QQuickItem *route = findShown(content, "volumeRoute"); route && !route->property("truncated").toBool()) fail("the very long name is not cut");
         }
       if (scene == "tx-volume")
         {
