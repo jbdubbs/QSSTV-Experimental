@@ -345,6 +345,7 @@ int main( int argc, char ** argv )
       if(!cache.isEmpty() && QDir().mkpath(cache)) qputenv("TMPDIR",cache.toLocal8Bit());
     }
   platformFiles::cleanImportCache();   // copies of files picked in an earlier run
+  platformFiles::cleanExportCache();   // PNG copies made for the share sheet in an earlier run
   openWith openFilter;   // "Open with QSSTV-Experimental" for an audio recording
 #endif
   applySchemeAwareFusionPalette();

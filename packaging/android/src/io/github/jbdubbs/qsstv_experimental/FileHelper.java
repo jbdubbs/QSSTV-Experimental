@@ -128,7 +128,7 @@ public class FileHelper
         if (n.endsWith(".bmp")) return "image/bmp";
         if (n.endsWith(".gif")) return "image/gif";
         if (n.endsWith(".avif")) return "image/avif";
-        return null;   // JPEG 2000 and the like: no gallery entry
+        return null;   // JPEG 2000 and the like: the program hands over a PNG of them instead (platformFiles::pictureForPhone, keep the lists the same)
     }
 
     /**

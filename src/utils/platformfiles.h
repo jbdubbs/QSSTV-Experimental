@@ -17,14 +17,25 @@ namespace platformFiles
   */
   QString importPicked(const QString &picked);
 
-  //! Android: make a saved picture show up in the gallery (Pictures/QSSTV-Experimental). Returns true when it was added.
+  /*!
+    The file to hand to the phone's gallery or to another app for a picture of ours. The phone knows PNG, JPEG, WebP, BMP, GIF and
+    AVIF; a picture in any other format (JPEG 2000: what a DRM transmission delivers by default) is decoded and written as a PNG
+    with the same name in dir, and that file is returned. A picture in a known format is returned as it is. Empty when it cannot be
+    decoded or written. Not tied to Android, so the conversion can be tried anywhere.
+  */
+  QString pictureForPhone(const QString &file,const QString &dir);
+
+  //! Android: make a saved picture show up in the gallery (Pictures/QSSTV-Experimental), as a PNG when the phone does not know its format. Returns true when it was added.
   bool exportToGallery(const QString &localFile);
 
-  //! Android: offer a saved picture to other apps (the share sheet). Returns false where there is no such thing.
+  //! Android: offer a saved picture to other apps (the share sheet), as a PNG when the phone does not know its format. Returns false where there is no such thing.
   bool shareImage(const QString &localFile);
 
   //! Delete the copies importPicked() made in earlier runs
   void cleanImportCache();
+
+  //! Delete the PNG copies pictureForPhone() made for the share sheet in earlier runs
+  void cleanExportCache();
 }
 
 #endif // PLATFORMFILES_H

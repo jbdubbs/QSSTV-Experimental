@@ -4,12 +4,14 @@
 // Links the object files of an existing QML-UI build with libavif (tests/imagefmt/app.sh [build-dir], default build-qml).
 #include "avifenc.h"
 #include "jp2io.h"
+#include "platformfiles.h"
 #include "supportfunctions.h"
 #include "thumbnailprovider.h"
 
 #include <QApplication>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QImageReader>
 #include <QImageWriter>
 #include <QTemporaryDir>
@@ -143,6 +145,30 @@ int main(int argc, char **argv)
   badJp2.write(QByteArray::fromHex("0000000c6a5020200d0a870a"));   // the JP2 signature and nothing else
   badJp2.close();
   check(thumbs.requestImage(ThumbnailProvider::idFor(badJp2.fileName()), &size, QSize()).isNull(), "a damaged .jp2 file gives an empty tile, no crash");
+
+  // The phone's gallery and the share sheet know no JPEG2000: a picture in a format they do not know goes out as a PNG (#197).
+  printf("== the picture for the phone\n");
+  const QString out = dir.filePath("phone/made/here");   // does not exist yet
+  check(platformFiles::pictureForPhone(png, out) == png && platformFiles::pictureForPhone(avif, out) == avif, "a PNG and an AVIF file go out as they are");
+  check(!QFile::exists(out), "and no copy or folder is made for them");
+  QFile jpgFile(dir.filePath("photo.JPG"));   // only the name counts: Qt has no JPEG writer here (plugins off)
+  if (!jpgFile.open(QIODevice::WriteOnly)) return 2;
+  jpgFile.write("not looked at");
+  jpgFile.close();
+  check(platformFiles::pictureForPhone(jpgFile.fileName(), out) == jpgFile.fileName(), "a JPEG file is not converted (the name is not case sensitive)");
+  const QString made = platformFiles::pictureForPhone(jp2, out);
+  check(made == QDir(out).filePath("received.png"), QString("a .jp2 file becomes %1").arg(QFileInfo(made).fileName()));
+  QImage madeBack;
+  check(madeBack.load(made, "PNG") && madeBack.size() == src.size() && madeBack == jback.convertToFormat(madeBack.format()), "the PNG holds the decoded picture, pixel for pixel");
+  check(psnr(src, madeBack) > 28 && brightness(madeBack) > 40, "and it is the picture, not a black square");
+  check(QFileInfo(jp2).size() > 0 && QFile::exists(jp2), "the .jp2 file itself is left alone");
+  check(platformFiles::pictureForPhone(jp2, out) == made, "a second time gives the same file");
+  check(platformFiles::pictureForPhone(badJp2.fileName(), out).isEmpty(), "a damaged .jp2 file gives nothing, no crash");
+  check(platformFiles::pictureForPhone(dir.filePath("missing.jp2"), out).isEmpty(), "and so does a file that is not there");
+  QFile blocker(dir.filePath("file-not-folder"));
+  if (!blocker.open(QIODevice::WriteOnly)) return 2;
+  blocker.close();
+  check(platformFiles::pictureForPhone(jp2, blocker.fileName() + "/sub").isEmpty(), "a folder that cannot be made gives nothing");
 
   printf("\n%s\n", failures ? "FAILED" : "all passed");
   return failures ? 1 : 0;

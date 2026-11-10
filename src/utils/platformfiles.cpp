@@ -1,11 +1,15 @@
 #include "platformfiles.h"
+#include "supportfunctions.h"
+
+#include <QDir>
+#include <QFileInfo>
+#include <QImage>
+#include <QStringList>
 
 #ifdef Q_OS_ANDROID
 #include <QCoreApplication>
 #include <QDateTime>
-#include <QDir>
 #include <QFile>
-#include <QFileInfo>
 #include <QJniObject>
 #include <QRegularExpression>
 #include <QStandardPaths>
@@ -15,6 +19,23 @@
 namespace platformFiles
 {
 
+// The picture types FileHelper.imageMimeType() knows, so the gallery export and the share sheet can name them: keep the two lists the same.
+static bool phoneKnows(const QString &file)
+{
+  static const QStringList known={"png","jpg","jpeg","webp","bmp","gif","avif"};
+  return known.contains(QFileInfo(file).suffix().toLower());
+}
+
+QString pictureForPhone(const QString &file,const QString &dir)
+{
+  if(phoneKnows(file)) return file;
+  QImage image;
+  if(!loadImageAutoRotate(image,file)) return QString();
+  if(!QDir().mkpath(dir)) return QString();
+  const QString png=QDir(dir).filePath(QFileInfo(file).completeBaseName()+".png");
+  return image.save(png,"PNG") ? png : QString();
+}
+
 #ifdef Q_OS_ANDROID
 
 static const char *helperClass="io/github/jbdubbs/qsstv_experimental/FileHelper";
@@ -22,6 +43,13 @@ static const char *helperClass="io/github/jbdubbs/qsstv_experimental/FileHelper"
 static QString importDir()
 {
   return QStandardPaths::writableLocation(QStandardPaths::CacheLocation)+"/imports";
+}
+
+// Where the PNG copies for the share sheet are made. The share sheet reads them through Qt's FileProvider, which serves the app's files
+// folder and the external folders but not the internal cache, so this is under AppLocalDataLocation (where the pictures are too).
+static QString exportDir()
+{
+  return QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)+"/export";
 }
 
 // HEIC/HEIF by its name, or by a HEIC brand (major or compatible) in the file's first box. Many camera files have the major
@@ -93,10 +121,18 @@ bool exportToGallery(const QString &localFile)
 {
   QJniObject context=QNativeInterface::QAndroidApplication::context();
   if(!context.isValid() || !QFileInfo::exists(localFile)) return false;
+  // a DRM picture in JPEG 2000 goes to the gallery as a PNG: the phone cannot show JPEG 2000 (#197)
+  const QString file=pictureForPhone(localFile,exportDir());
+  if(file.isEmpty())
+    {
+      __android_log_print(ANDROID_LOG_WARN,"qsstv-files","gallery skipped: cannot convert %s",qPrintable(localFile));
+      return false;
+    }
   const QJniObject uri=QJniObject::callStaticObjectMethod(helperClass,"saveToGallery",
                          "(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
-                         context.object<jobject>(),QJniObject::fromString(localFile).object<jstring>(),
-                         QJniObject::fromString(QFileInfo(localFile).fileName()).object<jstring>());
+                         context.object<jobject>(),QJniObject::fromString(file).object<jstring>(),
+                         QJniObject::fromString(QFileInfo(file).fileName()).object<jstring>());
+  if(file!=localFile) QFile::remove(file);   // the gallery keeps its own copy of the bytes
   const bool ok=uri.isValid() && !uri.toString().isEmpty();
   __android_log_print(ANDROID_LOG_INFO,"qsstv-files","gallery %s: %s",ok ? "added" : "skipped",qPrintable(localFile));
   return ok;
@@ -106,8 +142,15 @@ bool shareImage(const QString &localFile)
 {
   QJniObject context=QNativeInterface::QAndroidApplication::context();
   if(!context.isValid() || !QFileInfo::exists(localFile)) return false;
+  // the PNG made for a picture in a format the phone does not know stays until the next start: the receiving app reads it later
+  const QString file=pictureForPhone(localFile,exportDir());
+  if(file.isEmpty())
+    {
+      __android_log_print(ANDROID_LOG_WARN,"qsstv-files","share skipped: cannot convert %s",qPrintable(localFile));
+      return false;
+    }
   QJniObject::callStaticMethod<void>(helperClass,"shareImage","(Landroid/content/Context;Ljava/lang/String;)V",
-                                     context.object<jobject>(),QJniObject::fromString(localFile).object<jstring>());
+                                     context.object<jobject>(),QJniObject::fromString(file).object<jstring>());
   return true;
 }
 
@@ -116,12 +159,18 @@ void cleanImportCache()
   QDir(importDir()).removeRecursively();
 }
 
+void cleanExportCache()
+{
+  QDir(exportDir()).removeRecursively();
+}
+
 #else
 
 QString importPicked(const QString &picked) {return picked;}
 bool exportToGallery(const QString &) {return false;}
 bool shareImage(const QString &) {return false;}
 void cleanImportCache() {}
+void cleanExportCache() {}
 
 #endif
 
