@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Android 12 and later show their own start-up screen (the app's icon on a colour) before the app draws anything: the
-         colour is the program's window colour, light or dark, instead of the system's default -->
+    <!-- Android 12 and later show their own start-up screen before the app draws anything: the colour is the program's window
+         colour, light or dark, instead of the system's default, and the picture is the splash graphic of the desktop program
+         instead of the app's icon (drawable/splash_icon.xml; Qt's own splash, drawable/splash.xml, takes over at the same place) -->
     <style name="QSSTVTheme" parent="@android:style/Theme.DeviceDefault.DayNight">
         <item name="android:windowActionBar">false</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowBackground">@color/splash_background</item>
         <item name="android:windowSplashScreenBackground">@color/splash_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
     </style>
 </resources>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The picture of the start-up screen of Android 12 and later (windowSplashScreenAnimatedIcon, res/values-v31/themes.xml): the splash
+     graphic of the desktop program (res/drawable-nodpi/splash_logo.png and, for the dark window, res/drawable-night-nodpi/, made by
+     packaging/android/make-splash.py).
+     That screen cuts its picture to a circle of 192 dp and draws a 192 dp drawable about 1.78 times as big (measured on Android 16),
+     so the canvas here is 192 dp and the graphic on it 90 dp: shown, it is about 160 dp wide and fits in the circle with room to spare. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:width="192dp"
+        android:height="192dp"
+        android:gravity="center">
+        <shape android:shape="rectangle">
+            <solid android:color="@android:color/transparent" />
+        </shape>
+    </item>
+    <item
+        android:width="90dp"
+        android:height="32dp"
+        android:gravity="center"
+        android:drawable="@drawable/splash_logo" />
+</layer-list>
