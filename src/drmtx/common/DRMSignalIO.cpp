@@ -34,6 +34,25 @@
 
 #define pi  4.0*atan(1.0) 
 
+/* Transmit level (#198).
+   A DRM signal is noise-like: its peaks stand about 14 dB above its average level (an SSTV tone's stand 3 dB above), and
+   they are rare, so setting the level by the highest peak leaves the average far below what the sound card can deliver
+   (measured -16 dBFS RMS, the peaks at -1 to -4 dBFS). The average is what the radio hears, so it is set instead, equal for
+   all modes and bandwidths, and the few peaks above TXDRM_CREST_DB over it are cut off at TXDRM_LIMIT, full scale (a sample
+   outside the 16 bits would not be a clipped one but undefined, 0 on x86). At 12 dB that is 0.01 to 0.03 % of the samples
+   and costs well under 1 dB of MER (tests/drm/run.sh checks the level); the average rises 4 dB. Clipping at 9 dB over the
+   average, 3 dB lower, starts to eat into the MER. */
+#define TXDRM_LIMIT         32767.0   /* 0 dBFS, the hard limit of the audio */
+#define TXDRM_CREST_DB      12.0      /* the limit over the RMS level: the RMS is -12 dBFS */
+#define TXDRM_KAPPA         0.649     /* RMS of the real part sent / sqrt(rAvPowPerSymbol), measured at gain 1 on all modes */
+
+static inline short limitSample(CReal rValue)
+{
+  if (rValue > (CReal) TXDRM_LIMIT) rValue = (CReal) TXDRM_LIMIT;
+  else if (rValue < (CReal) -TXDRM_LIMIT) rValue = (CReal) -TXDRM_LIMIT;
+  return (short) rValue;
+}
+
 /******************************************************************************\
 * Transmitter                                                                  *
 \******************************************************************************/
@@ -41,14 +60,13 @@ void CTransmitData::ProcessDataInternal(CParameter&)
 {
   int i;
   const int iNs2 = iInputBlockSize * 2;
-  rNormFactor =1000.0 * rOccGain; // pa0mbo (was 16000)
   for (i = 0; i < iNs2; i += 2)
     {
       const int iCurIndex = iBlockCnt * iNs2 + i;
 
       /* Imaginary, real */
-      const short sCurOutReal = (short) ((*pvecInputData)[i / 2].real() * rNormFactor);
-      const short  sCurOutImag = (short) ((*pvecInputData)[i / 2].imag() * rNormFactor);
+      const short sCurOutReal = limitSample((*pvecInputData)[i / 2].real() * rNormFactor);
+      const short sCurOutImag = limitSample((*pvecInputData)[i / 2].imag() * rNormFactor);
 
       /* Envelope, phase */
       const short sCurOutEnv = (short) (Abs((*pvecInputData)[i / 2]) * (_REAL) 256.0);
@@ -129,12 +147,10 @@ void CTransmitData::InitInternal(CParameter& TransmParam)
 			iSymbolBlockSize, rDefCarOffset, eSpecOcc); */
 
 
-	/* All robustness modes and spectrum occupancies should have the same output
-	   power. Calculate the normaization factor based on the average power of
-	   symbol (the number 3000 was obtained through output tests) */
-	rNormFactor = (CReal) 6000.0 / Sqrt(TransmParam.CellMappingTable.rAvPowPerSymbol);  // pa0mbo was 3000.0 nu as in ham
-	/* The wide ham occupancy has ~1.9x the carriers: at the same per-carrier level the peaks reach full scale (clipping), so lower it */
-	rOccGain = (eSpecOcc == SO_2) ? (CReal) 0.8 : (CReal) 1.0;
+	/* All robustness modes and spectrum occupancies have the same output power (the RMS of the audio, see above):
+	   normalise on the average power of a symbol. The wide occupancy has more carriers and so gets a lower gain. */
+	rNormFactor = (CReal) (TXDRM_LIMIT / pow(10.0, TXDRM_CREST_DB / 20.0) / TXDRM_KAPPA) /
+	              Sqrt(TransmParam.CellMappingTable.rAvPowPerSymbol);
 	/* Define block-size for input */
 	iInputBlockSize = iSymbolBlockSize;
 }

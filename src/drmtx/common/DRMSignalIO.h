@@ -101,7 +101,6 @@ protected:
 	CDRMBandpassFilt	BPFilter;
 	CReal				rDefCarOffset;
 	CReal				rNormFactor;
-	CReal				rOccGain = (CReal) 1.0;
 	int					iBigBlockSize;
 //	string				strOutFileName;
   virtual void InitInternal(CParameter& TransmParam);

@@ -14,6 +14,7 @@
 #include "dispatch/filedecoder.h"
 #include "supportfunctions.h"
 #include "uimode.h"
+#include "busycursor.h"
 #include "gallerywidget.h"
 #include "waterfalltext.h"
 
@@ -1329,7 +1330,7 @@ void txWidget::slotSizeApply()
   if(txFunctionsPtr->txBusy()) return;   // never re-encode the picture while it is being transmitted
 
   bool dragging=ui->sizeSlider->isSliderDown();
-  if(!dragging) QApplication::setOverrideCursor(Qt::WaitCursor);
+  busyCursor busy(!dragging && settingsReady);   // not while init() sets the controls up: nothing to wait for, and the window is not in use yet (#195)
   sizeChanged=false;
   imageViewerPtr->setAsyncEncode(true);   // the encode (AVIF or JPEG2000) runs in the background; compressionReady() shows the result
   imageViewerPtr->setSize(compressedSize,transmissionModeIndex==TRXDRM);
@@ -1339,7 +1340,6 @@ void txWidget::slotSizeApply()
       imageViewerPtr->displayImage();
       updateTxTime();
     }
-  if(!dragging) QApplication::restoreOverrideCursor();
 }
 
 void txWidget::setModeLock(int busy)

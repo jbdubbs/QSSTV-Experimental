@@ -26,6 +26,14 @@ encode() { local n=$1; shift; timeout 900 "$QSSTV" --encode "$IMG" --drm --wav-o
 # decode wav [options] -> $T/out.txt (stdout), exit status in $RC
 # each decode gets its own HOME: a file saved by an earlier run would make the receiver report "already received"
 decode() { local w=$1; shift; rm -rf "$T/o" "$T/home.d"; mkdir -p "$T/home.d"; HOME=$T/home.d XDG_CONFIG_HOME=$T/home.d/.config XDG_DATA_HOME=$T/home.d/.local/share timeout 900 "$QSSTV" --batch --drm -o "$T/o" "$@" "$w" >"$T/out.txt" 2>"$T/dec.err"; RC=$?; }
+# level wav -> "peak_dBFS rms_dBFS percent_of_samples_at_full_scale" of the left channel. The samples are read after the 44-byte header: the
+# wav writer leaves the RIFF size at 36, which the wave module takes for an empty file.
+level() { python3 -I -c '
+import sys, array, math
+raw = open(sys.argv[1], "rb").read()
+a = array.array("h"); a.frombytes(raw[44:44 + (len(raw) - 44) // 4 * 4]); a = a[0::2]
+pk = max(max(a), -min(a)); rms = math.sqrt(sum(x * x for x in a) / len(a))
+print("%.2f %.2f %.4f" % (20 * math.log10(pk / 32768), 20 * math.log10(rms / 32768), 100.0 * sum(1 for x in a if abs(x) >= 32767) / len(a)))' "$1"; }
 stat() { sed -n 's/.*drm-stats:.* '"$1"'=\([^ ]*\).*/\1/p' "$T/out.txt" | head -1; }   # stat msc -> 97%
 
 if [ "$1" = decode ]; then
@@ -59,6 +67,11 @@ for p in "B 4" "B 16" "B 64" "A 16" "E 16" "B 16 2.8" "A 16 4.8" "B 16 4.8" "E 1
   name="mode $1, ${2}-QAM${bw:+, $bw kHz}"
   echo "== $name"
   encode "m$1$2$bw" --drm-mode $1 --drm-qam $2 ${bw:+--drm-bw $bw} || { bad "$name: encode"; continue; }
+  # transmit level (#198): the average is -12 dBFS in every mode and the few peaks above 12 dB over it are cut off at full scale,
+  # 0.01 to 0.03 % of the samples (it was -15 to -18 dBFS average with the peaks anywhere from -0.7 to -3.8 dBFS, and no limit)
+  read -r pk rms full <<<"$(level "$T/m$1$2$bw.wav")"
+  ge "$pk" -0.1 && ge "$rms" -12.6 && ge -11.4 "$rms" && ge "$full" 0.003 && ge 0.06 "$full" \
+    && ok "$name: level peak $pk dBFS, average $rms dBFS (want -12), $full % of the samples at the limit" || bad "$name: level peak $pk dBFS (want 0), average $rms dBFS (want -12), $full % of the samples at the limit (want 0.003 to 0.06)"
   decode "$T/m$1$2$bw.wav"
   [ "$RC" = 0 ] && ok "$name: exit code 0 (picture received)" || bad "$name: exit code $RC (picture not received)"
   [ "$(stat occupancy)" = "$want_occ" ] && ok "$name: bandwidth recognised" || bad "$name: bandwidth $(stat occupancy), want $want_occ"
