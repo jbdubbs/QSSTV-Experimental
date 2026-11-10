@@ -20,6 +20,7 @@ Item {
         spacing: 6
         Text {
             id: titleText
+            objectName: "appBarTitle"
             text: bar.title
             color: Theme.surfaceOn
             font.pixelSize: Theme.sp(22)
@@ -38,12 +39,14 @@ Item {
         }
         Rectangle {
             id: routeChip
+            objectName: "appBarRoute"
             visible: bar.routeText !== ""
             implicitHeight: 32
             readonly property bool iconOnly: Theme.fontScale > 1.4   // no room for the words beside a large title: the icon stays, the name is read aloud
             implicitWidth: iconOnly ? 48 : (Math.ceil(routeMetrics.width) + 2) + 18 + 6 + 20
             Layout.maximumWidth: iconOnly ? 48 : (Math.ceil(routeMetrics.width) + 2) + 18 + 6 + 20
             Layout.minimumWidth: iconOnly ? 48 : 56
+            Layout.fillWidth: true   // a layout only shrinks the items that fill: without this a long device name pushed the menu button out of the window (#203); the words are cut to the room
             radius: 8
             color: "transparent"
             border.width: 1
@@ -71,6 +74,7 @@ Item {
         }
         Row { id: extra }
         Item {
+            objectName: "appBarMenu"
             implicitWidth: Theme.tap
             implicitHeight: Theme.tap
             Icon { anchors.centerIn: parent; path: Icons.more; color: Theme.surfaceVariantOn }

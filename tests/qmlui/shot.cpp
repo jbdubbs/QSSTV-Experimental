@@ -1290,6 +1290,16 @@ int main(int argc, char **argv)
             if (level->property("text").toString() != QStringLiteral("Media volume 60 %")) fail("the percentage is not whole");
             if (level->implicitWidth() > level->width() + 0.5) fail("the percentage is cut");
             if (name.isEmpty()) fail("no name");
+            // the same name is in the chip of the top bar: it gives way to the title and the menu button, which stay whole and inside the window
+            QQuickItem *chip = findShown(content, "appBarRoute"), *menu = findShown(content, "appBarMenu"), *title = findShown(content, "appBarTitle");
+            if (!chip || !menu || !title) {fail("no appBarRoute / appBarMenu / appBarTitle item"); return;}
+            const QRectF c(chip->mapToScene(QPointF(0, 0)), QSizeF(chip->width(), chip->height())), m(menu->mapToScene(QPointF(0, 0)), QSizeF(menu->width(), menu->height())),
+                         t(title->mapToScene(QPointF(0, 0)), QSizeF(title->width(), title->height()));
+            printf("  %s: top bar: title x %.0f..%.0f, chip x %.0f..%.0f, menu x %.0f..%.0f, window %d wide\n", label, t.left(), t.right(), c.left(), c.right(), m.left(), m.right(), width);
+            if (m.right() > width + 0.5) fail("the menu button of the top bar is outside the window");
+            if (c.right() > m.left() + 0.5) fail("the route chip of the top bar runs over the menu button");
+            if (c.left() < t.right() - 0.5) fail("the route chip of the top bar runs over the title");
+            if (title->property("truncated").toBool()) fail("the title of the top bar is cut before the chip");
           };
           check("Anker SoundCore");
           app_->setTestVolume(true, 60, QStringLiteral("Bluetooth: Anker SoundCore Liberty 4 NC Wireless Earbuds"));   // longer than any phone is wide
