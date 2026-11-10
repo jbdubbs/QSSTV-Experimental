@@ -621,5 +621,6 @@ Rectangle {
     Connections {
         target: TemplateEditor
         function onSnapped() { AppModel.haptic(0) }
+        function onOpenNote(text) { screen.notice(text) }
     }
 }

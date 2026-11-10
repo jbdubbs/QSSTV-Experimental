@@ -689,6 +689,7 @@ bool TemplateEditor::openFile(const QString &fileName)
   doc.load(r.doc, fileName);
   importedBaseName.clear();
   if (!r.warnings.isEmpty()) statusBar()->showMessage(r.warnings.first(), 8000);
+  if (doc.moveTextStrokesOutside()) statusBar()->showMessage(tr("The strokes of the texts now lie outside the letters; Undo brings the old look back."), 8000);
   addRecent(fileName);
   view->zoomFit();
   return true;
@@ -816,6 +817,7 @@ void TemplateEditor::revert()
       return;
     }
   doc.load(r.doc, doc.fileName());
+  if (doc.moveTextStrokesOutside()) statusBar()->showMessage(tr("The strokes of the texts now lie outside the letters; Undo brings the old look back."), 8000);
 }
 
 QString TemplateEditor::defaultFileName() const

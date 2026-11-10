@@ -130,6 +130,7 @@ signals:
   void selectionChanged();
   void guidesChanged();
   void snapped();                                      //!< an item came to rest against the middle or an edge: a tick
+  void openNote(const QString &text);                  //!< something was changed in the template that was just opened (the editor shows it)
 
 private:
   explicit TouchTemplateEditor(QObject *parent=nullptr);

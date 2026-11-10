@@ -644,6 +644,72 @@ int main(int argc, char **argv)
                   te->setProp("fontFamily", "Gone Font 196");
                   if (te->property("sel").toMap().value("fontInstalled").toBool()) {fprintf(stderr, "FAIL: tpl-font-missing: a font that does not exist is reported as installed\n"); exitCode = 1;}
                 }
+              if (what == "oldtext")
+                {
+                  // a template from before the stroke had a side: its text has a stroke centered on the edge of the letters. Opening it moves the
+                  // stroke outside, as one undo step, with a note (#202)
+                  auto fail = [&](const QString &why) {fprintf(stderr, "FAIL: tpl-oldtext: %s\n", qPrintable(why)); exitCode = 1;};
+                  auto whites = [&](const tpl::TemplateDocument &doc) {
+                    QImage im(320, 256, QImage::Format_ARGB32_Premultiplied);
+                    im.fill(Qt::transparent);
+                    QPainter p(&im);
+                    tpl::paintDocument(p, doc, QRectF(0, 0, 320, 256), te->renderOptions());
+                    p.end();
+                    int n = 0;
+                    for (int y = 0; y < im.height(); y++)
+                      for (int x = 0; x < im.width(); x++)
+                        if (qAlpha(im.pixel(x, y)) > 250 && qRed(im.pixel(x, y)) > 250) n++;
+                    return n;
+                  };
+                  tpl::TemplateDocument src;
+                  src.canvas = QRectF(0, 0, 320, 256);
+                  tpl::Element t;
+                  t.type = tpl::ItemType::Text;
+                  t.id = "text-1";
+                  t.text = "WA1";
+                  t.pos = QPointF(30, 150);
+                  t.fill = Qt::white;
+                  t.outline.color = Qt::black;
+                  t.outline.width = 8;
+                  t.outline.join = Qt::RoundJoin;
+                  t.font.family = "Roboto";
+                  t.font.pointSize = 60;
+                  t.font.weight = 700;
+                  const QString path = templatesPath + "oldtext.qtempl";
+                  {
+                    QFile f(path);
+                    if (!f.open(QIODevice::WriteOnly)) fail("cannot write the template");
+                    src.items << t;
+                    f.write(tpl::toJson(src));
+                  }
+                  tpl::TemplateDocument bare = src;
+                  bare.items[0].outline.style = Qt::NoPen;
+                  const int letters = whites(bare), centered = whites(src);
+                  if (centered >= letters) fail(QString("a centered stroke does not eat into the letters (%1 white pixels, %2 without a stroke)").arg(centered).arg(letters));
+                  QSignalSpy note(te, &TouchTemplateEditor::openNote);
+                  if (!te->openFile(path)) fail("the template does not open: " + te->lastError());
+                  if (note.count() != 1) fail("no note about the strokes that moved");
+                  if (!te->property("dirty").toBool() || !te->property("canUndo").toBool()) fail("the template is not marked as changed, with a step to undo");
+                  const int outside = whites(te->document());
+                  if (qAbs(outside - letters) > letters / 50) fail(QString("the letters did not keep their size: %1 white pixels, %2 without a stroke").arg(outside).arg(letters));
+                  te->undo();
+                  if (te->property("dirty").toBool() || whites(te->document()) != centered) fail("undo did not bring back the centered stroke");
+                  te->redo();
+                  if (!te->property("dirty").toBool() || whites(te->document()) != outside) fail("redo did not move it again");
+                  tpl::TemplateDocument fine = src;
+                  fine.items[0].outline.position = tpl::StrokePos::Outside;
+                  {
+                    QFile f(templatesPath + "fine.qtempl");
+                    if (!f.open(QIODevice::WriteOnly)) fail("cannot write the template");
+                    f.write(tpl::toJson(fine));
+                  }
+                  if (!te->openFile(templatesPath + "fine.qtempl") || te->property("dirty").toBool() || note.count() != 1) fail("a template with nothing to move opens changed, or with a note");
+                  QFile::remove(templatesPath + "fine.qtempl");
+                  te->openFile(path);   // the screenshot: the template with the text chosen
+                  QFile::remove(path);
+                  te->select("text-1");
+                  printf("  oldtext  letters %d white pixels, centered stroke %d, outside %d, note, undo, redo\n", letters, centered, outside);
+                }
               if (what.startsWith("fill") || what == "color")
                 {
                   // the color bar of the Add sheet: a rectangle with a fade. The Style tab changes its fill, its gradient, its outline and its shadow (#201)
@@ -783,7 +849,7 @@ int main(int argc, char **argv)
                     }
                   if (what == "fill-shadow") te->setProp("shadow", true);
                 }
-              if (ed && what != "editor" && !what.startsWith("drag")) QMetaObject::invokeMethod(ed, "harness", Q_ARG(QVariant, what == "font-missing" ? QString("font") : what == "fill" ? QString("style") : what == "fill-stops" ? QString("style@0.45") : what == "fill-shadow" ? QString("style@1") : what == "color" ? QString("color:stop") : what));
+              if (ed && what != "editor" && !what.startsWith("drag")) QMetaObject::invokeMethod(ed, "harness", Q_ARG(QVariant, what == "font-missing" ? QString("font") : (what == "fill" || what == "oldtext") ? QString("style") : what == "fill-stops" ? QString("style@0.45") : what == "fill-shadow" ? QString("style@1") : what == "color" ? QString("color:stop") : what));
               if (ed && what.startsWith("drag"))
                 {
                   // a finger on the handle at the bottom right of the chosen item, pulled outward: it must grow, and the finger must keep the handle

@@ -197,7 +197,7 @@ Rectangle {
             }
             PreferenceRow {
                 visible: panel.s.hasOutline === true && panel.s.kind !== "line"
-                title: panel.isText ? qsTr("Stroke of the letters") : panel.strokeWord; checkable: true; checked: panel.s.outlineOn === true
+                title: panel.strokeWord; checkable: true; checked: panel.s.outlineOn === true
                 onToggled: (on) => TemplateEditor.setProp("outlineOn", on)
             }
             Item {

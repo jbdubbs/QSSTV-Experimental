@@ -244,6 +244,21 @@ void EditorDocument::modifyItems(const QVector<tpl::Element> &afterIn, const QSt
   stack.push(new ModifyItemsCommand(this, before, after, text, mergeKey));
 }
 
+bool EditorDocument::moveTextStrokesOutside()
+{
+  QVector<tpl::Element> after;
+  for (const tpl::Element &e : d.items)
+    {
+      if (e.type != tpl::ItemType::Text || e.outline.style == Qt::NoPen || e.outline.width <= 0 || e.outline.position != tpl::StrokePos::Center) continue;
+      tpl::Element m = e;
+      m.outline.position = tpl::StrokePos::Outside;
+      after.append(m);
+    }
+  if (after.isEmpty()) return false;
+  modifyItems(after, tr("Stroke outside the letters"), QString(), false);
+  return true;
+}
+
 void EditorDocument::commitModify(const QVector<tpl::Element> &beforeIn, const QVector<tpl::Element> &afterIn, const QString &text)
 {
   QVector<tpl::Element> before, after;

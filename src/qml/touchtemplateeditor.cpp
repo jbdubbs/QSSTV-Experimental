@@ -153,12 +153,14 @@ bool TouchTemplateEditor::openFile(const QString &path)
     }
   m_doc.load(r.doc,path);
   m_doc.setFile(path,r.doc.fromLegacy);
+  const bool moved=m_doc.moveTextStrokesOutside();   // a template from before the stroke had a side: the letters keep their size
   m_selected.clear();
   setOpen(true);
   emit fileChanged();
   emit dirtyChanged();
   emit undoChanged();
   refreshSelection();
+  if(moved) emit openNote(tr("The strokes of the texts now lie outside the letters. Undo brings the old look back."));
   return true;
 }
 

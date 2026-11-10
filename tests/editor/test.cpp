@@ -1052,7 +1052,10 @@ static void testFiles()
   // open then close untouched: no prompt
   QFile::copy(fixtures + "/synthetic.templ", tmp.filePath("synthetic.templ"));
   check(ed.openFile(tmp.filePath("synthetic.templ")), "a legacy .templ opens");
-  check(d->isLegacyImport() && !d->isModified(), "it is marked as an import and is not modified");
+  // (the texts of this old template have centered strokes: opening it moves them outside, which is its one change, #202)
+  check(d->isLegacyImport() && d->isModified() && d->undoStack()->index() == 1 && d->undoStack()->undoText() == "Stroke outside the letters", "it is marked as an import, and its only change is the strokes of its texts");
+  d->undoStack()->undo();
+  check(!d->isModified(), "without that change it is not modified");
   check(d->doc().items.size() > 5, QString("with its %1 items").arg(d->doc().items.size()));
   const QByteArray original = readAll(tmp.filePath("synthetic.templ"));
   env.unsavedAsked = 0;
@@ -1666,6 +1669,56 @@ static void testShadowCornersPanel()
   }
   const double pr = psnr(canvasImg, rendererImg);
   check(pr > 45, QString("boxed text, blurred shadows and rounded corners look the same on the canvas and in the renderer (PSNR %1 dB)").arg(pr, 0, 'f', 1));
+}
+
+// issue #202: a template from before the stroke had a side has the strokes of its texts centered on the letters' edge; opening it moves them outside
+static void testOldTextStrokes()
+{
+  printf("== the strokes of old texts move outside the letters when a template is opened (#202)\n");
+  Env env;
+  EditorDocument *d = env.d;
+  auto text = [](const QString &id, tpl::StrokePos pos, Qt::PenStyle style) {
+    tpl::Element e = make(tpl::ItemType::Text, QPointF(10, 40));
+    e.id = id;
+    e.text = id;
+    e.outline.width = 3;
+    e.outline.position = pos;
+    e.outline.style = style;
+    return e;
+  };
+  tpl::Element rc = make(tpl::ItemType::Rect, QPointF(10, 100), QSizeF(80, 40));
+  rc.id = "box";
+  rc.outline.style = Qt::SolidLine;
+  rc.outline.width = 3;
+  rc.outline.position = tpl::StrokePos::Center;
+  QTemporaryDir tmp;
+  auto write = [&](const QString &name, const QVector<tpl::Element> &items) {
+    tpl::TemplateDocument doc;
+    doc.canvas = QRectF(0, 0, 320, 256);
+    doc.items = items;
+    QFile f(tmp.filePath(name));
+    f.open(QIODevice::WriteOnly);
+    f.write(tpl::toJson(doc));
+    return tmp.filePath(name);
+  };
+  const QString old = write("old.qtempl", {text("old-text", tpl::StrokePos::Center, Qt::SolidLine), text("new-text", tpl::StrokePos::Outside, Qt::SolidLine),
+                                           text("plain-text", tpl::StrokePos::Center, Qt::NoPen), rc});
+  check(env.ed.openFile(old), "the template opens");
+  check(get(*d, "old-text").outline.position == tpl::StrokePos::Outside, "a text with a centered stroke has it outside now");
+  check(get(*d, "old-text").outline.width == 3 && get(*d, "old-text").outline.style == Qt::SolidLine, "with the width and style it had");
+  check(get(*d, "new-text").outline.position == tpl::StrokePos::Outside && get(*d, "plain-text").outline.position == tpl::StrokePos::Center && get(*d, "plain-text").outline.style == Qt::NoPen,
+        "a text that has its stroke outside, and one that has none, are left alone");
+  check(get(*d, "box").outline.position == tpl::StrokePos::Center, "a rectangle keeps its centered outline");
+  check(d->isModified() && d->undoStack()->index() == 1 && d->undoStack()->undoText() == "Stroke outside the letters", "one undo step, and the template counts as changed");
+  d->undoStack()->undo();
+  check(get(*d, "old-text").outline.position == tpl::StrokePos::Center && !d->isModified(), "undo brings the old look back, and the template is as it was on disk");
+  d->undoStack()->redo();
+  check(get(*d, "old-text").outline.position == tpl::StrokePos::Outside, "redo moves it again");
+  const int index = d->undoStack()->index();
+  check(!d->moveTextStrokesOutside() && d->undoStack()->index() == index, "asked again it moves nothing and adds no step");
+  // a template with nothing to move opens clean
+  const QString fine = write("fine.qtempl", {text("new-text", tpl::StrokePos::Outside, Qt::SolidLine), text("plain-text", tpl::StrokePos::Center, Qt::NoPen), rc});
+  check(env.ed.openFile(fine) && !d->isModified() && d->undoStack()->index() == 0, "a template that has nothing to move opens as it is, unchanged");
 }
 
 // issue #134: the outline can be switched off from the panel, and a width of 0 cannot be entered
@@ -2700,6 +2753,7 @@ int main(int argc, char **argv)
   testTextBoxEditor();
   testShadowCornersPanel();
   testOutlineOffPanel();
+  testOldTextStrokes();
   testSizePreviewAndGuides();
   testPresets();
   testGroupTransformAndSnapping();
