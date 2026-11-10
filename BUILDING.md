@@ -247,7 +247,7 @@ because macOS's audio decoder does not handle Vorbis.
 
 ## Android (in development)
 
-An Android build is being developed on the `android-port` branch. It receives and transmits through the phone's own microphone
+The Android build lives in this tree. It receives and transmits through the phone's own microphone
 and speaker (or a headset or USB audio interface), asks for the microphone permission, keeps receiving with the screen off (a
 foreground service), saves received pictures to the gallery and decodes recordings opened from a file manager ("Open with"). The
 screens are Qt Quick (`src/qml`, built with `-DQSSTV_QML_UI=ON`, which is the default on Android and required there): Receive, Transmit and

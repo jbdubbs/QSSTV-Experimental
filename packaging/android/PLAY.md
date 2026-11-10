@@ -77,7 +77,7 @@ Requirements the build already meets: target API 36, 64-bit libraries only, **16
 > A licensed amateur radio operator is responsible for what is transmitted. Receiving needs no license.
 
 - **What's new** (500, per release): the draft is in `RELEASE-NOTES.md`, with the GitHub release text.
-- **Privacy policy URL:** `https://jbdubbs.github.io/QSSTV-Experimental/pages/privacy.html` (the guide is published from `main`: live after the merge of android-port).
+- **Privacy policy URL:** `https://jbdubbs.github.io/QSSTV-Experimental/pages/privacy.html` (the guide is published from `main`).
 - **Graphics:** app icon 512x512 PNG (`packaging/linux/icons/qsstv-experimental-512.png`), **feature graphic 1024x500 (still to make)**, phone screenshots (at least 2, 16:9 or 9:16;
   take them on a real phone: Receive with a picture, Transmit, Gallery, Settings) and, if tablets are supported, 7" and 10" tablet screenshots.
 
@@ -119,5 +119,5 @@ Video (under 2 minutes): open the app, allow the microphone, start receiving, pl
 ## 8. Before a first upload: still to do on the project side
 
 - The real-phone pass of everything (BUILDING.md): RX/TX on the built-in speaker, DRM, USB adapter PTT and CAT, GPS, the camera, the screen-off soak.
-- A feature graphic and screenshots, a contact address, the merge of `android-port` into `main` (so that the privacy policy URL is live).
+- A feature graphic and screenshots, a contact address.
 - Decide about the APK on GitHub releases (section 2) and whether the version in Play follows the desktop releases.

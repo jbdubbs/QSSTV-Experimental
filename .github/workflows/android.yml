@@ -2,7 +2,7 @@
 # and for the emulator / Chromebooks (x86_64), checks that every native library is aligned for 16 KB pages (Google Play
 # requires it), and uploads the signed APK and, for arm64-v8a, the Android App Bundle (AAB) that goes to Google Play.
 # CI covers the build and the packaging only; audio, USB adapters, GPS and the camera need a real phone (see BUILDING.md).
-# Runs on a push to the android-port branch (and manually), not on every branch.
+# Runs on a push to main (and manually), not on every branch.
 #
 # Signing: with the repository secrets below the APK and the AAB are signed with the upload key (the AAB is what Play takes);
 # without them the APK is signed with a throwaway debug key (installable for testing, not for updating a Play install) and
@@ -13,7 +13,7 @@
 name: Android build
 on:
   push:
-    branches: [android-port]
+    branches: [main]
   workflow_dispatch:     # manual run from the Actions tab
 permissions:
   contents: read
