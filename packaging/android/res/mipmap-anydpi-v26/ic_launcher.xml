@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The launcher icon: the picture fills the whole adaptive icon (res/drawable-nodpi/ic_launcher_background.png, made by
+     packaging/android/make-launcher-icon.py), so the launcher's own mask is the only edge and there is no white plate around it. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background" />
+    <foreground android:drawable="@android:color/transparent" />
+</adaptive-icon>

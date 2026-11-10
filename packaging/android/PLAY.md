@@ -84,7 +84,7 @@ Requirements the build already meets: target API 36, 64-bit libraries only, **16
 
 - **What's new** (500, per release): the draft is in `RELEASE-NOTES.md`, with the GitHub release text.
 - **Privacy policy URL:** `https://jbdubbs.github.io/QSSTV-Experimental/pages/privacy.html` (the guide is published from `main`).
-- **Graphics:** app icon 512x512 PNG (`packaging/linux/icons/qsstv-experimental-512.png`), **feature graphic 1024x500** (a draft is `packaging/android/store/feature-graphic.png`, drawn by `make-feature-graphic.py` there: edit the script and run it again to change it), phone screenshots (at least 2, 16:9 or 9:16;
+- **Graphics:** app icon 512x512 PNG (`packaging/android/store/icon-512.png`: the app icon as a full square, because Play rounds it itself; `make-launcher-icon.py` next to it makes it, and the phone's launcher icon, from `packaging/linux/icons/qsstv-experimental-512.png`), **feature graphic 1024x500** (a draft is `packaging/android/store/feature-graphic.png`, drawn by `make-feature-graphic.py` there: edit the script and run it again to change it), phone screenshots (at least 2, 16:9 or 9:16;
   take them on a real phone: Receive with a picture, Transmit, Gallery, Settings) and, if tablets are supported, 7" and 10" tablet screenshots.
 
 ## 6. Data safety form
