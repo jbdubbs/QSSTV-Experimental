@@ -3,6 +3,7 @@
 // helpers the Settings > Pictures list, the saved pictures and the gallery use must still offer, write and read AVIF.
 // Links the object files of an existing QML-UI build with libavif (tests/imagefmt/app.sh [build-dir], default build-qml).
 #include "avifenc.h"
+#include "jp2io.h"
 #include "supportfunctions.h"
 #include "thumbnailprovider.h"
 
@@ -35,6 +36,19 @@ static double psnr(const QImage &a, const QImage &b)
     }
   se /= 3.0 * x.width() * x.height();
   return se == 0 ? 99 : 10 * std::log10(255.0 * 255.0 / se);
+}
+
+static double brightness(const QImage &a)   // the mean of the red, green and blue values, 0 for an empty picture
+{
+  if (a.isNull()) return 0;
+  const QImage x = a.convertToFormat(QImage::Format_RGB32);
+  double sum = 0;
+  for (int j = 0; j < x.height(); j++)
+    for (int i = 0; i < x.width(); i++) {
+      const QRgb p = x.pixel(i, j);
+      sum += qRed(p) + qGreen(p) + qBlue(p);
+    }
+  return sum / (3.0 * x.width() * x.height());
 }
 
 static QImage testPicture(int w, int h)
@@ -98,6 +112,37 @@ int main(int argc, char **argv)
   bad.write(data.left(20));
   bad.close();
   check(thumbs.requestImage(ThumbnailProvider::idFor(bad.fileName()), &size, QSize()).isNull(), "a damaged AVIF file gives an empty tile, no crash");
+
+  // JPEG2000 is the other DRM picture codec (issue #197): a received .jp2 was a black square in the gallery and the viewer,
+  // because the Android APK has no Qt JPEG2000 plugin (KDE's kimg_jp2) and the provider only knew libavif.
+  printf("== JPEG2000 (no Qt plugin)\n");
+  check(!QImageReader::supportedImageFormats().contains("jp2"), "Qt itself reads no JPEG2000 (the precondition)");
+  const QString jp2 = dir.filePath("received.jp2");
+  {
+    jp2IO enc;
+    QImage decoded;
+    int jp2Size = 0;
+    const QByteArray j = enc.encode(src, decoded, jp2Size, 8);   // as a DRM transmission compresses its picture
+    QFile jf(jp2);
+    check(!j.isEmpty() && jf.open(QIODevice::WriteOnly) && jf.write(j) == j.size(), QString("a DRM style .jp2 file is written (%1 bytes)").arg(j.size()));
+    jf.close();
+  }
+  QImage jback;
+  check(loadImageAutoRotate(jback, jp2), "loadImageAutoRotate reads the .jp2 file");
+  check(jback.size() == src.size(), "the size is kept");
+  const double pj = psnr(src, jback);
+  check(pj > 28, QString("it looks like the original (PSNR %1 dB)").arg(pj, 0, 'f', 1));
+  const QImage tj = thumbs.requestImage(ThumbnailProvider::idFor(jp2), &size, QSize());
+  check(!tj.isNull() && qMax(tj.width(), tj.height()) == 160 && size == tj.size(), QString("the thumbnail of the .jp2 file is %1x%2").arg(tj.width()).arg(tj.height()));
+  const QImage vj = full.requestImage(ThumbnailProvider::idFor(jp2), &size, QSize());
+  check(vj.size() == src.size(), "the viewer gets the whole picture");
+  check(!vj.isNull() && psnr(src, vj) > 28, "and it is the picture, not a black square");
+  check(brightness(tj) > 40, QString("the thumbnail is not black (mean %1)").arg(brightness(tj), 0, 'f', 0));
+  QFile badJp2(dir.filePath("broken.jp2"));
+  if (!badJp2.open(QIODevice::WriteOnly)) return 2;
+  badJp2.write(QByteArray::fromHex("0000000c6a5020200d0a870a"));   // the JP2 signature and nothing else
+  badJp2.close();
+  check(thumbs.requestImage(ThumbnailProvider::idFor(badJp2.fileName()), &size, QSize()).isNull(), "a damaged .jp2 file gives an empty tile, no crash");
 
   printf("\n%s\n", failures ? "FAILED" : "all passed");
   return failures ? 1 : 0;

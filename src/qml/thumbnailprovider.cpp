@@ -1,9 +1,8 @@
 #include "thumbnailprovider.h"
 #include "templatedoc.h"
 #include "templaterender.h"
-#include "avifenc.h"
+#include "supportfunctions.h"
 
-#include <QFile>
 #include <QFileInfo>
 #include <QImageReader>
 #include <QPainter>
@@ -50,13 +49,11 @@ QImage ThumbnailProvider::requestImage(const QString &id,QSize *size,const QSize
           reader.setScaledSize(scaled);
         }
       image=reader.read();
-      if(image.isNull() && avifWriteSupported())
+      if(image.isNull() && loadImageAutoRotate(image,file))
         {
-          // no AVIF plugin (Android): libavif reads it
-          QFile f(file);
-          const QByteArray data=f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
-          if(avifSniff(data)) image=avifDecode(data);
-          if(!image.isNull() && qMax(image.width(),image.height())>m_longSide)
+          // no plugin for the format (Android): libavif reads AVIF, OpenJPEG a DRM picture in JPEG2000 (#197). Both decode the whole
+          // picture, a DRM one is small.
+          if(qMax(image.width(),image.height())>m_longSide)
             image=image.scaled(m_longSide,m_longSide,Qt::KeepAspectRatio,Qt::SmoothTransformation);
         }
     }

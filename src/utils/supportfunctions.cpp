@@ -22,6 +22,7 @@
 #include "supportfunctions.h"
 #include "appglobal.h"
 #include "avifenc.h"
+#include "jp2io.h"
 #include <QDateTime>
 #include <QDebug>
 #include <QImageReader>
@@ -418,6 +419,12 @@ bool loadImageAutoRotate(QImage &im, const QString &fileName)
           const QByteArray data=f.readAll();
           if(avifSniff(data)) im=avifDecode(data);
         }
+    }
+  if(im.isNull())
+    {
+      // no JPEG2000 plugin (Android has none, only OpenJPEG): a picture received over DRM is a .jp2 file (#197)
+      jp2IO jp2;
+      if(jp2.check(fileName)) im=jp2.decode(fileName);
     }
   return !im.isNull();
 }
