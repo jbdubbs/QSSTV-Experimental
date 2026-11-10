@@ -1250,6 +1250,34 @@ int main(int argc, char **argv)
               QTest::qWait(300);
             }
         }
+      if (scene == "tx-send")
+        {
+          // the Send button: the whole width at the foot of a phone upright; on a screen held on its side it is in the right column, under the choices, no bigger
+          // than a button needs to be, and the picture column has the height it freed (#205)
+          auto fail = [&](const char *what) {fprintf(stderr, "FAIL: tx-send: %s\n", what); exitCode = 1;};
+          QQuickItem *t = findItem(content, "transmitScreen"), *send = findShown(content, "sendBar"), *pickers = findShown(content, "pickers");
+          if (!t || !send || !pickers || send->childItems().isEmpty()) fail("no transmitScreen / sendBar / pickers item");
+          else
+            {
+              QTest::qWait(300);
+              auto box = [&](QQuickItem *it) {return QRectF(it->mapToItem(t, QPointF(0, 0)), QSizeF(it->width(), it->height()));};
+              const QRectF s = box(send), p = box(pickers), b = box(send->childItems().first());
+              const bool wide = width >= 600 && width > height * 1.1;
+              printf("  %s: Send bar x %.0f..%.0f y %.0f..%.0f, button %.0f x %.0f dp, the pictures end at y %.0f, the screen is %.0f x %.0f\n", wide ? "wide" : "narrow",
+                     s.left(), s.right(), s.top(), s.bottom(), b.width(), b.height(), p.bottom(), t->width(), t->height());
+              if (qAbs(s.bottom() - t->height()) > 0.5) fail("the Send bar is not at the foot of the screen");
+              if (wide)
+                {
+                  if (s.left() < t->width() / 2 - 0.5 || s.right() > t->width() + 0.5) fail("wide: the Send bar is not in the right column");
+                  if (b.height() > 48.5) fail("wide: the Send button is bigger than a button needs to be");
+                  if (p.right() > t->width() / 2 + 0.5) fail("wide: the ways to get a picture are not in the left column");
+                  if (p.bottom() > t->height() - 16 + 0.5) fail("wide: the picture column runs lower than 16 dp above the foot of the screen");
+                  // on a low window the height is what limits the picture, so it must use all the room under the choices' bar (on a tall one the width limits it)
+                  if (height < 500 && p.bottom() < t->height() - 16 - 2) fail("wide: the picture column does not use the height the Send button left");
+                }
+              else if (s.width() < t->width() - 0.5 || b.height() < 55.5) fail("narrow: the Send bar is not the whole width, 56 dp high");
+            }
+        }
       if (scene == "tx-volume-room")
         {
           // the volume card (the device, the percentage, the slider) is in view above the Send bar without scrolling the page (#178: the framing row under the

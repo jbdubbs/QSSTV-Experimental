@@ -177,6 +177,7 @@ Column {
     readonly property real belowHeight: pickers.height + spacing
     Flow {
         id: pickers
+        objectName: "pickers"
         x: Theme.margin
         width: parent.width - 2 * Theme.margin
         spacing: 8

@@ -19,15 +19,19 @@ Item {
         width: parent.width - 2 * Theme.margin
     }
 
-    // Send, at the thumb, under everything
+    // Send, at the thumb. Narrow: the whole width at the foot, under everything. Wide (a phone on its side): in the right column, under the choices,
+    // at the usual size of a button, and the picture column takes the rest of the height (#205)
     Item {
         id: sendBar
         objectName: "sendBar"
-        anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-        height: 56 + 16
+        x: screen.wide ? screen.width / 2 : 0
+        width: screen.wide ? screen.width / 2 : screen.width
+        anchors.bottom: parent.bottom
+        height: screen.wide ? 8 + Theme.tap + 16 : 8 + 56 + 8
         WideButton {
             x: Theme.margin; y: 8
             width: parent.width - 2 * Theme.margin
+            height: screen.wide ? Theme.tap : 56
             text: TxController.hasPicture ? qsTr("Send") : qsTr("Choose a picture first")
             icon: TxController.hasPicture ? Icons.send : ""
             enabledLook: TxController.hasPicture
@@ -35,12 +39,12 @@ Item {
         }
     }
 
-    // narrow: everything one under the other, scrolling; wide: the picture at the left, the choices at the right
+    // narrow: everything one under the other, scrolling; wide: the picture at the left, the choices at the right (with Send under them)
     Item {
         id: body
         anchors.top: strip.bottom; anchors.topMargin: 6
         anchors.left: parent.left; anchors.right: parent.right
-        anchors.bottom: sendBar.top
+        anchors.bottom: screen.wide ? parent.bottom : sendBar.top
 
         Flickable {
             visible: !screen.wide
@@ -62,16 +66,17 @@ Item {
             anchors.fill: parent
             // the picture (with its framing) and the ways to get a picture: they scroll when the screen is too low for them (a phone on its side)
             Flickable {
-                anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
+                anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom; anchors.bottomMargin: 16   // its foot 16 dp above the screen's, as the Send button's
                 width: parent.width * 0.5
                 contentWidth: width
                 contentHeight: wideBlock.height
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
-                TxPictureBlock { id: wideBlock; width: parent.width; maxCanvasHeight: Math.max(150, body.height - wideBlock.belowHeight) }
+                TxPictureBlock { id: wideBlock; width: parent.width; maxCanvasHeight: Math.max(150, body.height - 16 - wideBlock.belowHeight) }
             }
             Flickable {
-                anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom
+                anchors.right: parent.right; anchors.top: parent.top
+                height: parent.height - sendBar.height   // the choices scroll above the Send button (not an anchor: the bar is not a sibling)
                 width: parent.width * 0.5
                 contentWidth: width
                 contentHeight: wideOptions.height
