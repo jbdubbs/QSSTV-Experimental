@@ -24,6 +24,7 @@
 
 #include "appglobal.h"
 #include "imagesettings.h"
+#include "frameimage.h"
 
 #include <QMediaDevices>
 #include <QVideoFrameFormat>
@@ -115,7 +116,7 @@ void cameraDialog::slotBeaconModeChanged(int idx)
 void cameraDialog::slotVideoFrameChanged(const QVideoFrame &frame)
 {
   if(!frame.isValid()) return;
-  QImage img=frame.toImage();
+  QImage img=videoFrameImage(frame);   // turned and mirrored the way the camera says (a phone's sensor is sideways)
   if(img.isNull())
     {
       // Keep the last good frame; a single undecodable frame must not discard the snapshot.

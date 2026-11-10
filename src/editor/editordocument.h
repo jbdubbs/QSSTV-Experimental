@@ -58,6 +58,11 @@ public:
       undo step, until breakMerge() is called. In an anchored template an item that moves or changes size takes the
       anchors its new place suggests (tpl::reanchor) unless followAnchors is false. */
   void modifyItems(const QVector<tpl::Element> &after, const QString &text, const QString &mergeKey = QString(), bool followAnchors = true);
+  /*! A template from before the stroke had a side has the stroke of its texts centered on the edge of the letters, which
+      eats into them. Moves every such stroke outside (one undo step, so the document counts as changed); returns whether
+      anything was moved. Shapes keep their outline as it is until its owner changes it. Not part of load(): that leaves the
+      document clean. */
+  bool moveTextStrokesOutside();
   /*! Same with the previous state given by the caller (the canvas took it before a drag started). */
   void commitModify(const QVector<tpl::Element> &before, const QVector<tpl::Element> &after, const QString &text);
   void reorder(const QStringList &newOrder, const QString &text);

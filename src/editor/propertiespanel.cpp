@@ -226,14 +226,14 @@ void PropertiesPanel::build()
   fl->addWidget(radiusRow);
   top->addWidget(fillBox);
 
-  // --- outline ---------------------------------------------------------------------------------------------
-  outlineBox = new QGroupBox(tr("Outline"));
-  outlineBox->setCheckable(true);   // unticked = no outline at all; Qt greys out what is inside
-  outlineBox->setToolTip(tr("Untick to draw no outline"));
+  // --- stroke (the outline: its line lies outside the edge of the item) -----------------------------------------
+  outlineBox = new QGroupBox(tr("Stroke"));
+  outlineBox->setCheckable(true);   // unticked = no stroke at all; Qt greys out what is inside
+  outlineBox->setToolTip(tr("Untick to draw no stroke"));
   QFormLayout *ol = new QFormLayout(outlineBox);
-  outlineColorButton = swatch(tr("Outline color (click to change)"));
+  outlineColorButton = swatch(tr("Stroke color (click to change)"));
   outlineWidthSpin = spin(0.5, 200, 0.5, 1, QStringLiteral(" px"));
-  outlineWidthSpin->setToolTip(tr("Width of the outline; to remove the outline, untick the box above"));
+  outlineWidthSpin->setToolTip(tr("Width of the stroke; to remove the stroke, untick the box above"));
   outlineStyleCombo = new QComboBox;
   outlineStyleCombo->addItem(tr("Solid"), int(Qt::SolidLine));
   outlineStyleCombo->addItem(tr("Dashed"), int(Qt::DashLine));
@@ -243,7 +243,7 @@ void PropertiesPanel::build()
   outlineJoinCombo->addItem(tr("Round"), int(Qt::RoundJoin));
   outlineJoinCombo->addItem(tr("Miter"), int(Qt::MiterJoin));
   outlineJoinCombo->addItem(tr("Bevel"), int(Qt::BevelJoin));
-  outlineJoinCombo->setToolTip(tr("Shape of the outer corners of the outline"));
+  outlineJoinCombo->setToolTip(tr("Shape of the outer corners of the stroke"));
   outlineJoinLabel = new QLabel(tr("Corners"));
   ol->addRow(tr("Color"), outlineColorButton);
   ol->addRow(tr("Width"), outlineWidthSpin);
@@ -325,7 +325,7 @@ void PropertiesPanel::build()
   xSpin->setToolTip(tr("Distance of the left edge from the left side of the picture, in picture pixels"));
   ySpin->setToolTip(tr("Distance of the top edge from the top of the picture, in picture pixels"));
   wSpin->setToolTip(tr("Width (text items are sized by their font size)"));
-  hSpin->setToolTip(tr("Height (text items are sized by their font size; a line's thickness is its outline width)"));
+  hSpin->setToolTip(tr("Height (text items are sized by their font size; a line's thickness is its stroke width)"));
   rotSpin->setToolTip(tr("Rotation about the center of the item. Shift while dragging the rotate handle snaps to 15°"));
   shearHSpin->setToolTip(tr("Horizontal skew"));
   shearVSpin->setToolTip(tr("Vertical skew"));
@@ -410,25 +410,25 @@ void PropertiesPanel::build()
   });
 
   connect(outlineBox, &QGroupBox::toggled, this, [this](bool on) {
-    apply([on](tpl::Element &e) { e.outline.style = on ? Qt::SolidLine : Qt::NoPen; }, on ? tr("Add outline") : tr("Remove outline"), QString());
+    apply([on](tpl::Element &e) { e.outline.style = on ? Qt::SolidLine : Qt::NoPen; e.outline.position = tpl::StrokePos::Outside; }, on ? tr("Add stroke") : tr("Remove stroke"), QString());
   });
   connect(outlineColorButton, &QPushButton::clicked, this, [this]() {
     const QVector<tpl::Element> sel = canvas->selectedElements();
     if (sel.isEmpty()) return;
-    const QColor c = pickColor(sel.first().outline.color, tr("Outline color"));
+    const QColor c = pickColor(sel.first().outline.color, tr("Stroke color"));
     if (!c.isValid()) return;
-    apply([c](tpl::Element &e) { e.outline.color = c; }, tr("Change outline"), QString());
+    apply([c](tpl::Element &e) { e.outline.color = c; e.outline.position = tpl::StrokePos::Outside; }, tr("Change stroke"), QString());
   });
   connect(outlineWidthSpin, &QDoubleSpinBox::valueChanged, this, [this](double v) {
-    apply([v](tpl::Element &e) { e.outline.width = v; }, tr("Change outline"), QStringLiteral("owidth"));
+    apply([v](tpl::Element &e) { e.outline.width = v; e.outline.position = tpl::StrokePos::Outside; }, tr("Change stroke"), QStringLiteral("owidth"));
   });
   connect(outlineStyleCombo, &QComboBox::activated, this, [this](int i) {
     const Qt::PenStyle st = Qt::PenStyle(outlineStyleCombo->itemData(i).toInt());
-    apply([st](tpl::Element &e) { e.outline.style = st; }, tr("Change outline"), QString());
+    apply([st](tpl::Element &e) { e.outline.style = st; e.outline.position = tpl::StrokePos::Outside; }, tr("Change stroke"), QString());
   });
   connect(outlineJoinCombo, &QComboBox::activated, this, [this](int i) {
     const Qt::PenJoinStyle js = Qt::PenJoinStyle(outlineJoinCombo->itemData(i).toInt());
-    apply([js](tpl::Element &e) { e.outline.join = js; }, tr("Change outline"), QString());
+    apply([js](tpl::Element &e) { e.outline.join = js; e.outline.position = tpl::StrokePos::Outside; }, tr("Change stroke"), QString());
   });
 
   connect(textEdit, &QPlainTextEdit::textChanged, this, [this]() {
@@ -623,7 +623,7 @@ void PropertiesPanel::refresh()
   anchorVCombo->setCurrentIndex(qMax(0, anchorVCombo->findData(int(e.anchorV))));
   anchorHint->setVisible(anyTurned || anyFreeText);
 
-  QString outlineTitle = tr("Outline");
+  QString outlineTitle = tr("Stroke");
   if (sameType && e.type == tpl::ItemType::Line) outlineTitle = tr("Line");
   else if (sameType && (e.type == tpl::ItemType::Image || e.type == tpl::ItemType::Replay)) outlineTitle = tr("Border");
   outlineBox->setTitle(outlineTitle);

@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
-<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html" aria-current="page">Install and first run</a></li><li><a href="main-window.html">Main window tour</a></li><li><a href="receive.html">Receiving</a></li><li><a href="transmit.html">Transmitting</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="template-editor.html">Template editor</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="sstv-modes.html">SSTV modes</a></li><li><a href="drm.html">Digital SSTV (DRM)</a></li><li><a href="calibration.html">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
+<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html" aria-current="page">Install and first run</a></li><li><a href="main-window.html">Main window tour</a></li><li><a href="receive.html">Receiving</a></li><li><a href="transmit.html">Transmitting</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="template-editor.html">Template editor</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="sstv-modes.html">SSTV modes</a></li><li><a href="drm.html">Digital SSTV (DRM)</a></li><li><a href="calibration.html">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="android.html">Android</a></li><li><a href="privacy.html">Privacy policy</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
 <main>
 
 <h1>Install and first run</h1>
@@ -17,6 +17,7 @@
 <li><a href="#source">Building from source</a></li><li><a href="#first">First run checklist</a></li></ul></div>
 
 <p>Pre-built releases are on the <a href="https://github.com/jbdubbs/QSSTV-Experimental/releases">Releases page</a>. Most people should use one of those.</p>
+<p>On an Android phone or tablet, see the <a href="android.html">Android</a> page.</p>
 
 <h2 id="appimage">Linux AppImage</h2>
 <p>The AppImage is a single self-contained file that bundles Qt 6 and the other runtime libraries. It is built for
@@ -54,8 +55,8 @@ sudo cmake --install build</code></pre>
 <p>If your distribution's Hamlib is too old or missing, build Hamlib yourself and pass
 <code class="wrap"><span class="nb">-DHAMLIB_ROOT=/path/to/hamlib/install</span></code> to the first <code>cmake</code> command. Debug builds additionally need
 Qwt. <code>BUILDING.md</code> also covers the AppImage build, the arm64 build, and the Windows cross-compile from Fedora.</p>
-<p>When you build from source, the AVIF and HEIC image formats depend on the Qt image-format plugins installed on your system.
-The AppImage and Windows packages include them.</p>
+<p>When you build from source, AVIF needs libavif (the one the DRM AVIF option uses) and HEIC depends on the Qt image-format plugins installed on your system.
+The AppImage and Windows packages include both.</p>
 
 <h2 id="first">First run checklist</h2>
 <p>Open <span class="ui">Options &gt; Configuration</span> and work through these pages. Click <span class="ui">OK</span> when you are

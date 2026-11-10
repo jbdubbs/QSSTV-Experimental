@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Android - QSSTV-Experimental User&#x27;s Guide</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html">Install and first run</a></li><li><a href="main-window.html">Main window tour</a></li><li><a href="receive.html">Receiving</a></li><li><a href="transmit.html">Transmitting</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="template-editor.html">Template editor</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="sstv-modes.html">SSTV modes</a></li><li><a href="drm.html">Digital SSTV (DRM)</a></li><li><a href="calibration.html">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="android.html" aria-current="page">Android</a></li><li><a href="privacy.html">Privacy policy</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
+<main>
+
+<h1>Android</h1>
+<p class="lead">QSSTV-Experimental runs on Android phones and tablets with a screen of its own, made for fingers: three screens (Receive, Transmit and Gallery), a settings list without OK and Cancel, and a first-start setup.
+It receives and sends pictures through the phone's own microphone and speaker, a headset cable or a USB audio interface, and it can key a transmitter and read its frequency through a USB serial interface
+(Digirig and similar). The modes, the pictures and the radio side work as described in the rest of this guide; this page covers the Android screens.</p>
+
+<h2>Requirements and installation</h2>
+<ul>
+<li>Android 10 or newer. The phone version is for 64-bit ARM processors, which is nearly every current phone. There is also a build for Android on x86_64 (the emulator, some Chromebooks).</li>
+<li>Install it from Google Play, or download the <code>.apk</code> file from the <a href="https://github.com/jbdubbs/QSSTV-Experimental/releases">releases page</a> and open it (Android asks once to allow installing from your browser or file manager).</li>
+<li>Permissions are asked when they are needed, with the reason on the screen: the <strong>microphone</strong> at the sound step of the first-start setup, <strong>notifications</strong> (Android 13 and newer: the one that tells you the program is receiving) right after, the <strong>camera</strong> when you tap <span class="ui">Camera</span>, the <strong>location</strong> when you switch the position on, and a <strong>USB adapter</strong> when you plug it in.</li>
+</ul>
+
+<h2>The first start</h2>
+<div class="shots"><figure><img src="../images/android-setup.png" alt="The first-start setup: who is on the air, with fields for the call sign, the first and last name and the city" loading="lazy"><figcaption>The first start asks who is on the air.</figcaption></figure></div>
+<p>The first time the program starts it shows three short steps. Each can be skipped with <span class="ui">Skip</span>, and <strong>Back</strong> goes to the step before.</p>
+<ol>
+<li><strong>Who is on the air?</strong> Your call sign, first and last name and city. They can go on the pictures you send. You can leave them empty and fill them in later under <span class="ui">Settings &gt; Operator</span>. The call sign is also what the program sends in morse code (<span class="ui">Text sent as CW</span> under <span class="ui">Settings &gt; Advanced &gt; CW and waterfall</span>) until you write a text of your own there.</li>
+<li><strong>Where does the sound come from?</strong> Start with the phone's own microphone and speaker. The system asks to allow the microphone here. The level meter on this page moves with the sound, so a wrong choice shows at once; <span class="ui">Microphone</span> and <span class="ui">Speaker</span> change it if you use a cable.</li>
+<li><strong>Control your radio?</strong> Shown only when a USB adapter is plugged in; <span class="ui">Set up the radio</span> opens the radio settings. Skip it if you use VOX.</li>
+</ol>
+<p>The setup does not come back, and it is not shown when a call sign is already set.</p>
+
+<h2>The screens</h2>
+<div class="shots">
+<figure><img src="../images/android-receive.png" alt="The Receive screen with a picture coming in" loading="lazy"><figcaption>Receive</figcaption></figure>
+<figure><img src="../images/android-transmit.png" alt="The Transmit screen with a picture, the mode choices and the Send button" loading="lazy"><figcaption>Transmit</figcaption></figure>
+<figure><img src="../images/android-gallery.png" alt="The Gallery with the received pictures grouped by day" loading="lazy"><figcaption>Gallery</figcaption></figure>
+</div>
+<p>The bar at the bottom switches between <span class="ui">Receive</span>, <span class="ui">Transmit</span> and <span class="ui">Gallery</span> (on a tablet or a phone held sideways it is a column at the left edge). At the top of each screen are its
+title, the <strong>route chip</strong> that says where the sound goes (<em>Phone speaker</em>, or the USB interface; a tap opens the sound settings) and the menu <span class="ui">&#8942;</span>:
+<span class="ui">Decode a recording...</span> on Receive, <span class="ui">Transmit tools...</span> on Transmit, and on every screen <span class="ui">Settings</span>, <span class="ui">Help</span> (this guide) and <span class="ui">About</span>.</p>
+<p>Under the title of Receive and Transmit is one button with two parts: <span class="ui">Analog SSTV</span> and <span class="ui">Digital (DRM)</span>. It is the same choice on both screens; switching one switches the other.</p>
+<p>The <strong>Back</strong> button (or gesture) closes what is in front: a dialog or sheet, the picture viewer, a page of the settings, the selection in the gallery. On Receive with nothing open it sends the program to the background and
+<em>keeps it receiving</em>. To stop listening, tap <span class="ui">Listening</span> under the picture on the Receive screen (the notification has a <span class="ui">Stop</span> button too).</p>
+
+<h2>Receive</h2>
+<ul>
+<li>The program <strong>listens by itself</strong> when it starts. The picture grows line by line as it arrives; the chips under it show the state (<em>Listening</em>, or <em>Stopped</em>) and the mode (<em>Mode: Auto</em>, or the mode being received, with the line count). A tap on <em>Mode</em> opens the list of modes: leave it on <span class="ui">Auto</span> and the program finds the mode itself, or pick one to listen for that mode only (the chip is then highlighted, and the choice is kept until you change it). It is not offered while a picture is coming in, nor for <span class="ui">Digital (DRM)</span>.</li>
+<li>The <strong>input level</strong> is a bar with a green target zone and words: <em>Too quiet</em>, <em>Good</em>, <em>Too loud</em>. Under it is the waterfall of the received sound; it fills the rest of the screen.</li>
+<li>The first chip under the picture starts and stops the receiver: <span class="ui">Listening</span> (with a stop square) stops it, <span class="ui">Stopped</span> (with a play triangle) starts it again. It is there between pictures; while one is coming in, the notification's <span class="ui">Stop</span> still ends the receiving. The control with the sliders at the top right opens the <strong>receive options</strong>: save pictures automatically, and correct the slant of pictures from a radio whose clock is off (both are on when you first start the program). More of them are under <span class="ui">Settings &gt; Advanced &gt; Receive</span>.</li>
+<li>When a picture is complete, <em>Saved to Gallery</em> appears with <span class="ui">View</span>.</li>
+<li>If the microphone is blocked, a banner says so, with <span class="ui">Allow</span> to open the system settings; the receiver starts when you come back.</li>
+</ul>
+
+<h2>Transmit</h2>
+<div class="shots">
+<figure><img src="../images/android-transmit.png" alt="The Transmit screen" loading="lazy"><figcaption>Choose a picture, check the time, press Send.</figcaption></figure>
+<figure><img src="../images/android-sending.png" alt="The sending screen with a progress ring and a Stop button" loading="lazy"><figcaption>While a picture is sent.</figcaption></figure>
+</div>
+<ul>
+<li><strong>The picture.</strong> <span class="ui">Photos</span> opens Android's photo picker, <span class="ui">Camera</span> takes a picture, <span class="ui">Files</span> opens the file picker. A picture shared from another app (<em>Share &gt; QSSTV-Experimental</em>) arrives here too, and so does one chosen in the Gallery.</li>
+<li><strong>Framing.</strong> How the picture fits the frame of the mode: the small dark button at the top right of the picture, under its size, names the choice. Tap it to see the list. <span class="ui">Stretch</span> fills the frame and may squash the picture, <span class="ui">Crop</span> fills it and cuts off the edges, <span class="ui">Fit</span> shows the whole picture with bars where it is too narrow, and with <span class="ui">Free</span> you place it yourself: pinch to zoom, drag to move (a hint on the picture says so until you have moved it), and <span class="ui">Reset</span>, a button that appears under the framing one, puts the whole picture back. A single picture on the <span class="ui">Digital (DRM)</span> side is always Free, so the framing button is not there. The choice is kept, and it cannot be changed while a picture is being sent.</li>
+<li><strong>Template.</strong> The template that goes on the picture. Tap the row to choose one from the list (with a small picture of each), <span class="ui">None</span> to send the picture as it is, to <span class="ui">Edit this template</span> or to make a <span class="ui">New template</span>; see <em>Templates</em> below.</li>
+<li><strong>Details.</strong> Appears under <em>Template</em> while a template is on the picture. Tap it to set who the picture is for, the operator name and the report; your call sign comes from the settings.</li>
+<li><strong>The mode.</strong> The four buttons are favorites (Scottie 1, Martin 1, PD120, Robot 36); they stay in one row, so slide it sideways when the screen is too narrow to show them all. <span class="ui">All modes</span> lists every mode with its picture size and time. The time the transmission takes is always shown. On the <span class="ui">Digital (DRM)</span> side you choose one of the saved profiles and the size of the picture, with the estimated time.</li>
+<li><strong>Volume.</strong> The card at the bottom shows where the sound goes and the phone's media volume, with a slider; the volume keys of the phone work too, and the percentage follows them also while a picture is sent. A red note appears when the volume is off. With <span class="ui">System default</span> as the speaker the sound goes where Android plays music, which is the device the volume keys change (the card then names it, a Bluetooth headset for one). If you chose a device by hand that is not that one (the phone speaker while a Bluetooth headset is connected), the volume keys cannot change it: the card says which device they change and offers <span class="ui">Use system default</span>.</li>
+<li><span class="ui">Send</span> starts the transmission. A full-screen page then shows the progress and the time left, keeps the screen on, and has <span class="ui">Stop</span>.</li>
+<li><span class="ui">&#8942; &gt; Transmit tools...</span> has the test pattern, text in the waterfall (or your call sign), CW identification, a test tone and a frequency sweep.</li>
+</ul>
+
+<h2>Gallery</h2>
+<div class="shots">
+<figure><img src="../images/android-viewer.png" alt="A picture on the whole screen with Share, Send by radio, Info and Delete under it" loading="lazy"><figcaption>A picture opened.</figcaption></figure>
+<figure><img src="../images/android-select.png" alt="The gallery with two pictures selected and the selection bar on top" loading="lazy"><figcaption>Pictures selected.</figcaption></figure>
+</div>
+<ul>
+<li>The tabs <span class="ui">Received</span>, <span class="ui">Sent</span> and <span class="ui">Templates</span> show the pictures newest first, grouped by day, with a badge for the mode (<em>SSTV</em>, <em>DRM</em> or the mode name). There are no pages: the list scrolls.</li>
+<li><strong>Tap</strong> a picture to open it on the whole screen. Swipe to the next one; pinch or double-tap to zoom, drag to move; a tap on the picture hides or shows the bars. Under it: <span class="ui">Share</span> (to another app), <span class="ui">Send by radio</span> (loads it on the Transmit screen; for a template it says <span class="ui">Use template</span>), <span class="ui">Info</span> (name, time, mode, size) and <span class="ui">Delete</span>.</li>
+<li><strong>Touch and hold</strong> a picture to select it, then tap others. The bar on top has <span class="ui">All</span>, send, share (for one picture) and delete. Back leaves the selection.</li>
+<li><strong>Delete</strong> takes the pictures out of the list at once and shows <em>Undo</em> for a few seconds; after that they are removed from the phone.</li>
+<li>Received pictures are also copied to the phone's own picture library, in <code>Pictures/QSSTV-Experimental</code>. A DRM picture that arrived as JPEG 2000, which Android cannot show, is copied as a PNG, and <span class="ui">Share</span> sends a PNG of it too; the picture in the Gallery stays as it was received.</li>
+</ul>
+
+<h2>Templates</h2>
+<div class="shots">
+<figure><img src="../images/android-template-editor.png" alt="The template editor with a text chosen and its text, macros, size and font under the picture" loading="lazy"><figcaption>A text chosen: its text, size and font.</figcaption></figure>
+<figure><img src="../images/android-template-add.png" alt="The Add list: text, rectangle, ellipse, line, picture, replay window and color bar" loading="lazy"><figcaption>Add something.</figcaption></figure>
+</div>
+<p>A template puts your call sign, the report, the time and other details on a picture before it is sent. The editor shows the template over a sample picture, with sample values (<em>N0CALL</em>, <em>W1AW</em>, <em>595</em>) in place of the codes. <span class="ui">More &gt; Preview with sample data</span> switches to the codes themselves (<code>%m</code>, <code>%c</code>, <code>%r</code>).</p>
+<ul>
+<li><strong>Start.</strong> In the Gallery, on the <span class="ui">Templates</span> tab, <span class="ui">New template</span> offers a blank template and three starters. To change one you have, open it and tap <span class="ui">Edit</span>; from the Transmit screen use the <em>Template</em> row.</li>
+<li><strong>Choose</strong> an item with a tap. <strong>Move</strong> it by dragging it; it snaps to the middle and the edges of the picture. <strong>Resize</strong> it with the round handles (on a text that is not in a box the corners make the letters bigger or smaller), <strong>turn</strong> it with the handle above it (it snaps to every 45 degrees; two fingers also work), and use the small bar beside it to <span class="ui">Duplicate</span>, <span class="ui">Delete</span> or <span class="ui">Lock</span> it.</li>
+<li><span class="ui">Edit</span> opens the panel under the picture. <span class="ui">Text</span> has the words, chips for the codes (<span class="ui">All...</span> lists them with what they mean), the size, the font, <span class="ui">Bold</span> and <span class="ui">Italic</span>. The font chip (the name of the font, written in that font) opens a list of the fonts of the phone, each name in its own letters; the list is whatever the phone has, so it differs from phone to phone (the fonts made for other scripts, such as Chinese or Khmer, come last under <span class="ui">More fonts</span>). <span class="ui">Bold</span> and <span class="ui">Italic</span> work with every font; one that has no bold or italic of its own is thickened or slanted. A template keeps the name of its font: where that font is missing (a template made on a computer, or on another phone) another font is used to draw it, and the chip turns amber. <span class="ui">Style</span> has the fill, the opacity, the stroke, the rounded corners and the shadow. The fill is <span class="ui">Solid</span> (one color: tap a swatch, or the last swatch for any color, with its hue, saturation, brightness and opacity) or a gradient, <span class="ui">Linear</span>, <span class="ui">Radial</span> or <span class="ui">Conical</span>. A gradient is a row of colors, the dots under its ramp: choose one to change its color, its position and its opacity, <span class="ui">Add</span> or <span class="ui">Remove</span> one, <span class="ui">Reverse</span> the order, and set the <span class="ui">Direction</span> of a linear or conical gradient. The <span class="ui">Color bar</span> of the Add list is a rectangle with a linear gradient that fades out: choose <span class="ui">Solid</span> to make it one color (it keeps the strongest color of the gradient, and <span class="ui">Linear</span> brings the gradient back). <span class="ui">Stroke</span> draws a line round the item, outside its edge, so the item keeps its size and its fill is not covered (the letters of a text keep their shape, and the wider the stroke the more they stand out); when you switch it on it gets a width that can be seen, and its color is a swatch or any color. On the replay window the same row is called <span class="ui">Border</span> and lies inside its frame. A template made before this had an outline centered on the edge, half of it inside the letters. When you open such a template the strokes of its texts move outside the letters (a note says so; <span class="ui">Undo</span> brings the old look back, and leaving without saving asks <em>Keep the changes?</em>); the outline of a rectangle or an ellipse stays as it was until you change its stroke. The shadow has its own color, distances and blur, and the shadow of an item with a gradient fades as the gradient does. <span class="ui">Place</span> has the position, size and turn in numbers, with <span class="ui">+</span> and <span class="ui">&minus;</span> for small steps, and tells how the item follows when the picture is another size.</li>
+<li><span class="ui">Add</span> has text, rectangle, ellipse, line, picture, replay window (where the picture you reply to goes) and color bar. <span class="ui">Layers</span> lists the items, front first: tap one to choose it, use the arrows to move it forward or back, and the lock to keep it from being moved by accident.</li>
+<li><span class="ui">Undo</span> and <span class="ui">Redo</span> are at the top. The check mark saves; a new template asks for a name once. <span class="ui">More &gt; Save a copy as...</span> keeps the original. Leaving with unsaved changes asks <em>Keep the changes?</em></li>
+</ul>
+<p>Some things of the desktop template editor are not on the phone: skew, text box options, choosing several items, aligning, the grid and the import from MMSSTV. Templates made on a computer open here, and the ones made here open on the computer.</p>
+
+<h2>Settings</h2>
+<div class="shots">
+<figure><img src="../images/android-settings.png" alt="The settings list with Operator, Audio and radio, Position, Pictures, Appearance and Advanced" loading="lazy"><figcaption>The settings list.</figcaption></figure>
+<figure><img src="../images/android-audio.png" alt="The Audio and radio page with microphone, gain, level, speaker and volume" loading="lazy"><figcaption>Audio and radio.</figcaption></figure>
+</div>
+<p><span class="ui">&#8942; &gt; Settings</span> shows a list with the current value under each name. There is no OK and no Cancel: <strong>a change is kept as soon as it is made</strong>. <span class="ui">Back</span> goes one level up.</p>
+<ul>
+<li><span class="ui">Operator</span>: call sign, names and city.</li>
+<li><span class="ui">Audio and radio</span>: the microphone and what the phone may do to it, the receive gain, the live input level, the speaker, the media volume, <span class="ui">Test sound</span>, and the radio control (see below).</li>
+<li><span class="ui">Position</span>: the phone's position for the pictures, the city and state lookup and the coordinate format.</li>
+<li><span class="ui">Pictures</span>: the file format of received pictures (PNG, JPEG, AVIF ...) and whether to keep a copy of what you send.</li>
+<li><span class="ui">Appearance</span>: the colors of the program (see <a href="#looks">Looks, large text and screen readers</a>).</li>
+<li><span class="ui">Advanced</span>: <span class="ui">Receive</span> (sensitivity, how much of a picture is kept), <span class="ui">CW and waterfall</span> (text, tone, speed and the markers), <span class="ui">Calibration</span> (the sound clock, see below), <span class="ui">Digital (DRM) profiles</span> and <span class="ui">Frequencies</span> (see below). <span class="ui">Templates</span> goes to the Gallery. <span class="ui">Classic settings</span> opens the full list of options of the desktop program.</li>
+</ul>
+
+<h2>Calibrating the sound clock</h2>
+<div class="shots">
+<figure><img src="../images/android-calibration.png" alt="The Calibration page with the receive and send clock and three ways to measure" loading="lazy"><figcaption>The clocks in use, and three ways to measure them.</figcaption></figure>
+<figure><img src="../images/android-calibration-ntp.png" alt="A measurement with internet time that is good enough to save, with its plot" loading="lazy"><figcaption>A measurement that can be saved.</figcaption></figure>
+</div>
+<p>Every sound device counts time a little fast or slow. It shows on the long modes, where the lines of a picture slant. <span class="ui">Settings &gt; Advanced &gt; Calibration</span> measures how much, against a real clock, and the program then corrects for it. The page shows the <em>receive clock</em> and the <em>send clock</em> in use (48,000 Hz when nothing was measured) and when and how they were measured. One pair is kept for the whole program, for the sound device that was in use when you measured: if you change to a headset or a USB interface, measure again.</p>
+<ul>
+<li><strong>Internet time</strong> needs only a connection. The phone compares the sound it receives with what three time servers say; the servers can be changed on the page. Save lights up after 2 minutes, when the uncertainty is 10 ppm or better; 30 minutes is more exact (ppm: parts per million, 12.9 ppm is 0.0013 %).</li>
+<li><strong>Radio time signal (WWV)</strong> uses the one second ticks of WWV (1000 Hz) or WWVH (1200 Hz) on 2.5, 5, 10, 15 or 20 MHz. Hold the phone near the radio's speaker or use an audio cable or interface; the level meter says whether the ticks are loud enough. The tick plot shows a straight vertical line when the clock is right. Save lights up after 20 ticks; about 5 minutes is better.</li>
+<li><strong>Another SSTV station</strong> is for when neither is available. One station sends a black picture with one straight line, the other receives it and measures how much the line slants. The result is only as good as the clock of the other station, so one of you must have been calibrated in one of the other ways. <span class="ui">Save</span> applies the result and keeps listening, so the next picture shows whether the line is now straight.</li>
+</ul>
+<p>While you measure, the screen stays on and receiving stops; it starts again when you leave the page. <span class="ui">Use it for sending too</span> (on by default) applies the result to the send clock as well, as most sound devices run input and output from one clock. A result more than 0.2 % off is refused: that is a wrong input, not a clock. <span class="ui">Back to 48,000 Hz</span> forgets the measured clock.</p>
+
+<h2>Digital profiles and frequencies</h2>
+<div class="shots">
+<figure><img src="../images/android-drm-profile.png" alt="One digital profile with its name and the six settings, each with a line that says what it does" loading="lazy"><figcaption>A digital profile.</figcaption></figure>
+<figure><img src="../images/android-frequencies.png" alt="The list of frequencies, split into analog SSTV and digital, with the Add button" loading="lazy"><figcaption>The frequencies.</figcaption></figure>
+<figure><img src="../images/android-tune.png" alt="The Tune the radio list on the Receive screen, one frequency marked as the one the radio is on" loading="lazy"><figcaption>Tuning the radio.</figcaption></figure>
+</div>
+<ul>
+<li><strong>Digital (DRM) profiles</strong> (<span class="ui">Settings &gt; Advanced</span>) are three saved sets of digital settings. Each has a name and six choices (mode, QAM, bandwidth, interleave, protection, Reed-Solomon), all in view with a line that says what it does. A change is kept at once, and the Transmit screen shows the profile names as chips. The three profiles of a new installation are all the same: <span class="ui">Use typical settings</span> fills in <em>Robust</em>, <em>Balanced</em> and <em>Fast</em> (mode B; 4-, 16- and 64-QAM). The row <span class="ui">Edit the profiles</span> at the bottom of the Transmit screen's Digital settings sheet opens the same page. <span class="ui">Show the picture while it arrives</span> turns the partial picture of a digital reception on and off.</li>
+<li><strong>Frequencies</strong> is the list the program tunes your radio to. A row is a frequency in MHz for analog SSTV or for digital, with the mode of the radio (USB, PKTUSB ...) and the passband. Tap a row to change it; <span class="ui">Up</span> and <span class="ui">Down</span> move it inside its list, <span class="ui">Delete</span> removes it and offers <em>Undo</em>. <span class="ui">Add the usual ones</span> fills an empty list. <span class="ui">Command sent to the radio after tuning</span> is an optional raw CAT command, as text or as hex.</li>
+<li><strong>Tuning.</strong> When a radio is set up (<span class="ui">Settings &gt; Audio and radio &gt; Radio</span>), the Receive and Transmit screens show the radio's frequency as a chip. Tap it to see the frequencies for the mode you are in (analog or digital), with the one the radio is on marked; a tap on another tunes the radio to it: frequency, mode and passband, and then the extra command if there is one. Without a radio the chip is not shown.</li>
+</ul>
+
+<h2>The microphone and speaker of the phone</h2>
+<p>Hold or place the phone next to the radio's speaker to receive, and next to the radio's microphone to send: nothing else is needed. This works, but it picks up room noise, so expect pictures to need a stronger signal than with a cable; a headset cable or a USB audio interface is better.</p>
+<ul>
+<li><strong>Receiving.</strong> Phones normally clean up what the microphone hears (gain control, noise suppression), which distorts the tones. <span class="ui">Settings &gt; Audio and radio &gt; Microphone processing</span> chooses what the phone may do: <em>Automatic</em> uses the unprocessed signal when the phone offers it. <span class="ui">Receive gain</span> adds up to 30 dB when the microphone is too quiet. The line <em>In use</em> under <span class="ui">Test sound</span> says what the phone opened.</li>
+<li><strong>Sending.</strong> The loudness of a transmission is the phone's <strong>media volume</strong>: use the volume keys of the phone while the program is in front, or the volume slider on the Transmit screen or the Audio and radio page. Android keeps one media volume for each device (the speaker, a Bluetooth headset, a cable), and the keys and the slider change the one of the device Android plays music on. To send through the phone speaker while a headset is connected, set the speaker volume with the headset disconnected, or accept that the keys then change the headset's volume (the program warns you). Around 70 to 80% is a good start; a speaker driven to the maximum distorts. <span class="ui">Test sound</span> sends a short test picture (about 12 seconds) the way a real picture is sent: with a radio connected it goes on the air, and it stops with the Stop button. Other apps stop playing while a picture is sent, so a notification does not sound over it.</li>
+<li>The phone speaker plays one channel, so a PTT tone on the second audio channel cannot be used with it (the program says so). Transmitting through the speaker has no PTT line: use a radio with VOX, or key the radio by hand.</li>
+<li>The microphone is only open while the program receives or transmits. After a few seconds of neither it is released (so Android's microphone indicator goes out).</li>
+</ul>
+
+<h2>Receiving with the screen off</h2>
+<p>While the program is receiving it runs as a foreground service, with a notification. Receiving goes on with the screen off or with another app in front. Android may still stop apps in the background on phones with aggressive battery savers: if reception stops after a while, set the battery use of the program to <em>unrestricted</em> in the Android settings.</p>
+<div class="shots">
+<figure><img src="../images/android-notification.png" alt="The notification: Listening for pictures, with a Stop button" loading="lazy"><figcaption>The notification, opened out.</figcaption></figure>
+</div>
+<p>The notification says what the program does: <em>Listening for pictures</em>, or <em>Sending</em> (with the mode and the time of the picture). Its <span class="ui">Stop</span> button ends what runs: the picture that is being sent, otherwise the receiver, and the notification goes with it. Tap the notification itself to open the program.</p>
+
+<h2>Back and the icon</h2>
+<ul>
+<li><strong>Back</strong> (the gesture or the button of the phone) goes one step back: a sheet closes, a page returns to the one before, another tab returns to Receive. On Receive with nothing open it takes the program to the home screen <em>without</em> ending it: the receiver keeps running in its service. To end it, press <span class="ui">Stop</span> on Receive or in the notification, and leave.</li>
+<li><strong>Hold the icon</strong> of the program on the home screen: <span class="ui">Receive</span>, <span class="ui">Transmit</span> and <span class="ui">Gallery</span> open the program on that screen.</li>
+<li><strong>Share</strong> a picture to the program from the photos app (or <em>Open with</em> from a file manager): it is put on the Transmit screen.</li>
+</ul>
+
+<h2>A radio interface on USB (CAT and PTT)</h2>
+<p>A USB serial adapter or interface with a CP210x, FTDI, CH340/CH341, Prolific or CDC chip (the Digirig is one) is used instead of a serial port. Plug it in through an OTG adapter or a USB-C cable; Android offers to open this program, and asks once, from a box, whether the program may use that device.</p>
+<ul>
+<li>Under <span class="ui">Settings &gt; Audio and radio &gt; Radio control</span>: <span class="ui">USB interface</span> lists the connected adapters by name; <span class="ui">Radio</span> opens the list of supported radios with a search box (type <em>TS-480</em> or <em>IC-7300</em>), or <em>No radio control</em>; <span class="ui">Push to talk</span> chooses <em>None</em> (VOX), the <em>RTS</em> or <em>DTR</em> line of the adapter, or a <em>CAT command</em>; <span class="ui">Speed</span> is the baud rate of the radio.</li>
+<li><span class="ui">Test push to talk</span> keys the transmitter for about a second: lower the power or disconnect the antenna first.</li>
+<li>Many such interfaces (the Digirig for one) also carry the audio: choose it as the <span class="ui">Microphone</span> and the <span class="ui">Speaker</span>. Only one program can use the adapter at a time.</li>
+<li>A radio with its own USB socket usually shows up as such an adapter. A radio that is only reached through a program on a computer (a network rig server) is not supported on the phone.</li>
+</ul>
+
+<h2>Position (GPS)</h2>
+<p>The phone's own location is used: there is no port or speed to set. <span class="ui">Settings &gt; Position &gt; Use the phone's position</span> switches it on; Android asks once for permission to use the precise location while the program is in use, and the row <em>Position now</em> then shows where the phone is (or why it cannot tell). The pictures then carry the position. Nothing leaves the phone unless you also switch on <span class="ui">Look up city and state</span>, see the <a href="privacy.html">privacy policy</a>. Switching it on looks the place up at once, and the row <em>Location now</em> below it shows the city and state that was found (or why it could not be), and follows the lookups that come later as the phone moves.</p>
+
+<h2 id="looks">Looks, large text and screen readers</h2>
+<div class="shots">
+<figure><img src="../images/android-appearance.png" alt="Settings, Appearance: follow the phone, light, dark, dim and night, and the switch to tint the pictures" loading="lazy"><figcaption>Settings &gt; Appearance.</figcaption></figure>
+<figure><img src="../images/android-night.png" alt="The Receive screen in the Night look: red on black, a picture coming in" loading="lazy"><figcaption>The Night look.</figcaption></figure>
+</div>
+<ul>
+<li><span class="ui">Settings &gt; Appearance</span> chooses the colors. <em>Follow the phone</em> (the default) is light by day and dark by night as the phone is set; <em>Light</em> and <em>Dark</em> keep one of them; <em>Dim</em> is a dark with less light in it, for a dark room; <em>Night</em> is <strong>red on black</strong>, with no blue or green light, so that the eyes of someone watching the sky or the band keep their night vision. The status that is green or amber in the other looks (<em>Listening</em>, <em>Good</em>) is told by its word and its icon in Night.</li>
+<li>In Night the waterfall is red. The pictures keep their colors unless <span class="ui">Tint the pictures in Night</span> is on: they are then shown in red too (the files are not changed). The bars of the phone itself (the clock and the icons at the top) are the phone's and stay as they are, and so do the <em>Classic settings</em> and the boxes of the system (file pickers, permission questions), which keep their own colors.</li>
+<li>The program follows the phone's <strong>text size</strong> setting. At a large size the route chip shrinks to an icon and the mode button to <em>SSTV | DRM</em>, and lists scroll.</li>
+<li>With the phone's <em>Remove animations</em> on (Settings &gt; Accessibility), sheets and pages appear without sliding or fading. What shows the live state (the picture that grows, the waterfall, the level meter) keeps moving.</li>
+<li>Every control has a name for <strong>TalkBack</strong> and the other screen readers. Controls are at least 48 by 48 dp to touch. The screens behind a full-screen page such as Settings are hidden, so a screen reader reads only what is in front.</li>
+<li>The phone gives a short <strong>vibration</strong> when you change the mode, select a picture, start a transmission or when a picture is saved.</li>
+</ul>
+
+<h2>What is not on the phone yet</h2>
+<p>The repeater and unattended beacon, FTP upload, the XML-RPC interface, the command line options, the update check (Google Play updates the program) and the AppImage and Windows installers.
+The classic settings reached from <span class="ui">Advanced</span> still hold the options that have no page of their own.</p>
+
+<h2>If something does not work</h2>
+<ul>
+<li><strong>No reception.</strong> Look at the input level on <span class="ui">Receive</span> (or <span class="ui">Settings &gt; Audio and radio</span>): it says <em>Too quiet</em> when nothing arrives. A red banner on Receive means the microphone permission is missing (<span class="ui">Allow</span> opens the Android settings, Apps &gt; QSSTV-Experimental &gt; Permissions). A phone call or another app can hold the microphone.</li>
+<li><strong>Too quiet or distorted transmission.</strong> Set the media volume (see above). Bluetooth audio is not suitable for receiving: Android gives it a narrow band.</li>
+<li><strong>The adapter does not show up.</strong> Unplug it and plug it in again, and answer the permission box. Cheap cables that only charge do not carry data. If it still is not listed, report the chip name and the model in an <a href="https://github.com/jbdubbs/QSSTV-Experimental/issues">issue</a>.</li>
+<li>A problem report helps most with the version (<span class="ui">&#8942; &gt; About</span>), the phone model, the Android version and, for audio, the line starting <em>In use</em> on the Audio and radio page.</li>
+</ul>
+
+<nav class="pager" aria-label="Previous and next page"><a class="prev" href="troubleshooting.html" rel="prev">&larr; Troubleshooting and FAQ</a><a class="next" href="privacy.html" rel="next">Privacy policy &rarr;</a></nav>
+</main>
+<footer class="site-footer"><p>QSSTV-Experimental is based on QSSTV by Johan Maes, ON4QZ, and is released under the GNU GPL v3.</p></footer>
+</body>
+</html>

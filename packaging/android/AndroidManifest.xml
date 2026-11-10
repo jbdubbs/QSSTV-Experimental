@@ -1,0 +1,140 @@
+<?xml version="1.0"?>
+<!--
+  QSSTV-Experimental for Android. Based on Qt 6.11's own template (Qt/6.11.2/android_*/src/android/templates/AndroidManifest.xml):
+  the %%INSERT_...%% markers are filled in by androiddeployqt from the target properties in src/CMakeLists.txt
+  (package name, app name, icon, version). Re-merge it with the template when moving to a newer Qt.
+
+  Unlike the template this lists the permissions itself instead of taking every one the Qt modules ask for (the
+  generated manifest also carried BLUETOOTH and WRITE_EXTERNAL_STORAGE, which nothing here needs: pictures live in the
+  app's own storage and go to the gallery through MediaStore). Add a permission together with the feature that uses it.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.qtproject.example"
+    android:installLocation="auto"
+    android:versionCode="-- %%INSERT_VERSION_CODE%% --"
+    android:versionName="-- %%INSERT_VERSION_NAME%% --">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- the position of the station for the Transmit tab and the templates (the GPS tab): asked for when it is first used -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- RxService: the microphone keeps working with the screen off or another app in front, while a notification says so -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- Declared optional, otherwise Google Play hides the app from devices without them (RECORD_AUDIO and CAMERA
+         imply a required feature): a tablet without a camera can still receive from a USB audio interface -->
+    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
+    <supports-screens
+        android:anyDensity="true"
+        android:largeScreens="true"
+        android:normalScreens="true"
+        android:smallScreens="true" />
+    <!-- allowBackup is off: the settings hold the FTP password in plain text, and Android's cloud backup would copy it -->
+    <application
+        android:name="org.qtproject.qt.android.bindings.QtApplication"
+        android:hardwareAccelerated="true"
+        android:label="-- %%INSERT_APP_NAME%% --"
+        android:icon="-- %%INSERT_APP_ICON%% --"
+        android:enableOnBackInvokedCallback="true"
+        android:allowBackup="false"
+        android:fullBackupOnly="false">
+        <activity
+            android:name="io.github.jbdubbs.qsstv_experimental.MainActivity"
+            android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
+            android:label="-- %%INSERT_APP_NAME%% --"
+            android:launchMode="singleTop"
+            android:screenOrientation="unspecified"
+            android:theme="@style/QSSTVTheme"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Hold the icon: Receive, Transmit, Gallery (res/xml/shortcuts.xml) -->
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
+            <!-- A USB serial adapter (a radio interface) is plugged in: the program is offered -->
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+            </intent-filter>
+            <!-- Share to QSSTV-Experimental, or Open with it, from the photos app or a file manager: a picture is put on the Transmit screen -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <!-- Open with QSSTV-Experimental, from a file manager or another app: an SSTV or DRM recording is decoded -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="audio/*" />
+                <data android:mimeType="application/ogg" />
+            </intent-filter>
+
+          <!-- Qt stops its event loop while the app is not in front, unless this is true. The receiver hands every result
+               to the GUI thread and waits for it, so with the screen off (or the User's Guide open in the browser) decoding
+               would stop. The foreground service (RxService) is what keeps the process alive meanwhile. -->
+          <meta-data
+                android:name="android.app.background_running"
+                android:value="true" />
+
+          <meta-data
+                android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                android:resource="@xml/device_filter" />
+
+          <!-- What Qt shows while the program starts: the icon on the window colour (res/drawable/splash.xml) -->
+          <meta-data
+                android:name="android.app.splash_screen_drawable"
+                android:resource="@drawable/splash" />
+
+          <meta-data
+                android:name="android.app.lib_name"
+                android:value="-- %%INSERT_APP_LIB_NAME%% --" />
+
+          <meta-data
+                android:name="android.app.arguments"
+                android:value="-- %%INSERT_APP_ARGUMENTS%% --" />
+        </activity>
+
+        <!-- What the launcher shortcuts start (res/xml/shortcuts.xml): it has a task of its own, so that the "clear the task" that Android adds to a
+             shortcut does not finish the running program -->
+        <activity
+            android:name="io.github.jbdubbs.qsstv_experimental.ShortcutActivity"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.NoDisplay"
+            android:exported="false" />
+
+        <service
+            android:name="io.github.jbdubbs.qsstv_experimental.RxService"
+            android:foregroundServiceType="microphone"
+            android:exported="false" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.qtprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/qtprovider_paths"/>
+        </provider>
+    </application>
+</manifest>

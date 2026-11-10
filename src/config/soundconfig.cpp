@@ -27,6 +27,16 @@
 
 #include <QSettings>
 #include <QMediaDevices>
+#ifdef Q_OS_ANDROID
+#include <QComboBox>
+#include <QFormLayout>
+#include <QGroupBox>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QSlider>
+#include <QVBoxLayout>
+#include "androidaudio.h"
+#endif
 
 #include <math.h>
 
@@ -44,6 +54,8 @@ soundBase::edataSrc soundRoutingInput;
 soundBase::edataDst soundRoutingOutput;
 
 quint32 recordingSize;
+int micPreset;
+double rxGainDb;
 
 
 
@@ -67,7 +79,62 @@ soundConfig::soundConfig(QWidget *parent) :  baseConfig(parent), ui(new Ui::soun
   connect(&mediaDevices,&QMediaDevices::audioInputsChanged,this,&soundConfig::refreshDeviceLists);
   connect(&mediaDevices,&QMediaDevices::audioOutputsChanged,this,&soundConfig::refreshDeviceLists);
   connect(ui->duplicateChannelCheckBox,&QCheckBox::toggled,this,&soundConfig::updateChannelEnables);
+#ifdef Q_OS_ANDROID
+  buildPhoneAudioBox();
+#endif
 }
+
+#ifdef Q_OS_ANDROID
+void soundConfig::buildPhoneAudioBox()
+{
+  QGroupBox *box=new QGroupBox(tr("Phone audio"),this);
+  QFormLayout *form=new QFormLayout(box);
+  micPresetCombo=new QComboBox(box);
+  micPresetCombo->addItem(tr("Automatic: raw if the phone has it"));   // order = micPresetAuto, Unprocessed, VoiceRecognition, Standard
+  micPresetCombo->addItem(tr("Unprocessed"));
+  micPresetCombo->addItem(tr("Voice recognition"));
+  micPresetCombo->addItem(tr("Standard (the phone may apply gain control and noise suppression)"));
+  micPresetCombo->setToolTip(tr("What the system may do to the microphone signal"));
+  form->addRow(tr("Microphone"),micPresetCombo);
+  QWidget *gainRow=new QWidget(box);
+  QHBoxLayout *gainLayout=new QHBoxLayout(gainRow);
+  gainLayout->setContentsMargins(0,0,0,0);
+  rxGainSlider=new QSlider(Qt::Horizontal,gainRow);
+  rxGainSlider->setRange(0,30);
+  rxGainLabel=new QLabel(gainRow);
+  rxGainLabel->setMinimumWidth(rxGainLabel->fontMetrics().horizontalAdvance("+30 dB"));
+  gainLayout->addWidget(rxGainSlider,1);
+  gainLayout->addWidget(rxGainLabel);
+  connect(rxGainSlider,&QSlider::valueChanged,this,[this](int v){rxGainLabel->setText(QString("+%1 dB").arg(v));});
+  form->addRow(tr("Receive gain"),gainRow);
+  QWidget *volumeRow=new QWidget(box);
+  QHBoxLayout *volumeLayout=new QHBoxLayout(volumeRow);
+  volumeLayout->setContentsMargins(0,0,0,0);
+  volumeSlider=new QSlider(Qt::Horizontal,volumeRow);
+  volumeSlider->setRange(0,100);
+  QLabel *volumeLabel=new QLabel(volumeRow);
+  volumeLabel->setMinimumWidth(volumeLabel->fontMetrics().horizontalAdvance("100 %"));
+  volumeLayout->addWidget(volumeSlider,1);
+  volumeLayout->addWidget(volumeLabel);
+  // the phone's media volume is a system setting: it changes as soon as the slider moves
+  connect(volumeSlider,&QSlider::valueChanged,this,[volumeLabel](int v){volumeLabel->setText(QString("%1 %").arg(v));});
+  connect(volumeSlider,&QSlider::sliderReleased,this,[this]{androidSetMediaVolumePercent(volumeSlider->value());});
+  volumeSlider->setToolTip(tr("The media volume of the phone, which sets how loud a transmission is"));
+  form->addRow(tr("Media volume"),volumeRow);
+  routeLabel=new QLabel(box);
+  routeLabel->setWordWrap(true);
+  form->addRow(tr("In use"),routeLabel);
+  ui->verticalLayout_4->insertWidget(1,box);
+}
+
+void soundConfig::showEvent(QShowEvent *e)
+{
+  baseConfig::showEvent(e);
+  // the page is built before the sound device is opened, and the volume keys change the volume at any time
+  if(soundIOPtr) routeLabel->setText(soundIOPtr->routeSummary());
+  volumeSlider->setValue(androidMediaVolumePercent());
+}
+#endif
 
 // Swap and PTT-tone-on-other-channel have no meaning when both channels carry the same audio (issue #88)
 void soundConfig::updateChannelEnables()
@@ -119,6 +186,10 @@ void soundConfig::readSettings()
   soundRoutingInput=  (soundBase::edataSrc)qSettings.value("soundRoutingInput",  0 ).toInt();
   soundRoutingOutput= (soundBase::edataDst)qSettings.value("soundRoutingOutput", 0 ).toInt();
   recordingSize= qSettings.value("recordingSize", 100 ).toInt();
+  micPreset=qSettings.value("micPreset",micPresetAuto).toInt();
+  if(micPreset<micPresetAuto || micPreset>micPresetStandard) micPreset=micPresetAuto;
+  rxGainDb=qSettings.value("rxGainDb",0.0).toDouble();
+  if(!(rxGainDb>=0.0 && rxGainDb<=30.0)) rxGainDb=0.0;
   qSettings.endGroup();
   setParams();
 }
@@ -140,6 +211,8 @@ void soundConfig::writeSettings()
   qSettings.setValue ("soundRoutingInput", soundRoutingInput );
   qSettings.setValue ("soundRoutingOutput",soundRoutingOutput );
   qSettings.setValue ("recordingSize",recordingSize );
+  qSettings.setValue("micPreset",micPreset);
+  qSettings.setValue("rxGainDb",rxGainDb);
   qSettings.endGroup();
 }
 
@@ -163,6 +236,13 @@ void soundConfig::setParams()
   if(soundRoutingOutput==soundBase::SNDOUTCARD) ui->outToCard->setChecked(true);
   else ui->outRecord->setChecked(true);
   setValue(recordingSize,ui->mbSpinBox);
+#ifdef Q_OS_ANDROID
+  micPresetCombo->setCurrentIndex(micPreset);
+  rxGainSlider->setValue(int(rxGainDb+0.5));
+  rxGainLabel->setText(QString("+%1 dB").arg(rxGainSlider->value()));
+  volumeSlider->setValue(androidMediaVolumePercent());
+  if(soundIOPtr) routeLabel->setText(soundIOPtr->routeSummary());
+#endif
 }
 
 void soundConfig::getParams()
@@ -174,6 +254,7 @@ void soundConfig::getParams()
 
   soundBase::edataSrc soundRoutingInputCopy=soundRoutingInput;
   soundBase::edataDst soundRoutingOutputCopy=soundRoutingOutput;
+  const int micPresetCopy=micPreset;
 
   getValue(rxClock,ui->inputClockLineEdit);
   getValue(txClock,ui->outputClockLineEdit);
@@ -192,12 +273,18 @@ void soundConfig::getParams()
   if (ui->outToCard->isChecked()) soundRoutingOutput=soundBase::SNDOUTCARD;
   else soundRoutingOutput=soundBase::SNDOUTTOFILE;
   getValue(recordingSize,ui->mbSpinBox);
+#ifdef Q_OS_ANDROID
+  micPreset=micPresetCombo->currentIndex();
+  rxGainDb=rxGainSlider->value();
+  if(soundIOPtr) soundIOPtr->setRxGainDb(rxGainDb);   // takes effect without reopening the stream
+#endif
   changed=false;
   if(inputAudioDeviceCopy!=inputAudioDevice
      || outputAudioDeviceCopy!=outputAudioDevice
      || soundRoutingInputCopy!=soundRoutingInput
      || soundRoutingOutputCopy!=soundRoutingOutput
-     || alsaSelectedCopy!=alsaSelected)
+     || alsaSelectedCopy!=alsaSelected
+     || micPresetCopy!=micPreset)   // the input preset is chosen when the stream is opened
   {
     changed=true;
   }

@@ -70,6 +70,10 @@ void setValue(int val, QSlider *input);
 bool browseGetFile(QLineEdit *le,QString deflt,const QString &filter="*");
 bool browseDir(QLineEdit *le, QString deflt);
 QStringList commonImageFormats();
+/** formats a picture can be saved in: what the Qt image plugins write, plus AVIF whenever libavif is built in (Android has no AVIF plugin) */
+QStringList writableImageFormats();
+/** save a picture in the format fmt (png, jpg, avif ...); AVIF goes through libavif directly, the rest through Qt. False when it could not be written */
+bool saveImageFile(const QImage &im, const QString &fileName, const QString &fmt);
 QString toolButtonSheet();   //!< the style sheet styleToolButtons() gives every tool button on Windows
 void styleToolButtons(QWidget *parent);
 QString imageNameFilter(const QString &extra=QString());

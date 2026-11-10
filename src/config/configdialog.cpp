@@ -25,6 +25,14 @@
 #include "txwidget.h"
 #include "rxwidget.h"
 #include "filewatcher.h"
+#include "touchpage.h"
+#include "reflow.h"
+#include <QScrollArea>
+#include <QListWidget>
+#include <QScroller>
+#include <QStackedWidget>
+#include <QTabBar>
+#include <QVBoxLayout>
 
 
 configDialog::configDialog(QWidget *parent) :
@@ -34,6 +42,75 @@ configDialog::configDialog(QWidget *parent) :
   ui->setupUi(this);
   ui->catWidget->attachRigController(rigControllerPtr);
   ui->configTabWidget->setCurrentIndex(0);
+  if(uiMode::touch()) setupTouch();
+}
+
+/*!
+  Touch shell: the thirteen tabs do not fit a phone, so the sections are a list and the section chosen is a page of its own
+  (the dialog is maximized by prepareTouchWindow()). The Back key goes from the section to the list, then closes the dialog.
+  Sections that a phone does not have (the repeater, the FTP upload) are left out.
+*/
+void configDialog::setupTouch()
+{
+  QTabWidget *tabs=ui->configTabWidget;
+  for(QWidget *gone:{static_cast<QWidget *>(ui->repeaterTab),static_cast<QWidget *>(ui->ftpTab)})
+    tabs->removeTab(tabs->indexOf(gone));
+  // every section scrolls, sideways too until it has an arrangement for a narrow screen
+  for(int i=0;i<tabs->count();i++)
+    {
+      const QString title=tabs->tabText(i);
+      QWidget *page=tabs->widget(i);
+      tabs->removeTab(i);
+      tabs->insertTab(i,makeTouchScrollPage2D(page,tabs),title);
+    }
+  tabs->tabBar()->hide();
+  tabs->setDocumentMode(true);
+
+  QListWidget *list=new QListWidget(this);
+  list->setFrameShape(QFrame::NoFrame);
+  QFont f=list->font();
+  f.setPixelSize(18);
+  list->setFont(f);
+  for(int i=0;i<tabs->count();i++)
+    {
+      QListWidgetItem *item=new QListWidgetItem(tabs->tabText(i),list);
+      item->setSizeHint(QSize(0,uiMode::tapSize+12));
+    }
+  setupTouchScrolling(list,false);   // the list is dragged with a finger, like the pages (touchFlick), and stops at its ends
+  levels=new QStackedWidget(this);
+  levels->addWidget(list);
+  ui->verticalLayout->replaceWidget(tabs,levels);
+  levels->addWidget(tabs);
+  levels->setCurrentIndex(0);
+  connect(list,&QListWidget::itemClicked,this,[this,tabs,list](QListWidgetItem *item)
+    {
+      tabs->setCurrentIndex(list->row(item));
+      levels->setCurrentIndex(1);
+    });
+}
+
+void configDialog::showEvent(QShowEvent *e)
+{
+  if(levels)
+    {
+      levels->setCurrentIndex(0);
+      // the pages for a narrow screen (what a phone is, held either way); a tablet keeps them as they are
+      const int shortSide=uiMode::shortSide(this);
+      if(uiMode::narrow(shortSide))
+        for(int i=0;i<ui->configTabWidget->count();i++)
+          if(QScrollArea *sa=qobject_cast<QScrollArea *>(ui->configTabWidget->widget(i))) reflowNarrow(sa->widget(),shortSide-24);
+    }
+  QDialog::showEvent(e);
+}
+
+bool configDialog::backPressed()
+{
+  if(levels && levels->currentIndex()==1)
+    {
+      levels->setCurrentIndex(0);
+      return true;
+    }
+  return false;
 }
 
 configDialog::~configDialog()

@@ -50,11 +50,14 @@ private slots:
 
 private:
   void finish(bool ok,const QString &place,const QString &reason);
+  void handleReply(const QByteArray &json);   //!< the body of an answer: the place in it, kept for the next position nearby
+  void slotHttpDone(int status,const QByteArray &body,const QString &error);   //!< Android: the answer of the system's HTTPS
 
   QNetworkAccessManager *nam;
   QNetworkReply *reply;
   QUrl serviceUrl;
   bool pending;
+  qint64 httpToken=0;                //!< Android: the request that waits for the system's HTTPS, 0 when none
   double requestLat,requestLon;      //!< position of the running request
   bool haveAnswer;                   //!< cacheLat / cacheLon / cachePlace hold the last good answer
   double cacheLat,cacheLon;

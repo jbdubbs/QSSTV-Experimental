@@ -26,6 +26,7 @@ tpl::Element textBox(const QString &text, const QRectF &box, double pointSize, b
   e.outline.color = Qt::black;
   e.outline.width = qMax(1.0, pointSize / 12);
   e.outline.join = Qt::RoundJoin;
+  e.outline.position = tpl::StrokePos::Outside;
   return e;
 }
 

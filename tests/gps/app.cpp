@@ -413,6 +413,60 @@ int main(int argc, char **argv)
     txw->slotGetParams();
   }
 
+  printf("\n== the city and state lookup tells what it does: the Position page of the Qt Quick settings (#188)\n");
+  {
+    QLineEdit *place = txw->findChild<QLineEdit *>("placeLineEdit");
+    const QString place0 = place->text(), lat0 = lat->text(), lon0 = lon->text();
+    const bool lookup0 = gpsPlaceLookup;
+    const char *fairbanks = "{\"address\":{\"city\":\"Fairbanks\",\"state\":\"Alaska\",\"ISO3166-2-lvl4\":\"US-AK\",\"country_code\":\"us\"}}";
+    gpsPlaceLookup = true;
+    txw->placeFailedAt.invalidate();
+    int changes = 0;
+    const QMetaObject::Connection conn = QObject::connect(txw, &txWidget::placeStateChanged, txw, [&] {changes++;});
+    lat->setText("");
+    lon->setText("");
+    txw->slotGetParams();
+    int hits = fake.hits;
+    txw->lookupPlaceNow();
+    check(txw->placeLookupState() == txWidget::PLACEIDLE && fake.hits == hits && !txw->placeAwaiting, "switched on without a position nothing is asked and nothing is shown as running");
+    check(changes == 1, "and the page is told once (" + QString::number(changes) + ")");
+
+    fake.status = 200;
+    fake.body = fairbanks;
+    lat->setText("64.8378");
+    lon->setText("-147.7164");
+    txw->slotGetParams();
+    txw->lookupPlaceNow();
+    check(txw->placeLookupState() == txWidget::PLACELOOKING && txw->placeAwaiting, "switched on with a position the place is asked for at once, and shown as running");
+    checkWait([&] {return !txw->placeAwaiting;}, [&] {return QString("(the answer arrives)");});
+    check(txw->placeLookupState() == txWidget::PLACEIDLE && txw->placeNow() == "Fairbanks, AK" && fake.hits == hits + 1,
+          "then the place is there with one request: " + txw->placeNow());
+
+    fake.status = 500;
+    lat->setText("-54.8019");
+    lon->setText("-68.3030");
+    txw->slotGetParams();
+    txw->lookupPlaceNow();
+    checkWait([&] {return !txw->placeAwaiting;}, [&] {return QString("(the service fails)");});
+    check(txw->placeLookupState() == txWidget::PLACEFAILED && txw->placeLookupReason().contains("500"), "a failed lookup is shown with its reason: " + txw->placeLookupReason());
+    check(txw->placeNow() == "Fairbanks, AK", "and the place that was there is kept");
+
+    fake.status = 200;
+    txw->lookupPlaceNow();   // switched off and on again: no wait of a minute after the failure
+    checkWait([&] {return !txw->placeAwaiting;}, [&] {return QString("(the answer arrives)");});
+    check(txw->placeLookupState() == txWidget::PLACEIDLE && txw->placeLookupReason().isEmpty(), "a lookup that works takes the failure away");
+    check(changes >= 7, "the page was told of every step (" + QString::number(changes) + ")");
+
+    QObject::disconnect(conn);
+    gpsPlaceLookup = lookup0;
+    txw->placeFailedAt.invalidate();
+    place->setText(place0);
+    emit place->editingFinished();
+    lat->setText(lat0);
+    lon->setText(lon0);
+    txw->slotGetParams();
+  }
+
   // the two sections about the GPS button change the boxes; the section after them expects them as they are now
   const QString keepLat = lat->text(), keepLon = lon->text(), keepPlace = txw->findChild<QLineEdit *>("placeLineEdit")->text();
 

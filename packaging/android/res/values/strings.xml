@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- the launcher shortcuts (hold the icon): res/xml/shortcuts.xml -->
+    <string name="shortcut_receive">Receive</string>
+    <string name="shortcut_receive_long">Listen for pictures</string>
+    <string name="shortcut_transmit">Transmit</string>
+    <string name="shortcut_transmit_long">Send a picture</string>
+    <string name="shortcut_gallery">Gallery</string>
+    <string name="shortcut_gallery_long">Open the gallery</string>
+    <!-- the notification while the program listens or sends (RxService) -->
+    <string name="notification_channel">Receiving and transmitting</string>
+    <string name="notification_channel_description">Shown while QSSTV-Experimental is listening or sending</string>
+    <string name="notification_listening">Listening for pictures</string>
+    <string name="notification_listening_text">Tap to open. QSSTV-Experimental is receiving.</string>
+    <string name="notification_sending">Sending a picture</string>
+    <string name="notification_sending_other">Sending</string>
+    <string name="notification_sending_text">Tap to open.</string>
+    <string name="notification_stop">Stop</string>
+</resources>

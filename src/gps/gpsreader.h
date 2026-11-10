@@ -8,6 +8,7 @@
 #include <QElapsedTimer>
 
 class QSerialPort;
+class locationSource;
 
 /*!
   One-shot position request to the GPS receiver on the serial port set in Configuration > GPS.
@@ -39,6 +40,13 @@ public:
   //! The same with the settings of this call, so the configuration page can try values that are not saved yet
   bool requestFix(const QString &portName,int baud,int timeoutMs=10000);
   bool busy() const {return pending;}
+
+  /*!
+    Use the operating system's location service instead of a serial port (Android): the port and the baud rate are not used
+    then, and the GPS needs only to be enabled. The reader does not own the source.
+  */
+  void setLocationSource(locationSource *source);
+  bool usesLocationService() const {return loc!=nullptr;}
 
   //! The state of the receiver while tracking
   enum trackState
@@ -80,7 +88,10 @@ private:
   void openTracking();
   void closeTracking();
   void setTrackState(int state,const QString &reason);
+  void acceptTracked(double lat,double lon);   //!< a position from the location service while tracking
+  void locationFailed(const QString &reason);
 
+  locationSource *loc=nullptr;   //!< the location service, when there is one instead of a port
   QSerialPort *port;
   QTimer timeout;
   QByteArray buffer;

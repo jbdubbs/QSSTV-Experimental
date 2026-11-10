@@ -87,8 +87,16 @@ void guideServer::respond(QTcpSocket *sock)
     }
   QString path=QUrl::fromPercentEncoding(parts[1].split('?').first().split('#').first());
   if(path.endsWith('/')) path+="index.html";
-  // resolve inside root only: canonical path must stay under the guide directory
-  const QString file=QFileInfo(root+"/"+path).canonicalFilePath();
+  // resolve inside root only: the path must stay under the guide directory. The dots are removed textually first: a Qt resource
+  // path (the guide is compiled into the Android app) is not normalized by canonicalFilePath(), and QFile then resolves the dots
+  // by itself, so a ".." would get past the check below.
+  const QString lexical=QDir::cleanPath(root+"/"+path);
+  if(!lexical.startsWith(root+"/"))
+    {
+      sendReply(sock,404,"Not Found","text/plain","Not found",head);
+      return;
+    }
+  const QString file=QFileInfo(lexical).canonicalFilePath();
   if(file.isEmpty() || !file.startsWith(root+"/") || !QFileInfo(file).isFile())
     {
       sendReply(sock,404,"Not Found","text/plain","Not found",head);

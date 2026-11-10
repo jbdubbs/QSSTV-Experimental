@@ -27,10 +27,12 @@
 #include <QDialog>
 #include <QPushButton>
 #include <QTextBrowser>
+#include <QScrollArea>
 #include <QVBoxLayout>
 #include <QFile>
 #include <windows.h> // WM_POWERBROADCAST / PBT_APMRESUME* -- see nativeEvent() below
 #endif
+#include "applog.h"
 #include "mainwindow.h"
 #include "appimageintegration.h"
 #include "updatecheck.h"
@@ -47,6 +49,19 @@
 #include "dispatch/filedecoder.h"
 #include "ui_mainwindow.h"
 #include "soundqtmultimedia.h"
+#include "soundbackend.h"
+#include "platformpermissions.h"
+#include "platformservice.h"
+#include "uimode.h"
+#include "qmlui.h"
+#include "touchpage.h"
+#ifdef Q_OS_ANDROID
+#include "qtlocationsource.h"
+#endif
+#ifdef Q_OS_ANDROID
+#include "androidaudio.h"
+#include <android/log.h>
+#endif
 #include "configdialog.h"
 #include "configparams.h"
 #include "rigcontrol.h"
@@ -68,6 +83,7 @@
 #include <QMessageBox>
 #include <QScreen>
 #include <QTimer>
+#include <QElapsedTimer>
 #include <QApplication>
 #include "filewatcher.h"
 #include "busycursor.h"
@@ -110,6 +126,9 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
   pttIcon->setLineWidth(2);
   rigControllerPtr=new rigControl(1); // must precede configDialog construction
   gpsReaderPtr=new gpsReader(this);   // the GPS configuration page and the Transmit tab use it
+#ifdef Q_OS_ANDROID
+  gpsReaderPtr->setLocationSource(new qtLocationSource(gpsReaderPtr));   // the phone's own position: no receiver on a cable, no port
+#endif
   placeLookupPtr=new placeLookup(this);
   configDialogPtr=new configDialog(this);
   configDialogPtr->readSettings();
@@ -143,7 +162,7 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
   txWidgetPtr=ui->txWindow;
   galleryWidgetPtr=ui->galleryWindow;
   readSettings();
-  soundIOPtr=new soundQtMultimedia;
+  soundIOPtr=newSoundBackend();
   dispatcherPtr=new dispatcher;
   fileDecoderPtr=new fileDecoder(this);
   waterfallPtr=new waterfallText;
@@ -160,6 +179,11 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
   connect(ui->actionAboutQSSTV, SIGNAL(triggered()),SLOT(slotAboutQSSTV()));
   connect(ui->actionAboutQt, SIGNAL(triggered()),SLOT(slotAboutQt()));
   connect(ui->actionUsersGuide, SIGNAL(triggered()),SLOT(slotDocumentation()));
+#ifdef Q_OS_ANDROID
+  ui->actionUsersGuide->setShortcut(Qt::Key_F1);   // a keyboard (or the test harness) has no menu bar to click here
+  ui->actionConfigure->setShortcut(Qt::Key_F2);
+#endif
+#ifndef Q_OS_ANDROID   // an Android app is installed and updated by the store (and Google Play does not allow its own update prompt)
   if(appImageIntegration::available())
     {
       // AppImage-only Help entries: desktop integration and updating
@@ -180,6 +204,7 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
       autoUpd->setChecked(QSettings().value("update/autoCheck",false).toBool());
       connect(autoUpd,&QAction::toggled,this,&mainWindow::slotAutoUpdateToggled);
     }
+#endif
   connect(idPushButton, SIGNAL(clicked()), this, SLOT(slotSendWFID()));
   connect(cwPushButton, SIGNAL(clicked()), this, SLOT(slotSendCWID()));
   connect(rxWidgetPtr,SIGNAL(fixFileRequested()),this,SLOT(slotSendBSR()));
@@ -252,6 +277,54 @@ mainWindow::~mainWindow()
  * @brief initialize sound device and dispatcher
  *
  */
+#ifdef Q_OS_ANDROID
+// Android 13 and later: without the notification permission the foreground service still runs, but its notification (the only
+// sign that the program is listening with the screen off) is not shown. Asked once; the system does not repeat a refusal anyway.
+static void askForNotifications()
+{
+  QSettings qs;
+  if(qs.value("android/notificationsAsked",false).toBool()) return;
+  qs.setValue("android/notificationsAsked",true);
+  androidRequestNotificationPermission();
+}
+#endif
+
+void mainWindow::askMicrophone()
+{
+#ifdef Q_OS_ANDROID
+  if(micAsked || platformPermissions::microphoneGranted()) return;
+  micAsked=true;
+  platformPermissions::requestMicrophone(this,[this](bool granted)
+    {
+      if(granted)
+        {
+          rxWantedActive=true;
+          restartSound(false);
+          QTimer::singleShot(2000,this,[]{askForNotifications();});
+        }
+      else
+        {
+          micDenied=true;
+          if(uiMode::qml())
+            {
+              qmlUi::micDenied(true);   // the Receive screen says so, with a button to the system settings
+            }
+          else
+            {
+              QMessageBox *box=new QMessageBox(QMessageBox::Warning,tr("Microphone"),
+                                               tr("QSSTV-Experimental needs the microphone permission to receive. Allow it in the system settings "
+                                                  "(Permissions, Microphone); the receiver starts when you come back."),QMessageBox::Ok,this);
+              QPushButton *settings=box->addButton(tr("Open settings"),QMessageBox::ActionRole);
+              connect(settings,&QPushButton::clicked,this,[]{androidOpenAppSettings();});
+              box->setAttribute(Qt::WA_DeleteOnClose);
+              box->setWindowModality(Qt::NonModal);
+              box->show();
+            }
+        }
+    });
+#endif
+}
+
 void mainWindow::init()
 {
   if(!fileDecoderPtr->isBatch()) // a headless decode must not prune the user's image caches
@@ -264,7 +337,21 @@ void mainWindow::init()
   //start rx and tx threads
   rxWidgetPtr->functionsPtr()->start();
   txWidgetPtr->functionsPtr()->start();
+#ifdef Q_OS_ANDROID
+  if(!platformPermissions::microphoneGranted())
+    {
+      // Android asks the user first; the receiver starts as soon as the answer is yes (rxWantedActive is what restartSound() reads).
+      // On the very first start the Qt Quick setup explains the sound first and asks then (AppModel::askMicrophone)
+      if(!qmlUi::firstRunPending()) askMicrophone();
+    }
+  else
+    {
+      restartSound(true);
+      QTimer::singleShot(4000,this,[]{askForNotifications();});
+    }
+#else
   restartSound(true);
+#endif
   dispatcherPtr->init();
   galleryWidgetPtr->init();
   txWidgetPtr->init();
@@ -284,10 +371,33 @@ void mainWindow::init()
   // the first-run questions are modal boxes (and the update check goes to GitHub): not in a headless run, nobody could answer them (#157)
   const bool headless=fileDecoderPtr->isBatch() || headlessEncode;
   if(!headless) txWidgetPtr->gpsSettingsChanged();   // a GPS button that was left on starts following the GPS (a headless run never opens the port)
+#ifndef Q_OS_ANDROID   // no AppImage menu entry and no GitHub update question on Android
   if(!headless && appImageIntegration::available())
     QTimer::singleShot(4000,this,&mainWindow::offerDesktopIntegration);
   if(!headless && !appImageIntegration::available())
     QTimer::singleShot(6000,this,&mainWindow::offerUpdateCheck);
+#endif
+#ifdef Q_OS_ANDROID
+  // Android may end the process while the app is in the background, with no clean exit (and so no writeSettings() from
+  // shutdown()): save the settings whenever the app leaves the foreground
+  androidVolumeKeysChangeMedia();   // the phone's volume keys set the volume the picture is sent at, also before it starts
+  connect(qApp,&QGuiApplication::applicationStateChanged,this,[this](Qt::ApplicationState state)
+    {
+      if(state!=Qt::ApplicationActive) writeSettings();
+      else
+        {
+          dispatcherPtr->appResumed();
+          androidVolumeKeysChangeMedia();   // the window may be a new one (the activity is recreated after the system ended it)
+        }
+      if(state==Qt::ApplicationActive && micDenied && platformPermissions::microphoneGranted())
+        {
+          micDenied=false;   // given in the system settings since: the receiver was waiting for it
+          qmlUi::micDenied(false);
+          rxWantedActive=true;
+          restartSound(false);
+        }
+    });
+#endif
 }
 
 /*!
@@ -472,6 +582,7 @@ void mainWindow::offerUpdateCheck()
 
 void mainWindow::restartSound(bool inStartUp)
 {
+  if(!inStartUp) qmlUi::notifyRouteChanged();   // the device was chosen just before: the route chip of the Qt Quick screens says so (at start-up it reads it itself)
   // Issue #11: a device change applied via slotConfigure() used to leave RX stuck
   // idle -- the new soundIOPtr below is opened but never told to startCapture(),
   // and nothing downstream of restartSound() noticed. Remember whether RX was
@@ -500,11 +611,12 @@ void mainWindow::restartSound(bool inStartUp)
       delete soundIOPtr;
       soundIOPtr=nullptr;
     }
-  soundIOPtr=new soundQtMultimedia;
+  soundIOPtr=newSoundBackend();
   // soundIOPtr is destroyed and recreated above every call, so this connection has
   // to be redone every time too -- see soundBase::deviceLost()'s doc comment and
   // recoverSound() for why.
   connect(soundIOPtr,&soundBase::deviceLost,this,&mainWindow::recoverSound);
+  connect(soundIOPtr,&soundBase::audioNotice,this,[this](const QString &message){statusBarPtr->showMessage(message,10000);});
   bool soundOK=soundIOPtr->init(BASESAMPLERATE);
   if(!soundOK)
     {
@@ -518,7 +630,8 @@ void mainWindow::restartSound(bool inStartUp)
         }
       else
         {
-          QMessageBox::critical(this, tr("Soundcard error"),soundIOPtr->getLastError());
+          if(uiMode::qml()) qmlUi::problem(tr("Soundcard error"),soundIOPtr->getLastError());
+          else QMessageBox::critical(this, tr("Soundcard error"),soundIOPtr->getLastError());
         }
     }
   soundIOPtr->start();
@@ -541,6 +654,7 @@ void mainWindow::restartSound(bool inStartUp)
 // cross-platform fallback/diagnostic for whatever the backend does report).
 void mainWindow::recoverSound(const QString &reason)
 {
+  APPLOG("qsstv-tx","recoverSound: %s",qPrintable(reason));
   // Rebuilding the audio device out from under an active PTT-keyed transmission
   // would be actively harmful -- leave it alone and let the user recover manually
   // (Stop/Start) if a transmission genuinely got stuck across a sleep. Not handled
@@ -624,7 +738,10 @@ void mainWindow::writeSettings()
   galleryWidgetPtr->writeSettings();
   rxWidgetPtr->writeSettings();
   txWidgetPtr->writeSettings();
-  configDialogPtr->writeSettings();
+  // The Qt Quick settings pages keep every change in the settings file themselves. The classic pages are alive but hidden then, and what they
+  // would write back are the values their fields had when they were last read (a call sign set on the phone was forgotten at the next start).
+  // The classic dialog saves what it changed when it is closed with OK (configDialog::exec), so nothing is lost here.
+  if(!uiMode::qml()) configDialogPtr->writeSettings();
   qSettings.endGroup();
   ui->spectrumFrame->writeSettings();
 }
@@ -775,7 +892,11 @@ void mainWindow::openUserGuide(const QString &page)
       return;
     }
   const QString appDir=QCoreApplication::applicationDirPath();
-  const QStringList candidates={appDir+"/userguide",
+  const QStringList candidates={
+#ifdef Q_OS_ANDROID
+                                QStringLiteral(":/userguide"),   // compiled into the app
+#endif
+                                appDir+"/userguide",
                                 appDir+"/../share/doc/qsstv/userguide",
                                 appDir+"/../Resources/userguide",   // macOS .app bundle
                                 QStringLiteral(QSSTV_USERGUIDE_SRC_DIR)};
@@ -787,13 +908,17 @@ void mainWindow::openUserGuide(const QString &page)
           // served over http on localhost: a file:// URL breaks in sandboxed (Flatpak/Snap) browsers,
           // which only get the single file and 404 on every link to another page or image
           QUrl url=guideServer::instance().urlFor(dir);
+#ifdef Q_OS_ANDROID
+          __android_log_print(ANDROID_LOG_INFO,"qsstv-files","user's guide: %s from %s",qPrintable(url.toString()),qPrintable(dir));
+#endif
           if(url.isEmpty()) url=QUrl::fromLocalFile(QFileInfo(index).canonicalFilePath());
           if(!page.isEmpty() && QFileInfo::exists(QDir(dir).filePath(page))) url=url.resolved(QUrl(page));
           openUrlOrWarn(this,url);
           return;
         }
     }
-  QMessageBox::warning(this,tr("Users Guide"),tr("The built-in Users Guide was not found.\nSee https://github.com/jbdubbs/QSSTV-Experimental"));
+  if(uiMode::qml()) qmlUi::problem(tr("Users Guide"),tr("The built-in Users Guide was not found.\nSee https://github.com/jbdubbs/QSSTV-Experimental"));
+  else QMessageBox::warning(this,tr("Users Guide"),tr("The built-in Users Guide was not found.\nSee https://github.com/jbdubbs/QSSTV-Experimental"));
 }
 
 
@@ -806,25 +931,26 @@ void mainWindow::slotAboutQSSTV()
   temp += "\nhttps://github.com/jbdubbs/QSSTV-Experimental\nJason Weisberger - NT0Y";
   temp += "\n\nBuilt upon the original:\nQSSTV\nVersion 9.5.11\nhttps://www.qsl.net/o/on4qz\nCopyright 2000-2019 - Johan Maes - ON4QZ\nHAMDRM Software based on RX/TXAMADRM - PA0MBO";
   temp += "\n\nLicensed under the GNU GPL v3. Includes code from Dream (DRM), Phil Karn KA9Q, MiXViews, Maia XML-RPC, the Papirus icons and others; see Third-party licenses.";
+  auto showLicenses=[this]()
+  {
+    QFile f(":/THIRD_PARTY_LICENSES.md");
+    QString text;
+    if(f.open(QIODevice::ReadOnly)) text=QString::fromUtf8(f.readAll());
+    QDialog dlg(this);
+    dlg.setWindowTitle(tr("Third-party licenses"));
+    QVBoxLayout *lay=new QVBoxLayout(&dlg);
+    QTextBrowser *tb=new QTextBrowser(&dlg);
+    tb->setOpenExternalLinks(true);
+    tb->setMarkdown(text);
+    lay->addWidget(tb);
+    dlg.resize(900,600);
+    dlg.exec();
+  };
   QMessageBox box(QMessageBox::Information,tr("About..."),temp,QMessageBox::Ok,this);
   box.setIconPixmap(QPixmap(":/icons/qsstv.png").scaled(64,64,Qt::KeepAspectRatio,Qt::SmoothTransformation));
   QPushButton *licButton=box.addButton(tr("Third-party licenses..."),QMessageBox::ActionRole);
   box.exec();
-  if(box.clickedButton()==licButton)
-    {
-      QFile f(":/THIRD_PARTY_LICENSES.md");
-      QString text;
-      if(f.open(QIODevice::ReadOnly)) text=QString::fromUtf8(f.readAll());
-      QDialog dlg(this);
-      dlg.setWindowTitle(tr("Third-party licenses"));
-      QVBoxLayout *lay=new QVBoxLayout(&dlg);
-      QTextBrowser *tb=new QTextBrowser(&dlg);
-      tb->setOpenExternalLinks(true);
-      tb->setMarkdown(text);
-      lay->addWidget(tb);
-      dlg.resize(900,600);
-      dlg.exec();
-    }
+  if(box.clickedButton()==licButton) showLicenses();
 }
 
 void mainWindow::slotAboutQt()
@@ -912,6 +1038,7 @@ void mainWindow::slotModeChange(int rxtxMode)
     }
   txWidgetPtr->changeTransmissionMode(rxtxMode);
   rxWidgetPtr->changeTransmissionMode(rxtxMode);
+  qmlUi::notifyModeChanged();
   lastReceivedCall.clear();
   if(!fileDecoderPtr->isBatch() && !headlessEncode)
     {
@@ -983,6 +1110,25 @@ void mainWindow::timerEvent(QTimerEvent *)
     {
       freqDisplay->setText("No Rig");
     }
+#ifdef Q_OS_ANDROID
+  // the foreground service that keeps the microphone working in the background runs exactly while the sound backend
+  // is receiving or sending (driverOK(): the permission was given and the device opened)
+  int serviceState=0;
+  if(soundIOPtr && soundIOPtr->driverOK())
+    {
+      if(soundIOPtr->isPlaying()) serviceState=qmlUi::sendingTool() ? 3 : 2;
+      else if(soundIOPtr->isCapturing()) serviceState=1;
+    }
+  platformService::setState(serviceState,serviceState>=2 ? qmlUi::sendingDetail() : QString());   // the notification says which, and has a Stop button
+  // a muted, blocked or overloaded microphone: say so while it lasts (soundBase::inputProblem())
+  const QString problem=soundIOPtr ? soundIOPtr->inputProblem() : QString();
+  if(problem!=inputProblemShown)
+    {
+      inputProblemShown=problem;
+      if(problem.isEmpty()) statusBarPtr->clearMessage();
+      else statusBarPtr->showMessage(problem);
+    }
+#endif
 }
 
 void mainWindow::cleanUpCache(QString dirPath)

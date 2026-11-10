@@ -1199,7 +1199,7 @@ void imageViewer::save(QString fileName,QString fmt,bool convertRGB, bool source
       if(source) im=sourceImage.convertToFormat(QImage::Format_RGB32);
       else im=displayedImage.convertToFormat(QImage::Format_RGB32);
     }
-  im.save(fileName,fmt.toUpper().toLatin1().data());
+  saveImageFile(im,fileName,fmt);
 }
 
 // Compress for DRM with the selected codec. JPEG2000 aims for a compression ratio, AVIF for the byte budget compressSize.
@@ -1415,6 +1415,87 @@ void imageViewer::slotResetFraming()
   framingChanged(curSlot());
 }
 
+bool imageViewer::freeFraming() const
+{
+  return ttype==TXIMG && !displayedImage.isNull() && fitOf(curSlot())==FITFREE && !slotImage(curSlot()).isNull();
+}
+
+// The zoom and pan after zooming by scale about focus and moving by shift, from the framing zoom0/pan0 (the wheel's zoom about the cursor and the
+// drag's pan, as one step). The pan is kept inside what the picture allows at the NEW zoom.
+void imageViewer::framingFrom(int slot,double zoom0,const QPointF &pan0,double scale,const QPointF &focus,const QPointF &shift,double &zoom,QPointF &pan) const
+{
+  QSize frame=displayedImage.size();
+  QRect cell=cellRect(slot,frame);
+  zoom=qBound(0.25,zoom0*scale,8.0);
+  QPointF p(focus.x()*frame.width(),focus.y()*frame.height());
+  // keep the image point under the focus where it was, then move
+  QPointF centre(cell.x()+cell.width()/2.0+pan0.x()*cell.width(),
+                 cell.y()+cell.height()/2.0+pan0.y()*cell.height());
+  QPointF nc=p-(p-centre)*(zoom/zoom0)+QPointF(shift.x()*frame.width(),shift.y()*frame.height());
+  pan=clampPan(slot,cell.size(),QPointF((nc.x()-cell.x()-cell.width()/2.0)/cell.width(),
+                                        (nc.y()-cell.y()-cell.height()/2.0)/cell.height()),zoom);
+}
+
+void imageViewer::beginFreeGesture()
+{
+  int slot=curSlot();
+  gestureZoom=segZoom.value(slot,1.0);
+  gesturePan=segPan.value(slot);
+  gestureSource=QImage();
+  const int side=1280;
+  if(!gridActive() && qMax(sourceImage.width(),sourceImage.height())>side)
+    gestureSource=sourceImage.scaled(side,side,Qt::KeepAspectRatio,Qt::SmoothTransformation);
+}
+
+bool imageViewer::setFreeGesture(double scale,const QPointF &focus,const QPointF &shift)
+{
+  if(!freeFraming() || scale<=0.0) return false;
+  int slot=curSlot();
+  double zoom;
+  QPointF pan;
+  framingFrom(slot,gestureZoom,gesturePan,scale,focus,shift,zoom,pan);
+  if(zoom==segZoom.value(slot,1.0) && pan==segPan.value(slot)) return false;
+  segZoom[slot]=zoom;
+  segPan[slot]=pan;
+  if(transmissionModeIndex==TRXDRM) return true;   // freePreview() draws it; the encode waits for the end
+  // an analog picture is drawn at once with its template, from the smaller copy of a large one (the full size comes at the end)
+  const QImage full=sourceImage;
+  const bool small=!gestureSource.isNull() && !gridActive();
+  if(small) sourceImage=gestureSource;
+  applyTemplate();
+  displayImage();
+  if(small) sourceImage=full;
+  return true;
+}
+
+void imageViewer::endFreeGesture()
+{
+  gestureSource=QImage();
+  if(!freeFraming()) return;
+  slotFramingApply();   // analog: the full size picture; digital: encoded now (txWidget does it on imageChanged)
+}
+
+QImage imageViewer::freePreview(int maxSide)
+{
+  if(!drmSingle() || sourceImage.isNull()) return QImage();
+  const QImage full=sourceImage;
+  const bool small=!gestureSource.isNull();
+  if(small) sourceImage=gestureSource;
+  QSize sz=full.size().scaled(maxSide,maxSide,Qt::KeepAspectRatio);
+  QImage out=renderTemplated(qMax(1,sz.width()),qMax(1,sz.height())).convertToFormat(QImage::Format_ARGB32);
+  if(small) sourceImage=full;
+  return out;
+}
+
+bool imageViewer::adjustFree(double scale,const QPointF &focus,const QPointF &shift)
+{
+  if(!freeFraming()) return false;
+  beginFreeGesture();
+  const bool changed=setFreeGesture(scale,focus,shift);
+  endFreeGesture();
+  return changed;
+}
+
 // the original image of a slot (the composed frame replaces sourceImage while a grid is active)
 const QImage &imageViewer::slotImage(int slot) const
 {
@@ -1431,11 +1512,12 @@ QRect imageViewer::cellRect(int slot,const QSize &frame) const
 }
 
 // keep a Free image covering the cell (if larger than it) or inside it (if smaller)
-QPointF imageViewer::clampPan(int slot,const QSize &cell,const QPointF &pan) const
+QPointF imageViewer::clampPan(int slot,const QSize &cell,const QPointF &pan,double zoom) const
 {
   const QImage &img=slotImage(slot);
   if(img.isNull() || cell.isEmpty()) return QPointF();
-  QSizeF sz=QSizeF(img.size().scaled(cell,Qt::KeepAspectRatio))*segZoom.value(slot,1.0);
+  if(zoom<0) zoom=segZoom.value(slot,1.0);
+  QSizeF sz=QSizeF(img.size().scaled(cell,Qt::KeepAspectRatio))*zoom;
   double mx=qAbs(sz.width()-cell.width())/2.0/cell.width();
   double my=qAbs(sz.height()-cell.height())/2.0/cell.height();
   return QPointF(qBound(-mx,pan.x(),mx),qBound(-my,pan.y(),my));

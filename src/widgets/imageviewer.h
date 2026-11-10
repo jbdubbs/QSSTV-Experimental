@@ -103,6 +103,24 @@ public:
   void setFitMode(int mode);   // framing of the active image / grid cell: Stretch, Crop, Fit or Free (zoom/pan)
   void setDefaultFit(int mode);   // the framing of every grid cell, before any picture is loaded (the saved setting)
   int fitMode() const {return segFit.value(curSlot());}
+  // touch framing (the Android Transmit screen): the same zoom/pan as the wheel and the drag, set from outside
+  bool drmSingleImage() const {return drmSingle();}   // a single DRM picture: Free is its only framing
+  int activeFit() const {return fitOf(curSlot());}   // the framing in force (Free for a single DRM picture)
+  bool freeFraming() const;   // Free framing with a picture loaded: zoom/pan have an effect
+  bool framingMoved() const {return isFramed(curSlot());}   // zoom/pan differ from the whole picture, centered
+  void resetFreeFraming() {slotResetFraming();}   // the whole picture, centered
+  // The zoom and pan of the active image: openImage() resets them, so a caller that puts another picture in for a moment (a calibration, the test
+  // picture) keeps them here and sets them again after it has put the user's picture back.
+  void framingState(double &zoom,QPointF &pan) const {zoom=segZoom.value(curSlot(),1.0); pan=segPan.value(curSlot());}
+  void setFramingState(double zoom,const QPointF &pan) {const int s=curSlot(); if(s>=0 && s<segZoom.size() && s<segPan.size()) {segZoom[s]=zoom; segPan[s]=pan;}}
+  // A gesture of two fingers or one: zoom by scale about focus (a point of the frame, 0..1 of its width and height), then move by shift (the same
+  // units), both from the framing at the start of the gesture. Every step is drawn from the whole picture (not from the frame as it was), the
+  // picture of an analog mode with its template at once, a digital one through freePreview() while it is encoded once at the end.
+  void beginFreeGesture();
+  bool setFreeGesture(double scale,const QPointF &focus,const QPointF &shift);   // false when nothing changed
+  void endFreeGesture();   // the picture with the final framing, in full size (a digital one is encoded again)
+  QImage freePreview(int maxSide);   // a single digital picture as the framing now is: from a smaller copy, the template over it, not encoded
+  bool adjustFree(double scale,const QPointF &focus,const QPointF &shift);   // the three in one step
   int getFileSize(){return fileSize;}
   QString toCall;
   QString toOperator;
@@ -231,7 +249,11 @@ private:
   void resetFraming(int slot);
   const QImage &slotImage(int slot) const;
   QRect cellRect(int slot,const QSize &frame) const;
-  QPointF clampPan(int slot,const QSize &cell,const QPointF &pan) const;
+  QPointF clampPan(int slot,const QSize &cell,const QPointF &pan,double zoom=-1) const;   // zoom -1: the one of the slot
+  void framingFrom(int slot,double zoom0,const QPointF &pan0,double scale,const QPointF &focus,const QPointF &shift,double &zoom,QPointF &pan) const;
+  double gestureZoom;           // the framing at the start of a touch gesture
+  QPointF gesturePan;
+  QImage gestureSource;         // the picture smaller (a large photo is drawn many times during a gesture); null: the picture itself
   void drawCell(QPainter &painter,const QImage &img,const QRect &cell,int slot);
   QImage frameSingle(int tw,int th);
   bool templateInUse() const;

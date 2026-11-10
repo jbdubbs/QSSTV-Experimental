@@ -13,6 +13,7 @@
 #include "dispatcher.h"
 #include "dispatch/filedecoder.h"
 #include "supportfunctions.h"
+#include "uimode.h"
 #include "busycursor.h"
 #include "gallerywidget.h"
 #include "waterfalltext.h"
@@ -553,12 +554,19 @@ bool txWidget::busyNotice()
   nobody told (#162). The status bar says it, and a box does when somebody pressed the button (a beacon, a repeater and a
   calibration have their own way of reporting, and a headless run has nobody to read a box).
 */
+QString txWidget::noSoundOutputText()
+{
+  // the Qt Quick interface has no Configuration dialog: the sound devices are on the Audio and radio page
+  return QString("Nothing was transmitted: there is no working sound output.\n\nChoose the sound card in %1.")
+         .arg(uiMode::qml() ? QStringLiteral("Settings > Audio and radio") : QStringLiteral("Configuration > Sound"));
+}
+
 void txWidget::startFailedNotice(bool attended)
 {
   QString text;
   if(soundIOPtr && !soundIOPtr->driverOK())
     {
-      text="Nothing was transmitted: there is no working sound output.\n\nChoose the sound card in Configuration > Sound.";
+      text=noSoundOutputText();
     }
   else
     {
@@ -592,6 +600,7 @@ bool txWidget::sendCalibrationImage(esstvMode mode,const QImage &image)
   calSavedFile=imageViewerPtr->getFilename();
   calSavedMode=sstvModeIndexTx;
   calSavedUseTemplate=useTemplate;
+  imageViewerPtr->framingState(calSavedZoom,calSavedPan);
   calTxActive=true;
   sstvModeIndexTx=mode;
   useTemplate=false;
@@ -610,6 +619,7 @@ bool txWidget::sendDrmTestImage(const drmTxParams &params,const QImage &image,ui
   calSavedFile=imageViewerPtr->getFilename();
   calSavedMode=sstvModeIndexTx;
   calSavedUseTemplate=useTemplate;
+  imageViewerPtr->framingState(calSavedZoom,calSavedPan);
   calTxActive=true;
   useTemplate=false;
   copyProfile(params);
@@ -640,6 +650,7 @@ void txWidget::restoreAfterCalibrationTx()
     {
       imageViewerPtr->openImage(calSavedImage);
       imageViewerPtr->setFilename(calSavedFile);
+      imageViewerPtr->setFramingState(calSavedZoom,calSavedPan);   // before applyTemplate() below draws the picture
     }
   else imageViewerPtr->clear();
   calSavedImage=QImage();
@@ -1080,6 +1091,7 @@ void txWidget::updateTxTime()
   // background encode: that froze the GUI until the encode was done (#164). slotCompressionReady() calls this again.
   if(imageViewerPtr->encodePending()) return;
   seconds=txFunctionsPtr->calcTxTime(false,0);
+  lastTxSeconds=seconds;
   minutes=seconds/60;
   seconds=seconds-minutes*60;
   if(minutes==0)
@@ -1092,6 +1104,7 @@ void txWidget::updateTxTime()
     }
   sizeKb=round((double)imageViewerPtr->getFileSize()/1000.);
   ui->sizeKbLabel->setText( QString::number(sizeKb)+"KB");
+  emit txTimeChanged();
 }
 
 
@@ -1911,6 +1924,19 @@ void txWidget::slotGpsToggle()
   scheduleSettingsSave();
 }
 
+void txWidget::setGpsTracking(bool on)
+{
+  if(on && !gpsUsable()) return;
+  if(gpsTracking==on) return;
+  gpsTracking=on;
+  gpsTrackState=-1;
+  gpsTrackReason.clear();
+  if(gpsTracking) gpsReaderPtr->startTracking();
+  else gpsReaderPtr->stopTracking();
+  updateGpsButton();
+  scheduleSettingsSave();
+}
+
 // Configuration > GPS was closed with OK, or the program has started: the tracking runs with the settings now in force
 void txWidget::gpsSettingsChanged()
 {
@@ -1968,7 +1994,25 @@ bool txWidget::requestPlace()
   placeCellKnown=true;
   placeLat=lat;
   placeLon=lon;
+  placeState=PLACELOOKING;
+  emit placeStateChanged();
   return true;
+}
+
+QString txWidget::placeNow() const
+{
+  return imageViewerPtr->place;
+}
+
+void txWidget::lookupPlaceNow()
+{
+  placeFailedAt.invalidate();   // a failure of before does not hold the new try back
+  placeCellKnown=false;         // and a lookup of before does not count as this one: the tracking asks again with the next position
+  placeKey.clear();
+  placeState=PLACEIDLE;
+  placeReason.clear();
+  requestPlace();               // without a position in the boxes (yet) nothing is asked: the first position that arrives asks
+  emit placeStateChanged();
 }
 
 void txWidget::slotPlaceReady(bool ok,const QString &place,const QString &reason)
@@ -1978,6 +2022,8 @@ void txWidget::slotPlaceReady(bool ok,const QString &place,const QString &reason
   if(ok)
     {
       placeFailedAt.invalidate();
+      placeState=PLACEIDLE;
+      placeReason.clear();
       setValue(place,ui->placeLineEdit);
       slotGetParams();   // takes the place over and renders the template again
     }
@@ -1990,7 +2036,10 @@ void txWidget::slotPlaceReady(bool ok,const QString &place,const QString &reason
       const QString message=QString("Place lookup: %1, keeping the last place").arg(reason);
       addToLog(message,LOGTXMAIN);
       if((gpsTracking && first) || beaconRunning) statusBarPtr->showMessage(message,20000);
+      placeState=PLACEFAILED;
+      placeReason=reason;
     }
+  emit placeStateChanged();
 }
 
 // Writes both boxes in the given format. Text that is no coordinate (free text such as 47°N or a name) stays as it is.
@@ -2021,3 +2070,4 @@ void txWidget::slotPositionEdited()
   if(imageViewerPtr->latitude+"|"+imageViewerPtr->longitude==placeKey) return;
   requestPlace();   // nobody waits for this one
 }
+

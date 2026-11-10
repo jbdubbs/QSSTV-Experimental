@@ -13,9 +13,10 @@ mkdir -p "$OUT"
 trap 'rm -rf "$OUT"' EXIT
 "$MOC" "$SRC/gps/gpsreader.h" -o "$OUT/moc_gpsreader.cpp"
 "$MOC" "$SRC/gps/placelookup.h" -o "$OUT/moc_placelookup.cpp"
+"$MOC" "$SRC/gps/locationsource.h" -o "$OUT/moc_locationsource.cpp"
 g++ -O1 -fPIC -std=gnu++17 -Wall -Wextra -Wno-unused-parameter -I"$SRC/gps" -I"$SRC/config" -I"$SRC/utils" \
     -isystem "$QT" -isystem "$QT/QtCore" -isystem "$QT/QtGui" -isystem "$QT/QtWidgets" -isystem "$QT/QtSerialPort" -isystem "$QT/QtNetwork" \
-    -o "$OUT/gpstest" "$HERE/test.cpp" "$SRC/gps/nmeaparser.cpp" "$SRC/gps/gpsreader.cpp" "$OUT/moc_gpsreader.cpp" \
+    -o "$OUT/gpstest" "$HERE/test.cpp" "$SRC/gps/nmeaparser.cpp" "$SRC/gps/gpsreader.cpp" "$OUT/moc_gpsreader.cpp" "$OUT/moc_locationsource.cpp" \
     "$SRC/gps/placelookup.cpp" "$OUT/moc_placelookup.cpp" \
     -lQt6Network -lQt6SerialPort -lQt6Widgets -lQt6Gui -lQt6Core
 "$OUT/gpstest"

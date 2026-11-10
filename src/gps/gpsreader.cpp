@@ -1,6 +1,7 @@
 #include "gpsreader.h"
 #include "gpsconfig.h"
 #include "nmeaparser.h"
+#include "locationsource.h"
 
 #include <QSerialPort>
 
@@ -45,6 +46,13 @@ bool gpsReader::requestFix(const QString &portName,int baud,int timeoutMs)
       // the tracking holds the port: let go of it for this request, finish() takes it up again
       closeTracking();
       trackPaused=true;
+    }
+  if(loc!=nullptr)
+    {
+      usedPort=tr("the phone's location");
+      timeout.start(timeoutMs);
+      loc->requestOnce(timeoutMs);
+      return true;
     }
   sawNmea=false;
   buffer.clear();
@@ -92,6 +100,11 @@ void gpsReader::slotReadyRead()
 void gpsReader::slotTimeout()
 {
   if(!pending) return;
+  if(loc!=nullptr)
+    {
+      finish(false,0,0,tr("The phone has no position yet (is its location service on, and is the sky in view?)"));
+      return;
+    }
   if(sawNmea) finish(false,0,0,tr("The GPS receiver on %1 has no position fix yet").arg(usedPort));
   else finish(false,0,0,tr("No GPS data from %1 (check the port and the baud rate)").arg(usedPort));
 }
@@ -124,7 +137,7 @@ void gpsReader::finish(bool ok,double lat,double lon,const QString &reason)
 
 bool gpsReader::startTracking()
 {
-  if(!gpsEnabled || gpsPort.isEmpty()) return false;
+  if(!gpsEnabled || (gpsPort.isEmpty() && loc==nullptr)) return false;
   stopTracking();
   trackingOn=true;
   trackStateNow=-1;
@@ -149,6 +162,7 @@ void gpsReader::closeTracking()
 {
   trackWatchdog.stop();
   trackRetry.stop();
+  if(loc!=nullptr) loc->stop();
   if(trackPort!=nullptr)
     {
       trackPort->disconnect(this);
@@ -164,6 +178,13 @@ void gpsReader::openTracking()
   closeTracking();
   trackSawNmea=false;
   lastReported.invalidate();   // the first position after (re)opening is reported at once
+  if(loc!=nullptr)
+    {
+      setTrackState(TRACKWAITING,tr("Waiting for the phone's location"));
+      trackWatchdog.start(trackSilenceMs);
+      loc->start();
+      return;
+    }
   trackPort=new QSerialPort(gpsPort,this);
   trackPort->setBaudRate(gpsBaud);
   trackPort->setDataBits(QSerialPort::Data8);
@@ -228,7 +249,13 @@ void gpsReader::slotTrackError()
 
 void gpsReader::slotTrackWatchdog()
 {
-  if(!trackingOn || trackPort==nullptr) return;
+  if(!trackingOn || (trackPort==nullptr && loc==nullptr)) return;
+  if(loc!=nullptr)
+    {
+      setTrackState(TRACKWAITING,tr("The phone has no position now (is its location service on, and is the sky in view?)"));
+      trackWatchdog.start(trackSilenceMs);
+      return;
+    }
   if(trackSawNmea) setTrackState(TRACKWAITING,tr("The GPS receiver on %1 has no position fix").arg(gpsPort));
   else setTrackState(TRACKWAITING,tr("No GPS data from %1 (check the port and the baud rate)").arg(gpsPort));
   trackSawNmea=false;   // from here on a silent receiver is told apart from one that talks without a fix
@@ -239,4 +266,38 @@ void gpsReader::slotTrackRetry()
 {
   if(!trackingOn || trackPaused) return;
   openTracking();
+}
+
+void gpsReader::setLocationSource(locationSource *source)
+{
+  if(loc!=nullptr) loc->disconnect(this);
+  loc=source;
+  if(loc==nullptr) return;
+  connect(loc,&locationSource::position,this,&gpsReader::acceptTracked);
+  connect(loc,&locationSource::onceReady,this,[this](double lat,double lon) {if(pending) finish(true,lat,lon,QString());});
+  connect(loc,&locationSource::failed,this,&gpsReader::locationFailed);
+}
+
+void gpsReader::acceptTracked(double lat,double lon)
+{
+  if(!trackingOn || trackPaused) return;
+  trackWatchdog.start(trackSilenceMs);
+  setTrackState(TRACKFIXED,QString());
+  if(lastReported.isValid() && lastReported.elapsed()<trackMinIntervalMs) return;
+  lastReported.start();
+  emit positionUpdated(lat,lon);
+}
+
+void gpsReader::locationFailed(const QString &reason)
+{
+  if(pending)
+    {
+      finish(false,0,0,reason);
+      return;
+    }
+  if(!trackingOn || trackPaused) return;
+  loc->stop();
+  trackWatchdog.stop();
+  setTrackState(TRACKFAILED,reason);
+  trackRetry.start(trackRetryMs);   // tried again by itself, as a port that cannot be opened is
 }

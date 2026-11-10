@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
-<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html">Install and first run</a></li><li><a href="main-window.html">Main window tour</a></li><li><a href="receive.html">Receiving</a></li><li><a href="transmit.html">Transmitting</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="template-editor.html" aria-current="page">Template editor</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="sstv-modes.html">SSTV modes</a></li><li><a href="drm.html">Digital SSTV (DRM)</a></li><li><a href="calibration.html">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
+<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html">Install and first run</a></li><li><a href="main-window.html">Main window tour</a></li><li><a href="receive.html">Receiving</a></li><li><a href="transmit.html">Transmitting</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="template-editor.html" aria-current="page">Template editor</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="sstv-modes.html">SSTV modes</a></li><li><a href="drm.html">Digital SSTV (DRM)</a></li><li><a href="calibration.html">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="android.html">Android</a></li><li><a href="privacy.html">Privacy policy</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
 <main>
 
 <h1>Template editor</h1>
@@ -89,7 +89,7 @@ puts it on the transmitted picture. Choose a mode in its list to see how the tem
 <tr><td>Text</td><td><kbd>T</kbd></td><td>A text. Click where it should go, type, then press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or click outside. Dragging out a rectangle instead makes a <a href="#textbox">text box</a>.</td></tr>
 <tr><td>Rectangle</td><td><kbd>R</kbd></td><td>A rectangle: drag on the canvas. A plain click adds one of a default size.</td></tr>
 <tr><td>Ellipse</td><td><kbd>E</kbd></td><td>An ellipse or circle.</td></tr>
-<tr><td>Line</td><td><kbd>L</kbd></td><td>A straight line. Its thickness is the outline width in the Properties panel.</td></tr>
+<tr><td>Line</td><td><kbd>L</kbd></td><td>A straight line. Its thickness is the stroke width in the Properties panel.</td></tr>
 <tr><td>Picture</td><td><kbd>Ctrl</kbd>+<kbd>I</kbd></td><td>A picture from a file, for example your club logo. Large pictures are shrunk to 1600 pixels. You can also drop picture files on the canvas,
  or paste a copied picture.</td></tr>
 <tr><td>Replay window</td><td><kbd>P</kbd></td><td>A window that shows the picture of the small preview on the Transmit tab (right-click it there to load a picture), for example the
@@ -119,19 +119,20 @@ puts it on the transmitted picture. Choose a mode in its list to see how the tem
  typing in one field. <span class="ui">Edit &gt; Delete All Items</span> asks first and can be undone too.</dd>
 </dl>
 
-<h2 id="look">Colors, gradients, outlines and fonts</h2>
-<p>The Properties panel changes every selected item at once. Its sections run from what the item is to where it sits: the text or picture first, then fill, outline, shadow, opacity and lock, the anchor
+<h2 id="look">Colors, gradients, strokes and fonts</h2>
+<p>The Properties panel changes every selected item at once. Its sections run from what the item is to where it sits: the text or picture first, then fill, stroke, shadow, opacity and lock, the anchor
  (for templates that keep their proportions), and last position, size and rotation, which you mostly set by dragging on the canvas.</p>
 <figure><img src="../images/template-editor-gradient.png" alt="The template editor with a rectangle selected; the Fill section shows a linear gradient with two color stops" loading="lazy"><figcaption>A rectangle with a linear gradient fill from transparent to dark. Click the bar to add a color stop, drag a stop to move it, double-click it to change its color.</figcaption></figure>
 <dl>
 <dt>Fill</dt><dd>A solid color (with transparency) or a linear, radial or conical gradient for text, rectangles and ellipses. For a linear gradient the direction is the angle: 0° runs from left to right, 90° from bottom to top, 270° from top to bottom.</dd>
-<dt>Outline</dt><dd>Color, width and style of the edge, and for text, rectangles and pictures the shape of its outer corners (round, miter or bevel). For a line this <em>is</em> the line; for pictures and the replay window it is the border. White text with a black outline stays readable on any picture.
- To draw no edge at all, untick the box in the section's title (<em>Outline</em>, <em>Line</em> or <em>Border</em>); ticking it again brings it back as a solid edge. The width is at least 0.5 pixel.</dd>
+<dt>Stroke</dt><dd>Color, width and style of the line round an item, and for text, rectangles and pictures the shape of its outer corners (round, miter or bevel). The stroke lies <em>outside</em> the edge of the item: the item keeps its size and its fill is not covered, however wide the stroke is. (On a bar that touches the edge of the picture, the part of the stroke beyond the picture is cut off.) For a line this <em>is</em> the line; for pictures and the replay window it is the border, which lies inside the frame. White text with a black stroke stays readable on any picture.
+ To draw no stroke at all, untick the box in the section's title (<em>Stroke</em>, <em>Line</em> or <em>Border</em>); ticking it again brings it back as a solid line. The width is at least 0.5 pixel.
+ Templates made before this had an <em>outline</em> centered on the edge, half inside and half outside, which eats into the letters of a text. When you open such a template, the strokes of its texts are moved outside the letters, as one step you can undo (the editor then counts the template as changed). The outline of a rectangle or an ellipse stays as it was until you change its width, color or style, or tick or untick it; then it becomes a stroke outside the edge.</dd>
 <dt>Font</dt><dd>Family, size in points, weight, italic, underline and letter spacing. A template remembers the font by name. If a computer does not have the font the text is drawn
  in another font; the Properties panel then shows a notice, and the template keeps the name.</dd>
 <dt>Corner radius</dt><dd>Rounds the corners of a rectangle (in the Fill section).</dd>
 <dt>Shadow</dt><dd>Any item can have a drop shadow: it is drawn once more behind the item, shifted right and down by the X and Y values, in the shadow color (a transparent color gives a lighter shadow). <em>Blur</em> softens its edge.
- The shadow keeps its direction when the item is turned.</dd>
+ The shadow keeps its direction when the item is turned. An item filled with a gradient casts a shadow that is as transparent as the gradient is, so a bar that fades out has a shadow that fades out.</dd>
 </dl>
 
 <h2 id="textbox">Text in a box</h2>

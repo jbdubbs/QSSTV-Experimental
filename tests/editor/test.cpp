@@ -1052,7 +1052,10 @@ static void testFiles()
   // open then close untouched: no prompt
   QFile::copy(fixtures + "/synthetic.templ", tmp.filePath("synthetic.templ"));
   check(ed.openFile(tmp.filePath("synthetic.templ")), "a legacy .templ opens");
-  check(d->isLegacyImport() && !d->isModified(), "it is marked as an import and is not modified");
+  // (the texts of this old template have centered strokes: opening it moves them outside, which is its one change, #202)
+  check(d->isLegacyImport() && d->isModified() && d->undoStack()->index() == 1 && d->undoStack()->undoText() == "Stroke outside the letters", "it is marked as an import, and its only change is the strokes of its texts");
+  d->undoStack()->undo();
+  check(!d->isModified(), "without that change it is not modified");
   check(d->doc().items.size() > 5, QString("with its %1 items").arg(d->doc().items.size()));
   const QByteArray original = readAll(tmp.filePath("synthetic.templ"));
   env.unsavedAsked = 0;
@@ -1668,6 +1671,56 @@ static void testShadowCornersPanel()
   check(pr > 45, QString("boxed text, blurred shadows and rounded corners look the same on the canvas and in the renderer (PSNR %1 dB)").arg(pr, 0, 'f', 1));
 }
 
+// issue #202: a template from before the stroke had a side has the strokes of its texts centered on the letters' edge; opening it moves them outside
+static void testOldTextStrokes()
+{
+  printf("== the strokes of old texts move outside the letters when a template is opened (#202)\n");
+  Env env;
+  EditorDocument *d = env.d;
+  auto text = [](const QString &id, tpl::StrokePos pos, Qt::PenStyle style) {
+    tpl::Element e = make(tpl::ItemType::Text, QPointF(10, 40));
+    e.id = id;
+    e.text = id;
+    e.outline.width = 3;
+    e.outline.position = pos;
+    e.outline.style = style;
+    return e;
+  };
+  tpl::Element rc = make(tpl::ItemType::Rect, QPointF(10, 100), QSizeF(80, 40));
+  rc.id = "box";
+  rc.outline.style = Qt::SolidLine;
+  rc.outline.width = 3;
+  rc.outline.position = tpl::StrokePos::Center;
+  QTemporaryDir tmp;
+  auto write = [&](const QString &name, const QVector<tpl::Element> &items) {
+    tpl::TemplateDocument doc;
+    doc.canvas = QRectF(0, 0, 320, 256);
+    doc.items = items;
+    QFile f(tmp.filePath(name));
+    f.open(QIODevice::WriteOnly);
+    f.write(tpl::toJson(doc));
+    return tmp.filePath(name);
+  };
+  const QString old = write("old.qtempl", {text("old-text", tpl::StrokePos::Center, Qt::SolidLine), text("new-text", tpl::StrokePos::Outside, Qt::SolidLine),
+                                           text("plain-text", tpl::StrokePos::Center, Qt::NoPen), rc});
+  check(env.ed.openFile(old), "the template opens");
+  check(get(*d, "old-text").outline.position == tpl::StrokePos::Outside, "a text with a centered stroke has it outside now");
+  check(get(*d, "old-text").outline.width == 3 && get(*d, "old-text").outline.style == Qt::SolidLine, "with the width and style it had");
+  check(get(*d, "new-text").outline.position == tpl::StrokePos::Outside && get(*d, "plain-text").outline.position == tpl::StrokePos::Center && get(*d, "plain-text").outline.style == Qt::NoPen,
+        "a text that has its stroke outside, and one that has none, are left alone");
+  check(get(*d, "box").outline.position == tpl::StrokePos::Center, "a rectangle keeps its centered outline");
+  check(d->isModified() && d->undoStack()->index() == 1 && d->undoStack()->undoText() == "Stroke outside the letters", "one undo step, and the template counts as changed");
+  d->undoStack()->undo();
+  check(get(*d, "old-text").outline.position == tpl::StrokePos::Center && !d->isModified(), "undo brings the old look back, and the template is as it was on disk");
+  d->undoStack()->redo();
+  check(get(*d, "old-text").outline.position == tpl::StrokePos::Outside, "redo moves it again");
+  const int index = d->undoStack()->index();
+  check(!d->moveTextStrokesOutside() && d->undoStack()->index() == index, "asked again it moves nothing and adds no step");
+  // a template with nothing to move opens clean
+  const QString fine = write("fine.qtempl", {text("new-text", tpl::StrokePos::Outside, Qt::SolidLine), text("plain-text", tpl::StrokePos::Center, Qt::NoPen), rc});
+  check(env.ed.openFile(fine) && !d->isModified() && d->undoStack()->index() == 0, "a template that has nothing to move opens as it is, unchanged");
+}
+
 // issue #134: the outline can be switched off from the panel, and a width of 0 cannot be entered
 static void testOutlineOffPanel()
 {
@@ -1680,6 +1733,11 @@ static void testOutlineOffPanel()
   const QString tx = add(*d, make(tpl::ItemType::Text, QPointF(50, 150)));
   const QString ln = add(*d, make(tpl::ItemType::Line, QPointF(50, 220), QSizeF(100, 2)));
   const QString im = add(*d, make(tpl::ItemType::Image, QPointF(200, 150), QSizeF(40, 20)));
+  {
+    tpl::Element e0 = get(*d, el);   // an ellipse of an old template: its outline is centered on the edge
+    e0.outline.position = tpl::StrokePos::Center;
+    d->modifyItems(QVector<tpl::Element>() << e0, "centered");
+  }
   d->undoStack()->clear();
   QGroupBox *box = panelChild<QGroupBox>(p, "outlineBox");
   QDoubleSpinBox *width = panelChild<QDoubleSpinBox>(p, "outlineWidthSpin");
@@ -1694,15 +1752,18 @@ static void testOutlineOffPanel()
   check(box->isCheckable() && box->isChecked() && width->isEnabled(), "an ellipse has an outline: the Outline box is ticked, its fields are active");
   check(style->findData(int(Qt::NoPen)) < 0, "the style list has no 'None' any more");
   check(near(width->minimum(), 0.5), "the width starts at 0.5 pixel");
+  check(get(*d, el).outline.position == tpl::StrokePos::Center, "an item nobody has touched keeps the centered outline it has (old templates look as they did)");
   const int base = d->undoStack()->index();
   box->setChecked(false);
   QApplication::processEvents();
   check(get(*d, el).outline.style == Qt::NoPen && d->undoStack()->index() == base + 1, "unticking the box switches the outline off, in one undo step");
+  check(get(*d, el).outline.position == tpl::StrokePos::Outside, "and from then on its stroke lies outside the edge");
   check(!width->isEnabled() && !style->isEnabled() && !panelChild<QPushButton>(p, "outlineColorButton")->isEnabled(), "and greys out the rest of the section");
   d->undoStack()->undo();
   QApplication::processEvents();
   QApplication::processEvents();
   check(get(*d, el).outline.style == Qt::SolidLine && box->isChecked() && width->isEnabled(), "undo brings the outline back, and the box follows");
+  check(get(*d, el).outline.position == tpl::StrokePos::Center, "as it was, centered");
   d->undoStack()->redo();
   QApplication::processEvents();
   QApplication::processEvents();
@@ -1722,12 +1783,24 @@ static void testOutlineOffPanel()
   QApplication::processEvents();
   check(get(*d, el).outline.style == Qt::NoPen && get(*d, el).outline.width >= 0.5 && !box->isChecked(), "an outline of width 0 handed to the document means no outline, and the panel shows it");
 
+  // editing the width or the style of a centered outline makes it a stroke outside the edge, and the defaults of new items are strokes
+  const tpl::Element made = EditorCanvas::defaultElement(tpl::ItemType::Text);
+  check(made.outline.position == tpl::StrokePos::Outside && EditorCanvas::defaultElement(tpl::ItemType::Ellipse).outline.position == tpl::StrokePos::Outside,
+        "a new text and a new ellipse have their stroke outside");
+  tpl::Element old = get(*d, el);
+  old.outline.position = tpl::StrokePos::Center;
+  d->modifyItems(QVector<tpl::Element>() << old, "centered");
+  select(QStringList());
+  select(QStringList(el));
+  width->setValue(3);
+  check(get(*d, el).outline.position == tpl::StrokePos::Outside, "a change of the width of a centered outline makes it a stroke outside");
+
   // selecting an item shows its state without creating undo steps
   select(QStringList(rc));
   const int idx = d->undoStack()->index();
   check(!box->isChecked() && !width->isEnabled(), "a new rectangle has no outline: the box is not ticked");
   select(QStringList(tx));
-  check(box->isChecked() && box->title() == "Outline", "text has an outline");
+  check(box->isChecked() && box->title() == "Stroke", "text has a stroke");
   select(QStringList(ln));
   check(box->isChecked() && box->title() == "Line", "a line's section is called Line");
   select(QStringList(im));
@@ -2680,6 +2753,7 @@ int main(int argc, char **argv)
   testTextBoxEditor();
   testShadowCornersPanel();
   testOutlineOffPanel();
+  testOldTextStrokes();
   testSizePreviewAndGuides();
   testPresets();
   testGroupTransformAndSnapping();

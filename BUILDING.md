@@ -197,7 +197,7 @@ formats your build can read.
 | Format | Linux AppImage | Windows installer | macOS app | Source build |
 |---|---|---|---|---|
 | WebP | yes | yes | yes | needs Qt's `qtimageformats` (Fedora `qt6-qtimageformats`) |
-| AVIF | yes | yes | yes | opening files needs KDE `kimageformats` and libavif; AVIF over DRM needs only libavif |
+| AVIF | yes | yes | yes | needs libavif (built with the libaom encoder); the KDE `kimageformats` plugin is not needed |
 | HEIC/HEIF | yes | yes | yes | needs `kimageformats` and libheif **with an HEVC decoder** (Fedora `libheif-freeworld`, Debian/Ubuntu `libheif-plugin-libde265`); on macOS nothing to install |
 
 Fedora's stock libheif has no HEVC decoder, so HEIC loads there once a freeworld or HEVC-capable libheif is
@@ -209,10 +209,16 @@ A picture's EXIF/HEIF orientation is applied wherever it is loaded, including `-
 that by sending sideways JPEGs (and, on macOS, HEIC files written by the system) through `--encode` and `--batch` and comparing
 them with the original; the macOS CI job runs it on the bundled app, and it runs on Linux too (JPEG only, HEIC needs macOS).
 
-Sending and receiving AVIF over DRM (Transmit > DRM > Encoding) does not use the plugin: the program links libavif directly
-(Fedora `libavif-devel`, Debian/Ubuntu `libavif-dev`, Homebrew `libavif`), and libavif must be built with the libaom
-encoder. Without libavif at build time the AVIF choice is grayed out and everything else works. All the release builds
-include it. The macOS CI job checks an AVIF DRM round trip on the bundled app (`.github/workflows/macos.yml`).
+AVIF does not depend on the plugin: the program links libavif directly (Fedora `libavif-devel`, Debian/Ubuntu `libavif-dev`,
+Homebrew `libavif`), and libavif must be built with the libaom encoder. It sends and receives AVIF over DRM (Transmit > DRM >
+Encoding), saves received pictures as AVIF (the picture file format list offers AVIF whenever libavif is built in), and opens
+AVIF files when Qt has no AVIF plugin, as on Android. Without libavif at build time the DRM AVIF choice is grayed out and
+AVIF files need the plugin. All the release builds include libavif. The macOS CI job checks an AVIF DRM round trip on the
+bundled app (`.github/workflows/macos.yml`); `tests/imagefmt/app.sh` checks the plugin-less AVIF paths.
+
+The Android app has neither plugin. It reads HEIC/HEIF by letting the phone decode the picture when it is picked or shared
+(`FileHelper.decodeToPng`, called from `platformFiles::importPicked`), so no HEVC decoder is built in; HEIC is not offered as a
+file format to save.
 
 ## macOS
 
@@ -238,3 +244,63 @@ for microphone access; if you deny it, re-enable it under System Settings > Priv
 Headless checks work as on Linux: `QSSTV_BIN=build/qsstv-experimental.app/Contents/MacOS/qsstv-experimental tests/filedecode/run.sh` (needs
 Homebrew bash, `brew install bash`, since macOS ships bash 3.2). Ogg Vorbis files are decoded with libvorbisfile
 because macOS's audio decoder does not handle Vorbis.
+
+## Android (in development)
+
+An Android build is being developed on the `android-port` branch. It receives and transmits through the phone's own microphone
+and speaker (or a headset or USB audio interface), asks for the microphone permission, keeps receiving with the screen off (a
+foreground service), saves received pictures to the gallery and decodes recordings opened from a file manager ("Open with"). The
+screens are Qt Quick (`src/qml`, built with `-DQSSTV_QML_UI=ON`, which is the default on Android and required there): Receive, Transmit and
+Gallery with a bottom navigation, Settings as a list of pages. A desktop build with `-DQSSTV_QML_UI=ON` shows them with `QSSTV_UI=qml`
+(`tests/qmlui` takes screenshots of them). The entries of Settings > Advanced that have no page of their own yet open the classic
+Configuration dialog, laid out for a phone (`QSSTV_UI=phone` or `tablet` shows that on the desktop, `tests/uishots`). USB serial adapters (Digirig, FTDI, CP210x, CH34x, Prolific, CDC) carry the CAT and PTT lines: the Java library
+usb-serial-for-android is bundled (`packaging/android/libs`), Hamlib reaches the rig through a loopback TCP port that
+`CatBridge.java` connects to the adapter, and RTS/DTR PTT is driven by the program itself. The GPS button uses the phone's position
+(Qt Positioning) instead of a serial receiver, and camera pictures are turned and mirrored the way the camera says. It is not
+released, and what needs a phone or a radio interface (the permission boxes, a real adapter, a GPS fix) has only been tried on
+the desktop with stand-ins (`tests/catbridge`, `tests/gps`, `tests/camorient`).
+Android 10 (API 29) or newer, 64-bit ARM (`arm64-v8a`) or `x86_64` for the emulator.
+
+You need JDK 21, the Android SDK with platform 36 and **NDK 27.2.12479018 (r27c)**, and Qt 6.11.2 for Android (the NDK must be
+the one the Qt kit was built with) plus the matching desktop Qt as the host tools, for example with [aqtinstall](https://github.com/miurahr/aqtinstall):
+
+```
+aqt install-qt linux desktop 6.11.2 linux_gcc_64 -O ~/Qt
+aqt install-qt all_os android 6.11.2 android_arm64_v8a -m qtmultimedia qtserialport qtpositioning qtimageformats -O ~/Qt
+```
+
+FFTW, OpenJPEG, libaom/libavif, Hamlib and Oboe (the Android audio library) are cross-compiled as static libraries by `tools/build-android-deps.sh` (set `ABIS`
+and `ONLY` to build less; it needs a local Hamlib checkout, `HAMLIB_SRC`, like the Windows build). Then configure with the Android kit
+and let pkg-config find them:
+
+```
+tools/build-android-deps.sh
+DEPS=$PWD/third_party/android-deps/arm64-v8a
+export JAVA_HOME=/path/to/jdk-21 PKG_CONFIG_LIBDIR=$DEPS/lib/pkgconfig
+~/Qt/6.11.2/android_arm64_v8a/bin/qt-cmake -S src -B build-android-arm64 -G Ninja \
+  -DQT_HOST_PATH=$HOME/Qt/6.11.2/gcc_64 -DANDROID_SDK_ROOT=$HOME/Android/Sdk \
+  -DANDROID_NDK_ROOT=$HOME/Android/Sdk/ndk/27.2.12479018 -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  -DHAMLIB_ROOT=$DEPS -DCMAKE_FIND_ROOT_PATH=$DEPS
+cmake --build build-android-arm64
+```
+
+Use Release or RelWithDebInfo: a Debug build is refused on Android (the oscilloscope needs Qwt). The result is an unsigned APK
+in `build-android-arm64/android-build/build/outputs/apk/release/`. Align and sign it before installing (the debug key that
+Android Studio creates is fine for testing), then `adb install`:
+
+```
+BT=$HOME/Android/Sdk/build-tools/36.0.0
+$BT/zipalign -f -p 4 android-build-release-unsigned.apk app-aligned.apk
+$BT/apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android --out app.apk app-aligned.apk
+adb install -r app.apk
+```
+
+The application id is `io.github.jbdubbs.qsstv_experimental` and the version comes from `CPACK_PACKAGE_VERSION`
+(the version code is derived from it, see the end of `src/CMakeLists.txt`). For the emulator build `android_x86_64` with the matching
+`build-android-x86_64` and deps directory. On a Linux host with SELinux enforcing (Fedora), start the emulator with `-gpu host`:
+its software renderer (SwiftShader) needs executable heap memory, which SELinux denies, and the emulator then crashes at startup.
+
+What to look at when something does not work on a phone: `adb logcat -s qsstv-audio qsstv-service qsstv-files` shows the audio devices
+and route that were opened, the microphone level and problems (muted, overloaded), the foreground service, and the files that were
+picked, decoded and added to the gallery. The User's Guide (More > User's Guide) is compiled into the app and shown in the
+browser from a server on 127.0.0.1; `tests/guideserver/run.sh` checks that server on the desktop.

@@ -24,7 +24,11 @@
 It also starts, stops and synchronizes the threads.
 
 */
+#include "applog.h"
 #include "dispatcher.h"
+#include "qmlui.h"
+#include "uimode.h"
+#include "platformfiles.h"
 #include "appglobal.h"
 #include "configparams.h"
 #include <QTimeZone>
@@ -107,6 +111,16 @@ void dispatcher::slotTemplateSaved()
 }
 
 
+#ifdef Q_OS_ANDROID
+void dispatcher::appResumed()
+{
+  if(missedStatus) rxWidgetPtr->setSSTVStatusText(missedSSTVStatus);
+  if(missedPicture) rxWidgetPtr->getImageViewerPtr()->displayImage();
+  missedStatus=false;
+  missedPicture=false;
+}
+#endif
+
 /*!
   All communication between the threads are passed via this eventhandler.
 */
@@ -116,6 +130,23 @@ void dispatcher::customEvent( QEvent * e )
   dispatchEventType type;
   QString fn;
   type=(dispatchEventType)e->type();
+#ifdef Q_OS_ANDROID
+  // With the app out of sight (screen off, another app in front) the event loop keeps running so that receiving goes on
+  // (android.app.background_running in the manifest), but there is no surface to draw on and Qt warns that drawing then can
+  // crash: skip the events that only draw. The picture itself is written by the receiver; it is shown again when the app returns.
+  if(type==displayFFT || type==displaySync || type==rxSSTVStatus || type==lineDisplay || type==displayDRMInfo || type==displayDRMStat)
+    {
+      const Qt::ApplicationState appState=QGuiApplication::applicationState();
+      if(appState!=Qt::ApplicationActive && appState!=Qt::ApplicationInactive)
+        {
+          // the receiver's state changes only now and then, so what is on the screen must be right when the app returns
+          if(type==rxSSTVStatus) {missedSSTVStatus=((rxSSTVStatusEvent*)e)->getStr();missedStatus=true;}
+          else if(type==lineDisplay) missedPicture=true;
+          ((baseEvent*)e)->setDone();   // the DRM receiver waits for it (drmRx::run): without it the receiver stops for good in the background
+          return;
+        }
+    }
+#endif
   if((type!=displayFFT)
      && (type!=displaySync)
      && (type!=rxSSTVStatus)
@@ -136,20 +167,26 @@ void dispatcher::customEvent( QEvent * e )
       uint s;
       ((displaySyncEvent*)e)->getInfo(s);
       rxWidgetPtr->sMeterPtr()->setValue((double)s);
+      qmlUi::rxSync(int(s));
       break;
     case rxSSTVStatus:
       rxWidgetPtr->setSSTVStatusText(((rxSSTVStatusEvent*)e)->getStr());
+      qmlUi::rxStatus(false,((rxSSTVStatusEvent*)e)->getStr());
       break;
 
     case startImageRX:
       addToLog("dispatcher: clearing RxImage",LOGDISPATCH);
       //      rxWidgetPtr->getImageViewerPtr()->createImage( ((startImageRXEvent*)e)->getSize(),QColor(0,0,128),imageStretch);
       rxWidgetPtr->getImageViewerPtr()->createImage( ((startImageRXEvent*)e)->getSize(),imageBackGroundColor,imageStretch);
+      qmlUi::rxImageStarted(((startImageRXEvent*)e)->getSize().width(),((startImageRXEvent*)e)->getSize().height());
       lastCallsign="";
       break;
     case lineDisplay:
       {
         rxWidgetPtr->getImageViewerPtr()->displayImage();
+        uint lineNbr=0;
+        ((lineDisplayEvent*)e)->getInfo(lineNbr);
+        qmlUi::rxLine(int(lineNbr));
         if(calibrationRx) emit sstvLineReceived();
       }
       break;
@@ -169,10 +206,12 @@ void dispatcher::customEvent( QEvent * e )
           addToLog("dispatcher:endImage savingRxImage",LOGDISPATCH);
           saveRxSSTVImage(((endImageSSTVRXEvent*)e)->getMode());
         }
+      qmlUi::rxImageEnded();
       break;
 
     case rxDRMStatus:
       rxWidgetPtr->setDRMStatusText(((rxDRMStatusEvent*)e)->getStr());
+      qmlUi::rxStatus(true,((rxDRMStatusEvent*)e)->getStr());
 
       break;
 
@@ -252,6 +291,7 @@ void dispatcher::customEvent( QEvent * e )
       {
         // live preview of a DRM image that is still being received; the finished file replaces it later
         rxWidgetPtr->getImageViewerPtr()->openImage(((previewDRMImageEvent*)e)->getImage());
+        qmlUi::rxImageShown();
       }
       break;
     case saveDRMImage:
@@ -268,6 +308,11 @@ void dispatcher::customEvent( QEvent * e )
         if(!rxWidgetPtr->getImageViewerPtr()->openImage(fn,false,false,false,false))
           {
             // simply save the file if it is not an image file
+            if(uiMode::qml())
+              {
+                qmlUi::notice(QString("Saved file %1").arg(fn));
+                break;
+              }
             if(mbox==NULL) delete mbox;
             mbox = new QMessageBox(mainWindowPtr);
             mbox->setWindowTitle("Received file");
@@ -277,6 +322,7 @@ void dispatcher::customEvent( QEvent * e )
             break;
           }
         saveImage(fn, info);
+        qmlUi::rxImageShown();
         if(fileDecoderPtr && fileDecoderPtr->isActive()) fileDecoderPtr->drmImageShown();
         if(repeaterEnabled)
           {
@@ -300,6 +346,11 @@ void dispatcher::customEvent( QEvent * e )
       if(fileDecoderPtr && fileDecoderPtr->isBatch())
         {
           fileDecoderPtr->reportError(((displayMBoxEvent*)e)->getTitle(),((displayMBoxEvent*)e)->getStr());
+          break;
+        }
+      if(uiMode::qml())
+        {
+          qmlUi::notice(((displayMBoxEvent*)e)->getTitle()+": "+((displayMBoxEvent*)e)->getStr());
           break;
         }
       if(mbox==NULL) delete mbox;
@@ -340,6 +391,7 @@ void dispatcher::customEvent( QEvent * e )
 
 void dispatcher::idleAll()
 {
+  APPLOG("qsstv-tx","idleAll");
   if(prTimerIndex>=0)
     {
       killTimer(prTimerIndex);
@@ -537,10 +589,14 @@ void dispatcher::saveRxSSTVImage(esstvMode mode)
 
 void dispatcher::saveImage(QString fileName, QString infotext)
 {
+#ifdef Q_OS_ANDROID
+  platformFiles::exportToGallery(fileName);   // the picture also shows up in the phone's gallery (Pictures/QSSTV-Experimental)
+#endif
   // filename is the name of the original file in hybrid mode
   QFileInfo info(fileName);
   QString fn=QDir::tempPath()+"/"+info.baseName()+"."+ftpDefaultImageFormat;
   galleryWidgetPtr->putRxImage(fileName);
+  qmlUi::rxImageSaved(fileName);
   txWidgetPtr->setPreviewWidget(fileName);
   if(enableFTP)
     {

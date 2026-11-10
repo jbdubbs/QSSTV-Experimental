@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
-<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html">Install and first run</a></li><li><a href="main-window.html">Main window tour</a></li><li><a href="receive.html">Receiving</a></li><li><a href="transmit.html">Transmitting</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="template-editor.html">Template editor</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="sstv-modes.html">SSTV modes</a></li><li><a href="drm.html" aria-current="page">Digital SSTV (DRM)</a></li><li><a href="calibration.html">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
+<header class="site-header"><div class="inner"><a class="brand" href="../index.html">QSSTV-Experimental <span>User's Guide</span></a><nav class="site-nav" aria-label="Guide pages"><ul><li><a href="../index.html">Contents</a></li><li><a href="introduction.html">Introduction</a></li><li><a href="install.html">Install and first run</a></li><li><a href="main-window.html">Main window tour</a></li><li><a href="receive.html">Receiving</a></li><li><a href="transmit.html">Transmitting</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="template-editor.html">Template editor</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="sstv-modes.html">SSTV modes</a></li><li><a href="drm.html" aria-current="page">Digital SSTV (DRM)</a></li><li><a href="calibration.html">Calibration</a></li><li><a href="command-line.html">Decode from file and command line</a></li><li><a href="help-updates.html">Help menu, updates and desktop integration</a></li><li><a href="troubleshooting.html">Troubleshooting and FAQ</a></li><li><a href="android.html">Android</a></li><li><a href="privacy.html">Privacy policy</a></li><li><a href="credits.html">Credits and licenses</a></li></ul></nav></div></header>
 <main>
 
 <h1>Digital SSTV (DRM)</h1>
@@ -76,9 +76,9 @@ picture can still be viewed.</li>
 and fine texture can look slightly smoothed. AVIF is all or nothing: there is no preview while receiving and a damaged picture cannot be shown, so consider
 Reed-Solomon (Rs) with it. Encoding takes a fraction of a second per slider change.</li>
 </ul>
-<p>The receiver needs no setting: it recognizes the format from the received data. To <em>view</em> an AVIF picture the receiving station needs the AVIF image plugin
-(included in the Windows and AppImage builds; the same one that is needed to open AVIF files). Without it the file is still saved. If AVIF cannot be written on your
-system the option is grayed out, and if encoding fails the picture is sent as JPEG2000.</p>
+<p>The receiver needs no setting: it recognizes the format from the received data. The program reads and writes AVIF itself, so no AVIF image plugin is needed to view
+a received picture or to send one. If AVIF cannot be written on your
+system (a build without libavif) the option is grayed out, and if encoding fails the picture is sent as JPEG2000.</p>
 
 <h2 id="rx">Receiving</h2>
 <p>Select the <strong>DRM</strong> settings tab on the Receive tab and leave the receiver running. The status indicators TIME, FRAME, FAC and MSC turn on as the signal is

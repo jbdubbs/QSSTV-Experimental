@@ -1,6 +1,7 @@
 #include "beaconcapture.h"
 
 #include "appglobal.h"
+#include "frameimage.h"
 
 #include <QMediaDevices>
 #include <QCameraDevice>
@@ -148,7 +149,7 @@ void beaconCapture::slotVideoFrameChanged(const QVideoFrame &frame)
   // webcam takes a good part of a core: so only every so often, and grab() gives the last picture converted.
   if(convertGate.isValid() && !convertGate.hasExpired(previewWanted ? BEACONPREVIEWMS : BEACONIDLEMS)) return;
   convertGate.start();
-  QImage img=frame.toImage();
+  QImage img=videoFrameImage(frame);   // turned and mirrored the way the camera says (a phone's sensor is sideways)
   if(img.isNull())
     {
       addToLog(QString("beacon camera: toImage() failed, pixelFormat=%1")

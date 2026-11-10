@@ -6,10 +6,14 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QPointer>
 #include <QSslSocket>
 #include <QTimer>
 #include <QUrlQuery>
 #include <cmath>
+#ifdef Q_OS_ANDROID
+#include "androidhttp.h"
+#endif
 
 // Nominatim wants a User-Agent that names the application, and no more than one request a second
 static const char *defaultService="https://nominatim.openstreetmap.org/reverse";
@@ -81,12 +85,14 @@ bool placeLookup::requestPlace(double lat,double lon,int timeoutMs)
       QTimer::singleShot(0,this,[this,place] {finish(true,place,QString());});
       return true;
     }
+#ifndef Q_OS_ANDROID   // (Android: the system's own HTTPS does the request, below)
   if(serviceUrl.scheme()==QLatin1String("https") && !QSslSocket::supportsSsl())
     {
       // a Linux build takes OpenSSL from the system, where it may be missing (Windows brings its own TLS plugin)
       QTimer::singleShot(0,this,[this] {finish(false,QString(),tr("This computer cannot make secure (https) connections (the OpenSSL libraries are probably missing)"));});
       return true;
     }
+#endif
   requestLat=lat;
   requestLon=lon;
   QUrl url=serviceUrl;
@@ -98,6 +104,27 @@ bool placeLookup::requestPlace(double lat,double lon,int timeoutMs)
   query.addQueryItem("addressdetails","1");
   query.addQueryItem("accept-language","en");     // names the template font can draw
   url.setQuery(query);
+#ifdef Q_OS_ANDROID
+  if(url.scheme()==QLatin1String("https"))
+    {
+      // Qt's Android build has no TLS library to load (OpenSSL is not in the package): the system's own HTTPS, with the system's certificates
+      QPointer<placeLookup> self(this);
+      const qint64 token=androidHttpGet(url,userAgent,timeoutMs,[self](int status,const QByteArray &body,const QString &error)
+        {
+          if(self) self->slotHttpDone(status,body,error);
+        });
+      httpToken=token;
+      // the helper's own timeouts come first; this one is the backstop, and what is answered later is dropped
+      QTimer::singleShot(timeoutMs+1000,this,[this,token]
+        {
+          if(httpToken!=token) return;
+          androidHttpCancel(token);
+          httpToken=0;
+          finish(false,QString(),tr("The place service did not answer in time"));
+        });
+      return true;
+    }
+#endif
   QNetworkRequest req(url);
   req.setRawHeader("User-Agent",userAgent);
   req.setRawHeader("Accept","application/json");
@@ -124,8 +151,14 @@ void placeLookup::slotFinished()
       finish(false,QString(),why);
       return;
     }
+  handleReply(r->readAll());
+}
+
+// the body of an answer of the service: the place in it is kept for the next position within a kilometre
+void placeLookup::handleReply(const QByteArray &json)
+{
   QString error;
-  const QString place=placeFromReply(r->readAll(),error);
+  const QString place=placeFromReply(json,error);
   if(!place.isEmpty())
     {
       haveAnswer=true;
@@ -134,6 +167,24 @@ void placeLookup::slotFinished()
       cachePlace=place;
     }
   finish(!place.isEmpty(),place,error);
+}
+
+// Android: the answer of the system's HTTPS (status 0 and a reason when there was none)
+void placeLookup::slotHttpDone(int status,const QByteArray &body,const QString &error)
+{
+  httpToken=0;
+  if(!pending) return;
+  if(!error.isEmpty())
+    {
+      finish(false,QString(),error==QLatin1String("timeout") ? tr("The place service did not answer in time") : tr("Cannot reach the place service: %1").arg(error));
+      return;
+    }
+  if(status>=400)
+    {
+      finish(false,QString(),tr("The place service answered with an error (HTTP %1)").arg(status));
+      return;
+    }
+  handleReply(body);
 }
 
 void placeLookup::finish(bool ok,const QString &place,const QString &reason)

@@ -250,18 +250,76 @@ void drawScaled(QPainter &p, const Element &e, const QImage &img, qreal pad)
 namespace
 {
 
+/*! The gradient of a shadow: the same stops and direction, in the color of the shadow, and as transparent as the item is at
+    each stop (a bar that fades out casts a shadow that fades out, not a slab). A solid fill does not do this: a shadow of an
+    item with no fill at all is a way to draw the shadow alone. */
+Gradient shadowGradient(const Gradient &g, const QColor &shadow)
+{
+  Gradient out = g;
+  for (int i = 0; i < out.stops.size(); i++)
+    {
+      QColor c = shadow;
+      c.setAlpha(qRound(shadow.alpha() * g.stops.at(i).color.alpha() / 255.0));
+      out.stops[i].color = c;
+    }
+  return out;
+}
+
+/*! The band a stroke of `pen` makes outside the edge of `shape`: the stroke of twice the width, with the shape cut out of it. The
+    band reaches `overlap` into the shape, so that the fill drawn over it leaves no gap of the picture under it along the edge
+    (two antialiased shapes that only touch show one); the fill hides that part unless it is transparent, and then it is half a
+    device pixel of the stroke color. */
+QPainterPath outsideBand(const QPainterPath &shape, const QPen &pen, double overlap)
+{
+  QPainterPathStroker stroker;
+  stroker.setWidth(2 * pen.widthF());
+  stroker.setJoinStyle(pen.joinStyle());
+  stroker.setCapStyle(Qt::FlatCap);   // (the paths are closed: caps only show on dashes, and those are made as long as the pen's own below)
+  stroker.setMiterLimit(pen.miterLimit());
+  if (pen.style() != Qt::SolidLine)
+    {
+      // the pattern of the pen is in widths of the pen, and its caps add half a width to both ends of every dash; the stroker is twice as
+      // wide and has flat caps, so the pattern is halved and the caps are put into it
+      const double cap = pen.capStyle() == Qt::FlatCap ? 0.0 : 1.0;
+      QVector<qreal> dashes = QPen(pen.style()).dashPattern();
+      for (int i = 0; i < dashes.size(); i++) dashes[i] = qMax(0.01, (dashes[i] + (i % 2 == 0 ? cap : -cap)) / 2);
+      if (!dashes.isEmpty()) stroker.setDashPattern(dashes);
+    }
+  QPainterPath inner = shape;
+  if (overlap > 0)
+    {
+      QPainterPathStroker rim;
+      rim.setWidth(2 * overlap);
+      inner = shape.subtracted(rim.createStroke(shape));
+    }
+  return stroker.createStroke(shape).subtracted(inner);
+}
+
 /*! Draws the item in the coordinate system the caller has set up (origin, item transform, opacity). With `flat` the item
-    is drawn as a one-color silhouette instead (a shadow): no gradient, no borders, pictures as their rectangle. */
+    is drawn as a one-color silhouette instead (a shadow): no borders, pictures as their rectangle, a gradient only as
+    its transparency. */
 void paintBody(QPainter &p, const Element &e, const RenderOptions &opt, const QColor *flat)
 {
   QPen pen = e.outline.toPen();
   if (flat) pen.setColor(*flat);
   const qreal inset = pen.style() == Qt::NoPen ? 0 : pen.widthF() / 2;   // a picture sits inside its border, and fills its rectangle without one
   const bool shaped = e.type == ItemType::Rect || e.type == ItemType::Ellipse;
-  if (flat) p.setBrush(QBrush(*flat));
+  if (flat && shaped && e.gradient.isActive()) p.setBrush(QBrush(shadowGradient(e.gradient, *flat).build(e.rect)));   // a fade casts a fade
+  else if (flat) p.setBrush(QBrush(*flat));
   else if (shaped && e.gradient.isActive()) p.setBrush(QBrush(e.gradient.build(e.rect)));
   else p.setBrush(QBrush(e.fill));
-  p.setPen(pen);
+  // a stroke outside the edge (text, rectangle, ellipse): drawn as a band under the fill, and the fill has no pen
+  const bool outside = e.outline.position == StrokePos::Outside && pen.style() != Qt::NoPen && (shaped || e.type == ItemType::Text);
+  const QPen bodyPen = outside ? QPen(Qt::NoPen) : pen;
+  auto strokeOutside = [&](const QPainterPath &shape) {
+    const double scale = std::sqrt(std::abs(p.worldTransform().determinant()));
+    p.save();
+    p.setPen(Qt::NoPen);
+    p.setBrush(QBrush(pen.color()));
+    p.drawPath(outsideBand(shape, pen, scale > 1e-6 ? 0.5 / scale : 0.0));
+    p.restore();
+  };
+  p.setPen(bodyPen);
 
   switch (e.type)
     {
@@ -269,11 +327,32 @@ void paintBody(QPainter &p, const Element &e, const RenderOptions &opt, const QC
       if (e.radius > 0)
         {
           const qreal r = qMin<qreal>(e.radius, qMin(e.rect.width(), e.rect.height()) / 2);
+          if (outside)
+            {
+              QPainterPath shape;
+              shape.addRoundedRect(e.rect, r, r);
+              strokeOutside(shape);
+            }
           p.drawRoundedRect(e.rect, r, r);
         }
-      else p.drawRect(e.rect);
+      else
+        {
+          if (outside)
+            {
+              QPainterPath shape;
+              shape.addRect(e.rect);
+              strokeOutside(shape);
+            }
+          p.drawRect(e.rect);
+        }
       break;
     case ItemType::Ellipse:
+      if (outside)
+        {
+          QPainterPath shape;
+          shape.addEllipse(e.rect);
+          strokeOutside(shape);
+        }
       p.drawEllipse(e.rect);
       break;
     case ItemType::Line:
@@ -320,9 +399,14 @@ void paintBody(QPainter &p, const Element &e, const RenderOptions &opt, const QC
       {
         const QString text = opt.expandMacros ? expandMacros(e.text, opt.vars) : e.text;
         const QPainterPath path = textOf(e, text);
+        if (outside) strokeOutside(path);
         if (!flat && !e.image.isNull()) p.setBrush(QBrush(e.image));
-        else if (!flat && e.gradient.isActive()) p.setBrush(QBrush(e.gradient.build(e.textBox ? e.rect : path.boundingRect())));
-        p.setPen(pen);
+        else if (e.gradient.isActive() && e.image.isNull())
+          {
+            const Gradient g = flat ? shadowGradient(e.gradient, *flat) : e.gradient;
+            p.setBrush(QBrush(g.build(e.textBox ? e.rect : path.boundingRect())));
+          }
+        p.setPen(bodyPen);
         p.drawPath(path);
         break;
       }

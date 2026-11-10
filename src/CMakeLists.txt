@@ -6,7 +6,7 @@ project(qsstv LANGUAGES CXX)
 # /home/jbdubbs/.claude/plans/crystalline-sleeping-thompson.md); this file does not yet
 # attempt a Windows configuration.
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)   # Qt 6 requires C++17 and sets it anyway
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
@@ -15,11 +15,27 @@ set(CMAKE_AUTORCC ON)
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
+if(ANDROID AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+  # The source ties the debug oscilloscope (scope/*, Qwt) to a Debug build (no QT_NO_DEBUG), and Qwt does not exist for Android
+  message(FATAL_ERROR "Android builds use Release or RelWithDebInfo (symbols for gdb); Debug would need the desktop-only Qwt oscilloscope")
+endif()
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network Xml SerialPort Multimedia Svg)
-if(UNIX AND NOT APPLE)
+if(ANDROID)
+  find_package(Qt6 6.5 REQUIRED COMPONENTS Positioning)   # the phone's own location (android/qtlocationsource.cpp)
+endif()
+# The Qt Quick user interface for phones and tablets (src/qml): on for Android, and for a development build on the desktop (run with
+# QSSTV_UI=qml). Off, the Android build keeps the Widgets touch shell.
+option(QSSTV_QML_UI "Build the Qt Quick user interface for phones and tablets (src/qml)" ${ANDROID})
+if(ANDROID AND NOT QSSTV_QML_UI)
+  message(FATAL_ERROR "The Android program has only the Qt Quick interface: build it with QSSTV_QML_UI=ON (the Widgets touch shell is gone)")
+endif()
+if(QSSTV_QML_UI)
+  find_package(Qt6 6.9 REQUIRED COMPONENTS Qml Quick QuickControls2)   # 6.9 for the SafeArea attached type
+endif()
+if(UNIX AND NOT APPLE AND NOT ANDROID)
   # only used to probe for xdg-desktop-portal at startup (native file dialogs, see preferPortalTheme())
   find_package(Qt6 REQUIRED COMPONENTS DBus)
 endif()
@@ -78,6 +94,10 @@ if(HAMLIB_ROOT)
   if(LIBUSB1_FOUND)
     list(APPEND _hamlib_extra_libs PkgConfig::LIBUSB1)
   endif()
+  if(ANDROID)
+    # the static archive carries Hamlib's Android sensor rotator backend (ASensor*) and logging
+    list(APPEND _hamlib_extra_libs android log)
+  endif()
   if(WIN32)
     # hamlib's network.c uses GetAdaptersAddresses() (IP Helper API) for interface
     # detection -- another static-archive transitive dependency our own link needs too.
@@ -131,6 +151,11 @@ set(QSSTV_SOURCES
     config/configdialog.cpp
     sound/soundbase.cpp
     sound/soundqtmultimedia.cpp
+    sound/soundbackend.cpp
+    utils/platformpermissions.cpp
+    utils/platformservice.cpp
+    utils/platformfiles.cpp
+    utils/uimode.cpp
     widgets/spectrumwidget.cpp
     widgets/vumeter.cpp
     widgets/fftdisplay.cpp
@@ -152,6 +177,8 @@ set(QSSTV_SOURCES
     sound/waterfalltext.cpp
     utils/macroexpansion.cpp
     widgets/imageviewer.cpp
+    widgets/touchpage.cpp
+    widgets/reflow.cpp
     template/templatedoc.cpp
     template/templatelegacy.cpp
     template/mmsstvtemplate.cpp
@@ -160,6 +187,7 @@ set(QSSTV_SOURCES
     template/templatevars.cpp
     gps/nmeaparser.cpp
     gps/gpsreader.cpp
+    gps/locationsource.h
     gps/placelookup.cpp
     editor/editordocument.cpp
     editor/editorcommands.cpp
@@ -242,6 +270,7 @@ set(QSSTV_SOURCES
     mainwidgets/txfunctions.cpp
     mainwidgets/txwidget.cpp
     rig/rigcontrol.cpp
+    rig/seriallines.cpp
     sstv/modes/modeavt.cpp
     sstv/modes/modebase.cpp
     sstv/modes/modebw.cpp
@@ -304,8 +333,14 @@ set(QSSTV_SOURCES
     utils/ftpfunctions.cpp
     videocapt/cameradialog.cpp
     videocapt/beaconcapture.cpp
+    videocapt/frameimage.cpp
     videocapt/imagesettings.cpp
 )
+
+if(ANDROID)
+  # the native sound backend (AAudio through Oboe); the other platforms use soundqtmultimedia.cpp only
+  list(APPEND QSSTV_SOURCES sound/soundandroid.cpp android/openwith.cpp android/androidaudio.cpp android/androidusb.cpp android/qtlocationsource.cpp android/photopicker.cpp android/androidshell.cpp android/androidhttp.cpp)
+endif()
 
 # Video capture used to be Linux/macOS-only V4L2 (excluded on macOS via the original
 # qmake !macx: gate); Phase 5 of the cross-platform plan replaced it with a Qt Multimedia
@@ -364,7 +399,12 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   )
 endif()
 
-add_executable(qsstv ${QSSTV_SOURCES} ${QSSTV_FORMS} qsstv.qrc editor/editor.qrc)
+if(ANDROID)
+  # an Android app is a shared library loaded by the Activity (libqsstv-experimental_<abi>.so), not an executable
+  qt_add_executable(qsstv ${QSSTV_SOURCES} ${QSSTV_FORMS} qsstv.qrc editor/editor.qrc)
+else()
+  add_executable(qsstv ${QSSTV_SOURCES} ${QSSTV_FORMS} qsstv.qrc editor/editor.qrc)
+endif()
 
 if(WIN32)
   # GUI subsystem, not console -- double-clicking qsstv-experimental.exe shouldn't flash a console
@@ -393,7 +433,7 @@ endif()
 
 target_include_directories(qsstv PRIVATE
     config dispatch drmrx drmtx dsp editor gps logbook mainwidgets
-    rig scope sound sstv template utils widgets xmlrpc videocapt
+    rig scope sound sstv template utils widgets xmlrpc videocapt android qml
 )
 
 # Unlike qmake's uic (which resolves all FORMS into one shared include path), CMake's
@@ -410,8 +450,8 @@ set_target_properties(qsstv PROPERTIES
 
 target_compile_definitions(qsstv PRIVATE QT_DEPRECATED_WARNINGS)
 target_compile_options(qsstv PRIVATE -Wno-implicit-fallthrough)
-if(NOT APPLE)
-  target_compile_options(qsstv PRIVATE -Wno-psabi)   # GCC-only; clang warns about it
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_compile_options(qsstv PRIVATE -Wno-psabi)   # GCC-only; clang (macOS, the Android NDK) warns about it
 endif()
 
 if(APPLE)
@@ -428,7 +468,7 @@ if(APPLE)
               "$<TARGET_BUNDLE_CONTENT_DIR:qsstv>/Resources/userguide")
 endif()
 
-if(UNIX AND NOT APPLE)
+if(UNIX AND NOT APPLE AND NOT ANDROID)
   target_link_libraries(qsstv PRIVATE Qt6::DBus)
 endif()
 
@@ -438,15 +478,57 @@ target_link_libraries(qsstv PRIVATE
     PkgConfig::OPENJP2
     hamlib::hamlib
 )
+if(ANDROID)
+  target_link_libraries(qsstv PRIVATE Qt6::Positioning)
+endif()
+if(QSSTV_QML_UI)
+  target_compile_definitions(qsstv PRIVATE QSSTV_QML_UI)
+  target_link_libraries(qsstv PRIVATE Qt6::Qml Qt6::Quick Qt6::QuickControls2)
+  set(QSSTV_QML_FILES Main.qml Theme.qml Icons.qml Icon.qml Chip.qml ChipScroller.qml ModeStrip.qml AppBar.qml NavItem.qml NavBar.qml NavRail.qml
+      ExtendedFab.qml LevelMeter.qml BottomSheet.qml PreferenceRow.qml PictureCanvas.qml SpectrumStrip.qml StatusRow.qml
+      ProgressLine.qml ReceiveScreen.qml PlaceholderScreen.qml ProgressRing.qml WideButton.qml ModeSheet.qml DetailsSheet.qml
+      TxPictureBlock.qml PicturePill.qml VolumeNote.qml TxOptionsBlock.qml TransmitScreen.qml SendingOverlay.qml DrmSheet.qml CameraScreen.qml Snackbar.qml ToolsSheet.qml AboutSheet.qml SegmentedTabs.qml ThumbCell.qml GalleryScreen.qml SelectionBar.qml ZoomImage.qml ViewerScreen.qml PrefGroup.qml RadioRow.qml RadioMark.qml ToggleSwitch.qml ThemedSlider.qml ThemedButton.qml ThemedSpinBox.qml ThemedMenuItem.qml Field.qml TextRow.qml ChoiceDialog.qml InlineBanner.qml ProblemDialog.qml FirstRunScreen.qml Stepper.qml ColorSwatches.qml ColorPage.qml GradientEditor.qml AskDialog.qml EditPanel.qml StartersSheet.qml TemplateSheet.qml TemplateEditorScreen.qml HowSteps.qml QualityBar.qml CalibrationPage.qml CalibrationNtpPage.qml CalibrationWwvPage.qml CalibrationSstvPage.qml CalibrationOverviewPage.qml DrmProfilesPage.qml DrmProfilePage.qml FrequencySheet.qml FrequenciesPage.qml TuneSheet.qml SettingsPage.qml SliderRow.qml SettingsScreen.qml)
+  list(TRANSFORM QSSTV_QML_FILES PREPEND "qml/ui/" OUTPUT_VARIABLE QSSTV_QML_PATHS)
+  foreach(f IN LISTS QSSTV_QML_FILES)   # the files sit flat in the module: its types are found by name
+    set_source_files_properties("qml/ui/${f}" PROPERTIES QT_RESOURCE_ALIAS "${f}")
+  endforeach()
+  set_source_files_properties(qml/ui/Theme.qml qml/ui/Icons.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+  qt_add_qml_module(qsstv URI QSSTV VERSION 1.0 RESOURCE_PREFIX /qt/qml
+      QML_FILES ${QSSTV_QML_PATHS}
+      SOURCES qml/qmlui.cpp qml/appmodel.cpp qml/rxcontroller.cpp qml/txcontroller.cpp qml/imagesurface.cpp qml/waterfall.cpp qml/widgetwindows.cpp qml/gallerymodel.cpp qml/thumbnailprovider.cpp qml/settingscontroller.cpp qml/touchtemplateeditor.cpp qml/templatecanvas.cpp qml/calibrationcontroller.cpp qml/calibrationplot.cpp qml/drmprofilescontroller.cpp qml/frequencycontroller.cpp)
+  set_target_properties(qsstv PROPERTIES QT_QML_ROOT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/qml/ui")   # androiddeployqt: which QML plugins to package
+endif()
+if(ANDROID)
+  # The User's Guide is compiled into the app (documentation/userguide stays the one source, see BUILDING.md): an Android app
+  # has no folder to install it to, and guideserver serves it from :/userguide to the browser on 127.0.0.1
+  file(GLOB_RECURSE QSSTV_GUIDE_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/../documentation/userguide/*")
+  qt_add_resources(qsstv "userguide" PREFIX "/userguide" BASE "${CMAKE_CURRENT_SOURCE_DIR}/../documentation/userguide"
+                   FILES ${QSSTV_GUIDE_FILES})
+endif()
+if(ANDROID)
+  # Oboe, built static by tools/build-android-deps.sh (it also uses OpenSL ES on a device without AAudio)
+  find_path(OBOE_INCLUDE_DIR NAMES oboe/Oboe.h)
+  find_library(OBOE_LIBRARY NAMES oboe)
+  if(NOT OBOE_INCLUDE_DIR OR NOT OBOE_LIBRARY)
+    message(FATAL_ERROR "Oboe not found: run tools/build-android-deps.sh (ONLY=oboe) and pass -DCMAKE_FIND_ROOT_PATH=<its output dir>")
+  endif()
+  target_include_directories(qsstv PRIVATE "${OBOE_INCLUDE_DIR}")
+  target_link_libraries(qsstv PRIVATE "${OBOE_LIBRARY}" log OpenSLES)
+endif()
 if(LIBAVIF_FOUND)
   target_link_libraries(qsstv PRIVATE PkgConfig::LIBAVIF)
+  if(ANDROID)
+    # tools/build-android-deps.sh builds libavif static, and a static archive does not carry its codec
+    pkg_check_modules(AOM REQUIRED IMPORTED_TARGET aom)
+    target_link_libraries(qsstv PRIVATE PkgConfig::AOM)
+  endif()
   target_compile_definitions(qsstv PRIVATE HAVE_LIBAVIF)
   message(STATUS "libavif found: AVIF over DRM enabled")
 else()
   message(WARNING "libavif not found: AVIF over DRM will be unavailable")
 endif()
 
-if(UNIX AND NOT APPLE)
+if(UNIX AND NOT APPLE AND NOT ANDROID)
   # soundbase.cpp's clock_gettime(), needed on older glibc where it lived in librt before
   # merging into libc (glibc 2.34+); Windows has no -lrt and doesn't need one, and this
   # was wrongly `if(NOT APPLE)` before Phase 7's Windows cross-build caught it (that
@@ -460,7 +542,7 @@ endif()
 
 # Match the qmake build's rpath trick: find libhamlib.so at runtime without needing
 # LD_LIBRARY_PATH, whether it came from HAMLIB_ROOT or system pkg-config.
-if(QSSTV_HAMLIB_LIBDIR)
+if(QSSTV_HAMLIB_LIBDIR AND NOT ANDROID)
   set_target_properties(qsstv PROPERTIES
     BUILD_RPATH "${QSSTV_HAMLIB_LIBDIR}"
     INSTALL_RPATH "${QSSTV_HAMLIB_LIBDIR}")
@@ -475,7 +557,7 @@ if(WIN32)
   # where RPATH/install_name handle this instead, but would silently produce a package
   # that fails to launch with missing-DLL errors on Windows.
   install(TARGETS qsstv RUNTIME DESTINATION .)
-else()
+elseif(NOT ANDROID)   # an Android app is packaged by androiddeployqt from the build tree, not installed
   install(TARGETS qsstv RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} BUNDLE DESTINATION .)
 endif()
 # License and attribution files ship with every binary distribution.
@@ -504,7 +586,7 @@ else()
 endif()
 # Dev-tree fallback so Help > Users Guide works from an uninstalled build
 target_compile_definitions(qsstv PRIVATE QSSTV_USERGUIDE_SRC_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../documentation/userguide")
-if(UNIX AND NOT APPLE)
+if(UNIX AND NOT APPLE AND NOT ANDROID)
   # QSSTV_APPID_NAMES / QSSTV_APP_ID are declared with the license install above.
   set(QSSTV_DESKTOP_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../qsstv-experimental.desktop")
   set(QSSTV_METAINFO_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/linux/${QSSTV_APP_ID}.metainfo.xml")
@@ -673,3 +755,35 @@ if(WIN32)
   endif()
 endif()
 include(CPack)
+
+# --- Android -------------------------------------------------------------------------------
+# The package (APK/AAB) is built by androiddeployqt from these target properties plus packaging/android
+# (the manifest and the launcher icons). See BUILDING.md for the full recipe.
+if(ANDROID)
+  if(COMMAND qt_policy)
+    qt_policy(SET QTP0002 NEW)   # android-specific target properties may hold generator expressions, as valid JSON strings
+  endif()
+  # versionName follows the release; versionCode must only ever grow (Google Play): major*1000000 + minor*10000 + patch*100,
+  # so 10.1 -> 10010000 and a later 10.1.1 -> 10010100. The two digits in between are free for a rebuild of the same release.
+  set(QSSTV_ANDROID_VERSION_NAME "${CPACK_PACKAGE_VERSION}")
+  string(REGEX MATCH "^([0-9]+)\\.([0-9]+)(\\.([0-9]+))?" _ver "${QSSTV_ANDROID_VERSION_NAME}")
+  if(NOT _ver)
+    message(FATAL_ERROR "cannot derive the Android versionCode from CPACK_PACKAGE_VERSION=\"${CPACK_PACKAGE_VERSION}\"")
+  endif()
+  if(NOT CMAKE_MATCH_4)
+    set(CMAKE_MATCH_4 0)
+  endif()
+  math(EXPR QSSTV_ANDROID_VERSION_CODE "${CMAKE_MATCH_1}*1000000 + ${CMAKE_MATCH_2}*10000 + ${CMAKE_MATCH_4}*100")
+  set_target_properties(qsstv PROPERTIES
+      # the application id: permanent once the app is published, and an Android package name cannot contain a hyphen
+      QT_ANDROID_PACKAGE_NAME "io.github.jbdubbs.qsstv_experimental"
+      QT_ANDROID_APP_NAME "QSSTV-Experimental"
+      QT_ANDROID_APP_ICON "@mipmap/ic_launcher"
+      QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/android"
+      QT_ANDROID_VERSION_NAME "${QSSTV_ANDROID_VERSION_NAME}"
+      QT_ANDROID_VERSION_CODE "${QSSTV_ANDROID_VERSION_CODE}"
+      QT_ANDROID_MIN_SDK_VERSION 29      # Android 10 (Qt 6.11 itself goes down to 9; 10 gives the per-app picture folder in the gallery and the dark theme without extra code)
+      QT_ANDROID_TARGET_SDK_VERSION 36   # Android 16, what Google Play asks for
+      QT_ANDROID_COMPILE_SDK_VERSION 36)
+  message(STATUS "Android: ${QSSTV_ANDROID_VERSION_NAME}, versionCode ${QSSTV_ANDROID_VERSION_CODE}")
+endif()

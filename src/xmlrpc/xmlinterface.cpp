@@ -4,6 +4,11 @@
 xmlInterface::xmlInterface(QObject *parent) : QObject(parent)
 {
   rigInfo.trxState="RX";
+#ifdef Q_OS_ANDROID
+  // Nothing on a phone drives this fldigi/flrig style interface, and the server listens on every network
+  // interface without authentication: it is not started. The getters still answer from rigInfo.
+  rpcServer=nullptr;
+#else
   rpcServer = new MaiaXmlRpcServer(7362, this);
   rpcServer->addMethod("main.get_trx_state", this, "getTrxState");
   rpcServer->addMethod("rig.take_control", this, "takeControl");
@@ -19,6 +24,7 @@ xmlInterface::xmlInterface(QObject *parent) : QObject(parent)
   rpcServer->addMethod("rig.get_mode", this, "getMode");
   rpcServer->addMethod("rig.get_bandwidth", this, "getBandwidth");
   rpcServer->addMethod("rig.get_notch", this, "getNotch");
+#endif
 }
 
 

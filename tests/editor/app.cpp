@@ -92,7 +92,9 @@ int main(int argc, char **argv)
   check(ed->document()->isLegacyImport() && ed->document()->doc().items.size() > 5, "with the selected (legacy) template loaded");
   check(ed->document()->doc().canvas.width() > 100, "at its own canvas size");
 
-  // clicking again raises the same window instead of opening another
+  // clicking again raises the same window instead of opening another (this old template opened with the strokes of its texts moved
+  // outside, which counts as a change: opening it again asks first, and Discard loads it again)
+  ed->setUnsavedHandler([]() { return TemplateEditor::Discard; });
   editButton->click();
   QTest::qWait(200);
   check(editors().size() == 1, "clicking Edit... again does not open a second editor");

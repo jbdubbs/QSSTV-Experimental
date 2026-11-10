@@ -148,6 +148,9 @@ figure img {
   box-shadow: var(--shadow);
 }
 figcaption { font-size: .88rem; color: var(--muted); margin-top: .4rem; }
+/* phone screenshots: a few side by side, each narrow */
+.shots { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; margin: 0 0 1rem; }
+.shots figure { margin: 0; width: 210px; max-width: 46%; }
 
 /* ---- callouts ---- */
 .note, .warn {

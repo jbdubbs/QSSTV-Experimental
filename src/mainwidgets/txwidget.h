@@ -56,6 +56,14 @@ public:
   void gpsSettingsChanged();
   //! the GPS button is on: the GPS is read all the time and the Lat and Long boxes follow it
   bool gpsTracks() const {return gpsTracking;}
+  void setGpsTracking(bool on);   //!< the GPS button, set from the Qt Quick settings: the same as pressing it, without the box
+  //! what the city and state lookup is doing, for the Position page of the Qt Quick settings (#188)
+  enum PlaceState {PLACEIDLE,PLACELOOKING,PLACEFAILED};
+  int placeLookupState() const {return placeState;}
+  QString placeLookupReason() const {return placeReason;}   //!< why the last lookup failed (PLACEFAILED)
+  QString placeNow() const;                                  //!< the place the pictures carry now (the %g macro), empty when there is none
+  //! "Look up city and state" was just switched on: the place of the position in the boxes is asked for at once, so it can be seen working
+  void lookupPlaceNow();
   //  void repeat(QImage *im,esstvMode sm);
   void sendRepeaterImage(esstvMode rxMode=NOTVALID);
   void setImage(QImage *ima);
@@ -64,6 +72,7 @@ public:
   int txGridSegments() const;
   void setImages(const QStringList &files);   // multi-select from the gallery: fills the TX grid segments
   void setProgress(uint prg);
+  int txSeconds() const {return lastTxSeconds;}   //!< what the picture takes to send, in seconds (0: no picture yet)
   void setupTemplatesComboBox();
   void setPreviewWidget(QString fn);
   void refreshReplay();
@@ -157,6 +166,8 @@ signals:
   void modeSwitch(int);
   void txStopped();
   void progressChanged(int percent); //!< TX progress 0..100 (calibration dialog)
+  void txTimeChanged();              //!< the time the picture takes (txSeconds()) or the picture itself changed (Qt Quick screen)
+  void placeStateChanged();          //!< the city and state lookup started, answered or failed (the Position page of the Qt Quick settings)
   void calibrationTxFinished();
   void calibrationTxFailed(const QString &why); //!< a calibration / --encode transmission could not start or went wrong; calibrationTxFinished() follows
   void beaconCountdownChanged(const QString &text,bool error); //!< status bar text for the running webcam beacon (countdown, or the reason it is not transmitting); empty: not running
@@ -180,6 +191,10 @@ private:
   bool attendedTx() const;
   //! the transmitter could not be started: the status bar says why, and a box too when somebody pressed the button (#162)
   void startFailedNotice(bool attended);
+public:
+  //! what the box says when there is no working sound output: the place it names is the one of the interface that is showing
+  static QString noSoundOutputText();
+private:
   void restoreAfterCalibrationTx();
   void enableButtons(bool enable);
   //! a scheduled beacon could not transmit: report it, and retry in 30 s
@@ -208,6 +223,8 @@ private:
   QString calSavedFile;
   esstvMode calSavedMode=NOTVALID;
   bool calSavedUseTemplate=false;
+  double calSavedZoom=1.0;   // the Free framing of the picture: openImage() puts it back to the whole picture
+  QPointF calSavedPan;
   txFunctions *txFunctionsPtr;
 
   QTimer *repeaterTimer;
@@ -230,6 +247,8 @@ private:
   QString gpsBaseSheet;         // the sheet styleToolButtons() gave the GPS button (empty except on Windows): the sheets of its colors come after it
   QString snapshotBaseSheet;    // the same for the camera / beacon button
   bool placeAwaiting=false;     // a place lookup of this widget is in flight (the Test button of Configuration > GPS does not count)
+  int placeState=PLACEIDLE;     // what the lookup of this widget is doing (shown on the Position page of the Qt Quick settings)
+  QString placeReason;          // ... and why it failed
   bool placeCellKnown=false;    // placeLat / placeLon hold the position of the last lookup started by the tracking
   double placeLat=0,placeLon=0;
   QElapsedTimer placeFailedAt;  // when the last lookup of the tracking failed: not tried again for a minute (no request every second when offline)
@@ -241,6 +260,7 @@ private:
   QImage resultImage;
 
   imageViewer *imageViewerPtr;
+  int lastTxSeconds=0;
   uint maxSize;
   uint compressedSize;
   uint sizeWanted=5000;          // the size the user chose (saved as TX/compressedSize): the slider shows it, held down by the picture

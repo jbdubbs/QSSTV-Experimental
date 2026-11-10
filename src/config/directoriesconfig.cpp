@@ -64,7 +64,13 @@ void directoriesConfig::readSettings()
   // GenericDataLocation + APPNAME is used instead of AppDataLocation because the latter embeds
   // the QSettings organization/application names, which would nest the data directory
   // under a doubled qsstv-experimental/qsstv-experimental path.
+#ifdef Q_OS_ANDROID
+  // GenericDataLocation is the shared storage root on Android, where an app may not create folders (scoped storage): the
+  // pictures live in the app's own files folder, and received ones are copied to the gallery (platformfiles.h)
+  QString appDataPath=QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+#else
   QString appDataPath=QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)+"/"+APPNAME;
+#endif
   qSettings.beginGroup("DIRECTORIES");
   rxSSTVImagesPath=qSettings.value("rxSSTVImagesPath",appDataPath+"/rx_sstv/").toString();
   rxDRMImagesPath=qSettings.value("rxDRMImagesPath",appDataPath+"/rx_drm/").toString();

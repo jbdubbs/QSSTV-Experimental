@@ -23,12 +23,14 @@
 
 #include <QtGui>
 #include <QCommandLineParser>
+#include <QDir>
+#include <QStandardPaths>
 #include <cstdio>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
 #endif
-#if defined(Q_OS_LINUX)
+#if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)   // Qt defines Q_OS_LINUX on Android too, which has no QtDBus and no desktop portal
 #include <QDBusConnection>
 #include <QDBusConnectionInterface>
 #include <QDir>
@@ -38,8 +40,12 @@
 #include <QLibraryInfo>
 #include <QPluginLoader>
 #endif
+#include "uimode.h"
+#include "qmlui.h"
+#include "touchpage.h"
 #include "appglobal.h"
 #include "mainwindow.h"
+#include "platformfiles.h"
 #include <QPixmap>
 #include <QSplashScreen>
 #include <QEventLoop>
@@ -150,7 +156,7 @@ static bool findInputDevice(const QString &wanted,QString &description)
 
 static bool platformThemeAvailable(const QString &name)
 {
-#ifdef Q_OS_LINUX
+#if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)
   QStringList dirs=qEnvironmentVariable("QT_PLUGIN_PATH").split(':',Qt::SkipEmptyParts);
   dirs<<QLibraryInfo::path(QLibraryInfo::PluginsPath);
   for(const QString &d:dirs)
@@ -177,7 +183,7 @@ static bool platformThemeAvailable(const QString &name)
 */
 static void preferPortalTheme()
 {
-#ifdef Q_OS_LINUX
+#if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)
   if(qEnvironmentVariableIsSet("FLATPAK_ID") || qgetenv("QT_QPA_PLATFORM")=="offscreen") return;
   if(qEnvironmentVariableIsSet("QT_QPA_PLATFORMTHEME"))
     {
@@ -206,7 +212,7 @@ static void preferPortalTheme()
 */
 static void applySchemeAwareFusionPalette()
 {
-#ifdef Q_OS_LINUX
+#if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)
   const QString theme=qEnvironmentVariable("QT_QPA_PLATFORMTHEME");
   if(!theme.isEmpty() && theme!="xdgdesktopportal") return;
   if(QApplication::style()->name().compare("fusion",Qt::CaseInsensitive)!=0) return;
@@ -308,6 +314,10 @@ static int templateCommand(const QString &file,bool convert,const QString &outFi
   return 0;
 }
 
+#ifdef Q_OS_ANDROID
+#include "openwith.h"
+#endif
+
 int main( int argc, char ** argv )
 {
 
@@ -326,7 +336,24 @@ int main( int argc, char ** argv )
   QGuiApplication::setDesktopFileName(qEnvironmentVariableIsSet("FLATPAK_ID") ? qEnvironmentVariable("FLATPAK_ID")
                                                                               : QStringLiteral("qsstv-experimental"));
   QApplication app( argc, argv );
+#ifdef Q_OS_ANDROID
+  // QDir::tempPath() is $TMPDIR, else /tmp, and there is no /tmp on Android: the JPEG 2000 encoder, the DRM preview and the
+  // FTP tests write there. The app's own cache folder is private and cleaned by the system when space runs short.
+  if(qEnvironmentVariableIsEmpty("TMPDIR"))
+    {
+      const QString cache=QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+      if(!cache.isEmpty() && QDir().mkpath(cache)) qputenv("TMPDIR",cache.toLocal8Bit());
+    }
+  platformFiles::cleanImportCache();   // copies of files picked in an earlier run
+  platformFiles::cleanExportCache();   // PNG copies made for the share sheet in an earlier run
+  openWith openFilter;   // "Open with QSSTV-Experimental" for an audio recording
+#endif
   applySchemeAwareFusionPalette();
+  if(uiMode::touch())
+    {
+      QApplication::setStyle(new touchStyle(QApplication::style()->name()));   // controls big enough for a finger
+      applyTouchPalette();   // light or dark with the system, all of it
+    }
   if(qEnvironmentVariableIsSet("QSSTV_LOG_FORMATS"))
     {
       // diagnostic: which image formats this Qt/plugin set can read, and the dialog filter built from them
@@ -536,9 +563,12 @@ int main( int argc, char ** argv )
   QSplashScreen splash(pixmap,Qt::WindowStaysOnTopHint);
 
   splashPtr=&splash;
+#ifdef Q_OS_ANDROID
+  splashPtr=nullptr;   // the start-up screen is the system's and Qt's (res/drawable/splash.xml): no window of ours, no two seconds of waiting
+#endif
   QElapsedTimer splashTime;
   bool splashShown=false;
-#ifdef QT_NO_DEBUG
+#if defined(QT_NO_DEBUG) && !defined(Q_OS_ANDROID)
   if(!batch)
     {
       splash.show();
@@ -715,10 +745,21 @@ int main( int argc, char ** argv )
   else
     {
       holdSplash();
-      mainWindowPtr->show();
-      splash.finish(mainWindowPtr);
+      if(uiMode::qml())
+        {
+          qmlUi::show();   // the Qt Quick screens are the program's window; mainWindow stays hidden and holds the state
+          splash.close();
+        }
+      else
+        {
+          mainWindowPtr->show();
+          splash.finish(mainWindowPtr);
+        }
     }
   mainWindowPtr->startRunning(files.isEmpty() && !listen);   // decoding files replaces the sound card receiver until it is done
+#ifdef Q_OS_ANDROID
+  openFilter.windowIsUp();
+#endif
   if(listen) fileDecoderPtr->startListening();   // starts the receiver itself, once the mode is set
   else if(!files.isEmpty()) fileDecoderPtr->decodeFiles(files);
   result=app.exec();

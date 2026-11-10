@@ -18,6 +18,7 @@
  *   Free Software Foundation, Inc.,                                       *
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
+#include "applog.h"
 #include "modebase.h"
 #include "appglobal.h"
 #include "configparams.h"
@@ -412,6 +413,7 @@ void modeBase::yuvConversion(const unsigned char *array,const unsigned char *red
 modeBase::eModeBase modeBase::transmitImage(imageViewer *iv)
 {
   txImPtr=iv;
+  APPLOG("qsstv-tx","transmitImage: valid image %d, %d data lines",int(iv->hasValidImage()),int(activeSSTVParam->numberOfDataLines));
   if(!iv->hasValidImage()) return MBENDOFIMAGE;
   addToLog(QString("Starting Transmit Image"),LOGMODES);
   displayLineCounter=0;
@@ -465,12 +467,14 @@ modeBase::eModeBase modeBase::transmitImage(imageViewer *iv)
         default:
           //   addToLog(QString("default: samplcntr=%1").arg(sampleCounter),LOGMODES);
           sampleCounter=0;
+          APPLOG("qsstv-tx","transmitImage: end of image after %d lines",int(lineCounter));
           return MBENDOFIMAGE;
         }
     }
   isRunning=false;
   abortRun=false;
   addToLog("abortrun detected",LOGMODES);
+  APPLOG("qsstv-tx","transmitImage: aborted at line %d",int(lineCounter));
   return MBABORTED;
 }
 

@@ -45,10 +45,9 @@ bool addExtension;
 ftpConfig::ftpConfig(QWidget *parent) :  baseConfig (parent),  ui(new Ui::ftpConfig)
 {
   ui->setupUi(this);
-  for (const QByteArray &format : QImageWriter::supportedImageFormats())
+  for (const QString &format : writableImageFormats())
     {
-      QString text = tr("%1").arg(QString(format));
-      ui->ftpDefaultImageFormatComboBox->addItem(text);
+      ui->ftpDefaultImageFormatComboBox->addItem(format);
     }
   connect(ui->testFTPPushButton,SIGNAL(clicked()),SLOT(slotTestFTPPushButton()));
 }
