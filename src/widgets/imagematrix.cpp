@@ -278,7 +278,10 @@ void imageMatrix::displayFiles()
   QString tempStr;
   clearSelection();
   int offset=currentPage*rows*columns;
-  pageLabel->setText(QString("   Page %1 of %2").arg(currentPage+1).arg(numPages).leftJustified(17,' '));
+  // fixed width (widest text for this page count) so the label never changes size between pages
+  pageLabel->setAlignment(Qt::AlignCenter);
+  pageLabel->setMinimumWidth(pageLabel->fontMetrics().horizontalAdvance(QString("Page %1 of %1").arg(numPages))+24);
+  pageLabel->setText(QString("Page %1 of %2").arg(currentPage+1).arg(numPages));
   for(i=0;i<rows;i++)
     {
       for(j=0;j<columns;)
