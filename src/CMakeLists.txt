@@ -139,6 +139,7 @@ set(QSSTV_SOURCES
     config/soundconfig.cpp
     utils/dirdialog.cpp
     utils/appimageintegration.cpp
+    utils/appimageupdater.cpp
     utils/updatecheck.cpp
     utils/guideserver.cpp
     utils/logging.cpp

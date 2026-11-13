@@ -1,6 +1,7 @@
 #ifndef APPIMAGEINTEGRATION_H
 #define APPIMAGEINTEGRATION_H
 
+#include <QProcessEnvironment>
 #include <QString>
 #include <QUrl>
 
@@ -25,7 +26,10 @@ namespace appImageIntegration
   */
   int checkForUpdate(QString &message);
   bool openUrl(const QUrl &url);    //!< open in the default browser; from an AppImage with the bundled-library environment removed
-  bool runUpdate();                 //!< start appimageupdatetool detached; it replaces the AppImage file
+  QProcessEnvironment cleanEnvironment(); //!< the environment without the paths and variables of the running AppImage
+  QString updateTool();             //!< appimageupdatetool (bundled, or on the PATH), empty when there is none
+  //! starts another AppImage (after a second) and returns; the caller then ends this program
+  bool restartInto(const QString &appImage);
 }
 
 #endif

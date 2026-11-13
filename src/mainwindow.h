@@ -8,6 +8,7 @@
 
 class configDialog;
 class spectrumWidget;
+class appImageUpdater;
 
 namespace Ui {
   class MainWindow;
@@ -57,6 +58,8 @@ private slots:
   void slotDesktopIntegration();
   void slotCheckForUpdates();
   void slotCheckForUpdatesWeb();
+  void startAppImageUpdate();
+  bool quitAndRestart(const QString &appImage);
   void slotAutoUpdateToggled(bool on);
   void offerUpdateCheck();
   void offerDesktopIntegration();
@@ -85,6 +88,7 @@ private slots:
 
 private:
   Ui::MainWindow *ui;
+  appImageUpdater *updater=nullptr;   // the running AppImage update, see startAppImageUpdate()
   bool quitting=false; // set once quit is confirmed; QApplication::quit() re-sends closeEvent
   bool headlessEncode=false; // --encode run: the mode switch is not written to the settings
   void closeEvent ( QCloseEvent *e );

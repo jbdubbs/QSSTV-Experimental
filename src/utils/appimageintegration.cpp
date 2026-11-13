@@ -220,24 +220,12 @@ int checkForUpdate(QString &message)
   return -1;
 }
 
-bool runUpdate()
-{
-  const QString tool=findUpdateTool();
-  if(tool.isEmpty() || !available()) return false;
-  QProcess p;
-  p.setProgram(tool);
-  p.setArguments({appImagePath()});
-  QProcessEnvironment env=QProcessEnvironment::systemEnvironment();
-  env.insert("APPIMAGE_EXTRACT_AND_RUN","1");
-  p.setProcessEnvironment(env);
-  return p.startDetached();
-}
+QString updateTool() {return findUpdateTool();}
 
-bool openUrl(const QUrl &url)
+QProcessEnvironment cleanEnvironment()
 {
-  if(!available()) return QDesktopServices::openUrl(url);
   // The AppImage's LD_LIBRARY_PATH etc. point at our bundled libs; inherited by xdg-open and the browser it
-  // starts, they make the browser fail to launch. Give the helper a cleaned environment.
+  // starts, or by the next AppImage, they make it fail to launch. Give the helper a cleaned environment.
   const QString root=appDir();
   QProcessEnvironment env=QProcessEnvironment::systemEnvironment();
   for(const QString &var:{"LD_LIBRARY_PATH","PATH","XDG_DATA_DIRS","QT_PLUGIN_PATH","QML2_IMPORT_PATH","GIO_EXTRA_MODULES"})
@@ -250,6 +238,24 @@ bool openUrl(const QUrl &url)
     }
   for(const QString &var:{"LIBHEIF_PLUGIN_PATH","QT_QPA_PLATFORM","QT_QPA_PLATFORM_PLUGIN_PATH","QT_QPA_PLATFORMTHEME","APPIMAGE_EXTRACT_AND_RUN"})
     env.remove(var);
+  return env;
+}
+
+bool restartInto(const QString &appImage)
+{
+  if(!QFileInfo(appImage).isExecutable()) return false;
+  // a second of grace: this program is still closing its sound device and saving its settings when the new one starts
+  QProcess p;
+  p.setProgram("/bin/sh");
+  p.setArguments({"-c","sleep 1; exec \"$0\"",appImage});
+  p.setProcessEnvironment(cleanEnvironment());
+  return p.startDetached();
+}
+
+bool openUrl(const QUrl &url)
+{
+  if(!available()) return QDesktopServices::openUrl(url);
+  QProcessEnvironment env=cleanEnvironment();
   const QString u=url.toString(QUrl::FullyEncoded);
   const QList<QStringList> launchers={{"xdg-open"},{"gio","open"},{"kde-open"},{"sensible-browser"}};
   for(const QStringList &l:launchers)

@@ -35,6 +35,8 @@
 #include "applog.h"
 #include "mainwindow.h"
 #include "appimageintegration.h"
+#include "appimageupdater.h"
+#include <QProgressDialog>
 #include "updatecheck.h"
 #include "guideserver.h"
 #include <QDateTime>
@@ -486,10 +488,8 @@ void mainWindow::slotCheckForUpdates()
     }
   else if(r==1)
     {
-      if(QMessageBox::question(this,tr("Check for updates"),tr("A newer version is available. Download and replace this AppImage now?\n(Restart QSSTV-Experimental afterwards.)"))==QMessageBox::Yes)
-        {
-          if(!appImageIntegration::runUpdate()) QMessageBox::warning(this,tr("Check for updates"),tr("Could not start appimageupdatetool."));
-        }
+      if(QMessageBox::question(this,tr("Check for updates"),tr("A newer version is available. Download it now?\nQSSTV-Experimental restarts into the new version when the download is complete."))==QMessageBox::Yes)
+        startAppImageUpdate();
     }
   else
     {
@@ -497,6 +497,86 @@ void mainWindow::slotCheckForUpdates()
                                tr("Could not check automatically (%1).\nOpen the releases page in your browser?").arg(msg))==QMessageBox::Yes)
         openUrlOrWarn(this,QUrl("https://github.com/jbdubbs/QSSTV-Experimental/releases"));
     }
+}
+
+/*!
+  Downloads the new AppImage with appimageupdatetool: a window shows how far it is, and when the file is complete the
+  program ends and starts the new version. A transmission or a picture being received is never cut off: then the new version is only
+  announced, and started by the user.
+*/
+void mainWindow::startAppImageUpdate()
+{
+  if(updater!=nullptr && updater->running()) return;   // one at a time; its window is on the screen
+  const QString tool=appImageIntegration::updateTool();
+  if(tool.isEmpty())
+    {
+      QMessageBox::warning(this,tr("Check for updates"),tr("appimageupdatetool was not found."));
+      return;
+    }
+  if(updater==nullptr) updater=new appImageUpdater(this);
+  QProgressDialog *dlg=new QProgressDialog(tr("Updating to the new version..."),tr("Cancel"),0,0,this);   // 0..0: busy until the first percentage
+  dlg->setWindowTitle(tr("Updating QSSTV-Experimental"));
+  dlg->setWindowModality(Qt::NonModal);   // the receiver keeps working meanwhile
+  dlg->setMinimumDuration(0);
+  dlg->setAutoClose(false);
+  dlg->setAutoReset(false);
+  dlg->setAttribute(Qt::WA_DeleteOnClose);
+  dlg->setMinimumWidth(380);
+  connect(dlg,&QProgressDialog::canceled,updater,&appImageUpdater::cancel);
+  connect(updater,&appImageUpdater::progress,dlg,[dlg](double percent,double,double)
+  {
+    dlg->setMaximum(100);
+    dlg->setValue(int(percent));
+    dlg->setLabelText(QObject::tr("Updating to the new version: %1 %").arg(int(percent)));
+  });
+  connect(updater,&appImageUpdater::finished,dlg,[this,dlg](bool ok,const QString &newPath,const QString &error)
+  {
+    if(!ok)
+      {
+        dlg->close();
+        if(!error.isEmpty())   // cancelling gives no error
+          QMessageBox::warning(this,tr("Check for updates"),tr("The update failed:\n%1\n\nThe releases page has the download: https://github.com/jbdubbs/QSSTV-Experimental/releases").arg(error));
+        return;
+      }
+    if(busyMode()>=0)
+      {
+        dlg->close();
+        QMessageBox::information(this,tr("Check for updates"),
+                                 tr("The new version is ready:\n%1\n\nIt was not started because a transmission or a reception is running. Quit this program and start the new one when you are ready.").arg(newPath));
+        return;
+      }
+    dlg->setMaximum(100);
+    dlg->setValue(100);
+    dlg->setCancelButton(nullptr);
+    dlg->setLabelText(tr("The new version is ready. Restarting QSSTV-Experimental..."));
+    QTimer::singleShot(1500,this,[this,dlg,newPath]
+    {
+      if(!quitAndRestart(newPath))
+        {
+          dlg->close();
+          QMessageBox::information(this,tr("Check for updates"),tr("The new version is ready:\n%1\n\nQuit this program and start it.").arg(newPath));
+        }
+    });
+  });
+  if(!updater->start(tool,qEnvironmentVariable("APPIMAGE")))
+    {
+      dlg->close();
+      QMessageBox::warning(this,tr("Check for updates"),tr("appimageupdatetool could not be started."));
+      return;
+    }
+  dlg->show();
+}
+
+//! ends this program like Quit (without asking) and starts another AppImage; false when nothing was done
+bool mainWindow::quitAndRestart(const QString &appImage)
+{
+  if(quitting) return true;
+  if(!dispatcherPtr->closeTemplateEditor()) return false;   // unsaved template: the user chose to go back
+  if(!appImageIntegration::restartInto(appImage)) return false;
+  quitting=true;
+  shutdown(true);
+  QApplication::quit();
+  return true;
 }
 
 static void showUpdateResult(QWidget *parent,const updateChecker::Result &r,bool quietIfCurrent)
