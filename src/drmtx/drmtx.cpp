@@ -228,7 +228,7 @@ void drmTx::ftpDRMHybridNotifyCheck(QString mask)
 }
 
 
-double  drmTx::calcTxTime(int overheadTime)
+double  drmTx::calcTxTime(double overheadTime)
 {
   double tim=0;
   //  tim= soundIOPtr->getPlaybackStartupTime();

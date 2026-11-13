@@ -396,8 +396,9 @@ void dispatcher::idleAll()
     {
       killTimer(prTimerIndex);
       prTimerIndex=-1;
-      txWidgetPtr->setProgress(0);
     }
+  // also when the timer has already run out: the bar then stands at 100 until the transmission really ends (#199)
+  txWidgetPtr->setProgress(0);
   rigControllerPtr->activatePTT(false);
   rxWidgetPtr->functionsPtr()->stopAndWait();
   txWidgetPtr->functionsPtr()->stopAndWait();
@@ -747,14 +748,10 @@ void dispatcher::timerEvent(QTimerEvent *event)
       txWidgetPtr->setProgress(++txTimeCounter);
       if(txTimeCounter>=100)
         {
-          if(prTimerIndex>=0)
-            {
-              killTimer(prTimerIndex);
-              prTimerIndex=-1;
-              txWidgetPtr->setProgress(0);
-            }
+          // the estimate has elapsed: stay full until the transmission ends, idleAll() clears the bar (#199)
+          killTimer(prTimerIndex);
+          prTimerIndex=-1;
         }
-      txWidgetPtr->setProgress(txTimeCounter);
     }
 }
 

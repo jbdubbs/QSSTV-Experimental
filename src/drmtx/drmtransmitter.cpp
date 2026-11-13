@@ -116,7 +116,9 @@ void drmTransmitter::init(QByteArray *ba, QString name, QString format, drmTxPar
   TransmParam->SetServiceParameters(0,Service);
   DRMTransmitter->Init();
   // calculate transmision time
-  duration=(double)(numTxFrames)*0.4*1.005; // 1.005 ->some extra time for buffers
+  // Measured with --encode (modes A, B, E): the transmitter sends the 0.4 s frames of the picture plus 4 more (sync/FAC/SDC
+  // frames around the data), and nothing else; the old 1.005 factor made the progress bar end early (#199)
+  duration=(double)(numTxFrames+4)*0.4;
 }
 
 void drmTransmitter::start(bool startTx)

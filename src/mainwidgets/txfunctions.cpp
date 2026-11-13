@@ -209,7 +209,7 @@ void txFunctions::run()
               waterfallTime+=0.5+getCWDuration(); // silence gap + morse
             }
 
-          startProgress(drmTxPtr->calcTxTime(waterfallTime));
+          startProgress(drmTxPtr->calcTxTime(waterfallTime+(useVOX?1.:0.))); // VOX: the 1 s tone below is sent after the bar has started
           addToLog("start of wf",LOGTXFUNC);
           if(useVOX) synthesPtr->sendTone(1.,1700.,0,false);
           waterfallPtr->setText(startWFTxt);

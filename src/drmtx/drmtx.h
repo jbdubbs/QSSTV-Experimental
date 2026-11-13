@@ -56,7 +56,7 @@ public:
   {
     drmTxParameters=params;
   }
- double calcTxTime(int overheadTime);
+ double calcTxTime(double overheadTime);
  void clearLastHybridUpload();
 
 
