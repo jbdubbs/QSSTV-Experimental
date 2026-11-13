@@ -2,7 +2,7 @@
 # and for the emulator / Chromebooks (x86_64), checks that every native library is aligned for 16 KB pages (Google Play
 # requires it), and uploads the signed APK and, for arm64-v8a, the Android App Bundle (AAB) that goes to Google Play.
 # CI covers the build and the packaging only; audio, USB adapters, GPS and the camera need a real phone (see BUILDING.md).
-# Runs on a push to main (and manually), not on every branch.
+# Runs when a release is published (a tagged release, also a pre-release) and manually, not on pushes.
 #
 # Signing: with the repository secrets below the APK and the AAB are signed with the upload key (the AAB is what Play takes);
 # without them the APK is signed with a throwaway debug key (installable for testing, not for updating a Play install) and
@@ -12,8 +12,8 @@
 #   ANDROID_KEYSTORE_PASSWORD the store password (the key password must be the same, which is keytool's default for PKCS12)
 name: Android build
 on:
-  push:
-    branches: [main]
+  release:
+    types: [published]   # also fires for pre-releases
   workflow_dispatch:     # manual run from the Actions tab
     inputs:
       build:
