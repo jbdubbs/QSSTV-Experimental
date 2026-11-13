@@ -954,6 +954,39 @@ static void testPropertiesPanel()
   check(d->doc().items.size() == items + 1 && d->doc().items.last().text == "%t", "addMacro adds a text item with the macro");
 }
 
+// The panel is never narrower than its content, so no horizontal scroll bar covers the spin boxes' down arrows (issue #210)
+static void testPanelNotCutOff()
+{
+  printf("== properties panel is not cut off\n");
+  Env env;
+  PropertiesPanel *p = panelOf(env.ed);
+  if (!p) return;
+  env.v->setSelection({add(*env.d, make(tpl::ItemType::Text, QPointF(20, 40)))});
+  env.ed.resize(1200, 900);
+  env.ed.show();
+  QApplication::processEvents();
+  QApplication::processEvents();
+  auto contentMin = [&]() { return p->widget()->minimumSizeHint().width(); };
+  check(p->horizontalScrollBarPolicy() == Qt::ScrollBarAlwaysOff, "the panel never shows a horizontal scroll bar");
+  check(p->minimumSizeHint().width() >= contentMin(), QString("minimum width %1 covers the content %2").arg(p->minimumSizeHint().width()).arg(contentMin()));
+  check(p->sizeHint().width() >= contentMin(), "the preferred width covers the content");
+  // a larger font (Windows 11 style) makes the content wider; the panel follows
+  const int before = p->minimumSizeHint().width();
+  QFont f = p->font();
+  f.setPointSizeF(f.pointSizeF() * 1.5);
+  p->widget()->setFont(f);
+  QApplication::processEvents();
+  check(p->minimumSizeHint().width() > before && p->minimumSizeHint().width() >= contentMin(), "with a larger font the minimum width grows with the content");
+  // the dock cannot be dragged narrower than that
+  QDockWidget *dock = qobject_cast<QDockWidget *>(p->parentWidget());
+  if (dock)
+    {
+      env.ed.resizeDocks({dock}, {60}, Qt::Horizontal);
+      QApplication::processEvents();
+      check(dock->width() >= p->minimumSizeHint().width(), QString("the dock stays at least as wide as the content (%1 >= %2)").arg(dock->width()).arg(p->minimumSizeHint().width()));
+    }
+}
+
 // The sections of the properties panel, top to bottom: what the item is made of first, how it is drawn next, where it sits last
 // (position and size are mostly set with the mouse).
 static void testPanelOrder()
@@ -2757,6 +2790,7 @@ int main(int argc, char **argv)
   testImages();
   testPropertiesPanel();
   testPanelOrder();
+  testPanelNotCutOff();
   testLayersPanel();
   testDestroyQuietly();
   testFiles();

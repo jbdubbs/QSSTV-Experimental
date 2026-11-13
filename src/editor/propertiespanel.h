@@ -37,6 +37,10 @@ public:
   PropertiesPanel(EditorDocument *doc, EditorCanvas *canvas, QWidget *parent = nullptr);
   /*! puts `macro` (e.g. "%c") into the text of the selected text item, at the text cursor */
   bool insertMacro(const QString &macro);
+  /*! wide enough for the widest section: a horizontal scrollbar would cover the lower half of the spin boxes' buttons (#210) */
+  QSize sizeHint() const override;
+  QSize minimumSizeHint() const override;
+  bool eventFilter(QObject *o, QEvent *e) override;   // the content's layout changed: the minimum width may have too
 
 private slots:
   void refresh();

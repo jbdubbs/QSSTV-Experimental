@@ -17,6 +17,7 @@
 #include <QPainter>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QScrollBar>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <cmath>
@@ -51,6 +52,7 @@ PropertiesPanel::PropertiesPanel(EditorDocument *document, EditorCanvas *editorC
 {
   setWidgetResizable(true);
   setFrameShape(QFrame::NoFrame);
+  setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   build();
   connect(canvas, &EditorCanvas::selectionChanged, this, &PropertiesPanel::refresh);
   // an item changes on every mouse move of a drag: refresh once per event loop turn
@@ -61,6 +63,27 @@ PropertiesPanel::PropertiesPanel(EditorDocument *document, EditorCanvas *editorC
   connect(doc, &EditorDocument::canvasChanged, this, [this]() { refreshTimer.start(0); });   // the layout decides whether anchors are shown
   connect(qApp, &QApplication::focusChanged, this, [this]() { doc->breakMerge(); });   // typing in another field starts a new undo step
   refresh();
+}
+
+QSize PropertiesPanel::minimumSizeHint() const
+{
+  QSize s = QScrollArea::minimumSizeHint();
+  if (widget()) s.setWidth(widget()->minimumSizeHint().width() + 2 * frameWidth() + verticalScrollBar()->sizeHint().width());
+  return s;
+}
+
+bool PropertiesPanel::eventFilter(QObject *o, QEvent *e)
+{
+  const bool r = QScrollArea::eventFilter(o, e);
+  if (o == widget() && e->type() == QEvent::LayoutRequest) updateGeometry();
+  return r;
+}
+
+QSize PropertiesPanel::sizeHint() const
+{
+  QSize s = QScrollArea::sizeHint();
+  s.setWidth(qMax(s.width(), minimumSizeHint().width()));
+  return s;
 }
 
 QDoubleSpinBox *PropertiesPanel::spin(double min, double max, double step, int decimals, const QString &suffix)
