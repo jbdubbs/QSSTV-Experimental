@@ -300,6 +300,12 @@ The application id is `io.github.jbdubbs.qsstv_experimental` and the version com
 `build-android-x86_64` and deps directory. On a Linux host with SELinux enforcing (Fedora), start the emulator with `-gpu host`:
 its software renderer (SwiftShader) needs executable heap memory, which SELinux denies, and the emulator then crashes at startup.
 
+**The release build is one script, run on this computer (there is no Android workflow on GitHub):** `tools/android-release.sh [-b BUILD] [-o OUT_DIR] [--abi ...] [--aab] [--no-smoke]`
+configures and builds both ABIs, checks the 16 KB page alignment of every library and that only the Material and Basic Quick Controls styles are packed,
+runs the CAT bridge test, aligns and signs the APKs (`~/.android/qsstv-sideload.jks`, the debug key without it), and runs `tests/androidsmoke/run.sh` on
+the x86_64 build in the emulator (`qsstv_api36`, started with `-gpu host` unless a device is already connected). The signed packages are written to
+`~/projects/qsstv-release-<version>/android/`; the arm64 APK is the one that goes on the GitHub release. `--aab` also builds the Google Play bundle.
+
 What to look at when something does not work on a phone: `adb logcat -s qsstv-audio qsstv-service qsstv-files` shows the audio devices
 and route that were opened, the microphone level and problems (muted, overloaded), the foreground service, and the files that were
 picked, decoded and added to the gallery. The User's Guide (More > User's Guide) is compiled into the app and shown in the

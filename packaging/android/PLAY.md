@@ -1,7 +1,7 @@
 # Releasing the Android app on Google Play
 
-What the maintainer does once, and what to answer in the Play Console. The build itself is `.github/workflows/android.yml`
-(see BUILDING.md for building by hand). Nothing here is secret; the keystore and its password are.
+What the maintainer does once, and what to answer in the Play Console. The build itself is `tools/android-release.sh`, run on the maintainer's computer
+(see BUILDING.md); there is no GitHub workflow for Android. Nothing here is secret; the keystore and its password are.
 
 ## 1. Accounts and names that cannot change later
 
@@ -22,19 +22,19 @@ keytool -genkeypair -v -keystore upload.jks -storetype PKCS12 -alias upload \
 ```
 
 Give the store and key the same password (PKCS12 does that by default). **Back up `upload.jks` and the password** (a password manager and
-one offline copy). Then give the workflow the three secrets (the file is read from stdin, nothing is stored in the repository):
+one offline copy). Then point the script at it (nothing is stored in the repository, the password is read from a file):
 
 ```
-base64 -w0 upload.jks | gh secret set ANDROID_KEYSTORE_BASE64
-gh secret set ANDROID_KEYSTORE_ALIAS      # upload
-gh secret set ANDROID_KEYSTORE_PASSWORD
+export ANDROID_UPLOAD_KEYSTORE=/path/to/upload.jks ANDROID_UPLOAD_ALIAS=upload
+export ANDROID_UPLOAD_PASS_FILE=/path/to/file-with-the-password   # chmod 600
+tools/android-release.sh --aab
 ```
 
-From then on the workflow signs the APK and the AAB with the upload key. Without the secrets it signs the APK with a throwaway debug key
-and leaves the AAB unsigned (so a test build can never be uploaded by mistake).
+With those variables the script signs the AAB with the upload key; without them it leaves the AAB unsigned (so a test build can never be
+uploaded by mistake). The APKs are always signed with the sideload key (BUILDING.md).
 
 **An APK from GitHub and the Play app are signed with different keys** (Play signs with its own key). A phone that has one cannot be updated by the
-other without uninstalling first (and the settings go). Decide whether GitHub releases carry an APK at all; the CI artifact is enough for testers.
+other without uninstalling first (and the settings go). GitHub releases carry the arm64 APK, signed with the sideload key `~/.android/qsstv-sideload.jks` (back it up: a phone can only update an app signed with the same key).
 
 ## 3. Versions
 
@@ -42,21 +42,21 @@ other without uninstalling first (and the settings go). Decide whether GitHub re
 `major*1000000 + minor*10000 + patch*100 + build` (10.1.1 build 0 gives 10010100, build 3 gives 10010103). Play wants a higher `versionCode` for every upload
 and never lets a number be used twice, even for a build that was only uploaded to the internal track.
 
-- **Test uploads of one version** (internal and closed testing, a fix found by a tester): run the *Android build* workflow by hand (Actions, Run workflow) with the
-  `build` input 1, 2, 3 ... (0 to 99; a push always builds 0), and upload the AAB of that run. The users see the same version name.
+- **Test uploads of one version** (internal and closed testing, a fix found by a tester): run `tools/android-release.sh --aab -b 1` (then 2, 3 ... : 0 to 99, the default is 0)
+  and upload the AAB it writes. The users see the same version name.
 - **The production upload** needs a build number above every test upload of that version (tested 10.2 up to build 3: upload build 4), or a new program version
   (10.2.1) with build 0.
 - A new program version (10.2, 10.1.2, ...) restarts the build number at 0, because the version part of the code is higher.
 
 ## 4. Release tracks
 
-1. **Internal testing** (up to 100 testers by e-mail address, no review): upload the AAB of the CI run, install from the opt-in link on a phone. This is
+1. **Internal testing** (up to 100 testers by e-mail address, no review): upload the AAB `tools/android-release.sh --aab` wrote, install from the opt-in link on a phone. This is
    where the real-phone checks of BUILDING.md happen.
 2. **Closed testing** (the 12 testers for 14 days, if the account needs it).
 3. **Production.** The first review of a new app takes days. The *pre-launch report* of the Console runs the app on real devices and lists crashes and
    accessibility findings: read it for every upload.
 
-Requirements the build already meets: target API 36, 64-bit libraries only, **16 KB page size** (the workflow fails the build when a library or the zip is not aligned).
+Requirements the build already meets: target API 36, 64-bit libraries only, **16 KB page size** (`tools/android-release.sh` fails the build when a library or the zip is not aligned).
 
 ## 5. Store listing (drafts to paste)
 
