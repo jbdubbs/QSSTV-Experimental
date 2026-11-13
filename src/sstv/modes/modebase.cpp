@@ -365,13 +365,43 @@ void modeBase::combineColors()
 */
 
 
+/**
+  \brief the Robot modes (Robot 24, 36, 72 and the B/W modes 8 and 12) use the levels of MMSSTV and the other programs (issue #207)
+
+  Y is sent in studio swing (black is level 16, white 235), R-Y and B-Y are centered on 128 (see robotYRyBy() and robotLevel()). The
+  other modes, which share the code with them, keep the full range levels.
+*/
+
+bool modeBase::robotLevels() const
+{
+  return mode==R24 || mode==R36 || mode==R72 || mode==BW8 || mode==BW12;
+}
+
+/**
+  \brief Y, R-Y and B-Y of a pixel the way MMSSTV sends them (GetRY of the MMSSTV sources): Y 16 to 235, the chroma 16 to 240
+*/
+
+void modeBase::robotYRyBy(QRgb c,int &y,int &ry,int &by)
+{
+  double r=qRed(c),g=qGreen(c),b=qBlue(c);
+  y=(int)(16.0+0.256773*r+0.504097*g+0.097900*b);
+  ry=(int)(128.0+0.439187*r-0.367766*g-0.071421*b);
+  by=(int)(128.0-0.148213*r-0.290974*g+0.439187*b);
+  y=qBound(0,y,255);
+  ry=qBound(0,ry,255);
+  by=qBound(0,by,255);
+}
+
 void modeBase::grayConversion()
 {
   unsigned int i;
   QRgb *pixelArray=rxWidgetPtr->getImageViewerPtr()->getScanLineAddress(displayLineCounter);
+  bool robot=robotLevels();
   for(i=0;i<activeSSTVParam->numberOfPixels;i++)
     {
-      pixelArray[i]=qRgb(greenArrayPtr[i],greenArrayPtr[i],greenArrayPtr[i]);
+      int v=greenArrayPtr[i];
+      if(robot) v=qBound(0,(int)(1.164457*(v-16)),255);   // studio swing: 16 is black, 235 is white
+      pixelArray[i]=qRgb(v,v,v);
     }
   displayLineCounter++;
 }
@@ -396,11 +426,22 @@ void modeBase::yuvConversion(const unsigned char *array,const unsigned char *red
   unsigned int i;
   int r,g,b;
   QRgb *pixelArray=rxWidgetPtr->getImageViewerPtr()->getScanLineAddress(displayLineCounter);
+  bool robot=robotLevels();
   for (i=0;i<activeSSTVParam->numberOfPixels;i++)
     {
-      r=(100*array[i]+140*redArray[i]-17850)/100;
-      b=(100*array[i]+178*blueArray[i]-22695)/100;
-      g=(100*array[i]- 71*redArray[i]-33*blueArray[i]+13260)/100;
+      if(robot) // YCtoRGB of the MMSSTV sources
+        {
+          double y=1.164457*(array[i]-16),ry=redArray[i]-128,by=blueArray[i]-128;
+          r=(int)(y+1.596128*ry);
+          g=(int)(y-0.813022*ry-0.391786*by);
+          b=(int)(y+2.017364*by);
+        }
+      else
+        {
+          r=(100*array[i]+140*redArray[i]-17850)/100;
+          b=(100*array[i]+178*blueArray[i]-22695)/100;
+          g=(100*array[i]- 71*redArray[i]-33*blueArray[i]+13260)/100;
+        }
 //      r=b=g=array[i]; //test
       r=(r>255 ? 255 : r); r=(r<0 ? 0 : r);
       b=(b>255 ? 255 : b); b=(b<0 ? 0 : b);
@@ -534,7 +575,30 @@ void modeBase::getLineY(bool evenodd)
   if ((displayLineCounter&1) && (evenodd)) return; // only even lines accepted
   //  txImPtr->createImage(QSize(activeSSTVParam->numberOfPixels,activeSSTVParam->numberOfDisplayLines),QColor(128,128,128),imageStretch);
   unsigned int *pixelArrayE=txImPtr->getScanLineAddress(displayLineCounter);
-  if (evenodd)
+  if (robotLevels()) // levels of MMSSTV (issue #207); a pair of lines shares the average chroma of its two rows
+    {
+      unsigned int *pixelArrayO=evenodd ? txImPtr->getScanLineAddress(displayLineCounter+1) : 0;
+      for (unsigned int i=0;i<activeSSTVParam->numberOfPixels;i++)
+        {
+          int yE,ryE,byE,yO,ryO,byO;
+          robotYRyBy(pixelArrayE[i],yE,ryE,byE);
+          yArrayPtr[i]=yE;
+          if(evenodd)
+            {
+              robotYRyBy(pixelArrayO[i],yO,ryO,byO);
+              greenArrayPtr[i]=yO;
+              redArrayPtr[i]=(ryE+ryO)/2;
+              blueArrayPtr[i]=(byE+byO)/2;
+            }
+          else
+            {
+              redArrayPtr[i]=ryE;
+              blueArrayPtr[i]=byE;
+            }
+        }
+      if(evenodd) displayLineCounter++;
+    }
+  else if (evenodd)
     {
       unsigned int *pixelArrayO=txImPtr->getScanLineAddress(displayLineCounter+1);
       for (unsigned int i=0;i<activeSSTVParam->numberOfPixels;i++)
@@ -547,10 +611,10 @@ void modeBase::getLineY(bool evenodd)
           b=(qBlue(tO)+qBlue(tE))/2;
           r=(10*r-5*(yo+ye)+7*255)/14;
           b=(100*b-50*(yo+ye)+89*255)/178;
-          redArrayPtr[i]=(r>255 ? 255 : r); redArrayPtr[i]=(r<0 ? 0 : r);
-          blueArrayPtr[i]=(b>255 ? 255 : b); blueArrayPtr[i]=(b<0 ? 0 : b);
-          yArrayPtr[i]=(ye>255 ? 255 : ye); yArrayPtr[i]=(ye<0 ? 0 : ye);
-          greenArrayPtr[i]=(yo>255 ? 255 : yo); greenArrayPtr[i]=(yo<0 ? 0 : yo);
+          redArrayPtr[i]=(r>255 ? 255 : r<0 ? 0 : r);
+          blueArrayPtr[i]=(b>255 ? 255 : b<0 ? 0 : b);
+          yArrayPtr[i]=(ye>255 ? 255 : ye<0 ? 0 : ye);
+          greenArrayPtr[i]=(yo>255 ? 255 : yo<0 ? 0 : yo);
         }
       displayLineCounter++;
     }
@@ -589,7 +653,13 @@ void modeBase::getLineBW()
   for (unsigned int i=0;i<activeSSTVParam->numberOfPixels;i++)
     {
       t=pixelArray[i];
-      greenArrayPtr[i]=qGray(t);
+      if(robotLevels()) // Robot B/W 8 and 12: Y of MMSSTV, black is level 16 (issue #207)
+        {
+          int y,ry,by;
+          robotYRyBy(t,y,ry,by);
+          greenArrayPtr[i]=y;
+        }
+      else greenArrayPtr[i]=qGray(t);
     }
   displayLineCounter++;
 }

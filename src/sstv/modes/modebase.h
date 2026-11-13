@@ -86,6 +86,8 @@ public:
   bool aborted() {return !abortRun;}
   bool isNarrow() {return narrow;}
 protected:
+  bool robotLevels() const;
+  static void robotYRyBy(QRgb c,int &y,int &ry,int &by);
 	DSPFLOAT visibleLineLength;
 	esstvMode mode;
 	bool transmit;

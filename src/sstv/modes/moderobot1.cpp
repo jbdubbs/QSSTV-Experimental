@@ -263,11 +263,11 @@ modeBase::embState modeRobot1::txSetupLine()
       return MBPIXELS;
     case 1:
       txFreq=lowerFreq; // 1500 Hz for ROobot 36
-      txDur=(unsigned int)rint((2*blank)/3);
+      txDur=(unsigned int)rint(0.75*blank);   // 4.5 ms separator and 1.5 ms porch, like MMSSTV (issue #207)
       return MBTXGAP;
     case 2:
       txFreq=1900.;
-      txDur=(unsigned int)rint(blank/3);
+      txDur=(unsigned int)rint(blank/4);
       return MBTXGAP;
     case 3:
       calcPixelPositionTable(REDLINE,true);
@@ -292,11 +292,11 @@ modeBase::embState modeRobot1::txSetupLine()
       return MBPIXELS;
     case 8:
       txFreq=2300.;
-      txDur=(unsigned int)rint((2*blank)/3);
+      txDur=(unsigned int)rint(0.75*blank);
       return MBTXGAP;
     case 9:
       txFreq=1900.;
-      txDur=(unsigned int)rint(blank/3);
+      txDur=(unsigned int)rint(blank/4);
       return MBTXGAP;
     case 10:
       calcPixelPositionTable(BLUELINE,true);

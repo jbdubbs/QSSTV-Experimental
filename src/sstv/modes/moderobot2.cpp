@@ -155,6 +155,8 @@ void modeRobot2::calcPixelPositionTable(unsigned int colorLine,bool tx)
 modeBase::embState modeRobot2::txSetupLine()
 {
   start=lineTimeTableTX[lineCounter];
+  // Robot 24 and 72: separator 3 / 4.5 ms and porch 1 / 1.5 ms like MMSSTV, a quarter of the gap is the porch (issue #207)
+  double sepFraction=robotLevels() ? 0.75 : 2./3.;
   switch(subLine)
 		{
 			case 0:
@@ -167,11 +169,11 @@ modeBase::embState modeRobot2::txSetupLine()
 				return MBPIXELS;
 			case 2:
         txFreq=lowerFreq;
-				txDur=(unsigned int)rint((2*blank)/3);
+				txDur=(unsigned int)rint(sepFraction*blank);
 				return MBTXGAP;
 			case 3:
 				txFreq=1900.;
-				txDur=(unsigned int)rint(blank/3);
+				txDur=(unsigned int)rint((1.-sepFraction)*blank);
 				return MBTXGAP;
 			case 4:
 				calcPixelPositionTable(REDLINE,true);
@@ -179,11 +181,11 @@ modeBase::embState modeRobot2::txSetupLine()
 				return MBPIXELS;
 			case 5:
 				txFreq=2300.;
-				txDur=(unsigned int)rint((2*blank)/3);
+				txDur=(unsigned int)rint(sepFraction*blank);
 				return MBTXGAP;
 			case 6:
 				txFreq=1900.;
-				txDur=(unsigned int)rint(blank/3);
+				txDur=(unsigned int)rint((1.-sepFraction)*blank);
 				return MBTXGAP;
 			case 7:
 				calcPixelPositionTable(BLUELINE,true);
