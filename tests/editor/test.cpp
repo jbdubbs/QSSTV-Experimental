@@ -1039,6 +1039,22 @@ static QByteArray readAll(const QString &fn)
   return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
 }
 
+// #208: deleting the editor destroys its undo stack after the other members; the stack must not signal into the half-destroyed
+// window (Windows aborted the whole program on the double free that caused; the signals are the observable part)
+static void testDestroyQuietly()
+{
+  printf("== deleting the editor with something on the undo stack (#208)\n");
+  TemplateEditor *ed = new TemplateEditor;
+  ed->newTemplate(QSize(320, 256), tpl::TemplateDocument::Anchored, 0);
+  ed->document()->addItems(QVector<tpl::Element>() << EditorCanvas::defaultElement(tpl::ItemType::Rect), "add");
+  int emitted = 0;
+  QObject probe;
+  QObject::connect(ed->document()->undoStack(), &QUndoStack::indexChanged, &probe, [&]() { emitted++; });
+  QObject::connect(ed->document()->undoStack(), &QUndoStack::cleanChanged, &probe, [&]() { emitted++; });
+  delete ed;
+  check(emitted == 0, "the undo stack signals nothing while the editor is being deleted (" + QString::number(emitted) + ")");
+}
+
 static void testFiles()
 {
   printf("== files: save, open, legacy import, prompts (defects: modified flag, cancel, merge, New, overwrite)\n");
@@ -2742,6 +2758,7 @@ int main(int argc, char **argv)
   testPropertiesPanel();
   testPanelOrder();
   testLayersPanel();
+  testDestroyQuietly();
   testFiles();
   testCanvasSize();
   testIconsAndActions();

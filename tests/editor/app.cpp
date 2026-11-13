@@ -156,6 +156,35 @@ int main(int argc, char **argv)
   editors().first()->close();
   QTest::qWait(200);
 
+  // #208: new template, save it under a new name, close the editor: the program must stay up (main window shown, as in use)
+  {
+    bool quitting = false;
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, [&]() { quitting = true; });
+    mainWindowPtr->show();
+    QTest::qWait(200);
+    editButton->click();   // some existing template: opens the editor
+    QTest::qWait(300);
+    check(editors().size() == 1, "(#208: editor open)");
+    if (!editors().isEmpty())
+      {
+        TemplateEditor *ne = editors().first();
+        ne->setUnsavedHandler([]() { return TemplateEditor::Discard; });
+        ne->newTemplate(QSize(320, 256), tpl::TemplateDocument::Anchored, 0);
+        const QString nt = templatesPath + "/brandnew.qtempl";
+        check(ne->saveTo(nt), "#208: a new template saves");
+        QTest::qWait(600);   // the file watcher and the list rebuild arrive here
+        ne->close();
+        QTest::qWait(800);
+        check(editors().isEmpty(), "#208: the editor is gone");
+        check(!quitting && mainWindowPtr->isVisible(), "#208: closing it after saving a new template leaves the program running");
+        QTest::qWait(500);
+        check(!quitting, "#208: and still running a moment later");
+        QFile::remove(nt);   // the later checks start from the templates they made
+        QTest::qWait(600);
+      }
+    mainWindowPtr->hide();
+  }
+
   // pictures are handed to an external editor: a fake editor script that paints over the copy
   printf("== picture hand-off to an external editor\n");
   const QString pics = txStockImagesPath;

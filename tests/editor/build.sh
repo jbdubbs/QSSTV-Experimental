@@ -11,7 +11,7 @@ RCC=${RCC:-$(command -v rcc-qt6 || echo /usr/lib64/qt6/libexec/rcc)}
 OUT=$1; shift
 mkdir -p "$OUT"
 INC="-I$SRC/template -I$SRC/editor -I$SRC/utils -I$OUT -isystem $QT -isystem $QT/QtCore -isystem $QT/QtGui -isystem $QT/QtWidgets -isystem $QT/QtSvg -isystem $QT/QtTest"
-CXX="g++ -O1 -fPIC -std=gnu++17 -Wall -Wextra -Wno-unused-parameter -DQT_CORE_LIB -DQT_GUI_LIB -DQT_WIDGETS_LIB -DQT_SVG_LIB -DQT_TESTLIB_LIB $INC"
+CXX="g++ $EDITOR_CXXFLAGS -O1 -fPIC -std=gnu++17 -Wall -Wextra -Wno-unused-parameter -DQT_CORE_LIB -DQT_GUI_LIB -DQT_WIDGETS_LIB -DQT_SVG_LIB -DQT_TESTLIB_LIB $INC"
 
 for h in editordocument editorcanvas propertiespanel layerspanel macropalette canvassizedialog sizepreviewpanel templateeditor gradientedit; do
   "$MOC" "$SRC/editor/$h.h" -o "$OUT/moc_$h.cpp"

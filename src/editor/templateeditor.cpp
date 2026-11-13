@@ -160,6 +160,13 @@ TemplateEditor::TemplateEditor(QWidget *parent) : QMainWindow(parent)
 TemplateEditor::~TemplateEditor()
 {
   writeSettings();
+  // `doc` (and so the undo stack) is the first member, so it is destroyed after all the others. Destroying the stack clears it,
+  // which emits indexChanged/cleanChanged into updateActions()/updateTitle() on a window whose other members are already gone
+  // (a double free: Windows' heap aborts the whole program, glibc lets it pass), and the clipboard may signal while the object
+  // is half destroyed. Nothing needs to hear about any of it now (#208).
+  doc.undoStack()->blockSignals(true);
+  doc.blockSignals(true);
+  QObject::disconnect(QApplication::clipboard(), nullptr, this, nullptr);
 }
 
 // --- actions ---------------------------------------------------------------------------------------------------
