@@ -66,8 +66,8 @@ floor, which is why the README asks for Ubuntu 24.04 or Fedora 40 and later) wit
 (a sibling of this repository), which it builds inside the container.
 
 ```
-packaging/appimage/build.sh                  # x86_64, version 10.1.1 by default
-VERSION=10.1.1 packaging/appimage/build.sh
+packaging/appimage/build.sh                  # x86_64, version 10.1.2 by default
+VERSION=10.1.2 packaging/appimage/build.sh
 ARCH=aarch64 packaging/appimage/build.sh     # arm64, built under QEMU emulation (slow)
 ```
 
@@ -103,7 +103,7 @@ the Qt-dependent compile runs emulated; Docker caches the image layers, so later
 On a native arm64 host it is an ordinary, fast build with the same command.
 
 ```
-ARCH=aarch64 VERSION=10.1.1 OUT_DIR=/some/dir packaging/appimage/build.sh
+ARCH=aarch64 VERSION=10.1.2 OUT_DIR=/some/dir packaging/appimage/build.sh
 ```
 
 Notes on how the arm64 build differs (all handled in the scripts, listed here for when something breaks):

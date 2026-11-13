@@ -29,7 +29,7 @@ class AppModel : public QObject
   Q_PROPERTY(bool mediaVolumeAvailable READ mediaVolumeAvailable NOTIFY mediaVolumeChanged)   //!< there is a media volume to set (Android)
   Q_PROPERTY(QString volumeKeysDevice READ volumeKeysDevice NOTIFY volumeDeviceChanged)       //!< the output the volume keys change: "Phone speaker", "Bluetooth: Pixel Buds"
   Q_PROPERTY(bool volumeMismatch READ volumeMismatch NOTIFY volumeDeviceChanged)              //!< the sound goes to a device the volume keys do not change (#182)
-  Q_PROPERTY(QString versionText READ versionText CONSTANT)                                   //!< "10.1.1"
+  Q_PROPERTY(QString versionText READ versionText CONSTANT)                                   //!< "10.1.2"
   Q_PROPERTY(bool startListening READ startListening CONSTANT)                            //!< the receiver starts with the program
   Q_PROPERTY(bool firstRun READ firstRun NOTIFY firstRunChanged)                       //!< the first start: the short setup shows
   Q_PROPERTY(bool micDenied READ micDenied NOTIFY micDeniedChanged)                     //!< the microphone permission was refused: the receiver cannot listen
