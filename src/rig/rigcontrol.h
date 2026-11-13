@@ -80,6 +80,7 @@ private:
   bool rigControlEnabled;
   void errorMessage(int errorCode,QString command);
   void getRadioList();
+  void closeRig();
   scatParams catParams;
   serialLines *pttLines;   // the RTS and DTR of the serial PTT port, opened when it is first keyed
   QString catUsbKey;        // Android: the USB adapter whose CAT bridge Hamlib is talking through (usbportname.h), or empty

@@ -290,11 +290,19 @@ void rigConfig::slotRestart()
       if(rigController->init())
         {
           ui->restartPushButton->setStyleSheet("background-color: green");
+          ui->restartPushButton->setToolTip(QString());
         }
       else
         {
           ui->restartPushButton->setStyleSheet("background-color: red");
+          ui->restartPushButton->setToolTip(rigController->initError);   // the reason, without a look into the log
         }
+    }
+  else
+    {
+      rigController->disable();
+      ui->restartPushButton->setStyleSheet(QString());
+      ui->restartPushButton->setToolTip(QString());
     }
 }
 

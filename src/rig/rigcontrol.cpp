@@ -71,20 +71,35 @@ rigControl::rigControl(int radioIndex)
 
 rigControl::~rigControl()
 {
-  if(my_rig)   // never initialised when CAT is off: my_rig used to be an uninitialised pointer here
-    {
-      rig_close(my_rig); /* close port */
-      rig_cleanup(my_rig); /* if you care about memory */
-    }
+  closeRig();
   delete pttLines; // closes the port too, if still open
+}
+
+// Lets go of the Hamlib handle (and, on Android, of the USB adapter behind it) and forgets what the radio could do. The
+// destructor, disable() and init() all end here: a handle that is neither closed nor cleaned up keeps the serial port, so
+// after a failed start (wrong model, wrong port) a corrected one found the port busy until the program was restarted (#211).
+void rigControl::closeRig()
+{
+  if(my_rig)   // never initialised when CAT is off
+    {
+      rig_close(my_rig); /* close port; harmless when rig_open() did not succeed */
+      rig_cleanup(my_rig); /* if you care about memory */
+      my_rig=nullptr;
+    }
 #ifdef Q_OS_ANDROID
   if(!catUsbKey.isEmpty()) androidUsbClose(catUsbKey);   // the CAT bridge and the adapter
+  catUsbKey.clear();
+  bridgePtt=0;
 #endif
+  rigControlEnabled=false;
+  canSetFreq=canGetFreq=canSetMode=canGetMode=canSetPTT=canGetPTT=false;
 }
 
 bool rigControl::init()
 {
   int retcode;
+  closeRig();       // a restart begins from nothing, whatever the last start left behind
+  initError.clear();
 #ifdef Q_OS_ANDROID
   // a USB adapter for the PTT lines: the system's question (may the program use it) is asked now, not when the first picture is
   // being sent
@@ -106,12 +121,22 @@ bool rigControl::init()
 #endif
   if(!catParams.enableCAT) return false;
 
-  catParams.radioModelNumber=getModelNumber(getRadioModelIndex());
+  const int modelIndex=getRadioModelIndex();
+  if(modelIndex<0)
+    {
+      // not a radio of the list (a name from an older Hamlib in the settings): rig_init(0) makes Hamlib load its backends a second
+      // time, and it ends the program ("Hash collision!!! Fatal error!!")
+      initError=QString("Error in connection using radio model %1: the radio is not in the list").arg(catParams.radioModel);
+      addToLog(initError,LOGALL);
+      return false;
+    }
+  catParams.radioModelNumber=getModelNumber(modelIndex);
   my_rig = rig_init(catParams.radioModelNumber);
   if(!my_rig)
     {
       addToLog(QString("Error in connection using radio model %1").arg(catParams.radioModel),LOGALL);
       initError=QString("Error in connection using radio model %1").arg(catParams.radioModel);
+      closeRig();
       return false;
     }
 
@@ -144,6 +169,7 @@ bool rigControl::init()
         {
           initError=QString("CAT Error: the USB adapter %1 cannot be used (%2)").arg(catPath,why);
           addToLog(initError,LOGALL);
+          closeRig();
           return false;
         }
       catUsbKey=catPath;
@@ -181,6 +207,7 @@ bool rigControl::init()
     {
       addToLog(QString("CAT Error: %1").arg(QString(rigerror(retcode))),LOGALL);
       initError=QString("CAT Error: %1").arg(QString(rigerror(retcode)));
+      closeRig();
       return false;
     }
   addToLog("rigcontroller successfully opened",LOGRIGCTRL);
@@ -263,12 +290,7 @@ bool rigControl::setFrequency(double frequency)
 
 void rigControl::disable()
 {
-  if(rigControlEnabled)
-    {
-      rig_close(my_rig); /* close port */
-      rig_cleanup(my_rig);
-      rigControlEnabled=false;
-    }
+  closeRig();
 }
 
 bool rigControl::getMode(QString &mode)
