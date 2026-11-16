@@ -46,6 +46,12 @@
 // yet (the lines before the first chain of pulses were cut off the top of the picture).
 #define VISBACKFILLSECONDS 30     // a VIS code at most this old still counts; an older one is forgotten
 #define VISTOSTARTMS 16           // the first line starts this long before the end of the code (the same in every mode, measured)
+// MMSSTV's Scottie pictures start 0.3 ms earlier against the end of the code than QSSTV's own (measured with MMSSTV's transmitter
+// code: the pictures were 0.3 ms late, 0.7 px on Scottie 1 and 1 px on Scottie 2, which is not the case at 16.3)
+static double visToStartMs(esstvMode m)
+{
+  return (m==S1 || m==S2 || m==SDX) ? VISTOSTARTMS+0.3 : VISTOSTARTMS;
+}
 #define VISBACKFILLTOLERANCE 0.25 // the chain's line grid may be this far from the one the code gives (a fraction of a line) ...
 #define VISBACKFILLMAXMS 50       // ... and this far (ms), whichever is less
 
@@ -1027,7 +1033,7 @@ void syncProcessor::startFromVis()
     pendingVisStart=false;
     return;
   }
-  int target=(int)visEndCounter-(int)(VISTOSTARTMS*SAMPLERATE/1000);
+  int target=(int)visEndCounter-(int)(visToStartMs(visMode)*SAMPLERATE/1000);
   // sstvRx takes the picture up at the stripe that holds its first line: that stripe has to be there
   if(target>=(int)(sampleCounter+RXSTRIPE)) return;
   pendingVisStart=false;
@@ -1100,7 +1106,7 @@ bool syncProcessor::adoptChain()
   if(syncArray[0].retrace) syncCorrected=syncArray[0].end;
   else syncCorrected=(syncArray[0].start+syncArray[0].end)/2+syncWidth/2;
   quint32 chainPosition=currentModePtr->adjustSyncPosition(syncCorrected,syncArray[0].retrace)+FILTERDELAYCORRECTION;
-  double visStart=(double)visEndCounter-VISTOSTARTMS*SAMPLERATE/1000.;
+  double visStart=(double)visEndCounter-visToStartMs(currentMode)*SAMPLERATE/1000.;
   double d=(double)chainPosition-visStart;
   double n=round(d/samplesPerLine);
   double tolerance=VISADOPTMS*SAMPLERATE/1000.;       // the code is good to a few ms: a chain that is further off is noise
@@ -1153,7 +1159,7 @@ uint syncProcessor::visBackfill()
   if(!trViaVis || samplesPerLine<=0) return 0;
   int age=(int)sampleCounter-(int)visEndCounter;
   if(age<0 || age>VISBACKFILLSECONDS*SAMPLERATE) return 0;
-  double visStart=(double)visEndCounter-VISTOSTARTMS*SAMPLERATE/1000.;
+  double visStart=(double)visEndCounter-visToStartMs(currentMode)*SAMPLERATE/1000.;
   double d=(double)syncPosition-visStart;
   if(d<=0) return 0;
   double n=round(d/samplesPerLine);

@@ -150,7 +150,7 @@ void modeBase::init(DSPFLOAT clk)
       bp=activeSSTVParam->bp*localClock;
       blank=activeSSTVParam->blank*localClock;
     }
-  syncDuration=activeSSTVParam->sync*localClock;
+  syncDuration=(transmit ? activeSSTVParam->synct : activeSSTVParam->sync)*localClock;
   setupParams(localClock);
   activeSSTVParam->pixelDuration=visibleLineLength/(double)activeSSTVParam->numberOfPixels;
   avgSample=0;
