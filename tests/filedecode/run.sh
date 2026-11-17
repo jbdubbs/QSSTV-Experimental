@@ -13,7 +13,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 QSSTV=${QSSTV_BIN:-$HERE/../../build-cmake/qsstv-experimental}
 LB="$HERE/../jb60_loopback/loopback"
 [ -x "$QSSTV" ] || { echo "qsstv-experimental not found at $QSSTV (set QSSTV_BIN)"; exit 2; }
-[ -x "$LB" ] || (cd "$HERE/../jb60_loopback" && ./build.sh) || { echo "cannot build the loopback harness"; exit 2; }
+"$HERE/../jb60_loopback/ensure.sh" && [ -x "$LB" ] || { echo "cannot build the loopback harness"; exit 2; }
 
 T=$(mktemp -d)
 trap 'rm -rf "$T"' EXIT

@@ -19,7 +19,7 @@ if ! command -v pactl >/dev/null || ! command -v paplay >/dev/null || ! pactl in
   echo "skipped: needs pactl, paplay and a running PipeWire/PulseAudio server"
   exit 0
 fi
-[ -x "$LB" ] || (cd "$HERE/../jb60_loopback" && ./build.sh) || { echo "cannot build the loopback harness"; exit 2; }
+"$HERE/../jb60_loopback/ensure.sh" && [ -x "$LB" ] || { echo "cannot build the loopback harness"; exit 2; }
 
 T=$(mktemp -d)
 SINK=qsstv_listen_test
