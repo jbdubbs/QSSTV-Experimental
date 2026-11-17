@@ -444,7 +444,9 @@ void syncProcessor::extractSync()
   {
     currentMode=visMode;
     enableSyncDetection=false;
+    syncPosition=visEndCounter-(unsigned int)(VISTOSTARTMS*SAMPLERATE/1000);   // as the first line of any picture that a VIS code starts: the stop bit of the code ends within the first 40 ms of it (checkSyncArray), the header follows the code
     createModeBase();
+    if(currentModePtr) currentModePtr->setStartPosition(syncPosition);
     visMode=NOTVALID;
     switchProcessState(INSYNC);
   }
@@ -868,9 +870,14 @@ void syncProcessor::slotVisCodeDetected(int mode,uint visSampleCounter)
   // clock and never gives up), or one that has just seen the retrace pulse that comes before a VIS code (the code is read at its end,
   // the picture is saved and the receiver started again before that). A picture that a VIS code started has narrowed the range to
   // its own mode: the code that ends it is any mode the receiver is set to.
-  bool endsPicture=(visAnchored && syncProcesState==INSYNC) || (syncProcesState==RETRACEWAIT);
+  // (an AVT picture has no pulses, it is started by its VIS code and runs to its end as well; the code of the same mode again is a repeat of
+  // it, that is how MMSSTV sends it, three times, and it restarts the search for the header)
+  bool endsPicture=(visAnchored && syncProcesState==INSYNC) || (syncProcesState==RETRACEWAIT) || (syncProcesState==INSYNC && currentMode>=AVT24 && currentMode<=AVT94 && (esstvMode)mode!=currentMode);
   if(endsPicture) selectedModes(first,last);
   bool allowed=(mode>=first) && (mode<=last);
+  // the AVT modes have no sync pulses, so the receiver does not look for them by pulses (idxStart..idxEnd are the modes it matches pulses with),
+  // but in Auto their VIS code is a code like any other
+  if(!allowed && sstvModeIndexRx==0 && !detectNarrow && first==STARTWIDE && last==ENDWIDE && mode>=AVT24 && mode<=AVT94) allowed=true;
   if(rxTraceOn()) rxTrace("VIS",QString("%1\tproc=%2\tmode=%3\taccepted=%4\tstate=%5\tend=%6").arg(traceTime(sampleCounter)).arg(detectNarrow?"N":"W").arg(getSSTVModeNameShort((esstvMode)mode)).arg(allowed).arg(stateStr[syncProcesState]).arg(visSampleCounter/(double)SAMPLERATE,0,'f',4));
   if(allowed)
   {
@@ -1209,7 +1216,10 @@ void syncProcessor::checkSyncArray()
   // The receiver takes the buffers back when a picture ends by a retrace, so a picture that starts at the VIS code of its successor reads the
   // pulses of that code again: the last of them, the stop bit, is wide like a retrace pulse and ends where the first line starts. It is not
   // the end of this picture (the limit is a stop bit's width after the start of the first line)
-  if(syncArray[syncArrayIndex].retrace && !(visAnchored && (int)syncArray[syncArrayIndex].end<(int)syncPosition+(int)(VISSTOPBITMS*SAMPLERATE/1000)))
+  // An AVT picture has no sync pulses (its sync is the header), and what the pulse detector finds in it is not pulses: the tones of the VIS code
+  // and the 0 bits of the header (1600 Hz) are all inside the band of the 1200 Hz filter. A retrace does not end it: the next VIS code does.
+  bool avtPicture=(currentMode>=AVT24 && currentMode<=AVT94);
+  if(syncArray[syncArrayIndex].retrace && !avtPicture && !(visAnchored && (int)syncArray[syncArrayIndex].end<(int)syncPosition+(int)(VISSTOPBITMS*SAMPLERATE/1000)))
   {
     trRetrace++;
     syncArray[0]=syncArray[syncArrayIndex];

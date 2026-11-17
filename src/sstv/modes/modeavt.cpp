@@ -21,8 +21,12 @@
 #include "modeavt.h"
 #include "configparams.h"
 // one number is 1 startbit + 16 databits.
-#define WORDTIME (5.3108/32.)
-#define BITTIME (WORDTIME/17)
+// the header of the AVT modes: 32 words of a 1900 Hz pulse and 16 bits, each 9.7646 ms (2048/20 Bd), then 0.305 ms before the first line
+#define BITTIME 0.0097646
+#define WORDTIME (17*BITTIME)
+#define HEADERGAP 0.00030514375
+#define VISTOIMAGECORRECTION 0 // samples at 12 kHz added to the start of the image that a picture without a readable header gets from its VIS code (the receiver starts 16 ms before the end of the code, where the stop bit ends, as for every picture that a VIS code starts)
+#define STARTCORRECTION -11   // samples at 12 kHz that the filters of the receiver delay the end of the code
 #include <QString>
 
 
@@ -38,6 +42,8 @@ modeAVT::modeAVT(esstvMode m,unsigned int len, bool tx,bool narrowMode):modeBase
   trailerState=D1900;
   code=0;
   duration=0;
+  startOffset=0;
+  clockStarted=false;
 }
 
 
@@ -52,14 +58,28 @@ void modeAVT::setupParams(double clock)
 }
 
 
-modeBase::eModeBase modeAVT::process(quint16 *demod,unsigned int ,bool ,unsigned int rxPos)
+modeBase::eModeBase modeAVT::process(quint16 *demod,unsigned int syncPos,bool goToSync,unsigned int rxPos)
 {
   unsigned int i=0;
   unsigned char a,b;
+  if(goToSync && !clockStarted)
+    {
+      // the receiver starts where the stop bit of the VIS code ends (syncPos into this block): the header follows it, and the image follows the header
+      clockStarted=true;
+      startOffset=rxPos+syncPos;     // the sample counter of that place
+    }
   if(avtTrailerDetect)
   {
       for(;i<length;i++)
         {
+          // The picture that a VIS code started runs to its end, like any other: when no word of the header could be read, the image starts
+          // where the header ends
+          if(trailerState!=WAITSTART && rxPos+i>=startOffset+(unsigned int)(((32*WORDTIME+HEADERGAP)*rxClock/SUBSAMPLINGFACTOR)+VISTOIMAGECORRECTION))
+            {
+              avtTrailerDetect=false;
+              debugState=stColorLine0;
+              return modeBase::process(demod,i,true,rxPos);
+            }
           duration++;
           sample=demod[i];
           debugStatePtr[i]=debugState;
@@ -88,12 +108,7 @@ modeBase::eModeBase modeAVT::process(quint16 *demod,unsigned int ,bool ,unsigned
                   if(fabs(avgSample-1900.) <50.)
                     {
                       if(count<10) count++;
-                      if(duration>(unsigned int)(0.011*rxClock/SUBSAMPLINGFACTOR))
-                      {
-                          addToLog(QString("MBABORTED duration: %1, sampleCounter: %2").arg(duration).arg(rxPos+i),LOGMODES);
-                          duration=0;
-                          return MBABORTED;
-                      }
+                      // a tone longer than a sync pulse is the leader of the header: wait for its end, then look for the pulses
                     }
                   else
                     {
@@ -113,10 +128,8 @@ modeBase::eModeBase modeAVT::process(quint16 *demod,unsigned int ,bool ,unsigned
                        else
                         {
 
-                         switchTrailerState(D1900);
-                         addToLog(QString("MBABORTED duration: %1, sampleCounter: %2").arg(duration).arg(rxPos+i),LOGMODES);
+                         switchTrailerState(D1900);   // not a pulse of the header (the leader, the VIS code): keep looking
                          duration=0;
-                         return MBABORTED;
                         }
                     }
                 break;
@@ -156,7 +169,7 @@ modeBase::eModeBase modeAVT::process(quint16 *demod,unsigned int ,bool ,unsigned
                       break;
                     }
                    a&=0x1F;
-                   delay=(unsigned int)((((31-a)*WORDTIME+BITTIME/2)*rxClock/SUBSAMPLINGFACTOR)+15);
+                   delay=(unsigned int)((((31-a)*WORDTIME+BITTIME/2+HEADERGAP)*rxClock/SUBSAMPLINGFACTOR)+STARTCORRECTION);
                    switchTrailerState(WAITSTART);
                 break;
                 case WAITSTART:
@@ -247,38 +260,23 @@ void modeAVT::calcPixelPositionTable(unsigned int colorLine,bool tx)
 
 modeBase::embState modeAVT::txSetupLine()
 {
+  // the line is red, green and blue, each a third of it, without gaps and without a sync pulse (the sync is the header sent before the image)
+  start=lineTimeTableTX[lineCounter];
   switch(subLine)
 		{
 			case 0:
+				calcPixelPositionTable(REDLINE,true);
+				pixelArrayPtr=redArrayPtr;
+				return MBPIXELS;
+			case 1:
 				calcPixelPositionTable(GREENLINE,true);
 				pixelArrayPtr=greenArrayPtr;
 				return MBPIXELS;
-			case 1:
-				txFreq=1500.;
-				txDur=(unsigned int)rint(blank);
-				return MBTXGAP;
 			case 2:
 				calcPixelPositionTable(BLUELINE,true);
 				pixelArrayPtr=blueArrayPtr;
 				return MBPIXELS;
-			case 3:
-				txFreq=1500.;
-				txDur=(unsigned int)rint(blank);
-				return MBTXGAP;
-			case 4:
-				calcPixelPositionTable(REDLINE,true);
-				pixelArrayPtr=redArrayPtr;
-				return MBPIXELS;
-			case 5:
-				txFreq=1500;
-				txDur=(unsigned int)rint(fp);
-				return MBTXGAP;
-			case 6:
-        txFreq=syncFreq;
-				txDur=(unsigned int)rint(syncDuration);
-				return MBTXGAP;
 			default:
 				return MBENDOFLINE;
 		}
 }
-

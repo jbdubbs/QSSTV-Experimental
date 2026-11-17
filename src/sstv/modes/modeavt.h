@@ -34,6 +34,7 @@ public:
   modeAVT(esstvMode m,unsigned int len,bool tx,bool narrowMode);
   ~modeAVT();
   eModeBase process(quint16 *demod, unsigned int, bool, unsigned int rxPos);
+  void setStartPosition(unsigned int pos) { startOffset=pos; clockStarted=true; }
 protected:
   embState rxSetupLine();
 	void calcPixelPositionTable(unsigned int colorLine,bool tx);
@@ -41,6 +42,8 @@ protected:
   embState txSetupLine();
   bool avtTrailerDetect;
   unsigned int duration;
+  unsigned int startOffset; // the sample counter where the VIS code ended
+  bool clockStarted;
   unsigned int bitCounter;
   unsigned int code;
   unsigned int count;

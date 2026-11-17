@@ -84,6 +84,28 @@ void sstvTx::sendVIS()
 
 
 
+/*!
+  The digital header of the AVT modes (the SSTV Handbook, 4.2.5, and MMSSTV's SendHeader agree): 32 words, each a 1900 Hz pulse and 16 bits of
+  9.7646 ms (2048/20 Bd), 1 is 2200 Hz and 0 is 1600 Hz. A word is 8 bits, 3 of the mode and a 5 bit count that runs from 0 to 31, and the
+  same bits inverted. The first line follows 0.305 ms after the last word.
+*/
+void sstvTx::sendAvtHeader()
+{
+  const double bit=0.0097646;
+  int modeBits=(txSSTVParam.mode==AVT24)?2:((txSSTVParam.mode==AVT94)?3:5);  // 010 AVT 24, 011 AVT 94, 101 AVT 90
+  for(int count=0;count<32;count++)
+  {
+    unsigned int word=(((modeBits<<5)|count)<<8)|(((modeBits<<5)|count)^0xFF);
+    synthesPtr->sendTone(bit,1900,0,true);
+    for(int i=0;i<16;i++)
+    {
+      synthesPtr->sendTone(bit,(word&0x8000)?2200:1600,0,true);
+      word=(word<<1)&0xFFFF;
+    }
+  }
+  synthesPtr->sendTone(0.00030514375,1500,0,true);
+}
+
 bool sstvTx::create(esstvMode m,DSPFLOAT clock)
 {
   if((oldMode==m) && (currentMode!=NULL))
@@ -202,6 +224,7 @@ double sstvTx::calcTxTime(int overheadTime)
   if((txSSTVParam.mode>=STARTNARROW) && (txSSTVParam.mode<=ENDNARROW)) tim+=0.3+0.1+25*0.022; // leader, break, start bit and 24 bits (sendVIS)
   else if ((t&0xFF)==0x23) tim+=18.*0.03;
   else tim+=10.*0.03;
+  if(txSSTVParam.mode>=AVT24 && txSSTVParam.mode<=AVT94) tim+=32*17*0.0097646+0.0003; // the digital header
   tim+=txSSTVParam.imageTime;
 
 //  if(enableCW)
@@ -241,6 +264,7 @@ bool sstvTx::sendImage(imageViewer *ivPtr)
   {
     sendPreamble();
     sendVIS();
+    if(txSSTVParam.mode>=AVT24 && txSSTVParam.mode<=AVT94) sendAvtHeader();
   }
   addToLog("txFunc: sendImage",LOGTXFUNC);
   APPLOG("qsstv-tx","preamble and VIS sent, the picture follows");

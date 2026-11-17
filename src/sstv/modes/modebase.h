@@ -71,6 +71,7 @@ public:
      if(isRetrace) return syncPos0;
      else return (syncPos0+10);
 		}
+  virtual void setStartPosition(unsigned int) {}   // where the picture starts, when it is known before its first process() (an AVT picture: the end of the VIS code)
 	void redrawFast(bool r);
   virtual eModeBase process(quint16 *demod, unsigned int syncPos, bool goToSync, unsigned int rxPos);
   void init(DSPFLOAT clk);

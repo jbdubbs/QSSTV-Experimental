@@ -26,6 +26,7 @@ private:
   bool create(esstvMode m,DSPFLOAT clock);
   void sendPreamble();
   void sendVIS();
+  void sendAvtHeader();
   esstvMode oldMode;
   unsigned long sampleCounter;
   double FSKIDTime();
