@@ -23,6 +23,10 @@ static int narrowSyncLag(esstvMode m)
 {
   if(m>=MP73N && m<=MP140N) return -49;
   if(m>=MC110N && m<=MC180N) return -61;
+  // pictures placed by their pulses, measured with the signal of MMSSTV's transmitter code (which no VIS code places): 0.3 ms late (Robot), 0.2 ms (Martin)
+  if(m==R24) return -1;
+  if(m==R36 || m==R72) return -3;
+  if(m==M1 || m==M2) return -2;
   return 0;
 }
 //#define MINVOLUME 80
@@ -55,12 +59,14 @@ static int narrowSyncLag(esstvMode m)
 // yet (the lines before the first chain of pulses were cut off the top of the picture).
 #define VISBACKFILLSECONDS 30     // a VIS code at most this old still counts; an older one is forgotten
 #define VISTOSTARTMS 16           // the first line starts this long before the end of the code (the same in every mode, measured)
-// Martin, Scottie, SC2, PD, P and the MP, MR and ML pictures start 0.3 ms earlier against the end of the code than the others (measured with QSSTV's and with MMSSTV's
+// Martin, Scottie, SC2, PD, P, MP, MR, ML, Robot and B/W pictures start 0.3 ms earlier against the end of the code than the others (measured with QSSTV's and with MMSSTV's
 // transmitter code: they were 0.3 ms late, 0.7 px on Scottie 1, 1 px on Scottie 2 and 1 to 1.7 px on PD, which is not the case at 16.3)
 static double visToStartMs(esstvMode m)
 {
   if(m==M1 || m==M2 || m==S1 || m==S2 || m==SDX || m==SC2_60 || m==SC2_120 || m==SC2_180) return VISTOSTARTMS+0.3;
   if((m>=P3 && m<=P7) || (m>=PD50 && m<=PD290) || (m>=MP73 && m<=ML320)) return VISTOSTARTMS+0.3;
+  if(m>=R24 && m<=R72) return VISTOSTARTMS+0.3;
+  if(m==BW8 || m==BW12) return VISTOSTARTMS+0.5;
   return VISTOSTARTMS;
 }
 #define VISBACKFILLTOLERANCE 0.25 // the chain's line grid may be this far from the one the code gives (a fraction of a line) ...
