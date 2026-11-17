@@ -46,11 +46,11 @@
 // yet (the lines before the first chain of pulses were cut off the top of the picture).
 #define VISBACKFILLSECONDS 30     // a VIS code at most this old still counts; an older one is forgotten
 #define VISTOSTARTMS 16           // the first line starts this long before the end of the code (the same in every mode, measured)
-// MMSSTV's Scottie pictures start 0.3 ms earlier against the end of the code than QSSTV's own (measured with MMSSTV's transmitter
-// code: the pictures were 0.3 ms late, 0.7 px on Scottie 1 and 1 px on Scottie 2, which is not the case at 16.3)
+// Scottie and PD pictures start 0.3 ms earlier against the end of the code than the others (measured with QSSTV's and with MMSSTV's
+// transmitter code: they were 0.3 ms late, 0.7 px on Scottie 1, 1 px on Scottie 2 and 1 to 1.7 px on PD, which is not the case at 16.3)
 static double visToStartMs(esstvMode m)
 {
-  return (m==S1 || m==S2 || m==SDX) ? VISTOSTARTMS+0.3 : VISTOSTARTMS;
+  return (m==S1 || m==S2 || m==SDX || (m>=PD50 && m<=PD290)) ? VISTOSTARTMS+0.3 : VISTOSTARTMS;
 }
 #define VISBACKFILLTOLERANCE 0.25 // the chain's line grid may be this far from the one the code gives (a fraction of a line) ...
 #define VISBACKFILLMAXMS 50       // ... and this far (ms), whichever is less

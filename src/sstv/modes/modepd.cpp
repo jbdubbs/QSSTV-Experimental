@@ -47,6 +47,15 @@ void modePD::setupParams(double clock)
 }
 
 
+// The end of a sync pulse of 20 ms is found about 0.8 ms (10 samples at 12 kHz) later than the one of a short pulse: a picture placed by
+// its pulses was that much late against the signal of MMSSTV's transmitter (issue #213), so the 10 samples the other modes add are not added
+unsigned long modePD::adjustSyncPosition(unsigned long syncPos0,bool isRetrace)
+{
+  (void)isRetrace;
+  return syncPos0;
+}
+
+
 modeBase::embState modePD::rxSetupLine()
 {
   start=lineTimeTableRX[lineCounter];

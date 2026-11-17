@@ -44,6 +44,7 @@ public:
 	~modePD();
 protected:
   embState rxSetupLine();
+  unsigned long adjustSyncPosition(unsigned long syncPos0,bool isRetrace);
 	void calcPixelPositionTable(unsigned int colorLine,bool tx);
 	void setupParams(double clock);
 	void showLine();
