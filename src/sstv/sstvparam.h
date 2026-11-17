@@ -87,6 +87,7 @@ enum esstvMode
 #define STARTNARROW MP73N
 #define ENDNARROW MC180N
 
+#define FAX480PHASINGLINES 20   // white lines with a sync pulse that FAX480 sends before its 480 lines of picture
 #define STARTWIDE M1
 #define ENDWIDE FAX480
 

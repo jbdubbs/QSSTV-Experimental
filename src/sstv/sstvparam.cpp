@@ -124,6 +124,9 @@ bool  initializeSSTVParametersIndex(esstvMode modeIndex,bool tx)
     {
       if(tx) txSSTVParam=SSTVTable[modeIndex];
       else rxSSTVParam=SSTVTable[modeIndex];
+      // FAX480: a picture is 480 lines, and the transmitter sends 20 white phasing lines before it (500 lines in all). The receiver shows every
+      // line it gets, the phasing lines (when the transmitter sent them) at the top.
+      if(!tx && modeIndex==FAX480) rxSSTVParam.numberOfDisplayLines=500;
       printActiveSSTVParam(tx);
       return true;
     } 
@@ -273,7 +276,7 @@ sSSTVParam SSTVTable[NUMSSTVMODES+1]=
   // against this harness" section); 0.00208 both sides (the original value) cost about 0.6 dB and undid most
   // of the wide video filter's gain.
   {"JB60"      ,"JB60",   JB60,     61.26592,640,496,248,0x66  ,0.02000,0.00000,0.00187,0.00000,0.02000,0.00000,0.00208,0.00000,0.,1900,400 },
-  {"FAX480"    ,"FAX480", FAX480,  133.63300,512,500,500,0x00  ,0.00512,0.00000,0.00000,0.00000,0.00512,0.00000,0.00000,0.00000,0.,1900,400 },
+  {"FAX480"    ,"FAX480", FAX480,  133.63200,512,480,500,0x55  ,0.00512,0.00000,0.00000,0.00000,0.00512,0.00000,0.00000,0.00000,0.,1900,400 },
   {"AVT24"     ,"AVT24",  AVT24,    22.50160,128,120,120,0xc0  ,0.00500,0.00080,0.00050,0.00050,0.00500,0.00080,0.00000,0.00050,0.,1900,400 },
   {"AVT90"     ,"AVT90",  AVT90,    90.000000,320,240,240,0x44  ,0.00500,0.00080,0.00050,0.00050,0.00500,0.00080,0.00000,0.00050,0.,1900,400 },
   {"AVT94"     ,"AVT94",  AVT94,    93.75000,320,200,200,0x48  ,0.00500,0.00080,0.00050,0.00050,0.00500,0.00080,0.00000,0.00050,0.,1900,400 },

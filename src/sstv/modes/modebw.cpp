@@ -93,7 +93,7 @@ void  modeBW::calcPixelPositionTable(unsigned int colorLine,bool tx)
   switch (colorLine)
     {
     case GREENLINE:
-        lineStart+=bp;
+        lineStart+=(tx && mode==FAX480) ? syncDuration : bp;      // FAX480 sends the sync first
     break;
     }
   for(i=0;i<activeSSTVParam->numberOfPixels;i++)
@@ -105,6 +105,23 @@ void  modeBW::calcPixelPositionTable(unsigned int colorLine,bool tx)
 modeBase::embState modeBW::txSetupLine()
 {
   start=lineTimeTableTX[lineCounter];
+  if(mode==FAX480)
+    {
+      // every line of FAX480 begins with its sync pulse (1200 Hz, 5.12 ms), then the 512 pixels
+      switch(subLine)
+        {
+          case 0:
+            txFreq=syncFreq;
+            txDur=(unsigned int)rint(syncDuration);
+            return MBTXGAP;
+          case 1:
+            calcPixelPositionTable(GREENLINE,true);
+            pixelArrayPtr=greenArrayPtr;
+            return MBPIXELS;
+          default:
+            return MBENDOFLINE;
+        }
+    }
   switch(subLine)
 		{
       case 1:

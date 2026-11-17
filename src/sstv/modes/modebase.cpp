@@ -648,6 +648,12 @@ void modeBase::getLineBW()
 {
 
   unsigned int t;
+  if(mode==FAX480 && lineCounter<FAX480PHASINGLINES)
+    {
+      // the phasing lines that come before the picture: white
+      for (unsigned int i=0;i<activeSSTVParam->numberOfPixels;i++) greenArrayPtr[i]=255;
+      return;
+    }
   //  txImPtr->createImage(QSize(activeSSTVParam->numberOfPixels,activeSSTVParam->numberOfDisplayLines),QColor(128,128,128),imageStretch);
   unsigned int *pixelArray=txImPtr->getScanLineAddress(displayLineCounter);
   for (unsigned int i=0;i<activeSSTVParam->numberOfPixels;i++)

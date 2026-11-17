@@ -27,6 +27,7 @@ static int narrowSyncLag(esstvMode m)
   if(m==R24) return -1;
   if(m==R36 || m==R72) return -3;
   if(m==M1 || m==M2) return -2;
+  if(m==FAX480) return -13;      // own transmissions, no other source (a picture found by the pulse train without a VIS code reads 0.3 ms later)
   return 0;
 }
 //#define MINVOLUME 80
@@ -1052,7 +1053,8 @@ QString syncProcessor::traceSummary()
 void syncProcessor::startFromVis()
 {
   if(!pendingVisStart) return;
-  if(visMode==NOTVALID || (visMode>=AVT24 && visMode<=AVT94))
+  // (the lines of FAX480 follow its VIS code after the start tone of 5 s, not at once: it is found by its pulses, the code tells the mode)
+  if(visMode==NOTVALID || visMode==FAX480 || (visMode>=AVT24 && visMode<=AVT94))
   {
     pendingVisStart=false;
     return;
@@ -1180,7 +1182,7 @@ bool syncProcessor::adoptChain()
 
 uint syncProcessor::visBackfill()
 {
-  if(!trViaVis || samplesPerLine<=0) return 0;
+  if(!trViaVis || samplesPerLine<=0 || currentMode==FAX480) return 0;       // (FAX480: the start tone is between the code and the lines)
   int age=(int)sampleCounter-(int)visEndCounter;
   if(age<0 || age>VISBACKFILLSECONDS*SAMPLERATE) return 0;
   double visStart=(double)visEndCounter-visToStartMs(currentMode)*SAMPLERATE/1000.;

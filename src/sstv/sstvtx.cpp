@@ -224,6 +224,7 @@ double sstvTx::calcTxTime(int overheadTime)
   if((txSSTVParam.mode>=STARTNARROW) && (txSSTVParam.mode<=ENDNARROW)) tim+=0.3+0.1+25*0.022; // leader, break, start bit and 24 bits (sendVIS)
   else if ((t&0xFF)==0x23) tim+=18.*0.03;
   else tim+=10.*0.03;
+  if(txSSTVParam.mode==FAX480) tim+=1220*2*0.002048;     // the start tone
   if(txSSTVParam.mode>=AVT24 && txSSTVParam.mode<=AVT94) tim+=32*17*0.0097646+0.0003; // the digital header
   tim+=txSSTVParam.imageTime;
 
@@ -254,10 +255,15 @@ bool sstvTx::sendImage(imageViewer *ivPtr)
   if(useVOX) synthesPtr->sendTone(1.,1700.,0,false);
   if(txSSTVParam.mode==FAX480)
   {
+    // The VIS code (85, added to the mode later) comes first: a program that does not know it hears a burst of tones and waits for the start tone.
+    sendPreamble();
+    sendVIS();
+    // the start tone (the SSTV Handbook, 4.3.1): 244 Hz, 1500 and 2300 Hz for 4 units of 4 MHz/2048 (2.048 ms) each, 1220 times
+    // (sendTone keeps the fraction of a sample from tone to tone)
     for (int i=0;i<1220;i++)
     {
-      synthesPtr->sendTone(0.00205,1500,0,true);
-      synthesPtr->sendTone(0.00205,2300,0,true);
+      synthesPtr->sendTone(0.002048,1500,0,true);
+      synthesPtr->sendTone(0.002048,2300,0,true);
     }
   }
   else

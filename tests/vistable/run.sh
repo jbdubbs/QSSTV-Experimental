@@ -3,7 +3,7 @@
 #
 # MR175 had the code of MR140 in the mode table, and lookupVIS() returns the first match, so a transmission of one mode announced
 # the other and the receiver was held to the wrong mode. Two checks:
-#   - the VIS codes in SSTVTable (src/sstv/sstvparam.cpp) are all different (0 is "no VIS code": FAX480 and the "No Mode" row)
+#   - the VIS codes in SSTVTable (src/sstv/sstvparam.cpp) are all different (0 is "no VIS code": the "No Mode" row)
 #   - for every mode of --list-modes: transmit a picture with the real transmitter (--encode), keep the first 8 s (the whole
 #     VIS code), decode it headless with the real receiver (--batch) and compare the mode of the first VIS code seen with the
 #     mode sent
@@ -24,7 +24,6 @@ command -v ffmpeg >/dev/null || { echo "ffmpeg is needed to cut the transmission
 command -v python3 >/dev/null || { echo "python3 is needed"; exit 2; }
 
 declare -A EXCEPTIONS=(
-  [FAX480]="no VIS code"
 )
 
 T=$(mktemp -d)
