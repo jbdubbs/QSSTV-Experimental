@@ -19,7 +19,7 @@ export HOME=$T/home XDG_CONFIG_HOME=$T/home/.config XDG_DATA_HOME=$T/home/.local
 mkdir -p "$HOME"
 fail=0
 for spec in M1:320:256 M2:320:256 S1:320:256 S2:320:256 SDX:320:256 SC2-60:320:256 SC2-120:320:256 SC2-180:320:256 \
-            P3:640:496 MP73:320:256 MR73:320:256 ML180:640:496 MP73-N:320:256 MC110-N:320:256; do
+            P3:640:496 MP73:320:256 MR73:320:256 ML180:640:496 MP73-N:320:256 MC110-N:320:256 MC140-N:320:256 MC180-N:320:256; do
   IFS=: read m w h <<<"$spec"
   HOME=$REAL_HOME python3 -c "
 from PIL import Image
@@ -30,9 +30,7 @@ for x in range(w):
   for y in range(h): px[x,y]=c
 im.save('$T/$m.png')" || exit 2
   "$QSSTV" --encode "$T/$m.png" --mode $m --wav-out "$T/$m.wav" >/dev/null 2>&1 || { echo "  FAIL $m: no transmission"; fail=$((fail+1)); continue; }
-  # MC-N keeps its own porch (1.0 ms against MMSSTV's 0.5), so it is only listed for information
   if out=$(HOME=$REAL_HOME python3 "$HERE/audit.py" $m "$T/$m.wav" $w $h); then echo "  ok   $out"
-  elif [ $m = MC110-N ]; then echo "  info $out (known: porch 1.0 ms, MMSSTV 0.5)"
   else echo "  FAIL $out"; fail=$((fail+1)); fi
 done
 echo "$fail failed"

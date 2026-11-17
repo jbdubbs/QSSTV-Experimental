@@ -16,6 +16,15 @@
 #endif
 
 #define FILTERDELAYCORRECTION  +9
+// The 1900 Hz sync filter of the narrow modes is slower than the 1200 Hz one of the wide modes: the end of a pulse is found later, and the
+// picture was 4.05 ms (MP-N) and 5.1 ms (MC-N) late against the transmitter (measured with QSSTV's own transmissions, whose layout txlayout
+// checks against MMSSTV's; samples at 12 kHz)
+static int narrowSyncLag(esstvMode m)
+{
+  if(m>=MP73N && m<=MP140N) return -49;
+  if(m>=MC110N && m<=MC180N) return -61;
+  return 0;
+}
 //#define MINVOLUME 80
 #define MINSYNCWIDTHRATIO 0.8
 #define MAXSYNCWIDTHRATIO 2
@@ -554,7 +563,7 @@ bool syncProcessor::beginPicture(bool viaTrain)
     syncCorrected=(syncArray[0].start+syncArray[0].end)/2+syncWidth/2;
   }
 
-  syncPosition=currentModePtr->adjustSyncPosition(syncCorrected,syncArray[0].retrace)+FILTERDELAYCORRECTION; // type 2 sync end
+  syncPosition=currentModePtr->adjustSyncPosition(syncCorrected,syncArray[0].retrace)+FILTERDELAYCORRECTION+narrowSyncLag(currentMode); // type 2 sync end
   tempOutOfSync=false;
   slantAdjustLine=6;
   clockAdjusted=false;
@@ -1105,7 +1114,7 @@ bool syncProcessor::adoptChain()
   unsigned int syncCorrected;
   if(syncArray[0].retrace) syncCorrected=syncArray[0].end;
   else syncCorrected=(syncArray[0].start+syncArray[0].end)/2+syncWidth/2;
-  quint32 chainPosition=currentModePtr->adjustSyncPosition(syncCorrected,syncArray[0].retrace)+FILTERDELAYCORRECTION;
+  quint32 chainPosition=currentModePtr->adjustSyncPosition(syncCorrected,syncArray[0].retrace)+FILTERDELAYCORRECTION+narrowSyncLag(currentMode);
   double visStart=(double)visEndCounter-visToStartMs(currentMode)*SAMPLERATE/1000.;
   double d=(double)chainPosition-visStart;
   double n=round(d/samplesPerLine);
@@ -1820,7 +1829,7 @@ bool syncProcessor::slantAdjust(bool initial)
       syncCorrected=(syncArray[0].start+syncArray[0].end)/2+getSyncWidth(currentMode,modifiedClock)/2;
     }
 
-    syncPosition=currentModePtr->adjustSyncPosition(syncCorrected,syncArray[0].retrace)+FILTERDELAYCORRECTION; // type 2 sync end
+    syncPosition=currentModePtr->adjustSyncPosition(syncCorrected,syncArray[0].retrace)+FILTERDELAYCORRECTION+narrowSyncLag(currentMode); // type 2 sync end
     syncPosition-=(quint32)round(visBackfillLines*samplesPerLine);   // a picture that starts at its VIS code stays there
 
     recalculateMatchArray();
