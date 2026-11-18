@@ -16,19 +16,51 @@
 #endif
 
 #define FILTERDELAYCORRECTION  +9
-// The 1900 Hz sync filter of the narrow modes is slower than the 1200 Hz one of the wide modes: the end of a pulse is found later, and the
-// picture was 4.05 ms (MP-N) and 5.1 ms (MC-N) late against the transmitter (measured with QSSTV's own transmissions, whose layout txlayout
-// checks against MMSSTV's; samples at 12 kHz)
-static int narrowSyncLag(esstvMode m)
+// Where a picture starts is the end of the sync pulse that the receiver found, plus a compensation (samples at 12 kHz, added to the 10 of
+// adjustSyncPosition and the 9 of FILTERDELAYCORRECTION) that depends on the mode: the layout of the line round its sync pulse and, for the narrow modes,
+// the 1900 Hz sync filter, which is slower than the 1200 Hz one of the wide modes. Two cases:
+//  - the pulse is the one that the VIS code makes (a retrace: the end of it is where the first line starts), when the pulses of a picture that a VIS
+//    code started are adopted: measured with the signal of MMSSTV's transmitter code, Robot was 0.3 ms late and Martin 0.2 ms
+//  - a normal pulse, when a picture is found by its pulses alone (no VIS code, or one that was missed): measured with QSSTV's own transmissions with the
+//    VIS code cut off (txlayout checks them against MMSSTV's); the 10 + 9 samples are too many by 0.1 to 3 ms, as many as the mode needs
+static int retraceLag(esstvMode m)
 {
-  if(m>=MP73N && m<=MP140N) return -49;
-  if(m>=MC110N && m<=MC180N) return -61;
-  // pictures placed by their pulses, measured with the signal of MMSSTV's transmitter code (which no VIS code places): 0.3 ms late (Robot), 0.2 ms (Martin)
   if(m==R24) return -1;
   if(m==R36 || m==R72) return -3;
   if(m==M1 || m==M2) return -2;
-  if(m==FAX480) return -13;      // own transmissions, no other source (a picture found by the pulse train without a VIS code reads 0.3 ms later)
+  if(m>=MP73N && m<=MP140N) return -49;
+  if(m>=MC110N && m<=MC180N) return -61;
   return 0;
+}
+
+static int pulseLag(esstvMode m)
+{
+  switch(m)
+  {
+    case S1: return -19;   case S2: return -16;   case SDX: return -19;
+    case SC2_60: return -11; case SC2_120: return -11; case SC2_180: return -12;
+    case M1: return -13;   case M2: return -13;
+    case R24: return -11;  case R36: return -11;  case R72: return -20;
+    case P3: return -11;   case P5: return -11;   case P7: return -13;
+    case PD50: return -2;  case PD90: return -5;  case PD120: return -4;  case PD160: return -4;
+    case PD180: return -3; case PD240: return -2; case PD290: return -2;
+    case MP73: return -4;  case MP115: return -3; case MP140: return -3;  case MP175: return -3;
+    case MR73: return -20; case MR90: return -19; case MR115: return -22; case MR140: return -20; case MR175: return -21;
+    case ML180: return -19; case ML240: return -22; case ML280: return -21; case ML320: return -22;
+    case MP73N: return -35; case MP110N: return -49; case MP140N: return -36;
+    case MC110N: case MC140N: case MC180N: return -61;
+    case FAX480: return -17;
+    default: return 0;
+  }
+}
+
+static int startLag(esstvMode m,bool retrace,bool viaVis)
+{
+  if(retrace) return retraceLag(m);
+  // a narrow picture that a VIS code announced reads 1.1 ms further on than one found by its pulses alone (MP73-N and MP140-N; not MP110-N)
+  if(viaVis && m>=MP73N && m<=MP140N) return -49;
+  if(viaVis && m==FAX480) return -13;   // (the chain that the VIS code lets through reads 0.3 ms earlier than the pulse train)
+  return pulseLag(m);
 }
 //#define MINVOLUME 80
 #define MINSYNCWIDTHRATIO 0.8
@@ -574,7 +606,7 @@ bool syncProcessor::beginPicture(bool viaTrain)
     syncCorrected=(syncArray[0].start+syncArray[0].end)/2+syncWidth/2;
   }
 
-  syncPosition=currentModePtr->adjustSyncPosition(syncCorrected,syncArray[0].retrace)+FILTERDELAYCORRECTION+narrowSyncLag(currentMode); // type 2 sync end
+  syncPosition=currentModePtr->adjustSyncPosition(syncCorrected,syncArray[0].retrace)+FILTERDELAYCORRECTION+startLag(currentMode,syncArray[0].retrace,trViaVis); // type 2 sync end
   tempOutOfSync=false;
   slantAdjustLine=6;
   clockAdjusted=false;
@@ -1131,7 +1163,7 @@ bool syncProcessor::adoptChain()
   unsigned int syncCorrected;
   if(syncArray[0].retrace) syncCorrected=syncArray[0].end;
   else syncCorrected=(syncArray[0].start+syncArray[0].end)/2+syncWidth/2;
-  quint32 chainPosition=currentModePtr->adjustSyncPosition(syncCorrected,syncArray[0].retrace)+FILTERDELAYCORRECTION+narrowSyncLag(currentMode);
+  quint32 chainPosition=currentModePtr->adjustSyncPosition(syncCorrected,syncArray[0].retrace)+FILTERDELAYCORRECTION+startLag(currentMode,syncArray[0].retrace,trViaVis);
   double visStart=(double)visEndCounter-visToStartMs(currentMode)*SAMPLERATE/1000.;
   double d=(double)chainPosition-visStart;
   double n=round(d/samplesPerLine);
@@ -1849,7 +1881,7 @@ bool syncProcessor::slantAdjust(bool initial)
       syncCorrected=(syncArray[0].start+syncArray[0].end)/2+getSyncWidth(currentMode,modifiedClock)/2;
     }
 
-    syncPosition=currentModePtr->adjustSyncPosition(syncCorrected,syncArray[0].retrace)+FILTERDELAYCORRECTION+narrowSyncLag(currentMode); // type 2 sync end
+    syncPosition=currentModePtr->adjustSyncPosition(syncCorrected,syncArray[0].retrace)+FILTERDELAYCORRECTION+startLag(currentMode,syncArray[0].retrace,trViaVis); // type 2 sync end
     syncPosition-=(quint32)round(visBackfillLines*samplesPerLine);   // a picture that starts at its VIS code stays there
 
     recalculateMatchArray();
