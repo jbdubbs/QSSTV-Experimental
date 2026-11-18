@@ -6,7 +6,7 @@ Builds the line MMSSTV 1.13 would send for the same picture and compares the ins
 sync pulse's falling edge, with the one in the WAV. Exits 1 when one is more than TOL ms off. The method itself reads up to 0.1 ms
 off on MMSSTV's own waveform, hence the tolerance.
 """
-import sys, struct, numpy as np
+import sys, os, struct, numpy as np
 from scipy.signal import hilbert
 mode, wavf, W, H = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
 raw = open(wavf,'rb').read()
@@ -61,7 +61,30 @@ def line_yc(mode, vals_next=None):
     elif mode.startswith('MC'):
         s += [seg('sync',1900,8.0), seg('porch',2044,0.5)] + px('R',R,tw,True)+px('G',G,tw,True)+px('B',B,tw,True)
     return s
-nl = line_yc(mode) if mode in TW else line(mode)
+def line_other(mode):
+    """Robot 24/36/72, B/W 8/12 and PD (MMSSTV Main.cpp LineR24, LineR36, LineR72, LineRM, LineP). Robot 36 has a line type per parity (returns both)."""
+    Y,RY,BY = ry(R,G,B)
+    if mode=='R24':
+        return [[seg('sync',1200,6), seg('porch',1500,2)] + px('Y',Y,92) + [seg('sepY',1500,3), seg('porchc',1900,1)] + px('RY',RY,46) + [seg('sepRB',2300,3), seg('porchb',1900,1)] + px('BY',BY,46)]
+    if mode=='R72':
+        return [[seg('sync',1200,9), seg('porch',1500,3)] + px('Y',Y,138) + [seg('sepY',1500,4.5), seg('porchc',1900,1.5)] + px('RY',RY,69) + [seg('sepRB',2300,4.5), seg('porchb',1900,1.5)] + px('BY',BY,69)]
+    if mode=='R36':
+        return [[seg('sync',1200,9), seg('porch',1500,3)] + px('Y',Y,88) + [seg('sepY',1500 if par==0 else 2300,4.5), seg('porchc',1900,1.5)] + px('C',RY if par==0 else BY,44) for par in (0,1)]
+    if mode in ('BW8','BW12'):
+        tw = {'BW8':58.89709,'BW12':92.0}[mode]
+        return [[seg('sync',1200,6), seg('porch',1500,2)] + px('Y',Y,tw)]
+    if mode.startswith('PD'):
+        tw = {'PD50':91.52,'PD90':170.24,'PD120':121.6,'PD160':195.584,'PD180':183.04,'PD240':244.48,'PD290':228.8}[mode]
+        return [[seg('sync',1200,20), seg('porch',1500,2.08)] + px('Y1',Y,tw) + px('RY',RY,tw) + px('BY',BY,tw) + px('Y2',Y,tw)]
+    return None
+OTHER = line_other(mode)
+if OTHER:
+    PAR = int(os.environ.get('AUDIT_PARITY','0'))
+    LINES = OTHER if PAR==0 else OTHER[::-1]
+    nl = LINES[0]
+else:
+    LINES = None
+    nl = line_yc(mode) if mode in TW else line(mode)
 if not nl: sys.exit("no spec for "+mode)
 total = sum(d for _,_,d in nl)
 fs_s = fs
@@ -69,7 +92,7 @@ fs_s = fs
 def build(segs, nrep):
     t=0; edges=[]; out=[]
     for r in range(nrep):
-        for lab,f,d in segs:
+        for lab,f,d in (LINES[r % len(LINES)] if LINES else segs):
             out.append((t,t+d,f,lab+("" if r==0 else "#%d"%r))); t+=d
     return out
 spec = build(nl, 4)

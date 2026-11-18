@@ -19,7 +19,10 @@ export HOME=$T/home XDG_CONFIG_HOME=$T/home/.config XDG_DATA_HOME=$T/home/.local
 mkdir -p "$HOME"
 fail=0
 for spec in M1:320:256 M2:320:256 S1:320:256 S2:320:256 SDX:320:256 SC2-60:320:256 SC2-120:320:256 SC2-180:320:256 \
-            P3:640:496 MP73:320:256 MR73:320:256 ML180:640:496 MP73-N:320:256 MC110-N:320:256 MC140-N:320:256 MC180-N:320:256; do
+            R24:160:120 R36:320:240 R72:320:240 BW8:160:120 BW12:160:120 \
+            P3:640:496 P5:640:496 P7:640:496 PD50:320:256 PD90:320:256 PD120:640:496 PD160:512:400 PD180:640:496 PD240:640:496 PD290:800:616 \
+            MP73:320:256 MP115:320:256 MP140:320:256 MP175:320:256 MR73:320:256 MR90:320:256 MR115:320:256 MR140:320:256 MR175:320:256 \
+            ML180:640:496 ML240:640:496 ML280:640:496 ML320:640:496 MP73-N:320:256 MP110-N:320:256 MP140-N:320:256 MC110-N:320:256 MC140-N:320:256 MC180-N:320:256; do
   IFS=: read m w h <<<"$spec"
   HOME=$REAL_HOME python3 -c "
 from PIL import Image
@@ -30,7 +33,8 @@ for x in range(w):
   for y in range(h): px[x,y]=c
 im.save('$T/$m.png')" || exit 2
   "$QSSTV" --encode "$T/$m.png" --mode $m --wav-out "$T/$m.wav" >/dev/null 2>&1 || { echo "  FAIL $m: no transmission"; fail=$((fail+1)); continue; }
-  if out=$(HOME=$REAL_HOME python3 "$HERE/audit.py" $m "$T/$m.wav" $w $h); then echo "  ok   $out"
+  # Robot 36 sends a line of R-Y and one of B-Y alternately: the parity of the line in the middle of the transmission is not known, either one is right
+  if out=$(HOME=$REAL_HOME python3 "$HERE/audit.py" $m "$T/$m.wav" $w $h) || { [ $m = R36 ] && out=$(AUDIT_PARITY=1 HOME=$REAL_HOME python3 "$HERE/audit.py" $m "$T/$m.wav" $w $h); }; then echo "  ok   $out"
   else echo "  FAIL $out"; fail=$((fail+1)); fi
 done
 echo "$fail failed"

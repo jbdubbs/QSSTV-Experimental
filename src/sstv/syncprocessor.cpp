@@ -41,8 +41,10 @@ static int pulseLag(esstvMode m)
     case SC2_60: return -11; case SC2_120: return -11; case SC2_180: return -12;
     case M1: return -13;   case M2: return -13;
     case R24: return -11;  case R36: return -11;  case R72: return -20;
-    case P3: return -11;   case P5: return -11;   case P7: return -13;
-    case PD50: return -2;  case PD90: return -5;  case PD120: return -4;  case PD160: return -4;
+    case BW8: return -11;  case BW12: return -12;
+    case JB60: return -3;
+    case P3: return -11;   case P5: return -11;   case P7: return -16;
+    case PD50: return -2;  case PD90: return -5;  case PD120: return -4;  case PD120W: return -3;  case PD160: return -4;
     case PD180: return -3; case PD240: return -2; case PD290: return -2;
     case MP73: return -4;  case MP115: return -3; case MP140: return -3;  case MP175: return -3;
     case MR73: return -20; case MR90: return -19; case MR115: return -22; case MR140: return -20; case MR175: return -21;
