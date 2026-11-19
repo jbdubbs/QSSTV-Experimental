@@ -30,6 +30,7 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 - **Windows** (64-bit, 10 1809 or later, or 11)
 - **Linux AppImage** (x86_64/arm64 - Ubuntu 24.04, Fedora 40 or similar and later; needs glibc 2.39 or newer)
 - **macOS** (macOS 15 or later, Intel or Apple Silicon; tested by several users and working. Bug reports are welcome)
+- **Android** (10 or later)
 
 ### What's New?
 #### Features
@@ -90,6 +91,7 @@ Ready-to-run builds are published on the [Releases page](https://github.com/jbdu
 - **Linux:** download the `.AppImage`, make it executable (`chmod +x QSSTV-Experimental-*.AppImage`) and run it.
 - **Windows:** download and run the `-win64.exe` installer. The installer is unsigned, so Windows SmartScreen may warn: choose "More info", then "Run anyway".
 - **macOS (experimental):** Released for Intel/Apple Silicon but no testing hardware.  Give it a try, and file an issue if it doesn't work. MacOS 15 or later.
+- **Android:** download and side-load the APK from the releases page.  Android 10 or higher.
 ## User's Guide
 
 The guide is built into the app (**Help > Users Guide**) and also published online at <https://jbdubbs.github.io/QSSTV-Experimental/>.
