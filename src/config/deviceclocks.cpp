@@ -5,6 +5,8 @@
 #include <QVector>
 #include <math.h>
 
+bool clockOk(double clock) {return clock>0 && fabs(1-clock/BASESAMPLERATE)<=0.002;}
+
 namespace
 {
 struct entry
@@ -16,9 +18,6 @@ struct entry
 };
 
 const char *groupName(bool rx) {return rx ? "DEVICECLOCKS/rx" : "DEVICECLOCKS/tx";}
-
-// the same limit soundConfig::readSettings() puts on the clocks in use
-bool clockOk(double clock) {return clock>0 && fabs(1-clock/BASESAMPLERATE)<=0.002;}
 
 QVector<entry> readAll(bool rx)
 {

@@ -46,6 +46,9 @@ public:
   void writeSettings();
   void getParams();
   void setParams();
+  //! the clock fields hold a clock within 0.2 % of 48000: if not (a sample rate such as 44100 typed there), puts back the clock of
+  //! the device and tells the user; false if it had to. Opens a message box, so only from the dialog's OK, never from writeSettings().
+  bool checkClocks();
 
 
 

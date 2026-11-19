@@ -136,7 +136,7 @@
         </size>
        </property>
        <property name="text">
-        <string>Input  Clock Frequency </string>
+        <string>Input clock (Hz, calibration)</string>
        </property>
        <property name="wordWrap">
         <bool>false</bool>
@@ -144,7 +144,11 @@
       </widget>
      </item>
      <item>
-      <widget class="QLineEdit" name="inputClockLineEdit"/>
+      <widget class="QLineEdit" name="inputClockLineEdit">
+       <property name="toolTip">
+        <string>Measured clock of the card, about 48000. Not its sample rate.</string>
+       </property>
+      </widget>
      </item>
      <item>
       <widget class="QLabel" name="outputClockLabel">
@@ -161,7 +165,7 @@
         </size>
        </property>
        <property name="text">
-        <string>Output Clock Frequency</string>
+        <string>Output clock (Hz, calibration)</string>
        </property>
        <property name="wordWrap">
         <bool>false</bool>
@@ -169,7 +173,11 @@
       </widget>
      </item>
      <item>
-      <widget class="QLineEdit" name="outputClockLineEdit"/>
+      <widget class="QLineEdit" name="outputClockLineEdit">
+       <property name="toolTip">
+        <string>Measured clock of the card, about 48000. Not its sample rate.</string>
+       </property>
+      </widget>
      </item>
     </layout>
    </item>

@@ -67,10 +67,12 @@ static QString describeAudioDevice(const QAudioDevice &d)
 {
   QString description=d.description();
   description.replace('\n',"\\n");
-  return QString("  %1 [id %2]%3, %4-%5 channels, %6-%7 Hz")
+  const QAudioFormat pf=d.preferredFormat();
+  return QString("  %1 [id %2]%3, %4-%5 channels, %6-%7 Hz, preferred %8 Hz %9 channels")
          .arg(description,QString::fromUtf8(d.id()),d.isDefault() ? QString(" (default)") : QString())
          .arg(d.minimumChannelCount()).arg(d.maximumChannelCount())
-         .arg(d.minimumSampleRate()).arg(d.maximumSampleRate());
+         .arg(d.minimumSampleRate()).arg(d.maximumSampleRate())
+         .arg(pf.sampleRate()).arg(pf.channelCount());
 }
 
 QStringList describeAudioDevices()
@@ -183,6 +185,10 @@ bool soundQtMultimedia::init(int samplerate)
     });
 
 
+  // what the backend really opened, in case it is not what was asked for (#214)
+  addToLog(QString("Sound opened: capture %1 Hz %2 ch (device prefers %3 Hz), playback %4 Hz %5 ch (device prefers %6 Hz)")
+           .arg(audioSourcePtr->format().sampleRate()).arg(audioSourcePtr->format().channelCount()).arg(inDev.preferredFormat().sampleRate())
+           .arg(audioSinkPtr->format().sampleRate()).arg(audioSinkPtr->format().channelCount()).arg(outDev.preferredFormat().sampleRate()),LOGSOUND);
   isStereo=false;
   soundDriverOK=true;
   return true;

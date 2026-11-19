@@ -27,6 +27,7 @@
 #include "deviceclocks.h"
 
 #include <QSettings>
+#include <QMessageBox>
 #include <QMediaDevices>
 #ifdef Q_OS_ANDROID
 #include <QComboBox>
@@ -155,6 +156,24 @@ void soundConfig::deviceChosen(bool rx,const QString &device)
   setValue(v,rx ? ui->inputClockLineEdit : ui->outputClockLineEdit,9);
 }
 
+bool soundConfig::checkClocks()
+{
+  double rx=rxClock,tx=txClock;
+  getValue(rx,ui->inputClockLineEdit);
+  getValue(tx,ui->outputClockLineEdit);
+  const bool rxBad=!clockOk(rx),txBad=!clockOk(tx);
+  if(!rxBad && !txBad) return true;
+  deviceChosen(true,ui->inputPCMNameComboBox->currentText());     // the field shows the clock of the device again
+  deviceChosen(false,ui->outputPCMNameComboBox->currentText());
+  if(!rxBad) setValue(rx,ui->inputClockLineEdit,9);               // only what was wrong is put back
+  if(!txBad) setValue(tx,ui->outputClockLineEdit,9);
+  QMessageBox::warning(this,"Clock frequency",
+    "The clock frequencies are not the sample rate of the sound card: QSSTV always uses 48000 and the system converts, "
+    "so a card set to 44100 needs no change here. They hold the measured clock of the card, within 0.2 % of 48000.\n"
+    "The value was put back.");
+  return false;
+}
+
 void soundConfig::refreshDeviceLists()
 {
   QStringList inputPCMList, outputPCMList;
@@ -276,6 +295,9 @@ void soundConfig::getParams()
   // the clock fields follow the devices chosen (deviceChosen), so what they show is what is used
   getValue(rxClock,ui->inputClockLineEdit);
   getValue(txClock,ui->outputClockLineEdit);
+  // never a clock the receiver and transmitter cannot work with (checkClocks() tells the user; this also covers the save at quit)
+  if(!clockOk(rxClock)) {const double c=deviceClock(true,inputAudioDevice); rxClock=c>0 ? c : BASESAMPLERATE;}
+  if(!clockOk(txClock)) {const double c=deviceClock(false,outputAudioDevice); txClock=c>0 ? c : BASESAMPLERATE;}
   getValue(alsaSelected,ui->alsaRadioButton);
   getValue(pulseSelected,ui->pulseRadioButton);
   getValue(swapChannel,ui->swapChannelCheckBox);

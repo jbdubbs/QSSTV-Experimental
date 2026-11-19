@@ -180,6 +180,7 @@ int configDialog::exec()
 {
   if(QDialog::exec())
   {
+    ui->soundWidget->checkClocks();   // a sample rate typed as a clock is put back (writeSettings() would do it silently)
     writeSettings();
     if(ui->guiWidget->smoothChanged)
       {

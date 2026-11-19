@@ -72,7 +72,7 @@ program's data folder, for example <code class="wrap"><span class="nb">~/.local/
 
 <dl>
 <dt>Input Audio Device, Output Audio Device</dt><dd>Your sound devices (the program uses Qt Multimedia, so it sees the devices your operating system offers).</dd>
-<dt>Input Clock Frequency, Output Clock Frequency</dt><dd>The sample rate of the sound card, nominally 48000. The calibration tools adjust these; see
+<dt>Input clock, Output clock</dt><dd>The measured clock of the sound card in Hz, nominally 48000: a calibration, not the sample rate you set in the system. QSSTV always works at 48000 and the system converts, so a card set to 44100 needs no change here, and typing 44100 would make every picture come out as diagonal stripes. A value more than 0.2&nbsp;% from 48000 is put back. The calibration tools adjust these; see
  <a href="calibration.html">Calibration</a>. Each sound device keeps its own clocks: choosing another device brings its clocks (48000 if never measured). Normally you do not edit them by hand.</dd>
 <dt>Sound Input</dt><dd>From sound card; From file; or From sound card and record.</dd>
 <dt>Sound Output</dt><dd>To sound card; or To sound card and record.</dd>

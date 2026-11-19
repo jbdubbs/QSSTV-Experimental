@@ -12,6 +12,8 @@
   (device, clock, when, how): an array, because a device name may hold characters a settings key cannot.
 */
 
+//! true if a clock is within the limit (0.2 %) it may differ from BASESAMPLERATE: the limit of the clocks in use and of the stored ones
+bool clockOk(double clock);
 //! the stored clock of this device in Hz, 0 if none (or one outside the limit a clock may differ from BASESAMPLERATE)
 double deviceClock(bool rx,const QString &device);
 //! when (ISO date) and how (the calibration method number) it was measured, empty and 0 if not stored
