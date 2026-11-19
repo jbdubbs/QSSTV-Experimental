@@ -137,6 +137,7 @@ set(QSSTV_SOURCES
     mainwindow.cpp
     config/baseconfig.cpp
     config/soundconfig.cpp
+    config/deviceclocks.cpp
     utils/dirdialog.cpp
     utils/appimageintegration.cpp
     utils/appimageupdater.cpp

@@ -18,7 +18,9 @@ error adds when both stations are off. Calibration measures the real sample rate
 (Input Clock Frequency and Output Clock Frequency).</p>
 <p>Open <span class="ui">Options &gt; Calibrate</span>. The dialog has three tabs; use whichever reference you can reach. The receiver is stopped while the dialog is open
 and is resumed afterwards.</p>
-<div class="note"><p>The result is valid for this audio input device only. Using another sound device or interface requires running the calibration again. Tick <strong>Also use
+<div class="note"><p>The program remembers the result for the sound device you measured it with: the receive clock for the input device, the transmit clock for the output device. When you
+choose another device the clock of that device is used instead, and a device you have not measured yet runs at 48000 Hz until you calibrate it. Choosing the first device again brings
+its clock back. The system's <em>default</em> device counts as one device whatever it currently points to. Tick <strong>Also use
 this result for the transmit clock</strong> to apply the measurement to the output clock as well.</p></div>
 
 <h2 id="wwv">WWV time ticks</h2>

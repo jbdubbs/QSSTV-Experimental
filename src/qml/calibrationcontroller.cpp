@@ -11,6 +11,7 @@
 #include "calibrationsstv.h"
 #include "sntpclient.h"
 #include "rawclock.h"
+#include "deviceclocks.h"
 
 #include <QDate>
 #include <QElapsedTimer>
@@ -137,15 +138,13 @@ QString CalibrationController::deviceText() const
 QString CalibrationController::infoText() const
 {
   if(!calibrated()) return tr("Sound device now: %1").arg(deviceText());
-  QSettings s;
-  const QString when=s.value("Calibration/when").toString();
+  // every sound device has its own clock (issue #194): when and how it was measured is stored with it
+  int how=0;
+  QString when=deviceClockWhen(true,::inputAudioDevice,&how);
+  if(when.isEmpty()) when=deviceClockWhen(false,::outputAudioDevice,&how);
   if(when.isEmpty()) return tr("Set earlier, not by this page. Sound device now: %1").arg(deviceText());
-  const int how=s.value("Calibration/how").toInt();
   const QString howText=how==1 ? tr("internet time") : how==2 ? tr("a radio time signal") : tr("another SSTV station");
-  const QString device=s.value("Calibration/device").toString();
-  QString t=tr("Measured %1 with %2, for the %3").arg(numberLocale().toString(QDate::fromString(when,Qt::ISODate),QStringLiteral("d MMM yyyy")),howText,device);
-  if(!device.isEmpty() && device!=deviceText()) t+=QStringLiteral(". ")+tr("A different sound device is in use now: measure again for it.");
-  return t;
+  return tr("Measured %1 with %2, for the %3").arg(numberLocale().toString(QDate::fromString(when,Qt::ISODate),QStringLiteral("d MMM yyyy")),howText,deviceText());
 }
 
 QString CalibrationController::summary() const
@@ -489,9 +488,10 @@ void CalibrationController::apply(double rx,double tx,const QString &how)
   s.setValue("rxclock",::rxClock);
   s.setValue("txclock",::txClock);
   s.endGroup();
-  s.setValue("Calibration/when",QDate::currentDate().toString(Qt::ISODate));
-  s.setValue("Calibration/how",how.toInt());
-  s.setValue("Calibration/device",deviceText());
+  // the clock belongs to the sound devices it was measured for: choosing them again brings it back
+  const QString when=QDate::currentDate().toString(Qt::ISODate);
+  if(rx>0) storeDeviceClock(true,::inputAudioDevice,::rxClock,when,how.toInt());
+  if(tx>0) storeDeviceClock(false,::outputAudioDevice,::txClock,when,how.toInt());
   emit clocksChanged();
 }
 
@@ -505,9 +505,9 @@ void CalibrationController::reset()
   s.setValue("rxclock",::rxClock);
   s.setValue("txclock",::txClock);
   s.endGroup();
-  s.remove("Calibration/when");
-  s.remove("Calibration/how");
-  s.remove("Calibration/device");
+  // only the clock of the sound devices in use is forgotten; the others keep theirs
+  forgetDeviceClock(true,::inputAudioDevice);
+  forgetDeviceClock(false,::outputAudioDevice);
   emit clocksChanged();
 }
 

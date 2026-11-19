@@ -61,6 +61,7 @@
 #include "configparams.h"
 #include "sstv/sstvparam.h"
 #include <QAudioDevice>
+#include "deviceclocks.h"
 #include <QMediaDevices>
 #include <QImageReader>
 #include <QRegularExpression>
@@ -586,7 +587,12 @@ int main( int argc, char ** argv )
     {
       // the window's constructor has read the settings: from here on only this run's choices (never written back)
       soundRoutingInput=soundBase::SNDINCARD;   // not a saved "input from file" / "record to file"
-      if(!wantedDevice.isEmpty()) inputAudioDevice=wantedDevice;
+      if(!wantedDevice.isEmpty())
+        {
+          inputAudioDevice=wantedDevice;
+          const double wantedClock=deviceClock(true,wantedDevice);   // the clock measured for that device (issue #194)
+          rxClock=wantedClock>0 ? wantedClock : BASESAMPLERATE;
+        }
       QStringList inputs,outputs;
       getCardList(inputs,outputs);
       // a saved device that is gone falls back to the default input (soundQtMultimedia::init)

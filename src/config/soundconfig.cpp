@@ -24,6 +24,7 @@
 #include "configparams.h"
 #include "supportfunctions.h"
 #include "soundqtmultimedia.h"
+#include "deviceclocks.h"
 
 #include <QSettings>
 #include <QMediaDevices>
@@ -191,6 +192,7 @@ void soundConfig::readSettings()
   rxGainDb=qSettings.value("rxGainDb",0.0).toDouble();
   if(!(rxGainDb>=0.0 && rxGainDb<=30.0)) rxGainDb=0.0;
   qSettings.endGroup();
+  migrateDeviceClocks();   // the first start with a clock per sound device: the clock in use belongs to the devices in use
   setParams();
 }
 
@@ -198,6 +200,9 @@ void soundConfig::writeSettings()
 {
   QSettings qSettings;
   getParams();
+  // the clock in use is the clock of the devices in use (a clock from a calibration or typed by hand included)
+  storeDeviceClock(true,inputAudioDevice,rxClock);
+  storeDeviceClock(false,outputAudioDevice,txClock);
   qSettings.beginGroup("SOUND");
   qSettings.setValue("rxclock",rxClock);
   qSettings.setValue("txclock",txClock);
@@ -256,10 +261,20 @@ void soundConfig::getParams()
   soundBase::edataDst soundRoutingOutputCopy=soundRoutingOutput;
   const int micPresetCopy=micPreset;
 
-  getValue(rxClock,ui->inputClockLineEdit);
-  getValue(txClock,ui->outputClockLineEdit);
   getValue(inputAudioDevice,ui->inputPCMNameComboBox);
   getValue(outputAudioDevice,ui->outputPCMNameComboBox);
+  if(inputAudioDeviceCopy!=inputAudioDevice || outputAudioDeviceCopy!=outputAudioDevice)
+    {
+      // another sound device: its own clock (issue #194), nominal if it was never measured
+      loadDeviceClocks();
+      setValue(rxClock,ui->inputClockLineEdit,9);
+      setValue(txClock,ui->outputClockLineEdit,9);
+    }
+  else
+    {
+      getValue(rxClock,ui->inputClockLineEdit);
+      getValue(txClock,ui->outputClockLineEdit);
+    }
   getValue(alsaSelected,ui->alsaRadioButton);
   getValue(pulseSelected,ui->pulseRadioButton);
   getValue(swapChannel,ui->swapChannelCheckBox);

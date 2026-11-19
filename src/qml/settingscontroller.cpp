@@ -2,7 +2,9 @@
 #include "appglobal.h"
 #include "appmodel.h"
 #include "configdialog.h"
+#include "calibrationcontroller.h"
 #include "configparams.h"
+#include "deviceclocks.h"
 #include "directoriesconfig.h"
 #include "gpsconfig.h"
 #include "cwconfig.h"
@@ -291,10 +293,24 @@ void SettingsController::saveSound(const char *key,const QVariant &value,bool re
   emit audioChanged();
 }
 
+// another sound device brings its own clock (issue #194): the clock in use follows, in the settings and in the Configuration > Sound fields
+static void useDeviceClocks()
+{
+  loadDeviceClocks();
+  if(configDialogPtr) configDialogPtr->setSoundClocks(::rxClock,::txClock);
+  QSettings s;
+  s.beginGroup("SOUND");
+  s.setValue("rxclock",::rxClock);
+  s.setValue("txclock",::txClock);
+  s.endGroup();
+  if(CalibrationController::instance()) emit CalibrationController::instance()->clocksChanged();
+}
+
 void SettingsController::setInputDevice(const QString &d)
 {
   if(d==::inputAudioDevice) return;
   ::inputAudioDevice=d;
+  useDeviceClocks();
   saveSound("inputAudioDevice",d,true);
 }
 
@@ -302,6 +318,7 @@ void SettingsController::setOutputDevice(const QString &d)
 {
   if(d==::outputAudioDevice) return;
   ::outputAudioDevice=d;
+  useDeviceClocks();
   saveSound("outputAudioDevice",d,true);
 }
 
