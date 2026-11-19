@@ -80,6 +80,9 @@ soundConfig::soundConfig(QWidget *parent) :  baseConfig(parent), ui(new Ui::soun
   connect(&mediaDevices,&QMediaDevices::audioInputsChanged,this,&soundConfig::refreshDeviceLists);
   connect(&mediaDevices,&QMediaDevices::audioOutputsChanged,this,&soundConfig::refreshDeviceLists);
   connect(ui->duplicateChannelCheckBox,&QCheckBox::toggled,this,&soundConfig::updateChannelEnables);
+  // choosing a device shows the clock measured for it right away (issue #194)
+  connect(ui->inputPCMNameComboBox,&QComboBox::textActivated,this,[this](const QString &d){deviceChosen(true,d);});
+  connect(ui->outputPCMNameComboBox,&QComboBox::textActivated,this,[this](const QString &d){deviceChosen(false,d);});
 #ifdef Q_OS_ANDROID
   buildPhoneAudioBox();
 #endif
@@ -143,6 +146,13 @@ void soundConfig::updateChannelEnables()
   bool dup=ui->duplicateChannelCheckBox->isChecked();
   ui->swapChannelCheckBox->setEnabled(!dup);
   ui->pttToneCheckBox->setEnabled(!dup);
+}
+
+void soundConfig::deviceChosen(bool rx,const QString &device)
+{
+  const double c=deviceClock(rx,device);
+  const double v=(c>0) ? c : BASESAMPLERATE;   // nominal if this device was never measured
+  setValue(v,rx ? ui->inputClockLineEdit : ui->outputClockLineEdit,9);
 }
 
 void soundConfig::refreshDeviceLists()
@@ -263,18 +273,9 @@ void soundConfig::getParams()
 
   getValue(inputAudioDevice,ui->inputPCMNameComboBox);
   getValue(outputAudioDevice,ui->outputPCMNameComboBox);
-  if(inputAudioDeviceCopy!=inputAudioDevice || outputAudioDeviceCopy!=outputAudioDevice)
-    {
-      // another sound device: its own clock (issue #194), nominal if it was never measured
-      loadDeviceClocks();
-      setValue(rxClock,ui->inputClockLineEdit,9);
-      setValue(txClock,ui->outputClockLineEdit,9);
-    }
-  else
-    {
-      getValue(rxClock,ui->inputClockLineEdit);
-      getValue(txClock,ui->outputClockLineEdit);
-    }
+  // the clock fields follow the devices chosen (deviceChosen), so what they show is what is used
+  getValue(rxClock,ui->inputClockLineEdit);
+  getValue(txClock,ui->outputClockLineEdit);
   getValue(alsaSelected,ui->alsaRadioButton);
   getValue(pulseSelected,ui->pulseRadioButton);
   getValue(swapChannel,ui->swapChannelCheckBox);

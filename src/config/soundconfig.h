@@ -57,6 +57,7 @@ protected:
 private slots:
   void refreshDeviceLists();
   void updateChannelEnables();
+  void deviceChosen(bool rx,const QString &device);   //!< the clock field of that side shows the clock stored for the device
 
 private:
   Ui::soundConfig *ui;
