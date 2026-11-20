@@ -86,22 +86,26 @@ for spec in ${VISSTART_CASES:-M1:8 M1:16 R36:30 PD120:10 S1:12 MP73:10 MC110-N:8
   else bad "$spec: via=$via, backfill_lines=$bf, rows: $r"; fi
 done
 
-echo "== a PD picture from another program: the sync pulse and porch of its first line follow the VIS code (issue #167)"
-# QSSTV's own PD transmission has no sync pulse and porch before its first line, every other program sends them (the stop bit and the
-# 20 ms pulse run together). The code puts the picture 20 ms too early for those, the pulses must move it, not be refused as noise:
-# before, the whole picture was received 20 ms (11 to 22% of the width) to the side, and the left edge of every row was garbage.
+echo "== a PD picture with and without the sync pulse and porch of its first line (issue #167)"
+# QSSTV used to send a PD picture without the sync pulse (20 ms) and porch (2.08 ms) that start its first line; every other program sends them right after
+# the stop bit of the VIS code, and since 2026-11-20 QSSTV does too (the code puts the picture where the standard has it). A picture of an older QSSTV has
+# to be moved by its pulses, not refused as noise: before, the whole picture was received 20 ms (11 to 22% of the width) to the side, and the left edge of
+# every row was garbage. (pdtrim takes the sync pulse and porch out of the transmission, as the old transmitter had it.)
 for m in ${VISSTART_PD:-PD50 PD120}; do
-  prepare $m || { bad "$m (standard): could not prepare"; continue; }
-  py pdlead "$T/$m.wav" "$T/std_$m.wav" --at 1.710
-  dec "$T/std_$m.wav" "$T/os_$m"
-  tr="$T/os_$m/trace.tsv"
-  if [ "$(npng "$T/os_$m")" != 1 ]; then bad "$m (standard): $(npng "$T/os_$m") pictures, want 1"; continue; fi
-  via=$(fld "$tr" DETECT via)
-  acc=$(grep -a -c -P '\tADOPT\t.*accepted=1' "$tr"); refused=$(grep -a -c -P '\tADOPT\t.*accepted=0' "$tr")
-  r=$(py rows "$T/clean_$m"/*.png "$T/os_$m"/*.png 0.5 0.5 --px 24)     # (pulses and code differ by a few pixels; the 20 ms error was 70 to 104)
-  top=$(echo "$r" | sed 's/top \([0-9.]*\).*/\1/'); bot=$(echo "$r" | sed 's/.*bottom \([0-9.]*\).*/\1/')
-  if [ "$via" = vis-start ] && [ "$acc" -ge 1 ] && [ "$refused" = 0 ] && ge "$top" 0.9 && ge "$bot" 0.9; then ok "$m (standard): started at the VIS code, its pulses adopted and the picture is in place ($r)"
-  else bad "$m (standard): via=$via, chains adopted $acc, refused $refused, rows: $r"; fi
+  prepare $m || { bad "$m: could not prepare"; continue; }
+  for kind in standard older; do
+    if [ $kind = older ]; then py pdtrim "$T/$m.wav" "$T/std_$m.wav" --at 1.709; else cp "$T/$m.wav" "$T/std_$m.wav"; fi
+    rm -rf "$T/os_$m"
+    dec "$T/std_$m.wav" "$T/os_$m"
+    tr="$T/os_$m/trace.tsv"
+    if [ "$(npng "$T/os_$m")" != 1 ]; then bad "$m ($kind): $(npng "$T/os_$m") pictures, want 1"; continue; fi
+    via=$(fld "$tr" DETECT via)
+    acc=$(grep -a -c -P '\tADOPT\t.*accepted=1' "$tr"); refused=$(grep -a -c -P '\tADOPT\t.*accepted=0' "$tr")
+    r=$(py rows "$T/clean_$m"/*.png "$T/os_$m"/*.png 0.5 0.5 --px 24)     # (pulses and code differ by a few pixels; the 20 ms error was 70 to 104)
+    top=$(echo "$r" | sed 's/top \([0-9.]*\).*/\1/'); bot=$(echo "$r" | sed 's/.*bottom \([0-9.]*\).*/\1/')
+    if [ "$via" = vis-start ] && { [ $kind = standard ] || [ "$acc" -ge 1 ]; } && [ "$refused" = 0 ] && ge "$top" 0.9 && ge "$bot" 0.9; then ok "$m ($kind): started at the VIS code, the picture is in place ($r), chains adopted $acc"
+    else bad "$m ($kind): via=$via, chains adopted $acc, refused $refused, rows: $r"; fi
+  done
 done
 
 echo "== a dip in the 1900 Hz leader of the VIS code"

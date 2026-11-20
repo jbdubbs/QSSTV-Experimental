@@ -460,6 +460,12 @@ modeBase::eModeBase modeBase::transmitImage(imageViewer *iv)
   displayLineCounter=0;
   lineCounter=0;
   sampleCounter=0;
+  if(txLeadingSync(mode))
+    {
+      // the sync pulse of the first line comes right after the stop bit of the VIS code; the pixel positions count from the start of
+      // the picture (where the porch is: sendPixelBuffer sends it), so these samples are not counted
+      synthesPtr->sendSamples((unsigned int)rint(syncDuration),syncFreq);
+    }
   getLine();
   state=MBSETUPLINE;
   start=0;
@@ -542,6 +548,16 @@ void modeBase::sendPixelBuffer()
 {
   double f;
   // addToLog (QString(" sendPixelBuffer: pixelBuffer: %1").arg(QString::number((ulong)pixelArrayPtr,16)),LOGMODES);
+  if(lineCounter==0 && pixelCounter==0 && sampleCounter==0 && transmit && txLeadingSync(mode))
+    {
+      // the porch between the sync pulse and the first pixel of the picture (it used to be sent as the colour of that pixel)
+      unsigned int end=(unsigned int)round(pixelPositionTable[0]-visibleLineLength/(double)activeSSTVParam->numberOfPixels);
+      while(sampleCounter<end)
+        {
+          synthesPtr->sendSample(lowerFreq);
+          sampleCounter++;
+        }
+    }
   do
     {
       f=lowerFreq+((double)pixelArrayPtr[pixelCounter]*(2300-lowerFreq)/255.);

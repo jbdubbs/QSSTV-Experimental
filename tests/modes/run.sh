@@ -4,7 +4,7 @@
 # Each mode transmits a picture of its own size with three steps (red, green and blue, or three grays for the B/W modes and FAX480) through the real
 # transmitter (--encode) and the receiver (--batch, Auto) reads it twice: as sent (the VIS code starts the picture) and with everything before the end
 # of the VIS code cut off (the sync pulses find it; AVT has none). Checks: the receiver names the mode that was sent, the picture has the size it
-# should (FAX480 comes out as 500 lines: the 20 white phasing lines are shown), and the steps are within 0.3 ms of where they were sent both ways
+# should (FAX480 comes out as 500 lines: the 20 white phasing lines are shown), and the steps are within 0.3 ms of where they were sent when the VIS code starts the picture and 0.45 ms when the pulses find it
 # (one pixel is 0.2 to 1.1 ms). tests/txlayout checks the transmitter against MMSSTV for the modes that MMSSTV has. JB60 is measured on luma: its chroma
 # (the red and blue steps) comes out about 0.85 ms later than its luma, a property of its own chroma slots and filters (tests/jb60_loopback).
 #
@@ -27,7 +27,9 @@ while read -r m w h px kind rw rh r0; do
   [ "$det" = "$m" ] || bad="$bad detected as $det;"
   [ "$size" = "${rw}x${rh}" ] || bad="$bad size $size (expected ${rw}x${rh});"
   awk -v a="$vis" 'BEGIN{exit !(a!="nan" && a<=0.3 && a>=-0.3)}' || bad="$bad VIS start $vis ms;"
-  if [ "$pulse" != "-" ]; then awk -v a="$pulse" 'BEGIN{exit !(a!="nan" && a<=0.3 && a>=-0.3)}' || bad="$bad pulse start $pulse ms;"; fi
+  # (the pulse detector reads a start that depends on the sample phase of its input, by up to 0.1 ms between phases on most modes and 0.3 on Robot 72 and
+  # P7, so the limit for the start found by pulses is 0.45 ms; the VIS start has no such spread)
+  if [ "$pulse" != "-" ]; then awk -v a="$pulse" 'BEGIN{exit !(a!="nan" && a<=0.45 && a>=-0.45)}' || bad="$bad pulse start $pulse ms;"; fi
   if [ -z "$bad" ]; then echo "  ok   $m: $size, VIS start $vis ms, pulse start $pulse ms"
   else echo "  FAIL $m:$bad (VIS start $vis ms, pulse start $pulse ms)"; fail=$((fail+1)); fi
 done <<'LIST'

@@ -148,6 +148,7 @@ extern DSPFLOAT *lineTimeTableTX;
 void setupSSTVLineTimeTable(esstvMode modeIndex,DSPFLOAT clock,bool transmit);
 DSPFLOAT getLineLength(esstvMode modeIndex,DSPFLOAT clock);
 DSPFLOAT getSyncWidth(esstvMode modeIndex,DSPFLOAT clock);
+bool txLeadingSync(esstvMode m);          //!< the transmitter sends the sync pulse of the first line, as MMSSTV does (the stop bit of the VIS code and the sync pulse run together)
 //void setupFAXLineTimeTable(DSPFLOAT clock);
 bool  initializeSSTVParametersIndex(esstvMode modeIndex,bool tx);
 //bool  initializeFAXParametersIndex(efaxMode modeIndex,bool tx);

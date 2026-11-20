@@ -20,6 +20,10 @@
       1200 Hz) and porch (2.08 ms, 1500 Hz) that start the first line out, the others send them right after the stop bit of the
       VIS code. They are put in at S seconds (default 1.710, where the stop bit of our header ends). The rest is the same.
 
+  wavtool.py pdtrim in.wav out.wav [--at S]
+      The opposite (2026-11-20): QSSTV now sends the sync pulse and porch of the first line of a PD picture, as the others do. This takes them out
+      again (at S seconds, default 1.709, where the stop bit of our header ends), a transmission of an older QSSTV.
+
   wavtool.py rows clean.png decoded.png TOP BOTTOM [--rows N] [--px N]
       Compare two pictures row by row; print the share of rows that agree in the top TOP and the bottom BOTTOM
       fraction of the picture ("top 1.00 bottom 0.98"). Each end may be moved up to --px pixels sideways (8) and --rows rows (0) to fit.
@@ -107,6 +111,13 @@ def cmd_pdlead(a):
     write_wav(a.outfile, np.concatenate([x[:at], sync, porch, x[at:]]), rate)
 
 
+def cmd_pdtrim(a):
+    x, rate = read_wav(a.infile)
+    at = int(round(a.at * rate))
+    cut = int(round((0.020 + 0.00208) * rate))
+    write_wav(a.outfile, np.concatenate([x[:at], x[at + cut:]]), rate)
+
+
 def cmd_join(a):
     xa, ra = read_wav(a.a)
     xb, rb = read_wav(a.b)
@@ -192,6 +203,11 @@ def main():
     pl.add_argument('outfile')
     pl.add_argument('--at', type=float, default=1.710, help='seconds into the file where the stop bit of the VIS code ends (default 1.710)')
     pl.set_defaults(fn=cmd_pdlead)
+    pt = sub.add_parser('pdtrim')
+    pt.add_argument('infile')
+    pt.add_argument('outfile')
+    pt.add_argument('--at', type=float, default=1.709, help='seconds into the file where the stop bit of the VIS code ends (default 1.709)')
+    pt.set_defaults(fn=cmd_pdtrim)
     r = sub.add_parser('rows')
     r.add_argument('clean')
     r.add_argument('decoded')

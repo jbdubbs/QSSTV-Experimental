@@ -227,6 +227,7 @@ double sstvTx::calcTxTime(int overheadTime)
   if(txSSTVParam.mode==FAX480) tim+=1220*2*0.002048;     // the start tone
   if(txSSTVParam.mode>=AVT24 && txSSTVParam.mode<=AVT94) tim+=32*17*0.0097646+0.0003; // the digital header
   tim+=txSSTVParam.imageTime;
+  if(txLeadingSync(txSSTVParam.mode)) tim+=txSSTVParam.synct;   // the sync pulse of the first line
 
 //  if(enableCW)
   if(useCW)

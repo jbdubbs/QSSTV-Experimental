@@ -96,7 +96,21 @@ static int startLag(esstvMode m,bool retrace,bool viaVis)
 #define VISTOSTARTMS 16           // the first line starts this long before the end of the code (the same in every mode, measured)
 // Martin, Scottie, SC2, PD, P, MP, MR, ML, Robot and B/W pictures start 0.3 ms earlier against the end of the code than the others (measured with QSSTV's and with MMSSTV's
 // transmitter code: they were 0.3 ms late, 0.7 px on Scottie 1, 1 px on Scottie 2 and 1 to 1.7 px on PD, which is not the case at 16.3)
+// The sync pulse of the first line comes right after the stop bit in MMSSTV's signals (and in QSSTV's since the transmitter sends it, 2026-11-20): the picture
+// starts that much later after the code than it did in the signals QSSTV used to send (without it), by the width of the sync pulse (txLeadingSync). A picture
+// of an older QSSTV is then early by as much, and its pulses move it (adoptChain).
+static double visToStartMsOld(esstvMode m);
+static double leadingSyncMs(esstvMode m)
+{
+  return txLeadingSync(m) ? 1000.*SSTVTable[m].synct : 0;
+}
+
 static double visToStartMs(esstvMode m)
+{
+  return visToStartMsOld(m)-leadingSyncMs(m);
+}
+
+static double visToStartMsOld(esstvMode m)
 {
   if(m==M1 || m==M2 || m==S1 || m==S2 || m==SDX || m==SC2_60 || m==SC2_120 || m==SC2_180) return VISTOSTARTMS+0.3;
   if((m>=P3 && m<=P7) || (m>=PD50 && m<=PD290) || (m>=MP73 && m<=ML320)) return VISTOSTARTMS+0.3;
@@ -1170,12 +1184,12 @@ bool syncProcessor::adoptChain()
   double d=(double)chainPosition-visStart;
   double n=round(d/samplesPerLine);
   double tolerance=VISADOPTMS*SAMPLERATE/1000.;       // the code is good to a few ms: a chain that is further off is noise
-  // QSSTV sends a PD picture without the sync pulse and porch that start its first line, every other program sends them (issue #167):
-  // the VIS code of such a picture is followed by 20 ms of 1200 Hz that run into the stop bit, so its pulses are one sync pulse
-  // later than the code says (VISTOSTARTMS was measured on QSSTV's own transmissions). Both are the right place for a PD picture.
+  // QSSTV used to send a PD picture without the sync pulse and porch that start its first line, every other program sends them (issue #167):
+  // the code of such a picture is followed by 20 ms of 1200 Hz that run into the stop bit. The code now puts a picture where the standard has
+  // it, so the pulses of a picture of an older QSSTV are one sync pulse earlier than the code says. Both are the right place for a PD picture.
   double off=d-n*samplesPerLine;
   bool fits=fabs(off)<=tolerance;
-  if(!fits && currentMode>=PD50 && currentMode<=PD290) fits=fabs(off-syncWidth)<=tolerance;
+  if(!fits && currentMode>=PD50 && currentMode<=PD290) fits=fabs(off+syncWidth)<=tolerance;
   if(n<0 || !fits || n*samplesPerLine>=SSTVTable[currentMode].imageTime*modifiedClock)
   {
     if(rxTraceOn()) rxTrace("ADOPT",QString("%1\tproc=%2\tmode=%3\taccepted=0\toff_lines=%4").arg(traceTime(sampleCounter)).arg(detectNarrow?"N":"W").arg(getSSTVModeNameShort(currentMode)).arg(d/samplesPerLine,0,'f',3));
