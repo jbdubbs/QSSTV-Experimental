@@ -108,6 +108,17 @@ for m in ${VISSTART_PD:-PD50 PD120}; do
   done
 done
 
+echo "== a false narrow VIS code ahead of a real one (noise can make a leader, a break and a start bit)"
+# The narrow decoder left the state of reading the 24 bits only when they passed its first check, so after a false code it was stuck for the rest of the
+# session (a narrow transmission of MMSSTV in a long recording that began with noise was found by its pulses only, not by its code).
+prepare MC110-N && {
+  py falsenarrow "$T/MC110-N.wav" "$T/fn.wav"
+  dec "$T/fn.wav" "$T/ofn"
+  tr="$T/ofn/trace.tsv"
+  if [ "$(npng "$T/ofn")" = 1 ] && [ "$(fld "$tr" DETECT via)" = vis ]; then ok "MC110-N after a false narrow code: read by its VIS code"
+  else bad "MC110-N after a false narrow code: $(npng "$T/ofn") pictures, via=$(fld "$tr" DETECT via) (want vis)"; fi
+}
+
 echo "== a dip in the 1900 Hz leader of the VIS code"
 prepare M1 && for spec in 1.25:0.05 1.22:0.08; do
   IFS=: read -r st hold <<< "$spec"

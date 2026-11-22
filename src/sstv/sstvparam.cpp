@@ -56,8 +56,8 @@ esstvMode sstvModeIndexTx;
   standard, send the sync pulse of the first line as well (the 1200 Hz run after the VIS data is the stop bit and the sync pulse together: 34.5 ms in
   Martin 1, 35.5 ms in P3, 37.5 in P5, 36 ms in Robot 24 and B/W 8 and 12, 39 ms in Robot 36 and 72, MP, MR and ML, 50 ms in PD, and 38.5 ms in Scottie 1, recorded from MMSSTV.EXE itself on 2026-11-20).
   Measured with MMSSTV's transmitter code, and with the program for Scottie 1 (the code of MMSSTV that the port is made from has no sync in front of Scottie,
-  the program has); Scottie DX, P7 and PD120W are the same in MMSSTV's code as the modes of their families that were recorded (Scottie 1 and 2, P3 and P5, PD50 to PD290). MC110-N and MC140-N were recorded as well (MC180-N is the same; MP-N has the sync in MMSSTV's signals too, see below), and SC2-60 (SC2-120 and 180 are the same). The modes that have not been
-  measured (FAX480, JB60) keep the old start, and so does MP-N.
+  the program has); Scottie DX, P7 and PD120W are the same in MMSSTV's code as the modes of their families that were recorded (Scottie 1 and 2, P3 and P5, PD50 to PD290). MP73-N, MP110-N, MC110-N and MC140-N were recorded as well (MP140-N and MC180-N are the same), and SC2-60 (SC2-120 and 180 are the same). The modes that have not been
+  measured (FAX480, JB60) keep the old start.
 */
 bool txLeadingSync(esstvMode m)
 {
@@ -67,9 +67,7 @@ bool txLeadingSync(esstvMode m)
   if(m>=P3 && m<=P7) return true;
   if(m>=PD50 && m<=PD290) return true;     // (PD120W too: the timing of PD120 in a wider picture)
   if(m>=MP73 && m<=ML320) return true;
-  if(m>=MC110N && m<=MC180N) return true;     // (8 ms of 1900 Hz right after the 24 bits of the VIS code. MP-N has 9 ms in MMSSTV's signals as well, but with it the picture started
-                                              // by the narrow VIS code lands 1.4 ms off (its chain of pulses then starts one line earlier, and the narrow lags were measured the old way);
-                                              // the narrow receiver is a separate issue, MP-N keeps the old start)
+  if(m>=STARTNARROW && m<=ENDNARROW) return true;     // (the narrow modes: 9 ms (MP-N) and 8 ms (MC-N) of 1900 Hz right after the 24 bits of the VIS code)
   return false;
 }
 

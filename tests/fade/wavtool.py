@@ -24,6 +24,11 @@
       The opposite (2026-11-20): QSSTV now sends the sync pulse and porch of the first line of a PD picture, as the others do. This takes them out
       again (at S seconds, default 1.709, where the stop bit of our header ends), a transmission of an older QSSTV.
 
+  wavtool.py falsenarrow in.wav out.wav
+      A false narrow VIS code ahead of the transmission, the way noise can make one: a 300 ms leader at 1900 Hz, the 100 ms break at 2100 Hz, a start bit and
+      24 bits that are not a code (all 2100 Hz), 5 s of quiet. The narrow decoder used to stay in the state of reading the code after it (a pattern that did not
+      pass its first check was never reset) and read no narrow code in the rest of the session.
+
   wavtool.py rows clean.png decoded.png TOP BOTTOM [--rows N] [--px N]
       Compare two pictures row by row; print the share of rows that agree in the top TOP and the bottom BOTTOM
       fraction of the picture ("top 1.00 bottom 0.98"). Each end may be moved up to --px pixels sideways (8) and --rows rows (0) to fit.
@@ -118,6 +123,16 @@ def cmd_pdtrim(a):
     write_wav(a.outfile, np.concatenate([x[:at], x[at + cut:]]), rate)
 
 
+def cmd_falsenarrow(a):
+    x, rate = read_wav(a.infile)
+    amp = np.abs(x[int(0.2 * rate):int(1.0 * rate)]).max()
+
+    def tone(f, sec):
+        return amp * np.sin(2 * np.pi * f * np.arange(int(round(sec * rate))) / rate)
+    pre = np.concatenate([tone(1900, 0.300), tone(2100, 0.100), tone(1900, 0.022)] + [tone(2100, 0.022) for _ in range(24)] + [np.zeros(int(5 * rate))])
+    write_wav(a.outfile, np.concatenate([pre, x]), rate)
+
+
 def cmd_join(a):
     xa, ra = read_wav(a.a)
     xb, rb = read_wav(a.b)
@@ -208,6 +223,10 @@ def main():
     pt.add_argument('outfile')
     pt.add_argument('--at', type=float, default=1.709, help='seconds into the file where the stop bit of the VIS code ends (default 1.709)')
     pt.set_defaults(fn=cmd_pdtrim)
+    fn_ = sub.add_parser('falsenarrow')
+    fn_.add_argument('infile')
+    fn_.add_argument('outfile')
+    fn_.set_defaults(fn=cmd_falsenarrow)
     r = sub.add_parser('rows')
     r.add_argument('clean')
     r.add_argument('decoded')

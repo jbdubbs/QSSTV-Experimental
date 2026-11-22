@@ -526,8 +526,10 @@ void visDecoder::extractNarrow()
                               emit visCodeNarrowDetected((int)mode,syncSampleCounter+i);
                             }
                         }
-                     switchState(VISINIT,i);
                     }
+                  // whatever the 24 bits were: the decoder starts over. It used to do so only for a pattern that passed the first check, so a false start in noise
+                  // (a leader, a break and a start bit that noise can make) left it in GETCODE for good and no narrow code was read again in that session
+                  switchState(VISINIT,i);
                 }
               addToLog(QString("bit %1, %2 - %3 ").arg(bitCounter).arg(syncSampleCounter+i).arg(QString::number(symbol,2)),LOGFSKID);
             }
