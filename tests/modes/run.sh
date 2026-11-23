@@ -19,18 +19,23 @@ T=$(mktemp -d)
 trap 'rm -rf "$T"' EXIT
 export SCR=$T
 fail=0
+# Where the narrow modes are expected to come out, in ms against the layout that our transmitter sent: MMSSTV.EXE's decoder draws its real narrow signals 0.4 to 1.2 ms
+# to the left of where this receiver used to draw them (issue #213, MMSSTV replays of 2026-11-23), the receiver now follows it (syncprocessor.cpp,
+# narrowMmsstvShift: 6, 8, 5, 8, 12 and 14 samples of 12 kHz), so our own narrow transmissions are read that much to the left. The wide modes are at 0.
+declare -A EXPECT=([MP73-N]=-0.5 [MP110-N]=-0.667 [MP140-N]=-0.417 [MC110-N]=-0.667 [MC140-N]=-1.0 [MC180-N]=-1.167)
 # mode, size sent, pixel ms, kind, size received, first row of the picture
 while read -r m w h px kind rw rh r0; do
   [ -n "$MODES" ] && ! [[ " $MODES " == *" $m "* ]] && continue
   read -r mode det size vis pulse < <(HOME=$HOME python3 "$HERE/roundtrip.py" $m $w $h $px $kind $rw $rh $r0 "$QSSTV" 2>/dev/null | tail -1)
   bad=""
+  e=${EXPECT[$m]:-0}      # the narrow modes are read where MMSSTV.EXE's decoder draws them: later than our own transmitter's layout (see EXPECT)
   [ "$det" = "$m" ] || bad="$bad detected as $det;"
   [ "$size" = "${rw}x${rh}" ] || bad="$bad size $size (expected ${rw}x${rh});"
-  awk -v a="$vis" 'BEGIN{exit !(a!="nan" && a<=0.3 && a>=-0.3)}' || bad="$bad VIS start $vis ms;"
+  awk -v a="$vis" -v e="$e" 'BEGIN{exit !(a!="nan" && a-e<=0.3 && a-e>=-0.3)}' || bad="$bad VIS start $vis ms (expected $e);"
   # (where a picture comes out depends on the sub-sample phase of the input (the 48 to 12 kHz decimation), by up to 0.1 ms on most modes and 0.3 ms on Robot 72
   # and P7, in the VIS-started path too (Robot 72: -0.12 to +0.17 ms over four phases); the start found by pulses adds the jitter of the pulse timestamps (their
   # edges ripple with the carrier phase at the onset), so its limit is 0.45 ms. The widths of the wide pulses do not toggle, unlike the narrow ones)
-  if [ "$pulse" != "-" ]; then awk -v a="$pulse" 'BEGIN{exit !(a!="nan" && a<=0.45 && a>=-0.45)}' || bad="$bad pulse start $pulse ms;"; fi
+  if [ "$pulse" != "-" ]; then awk -v a="$pulse" -v e="$e" 'BEGIN{exit !(a!="nan" && a-e<=0.45 && a-e>=-0.45)}' || bad="$bad pulse start $pulse ms (expected $e);"; fi
   if [ -z "$bad" ]; then echo "  ok   $m: $size, VIS start $vis ms, pulse start $pulse ms"
   else echo "  FAIL $m:$bad (VIS start $vis ms, pulse start $pulse ms)"; fail=$((fail+1)); fi
 done <<'LIST'

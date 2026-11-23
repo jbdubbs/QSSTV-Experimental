@@ -23,13 +23,28 @@
 //    code started are adopted: measured with the signal of MMSSTV's transmitter code, Robot was 0.3 ms late and Martin 0.2 ms
 //  - a normal pulse, when a picture is found by its pulses alone (no VIS code, or one that was missed): measured with QSSTV's own transmissions with the
 //    VIS code cut off (txlayout checks them against MMSSTV's); the 10 + 9 samples are too many by 0.1 to 3 ms, as many as the mode needs
+// The narrow modes are read later than the layout of our own transmitter needs: MMSSTV.EXE's own decoder draws its real narrow signals 0.4 to 1.2 ms to the
+// left of where this receiver drew them (11201312, 11231120 and 11231221 replayed in MMSSTV, issue #213; the pictures agree within 0.4 ms in every wide mode):
+// MP73-N 0.49, MP110-N 0.66, MP140-N 0.44, MC110-N 0.63, MC140-N 1.03 (0.97 and 1.09 in two recordings), MC180-N 1.16 ms. The sync pulse of our own narrow
+// transmissions and of MMSSTV's are the same (9.4 ms, same line time), so it is the two receivers that time the edge of the narrow pulse differently, and MMSSTV is
+// the reference. In samples at 12 kHz (0.083 ms each); our own narrow transmissions now come out 0.4 to 1.2 ms to the left (tests/modes expects that).
+static int narrowMmsstvShift(esstvMode m)
+{
+  switch(m)
+  {
+    case MP73N: return 6;   case MP110N: return 8;  case MP140N: return 5;
+    case MC110N: return 8;  case MC140N: return 12; case MC180N: return 14;
+    default: return 0;
+  }
+}
+
 static int retraceLag(esstvMode m)
 {
   if(m==R24) return -1;
   if(m==R36 || m==R72) return -3;
   if(m==M1 || m==M2) return -2;
-  if(m>=MP73N && m<=MP140N) return -49;
-  if(m>=MC110N && m<=MC180N) return -61;
+  if(m>=MP73N && m<=MP140N) return -49+narrowMmsstvShift(m);
+  if(m>=MC110N && m<=MC180N) return -61+narrowMmsstvShift(m);
   return 0;
 }
 
@@ -49,8 +64,8 @@ static int pulseLag(esstvMode m)
     case MP73: return -4;  case MP115: return -3; case MP140: return -3;  case MP175: return -3;
     case MR73: return -20; case MR90: return -19; case MR115: return -22; case MR140: return -20; case MR175: return -21;
     case ML180: return -19; case ML240: return -22; case ML280: return -21; case ML320: return -22;
-    case MP73N: return -47; case MP110N: return -49; case MP140N: return -48;
-    case MC110N: case MC140N: case MC180N: return -61;
+    case MP73N: return -47+narrowMmsstvShift(m); case MP110N: return -49+narrowMmsstvShift(m); case MP140N: return -48+narrowMmsstvShift(m);
+    case MC110N: case MC140N: case MC180N: return -61+narrowMmsstvShift(m);
     case FAX480: return -17;
     default: return 0;
   }

@@ -17,10 +17,12 @@ T=$(mktemp -d)
 trap 'rm -rf "$T"' EXIT
 export SCR=$T
 fail=0
-# mode width height pixel_ms: one of each family
-while read -r m w h px; do
+# mode width height pixel_ms [expected offset ms]: one of each family. The narrow modes are expected where MMSSTV.EXE's decoder draws its real narrow signals (0.4 to 1.2 ms
+# to the left of our transmitter's layout: syncprocessor.cpp narrowMmsstvShift, issue #213, tests/modes has the whole list)
+while read -r m w h px e; do
+  e=${e:-0}
   read -r mode vis pulse < <(HOME=$HOME python3 "$HERE/pulseonly.py" $m $w $h $px "$QSSTV" 2>/dev/null | tail -1)
-  if awk -v a="$vis" -v b="$pulse" 'BEGIN{exit !(a!="nan" && b!="nan" && a<=0.3 && a>=-0.3 && b<=0.45 && b>=-0.45)}'; then
+  if awk -v a="$vis" -v b="$pulse" -v e="$e" 'BEGIN{exit !(a!="nan" && b!="nan" && a-e<=0.3 && a-e>=-0.3 && b-e<=0.45 && b-e>=-0.45)}'; then
     echo "  ok   $m: VIS-started $vis ms, found by its pulses $pulse ms"
   else echo "  FAIL $m: VIS-started $vis ms, found by its pulses $pulse ms (within 0.3 ms, 0.45 by the pulses: the picture position depends on the sub-sample phase of the input)"; fail=$((fail+1)); fi
 done <<'LIST'
@@ -34,8 +36,8 @@ PD120 640 496 0.19
 MP73 320 256 0.4375
 MR90 320 256 0.534
 ML240 640 496 0.3695
-MP73-N 320 256 0.4375
-MC110-N 320 256 0.4375
+MP73-N 320 256 0.4375 -0.5
+MC110-N 320 256 0.4375 -0.667
 LIST
 echo "$fail failed"
 [ $fail = 0 ]
