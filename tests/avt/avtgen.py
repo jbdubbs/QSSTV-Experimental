@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """AVT 90 the way MMSSTV transmits it (Main.cpp LineAVT and the end of SendHeader; the SSTV Handbook, 4.2.5, describes the same header):
 leader, VIS 0x44 (MMSSTV sends it 3 times), 32 words of a 1900 Hz pulse and 16 bits of 9.7646 ms (1600 Hz zero, 2200 Hz one; the byte of mode and
-count, then its inverse), 0.305 ms, then 240 lines of red, green and blue of 125 ms each, no gaps and no sync pulse.
+count, then its inverse), a third of a bit (3.255 ms; the port of MMSSTV's code has 0.305 ms, the program 2.96 ms more, measured
+against its replay of a recording on 2026-11-23), then 240 lines of red, green and blue of 125 ms each, no gaps and no sync pulse.
 
   avtgen.py out.wav [DROP [REPEATS [LEAD [visonly]]]]   DROP: the first words of the header are lost (a receiver that joins late); REPEATS: how often the
                                        leader and the VIS code are sent (MMSSTV: 3)
@@ -33,7 +34,7 @@ for i in range(0 if visonly else 32):
     tone(1900,9.7646); d=sd
     for n in range(16): tone(1600 if d&0x8000 else 2200,9.7646); d=(d<<1)&0xffff
     sd=((sd&0xff00)-0x0100)|((sd&0x00ff)+0x0001)
-if not visonly: tone(0.0001,0.30514375)
+if not visonly: tone(1500,9.7646/3)
 def fw(v): return 1500+v*800/256
 xs=np.arange(W)
 R=np.where(xs>=W//4,255,0);G=np.where(xs>=W//2,255,0);B=np.where(xs>=3*W//4,255,0)

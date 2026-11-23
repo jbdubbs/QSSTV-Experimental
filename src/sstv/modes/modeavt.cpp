@@ -21,10 +21,12 @@
 #include "modeavt.h"
 #include "configparams.h"
 // one number is 1 startbit + 16 databits.
-// the header of the AVT modes: 32 words of a 1900 Hz pulse and 16 bits, each 9.7646 ms (2048/20 Bd), then 0.305 ms before the first line
+// the header of the AVT modes: 32 words of a 1900 Hz pulse and 16 bits, each 9.7646 ms (2048/20 Bd), then a third of a bit before the first line.
+// (The port of MMSSTV's code has 0.305 ms there; MMSSTV.EXE replaying its own AVT 90 recording puts the picture 2.96 ms later than that, 2026-11-23, and
+// a third of a bit less 0.305 ms is 2.95 ms)
 #define BITTIME 0.0097646
 #define WORDTIME (17*BITTIME)
-#define HEADERGAP 0.00030514375
+#define HEADERGAP (BITTIME/3.)
 #define VISTOIMAGECORRECTION 0 // samples at 12 kHz added to the start of the image that a picture without a readable header gets from its VIS code (the receiver starts 16 ms before the end of the code, where the stop bit ends, as for every picture that a VIS code starts)
 #define STARTCORRECTION -11   // samples at 12 kHz that the filters of the receiver delay the end of the code
 #include <QString>
