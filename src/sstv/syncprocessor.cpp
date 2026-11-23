@@ -141,6 +141,10 @@ static double visToStartMs(esstvMode m)
 
 static double visToStartMsOld(esstvMode m)
 {
+  // MMSSTV.EXE's own PD180 (replayed in MMSSTV twice, issue #213): its first sync pulse comes 0.5 ms after where the VIS code puts it, 0.2 to 0.3 ms in the
+  // other PD modes, and its decoder draws the picture where its pulses put it, 0.76 ms to the left of where the code put it here (-0.2 ms in the other PD
+  // modes). The picture of a VIS-started PD180 stays where the code puts it (the pulses are within VISSTAYMS), so this mode starts 0.6 ms later.
+  if(m==PD180) return VISTOSTARTMS+0.3-0.6;
   if(m==M1 || m==M2 || m==S1 || m==S2 || m==SDX || m==SC2_60 || m==SC2_120 || m==SC2_180) return VISTOSTARTMS+0.3;
   if((m>=P3 && m<=P7) || (m>=PD50 && m<=PD290) || (m>=MP73 && m<=ML320)) return VISTOSTARTMS+0.3;
   if(m>=R24 && m<=R72) return VISTOSTARTMS+0.3;
