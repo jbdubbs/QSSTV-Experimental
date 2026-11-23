@@ -27,8 +27,9 @@ while read -r m w h px kind rw rh r0; do
   [ "$det" = "$m" ] || bad="$bad detected as $det;"
   [ "$size" = "${rw}x${rh}" ] || bad="$bad size $size (expected ${rw}x${rh});"
   awk -v a="$vis" 'BEGIN{exit !(a!="nan" && a<=0.3 && a>=-0.3)}' || bad="$bad VIS start $vis ms;"
-  # (the pulse detector reads a start that depends on the sample phase of its input, by up to 0.1 ms between phases on most modes and 0.3 on Robot 72 and
-  # P7, so the limit for the start found by pulses is 0.45 ms; the VIS start has no such spread)
+  # (where a picture comes out depends on the sub-sample phase of the input (the 48 to 12 kHz decimation), by up to 0.1 ms on most modes and 0.3 ms on Robot 72
+  # and P7, in the VIS-started path too (Robot 72: -0.12 to +0.17 ms over four phases); the start found by pulses adds the jitter of the pulse timestamps (their
+  # edges ripple with the carrier phase at the onset), so its limit is 0.45 ms. The widths of the wide pulses do not toggle, unlike the narrow ones)
   if [ "$pulse" != "-" ]; then awk -v a="$pulse" 'BEGIN{exit !(a!="nan" && a<=0.45 && a>=-0.45)}' || bad="$bad pulse start $pulse ms;"; fi
   if [ -z "$bad" ]; then echo "  ok   $m: $size, VIS start $vis ms, pulse start $pulse ms"
   else echo "  FAIL $m:$bad (VIS start $vis ms, pulse start $pulse ms)"; fail=$((fail+1)); fi

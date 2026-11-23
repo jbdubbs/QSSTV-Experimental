@@ -5,7 +5,7 @@
 # sync pulse; the slower sync filter of the narrow modes). It was one for all the wide modes, and a picture found by its pulses was 0.1 to 3 ms late
 # (Scottie 1.5, Martin 0.9, Robot 72 2.2, MR and ML 2.5 to 3 ms), although one that a VIS code started was exact. Each case transmits a picture with
 # a red, a green and a blue step through the real transmitter (--encode), decodes it as sent and with everything up to the end of its VIS code cut
-# off, and compares where the steps are with where they were sent: within 0.3 ms when the VIS code starts the picture and 0.45 ms when the pulses find it (the pulse detector's reading depends on the sample phase of its input by up to 0.4 ms) (one pixel is 0.2 to 1 ms).
+# off, and compares where the steps are with where they were sent: within 0.3 ms when the VIS code starts the picture and 0.45 ms when the pulses find it (where a picture comes out depends on the sub-sample phase of the input, the 48 to 12 kHz decimation: by up to 0.3 ms on Robot 72 and P7, the start found by pulses adds to that the pulse timestamps, whose edges ripple with the carrier phase at their onset; measured 2026-11-23: the widths of the pulses do not toggle in the wide modes, and the VIS-started picture of Robot 72 moves from -0.12 to +0.17 ms with the phase) (one pixel is 0.2 to 1 ms).
 #
 #   tests/pulsestart/run.sh                     # uses ../../build-cmake/qsstv-experimental
 #   QSSTV_BIN=/path/to/qsstv-experimental tests/pulsestart/run.sh
@@ -22,7 +22,7 @@ while read -r m w h px; do
   read -r mode vis pulse < <(HOME=$HOME python3 "$HERE/pulseonly.py" $m $w $h $px "$QSSTV" 2>/dev/null | tail -1)
   if awk -v a="$vis" -v b="$pulse" 'BEGIN{exit !(a!="nan" && b!="nan" && a<=0.3 && a>=-0.3 && b<=0.45 && b>=-0.45)}'; then
     echo "  ok   $m: VIS-started $vis ms, found by its pulses $pulse ms"
-  else echo "  FAIL $m: VIS-started $vis ms, found by its pulses $pulse ms (within 0.3 ms, 0.45 by the pulses: their reading depends on the sample phase of the input)"; fail=$((fail+1)); fi
+  else echo "  FAIL $m: VIS-started $vis ms, found by its pulses $pulse ms (within 0.3 ms, 0.45 by the pulses: the picture position depends on the sub-sample phase of the input)"; fail=$((fail+1)); fi
 done <<'LIST'
 S1 320 256 0.432
 SC2-120 320 256 0.4891
