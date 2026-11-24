@@ -87,8 +87,9 @@ void sstvTx::sendVIS()
 /*!
   The digital header of the AVT modes (the SSTV Handbook, 4.2.5, and MMSSTV's SendHeader agree): 32 words, each a 1900 Hz pulse and 16 bits of
   9.7646 ms (2048/20 Bd), 1 is 2200 Hz and 0 is 1600 Hz. A word is 8 bits, 3 of the mode and a 5 bit count that runs from 0 to 31, and the
-  same bits inverted. The first line follows a third of a bit (3.255 ms) after the last word: the port of MMSSTV's code has 0.305 ms, but MMSSTV.EXE
-  places the picture of its own transmission 2.96 ms later than that (compared with its replay of a recording, 2026-11-23).
+  same bits inverted. The first line follows 0.305 ms after the last word, as in MMSSTV.EXE's own transmission (measured 2026-11-23 with a picture of
+  known content: the 1600 Hz tail of the last word runs into the picture about 0.3 ms after the last bit). MMSSTV's receiver draws such a picture 2.9 ms to
+  the left of where it was sent (it adds a third of a bit to the end of the last word); a gap tone of that length does not help, it takes it for more of the word.
 */
 void sstvTx::sendAvtHeader()
 {
@@ -104,7 +105,7 @@ void sstvTx::sendAvtHeader()
       word=(word<<1)&0xFFFF;
     }
   }
-  synthesPtr->sendTone(bit/3.,1500,0,true);
+  synthesPtr->sendTone(0.00030514375,1500,0,true);
 }
 
 bool sstvTx::create(esstvMode m,DSPFLOAT clock)
@@ -226,7 +227,7 @@ double sstvTx::calcTxTime(int overheadTime)
   else if ((t&0xFF)==0x23) tim+=18.*0.03;
   else tim+=10.*0.03;
   if(txSSTVParam.mode==FAX480) tim+=1220*2*0.002048;     // the start tone
-  if(txSSTVParam.mode>=AVT24 && txSSTVParam.mode<=AVT94) tim+=32*17*0.0097646+0.0097646/3.; // the digital header
+  if(txSSTVParam.mode>=AVT24 && txSSTVParam.mode<=AVT94) tim+=32*17*0.0097646+0.0003; // the digital header
   tim+=txSSTVParam.imageTime;
   if(txLeadingSync(txSSTVParam.mode)) tim+=txSSTVParam.synct;   // the sync pulse of the first line
 
