@@ -405,6 +405,17 @@ void styleToolButtons(QWidget *parent)
 #endif
 }
 
+void startStopButtonLook(QToolButton *b,bool running,const QString &startTip,const QString &stopTip)
+{
+  // called every 250 ms by the Receive tab: nothing is changed when the button already has the look
+  const QVariant now=b->property("startStopRunning");
+  if(now.isValid() && now.toBool()==running) return;
+  b->setProperty("startStopRunning",running);
+  b->setIcon(QIcon(running ? ":/icons/tb_stop.png" : ":/icons/tb_start.png"));
+  b->setToolTip(running ? stopTip : startTip);
+  b->setStatusTip(running ? stopTip : startTip);
+}
+
 bool loadImageAutoRotate(QImage &im, const QString &fileName)
 {
   QImageReader r(fileName);

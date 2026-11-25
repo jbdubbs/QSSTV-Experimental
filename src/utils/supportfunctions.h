@@ -16,6 +16,8 @@
 #include <QPlainTextEdit>
 #include <QElapsedTimer>
 
+class QToolButton;
+
 
 /** \file */
 
@@ -76,6 +78,11 @@ QStringList writableImageFormats();
 bool saveImageFile(const QImage &im, const QString &fileName, const QString &fmt);
 QString toolButtonSheet();   //!< the style sheet styleToolButtons() gives every tool button on Windows
 void styleToolButtons(QWidget *parent);
+/**
+  The Play/Stop button of the Transmit and Receive tabs (#200): a green triangle while the transmitter/receiver is off, a red square
+  while it is on (the icon and the tooltip change, the face of the button stays as it is). Cheap to call again with the same state.
+*/
+void startStopButtonLook(QToolButton *b,bool running,const QString &startTip,const QString &stopTip);
 QString imageNameFilter(const QString &extra=QString());
 /** load an image applying its EXIF/HEIF orientation (QImage::load() ignores it) */
 bool loadImageAutoRotate(QImage &im, const QString &fileName);

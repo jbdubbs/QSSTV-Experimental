@@ -152,8 +152,7 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   connect(ui->zPlainTextEdit,SIGNAL(editingFinished()),SLOT(slotGetParams()));
 
 
-  connect(ui->startToolButton, SIGNAL(clicked()), this, SLOT(slotStart()));
-  connect(ui->stopToolButton, SIGNAL(clicked()), this, SLOT(slotStop()));
+  connect(ui->startStopToolButton, SIGNAL(clicked()), this, SLOT(slotStartStop()));
   connect(ui->drmProfileComboBox,SIGNAL(activated(int)),SLOT(slotProfileChanged(int )));
 
   connect(ui->hybridCheckBox,SIGNAL(toggled(bool)),SLOT(slotHybridToggled()));
@@ -655,7 +654,6 @@ void txWidget::restoreAfterCalibrationTx()
   else imageViewerPtr->clear();
   calSavedImage=QImage();
   applyTemplate();
-  ui->startToolButton->setEnabled(true);
   enableButtons(true);
   emit calibrationTxFinished();
 }
@@ -701,7 +699,7 @@ void txWidget::prepareTxComplete(bool ok)
       enableButtons(true);   // prepareTx() locked the controls
       ui->uploadToolButton->setEnabled(useHybrid && (transmissionModeIndex!=TRXSSTV));
     }
-  ui->startToolButton->setEnabled(true);
+  ui->startStopToolButton->setEnabled(true);
   if (ok && doTx!=TXUPLOAD)
     {
       if (doTx==TXBINARY)
@@ -791,7 +789,8 @@ void txWidget::startTxImage()
     }
   if(started)
     {
-      ui->startToolButton->setEnabled(false);
+      txRunning=true;
+      updateStartStopButton();   // the red Stop, enabled
     }
   else
     {
@@ -882,10 +881,22 @@ void txWidget::slotStop()
 {
   if(calTxActive) restoreAfterCalibrationTx();
   if(replayStale) refreshReplay();
-  ui->startToolButton->setEnabled(true);
-  enableButtons(true);
+  txRunning=false;
+  enableButtons(true);   // also puts the green Start back
   dispatcherPtr->startRX();
   emit txStopped();
+}
+
+void txWidget::slotStartStop()
+{
+  if(txRunning) slotStop();
+  else slotStart();
+}
+
+void txWidget::updateStartStopButton()
+{
+  startStopButtonLook(ui->startStopToolButton,txRunning,"Transmit the picture","Stop the transmission, back to receive");
+  ui->startStopToolButton->setEnabled(txRunning || !txLocked);
 }
 
 
@@ -895,7 +906,7 @@ void txWidget::enableButtons(bool enable)
   if(enable) resumeLive();
   ui->uploadToolButton->setEnabled(enable && useHybrid && (transmissionModeIndex!=TRXSSTV));
   ui->hybridCheckBox->setEnabled(enable);
-  ui->startToolButton->setEnabled(enable);
+  updateStartStopButton();   // Start is off while a picture is prepared, the Stop of a running transmission stays on
   ui->sstvModeComboBox->setEnabled(enable);
   bool drmSingleImage=(transmissionModeIndex==TRXDRM && ui->sstvGridComboBox->currentIndex()==0);
   ui->sstvResizeComboBox->setEnabled(enable);

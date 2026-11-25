@@ -101,7 +101,7 @@ int main(int argc, char **argv)
   mainWindowPtr->startRunning(false);
   QTest::qWait(300);
 
-  QToolButton *startBtn = txWidgetPtr->findChild<QToolButton *>("startToolButton");
+  QToolButton *startBtn = txWidgetPtr->findChild<QToolButton *>("startStopToolButton");
   QComboBox *modeBox = txWidgetPtr->findChild<QComboBox *>("sstvModeComboBox");
   rxFunctions *rxf = rxWidgetPtr->functionsPtr();
   check(startBtn && modeBox && rxf && rigControllerPtr, "the Transmit tab, the receiver and the rig controller exist");
@@ -305,7 +305,10 @@ int main(int argc, char **argv)
   soundBase::txFileName = scratch + "/drmok.wav";
   QTest::mouseClick(startBtn, Qt::LeftButton);
   check(locked(), "with a usable temporary folder Start is taken");
+  check(waitFor([&] { return startBtn->property("startStopRunning").toBool(); }, 120000), "the Play/Stop button turns into the red Stop while it is sent (#200)");
+  check(startBtn->isEnabled() && startBtn->toolTip().startsWith("Stop"), "and it can be pressed to stop");
   check(waitFor([&] { return !locked() && !txRunning(); }, 120000) && QFileInfo(scratch + "/drmok.wav").size() > 100000, "and the DRM picture is sent");
+  check(waitFor([&] { return !startBtn->property("startStopRunning").toBool(); }, 5000) && startBtn->isEnabled(), "the button is the green Start again when it is over");
   check(boxes().isEmpty(), "without a box");
 
   finish();

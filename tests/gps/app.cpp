@@ -663,7 +663,7 @@ int main(int argc, char **argv)
 
   printf("\n== Start and the beacon never wait for the GPS (#158, #163)\n");
   {
-    QToolButton *startButton = txw->findChild<QToolButton *>("startToolButton");
+    QToolButton *startButton = txw->findChild<QToolButton *>("startStopToolButton");
     QLineEdit *place = txw->findChild<QLineEdit *>("placeLineEdit");
     check(startButton != nullptr, "(the Start button)");
     if (!startButton) return 1;

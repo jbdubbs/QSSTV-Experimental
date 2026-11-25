@@ -66,6 +66,8 @@ public:
 private slots:
   void slotStart();
   void slotStop();
+  void slotStartStop();            //!< the Play/Stop button: Stop while the receiver runs, else Start
+  void updateStartStopButton();    //!< green Start or red Stop, from the state of the receiver (#200)
   void slotResync();
   void slotSyncSettingChanged();
   void slotDecodeFile();
@@ -94,6 +96,7 @@ private:
   //! a choice on the tab changed: it is written a moment later, so it survives a shutdown, kill or crash as well as a quit
   void scheduleSettingsSave();
   QTimer settingsSaveTimer;      // single shot: writes the settings a moment after the last change
+  QTimer startStopTimer;         // 250 ms: puts the Play/Stop button in step with the receiver
   bool settingsReady=false;      // init() is done: control changes before that are the program setting up, not the user
   // Repopulates sstvModeComboBox ("Auto" always first) with every mode,
   // rebuilds rxModeList in step, and re-selects whichever mode

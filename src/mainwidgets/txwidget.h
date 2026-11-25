@@ -116,6 +116,7 @@ public slots:
   void slotGetTXParams();
   void slotGetParams();
   void slotStart();
+  void slotStartStop();   //!< the Play/Stop button: Stop while a transmission runs, else Start
   void slotUpload();
   void slotStop();
   //  void slotDisplayStatusMessage(QString);
@@ -237,6 +238,8 @@ private:
   bool beaconHold=false;        // the camera is on and the first picture waits for the 10 s to pass
   beaconCapture beaconCap;      // on for as long as the beacon runs: the live picture on this tab, and the newest frame for each beacon picture
   bool txLocked=false;          // prepareTx() locked the controls: a picture is being prepared or sent, so it must not change (the TX thread reads it)
+  bool txRunning=false;         // the transmitter was started and slotStop() has not run yet: the Play/Stop button shows the red Stop (#200)
+  void updateStartStopButton();
   bool livePaused=false;        // the user loaded a picture of their own: no live picture until the transmission is over
   qint64 liveKey=0;             // cacheKey() of the TX picture the live picture last put there; another one means the user loaded a picture
   bool beaconPending=false;     // a beacon picture is on its way through prepareTx()/startTxImage()

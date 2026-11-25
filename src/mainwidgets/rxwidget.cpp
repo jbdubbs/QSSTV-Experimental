@@ -76,8 +76,13 @@ void rxWidget::init()
 
 
   // make connections after initialization
-  connect(ui->startToolButton, SIGNAL(clicked()),SLOT(slotStart()));
-  connect(ui->stopToolButton, SIGNAL(clicked()),SLOT(slotStop()));
+  connect(ui->startStopToolButton, SIGNAL(clicked()),SLOT(slotStartStop()));
+  if(!uiMode::qml() && !(fileDecoderPtr && fileDecoderPtr->isBatch()))
+    {
+      // the receiver also stops by itself (sound device lost, end of a decoded file, a transmission): the button follows it
+      connect(&startStopTimer,&QTimer::timeout,this,&rxWidget::updateStartStopButton);
+      startStopTimer.start(250);
+    }
   connect(ui->resyncToolButton,SIGNAL(clicked()),SLOT(slotResync()));
   connect(ui->decodeFileToolButton,SIGNAL(clicked()),SLOT(slotDecodeFile()));
   connect(ui->autoSaveCheckBox,SIGNAL(clicked()),SLOT(slotGetParams()));
@@ -257,6 +262,18 @@ void rxWidget::slotStop()
 {
   getParams();
   dispatcherPtr->idleAll();
+}
+
+void rxWidget::slotStartStop()
+{
+  if(rxFunctionsPtr->isIdle()) slotStart();
+  else slotStop();
+  updateStartStopButton();   // from the state the receiver really has: the start fails without a working capture device
+}
+
+void rxWidget::updateStartStopButton()
+{
+  startStopButtonLook(ui->startStopToolButton,!rxFunctionsPtr->isIdle(),"Start receiver","Stop receiver");
 }
 
 void rxWidget::slotDecodeFile()
