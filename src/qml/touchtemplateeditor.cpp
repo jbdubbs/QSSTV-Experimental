@@ -945,6 +945,7 @@ static QString phoneDescription(QChar tag,const QString &generic)
     case 'a': return t("Latitude of the phone's position, in decimal degrees (north positive) or as 47 36.37N, see Settings > Position");
     case 'b': return t("Longitude of the phone's position, in decimal degrees (east positive) or as 122 19.93W, see Settings > Position");
     case 'g': return t("City and state of the position (looked up on the internet from the phone's position, see Settings > Position)");
+    case 'h': return t("Grid square (6 characters) of the phone's position, see Settings > Position");
     default: return generic;
     }
 }

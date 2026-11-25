@@ -5,6 +5,7 @@
 #include "appglobal.h"
 #include "configparams.h"
 #include "imageviewer.h"
+#include "nmeaparser.h"
 #include "sstvparam.h"
 #include "templateeditor.h"
 #include "templatevars.h"
@@ -61,6 +62,7 @@ QHash<QChar, QString> editorMacroValues()
           set('a', iv->latitude);
           set('b', iv->longitude);
           set('g', iv->place);
+          set('h', gridFromPosition(iv->latitude, iv->longitude));
         }
     }
   return v;

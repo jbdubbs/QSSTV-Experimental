@@ -36,6 +36,7 @@
 #include "gallerywidget.h"
 #include "templaterender.h"
 #include "templatevars.h"
+#include "nmeaparser.h"
 #include "externaleditor.h"
 
 
@@ -1625,6 +1626,7 @@ QImage imageViewer::renderTemplated(int tWidth,int tHeight)
   opt.vars.insert('a',latitude);
   opt.vars.insert('b',longitude);
   opt.vars.insert('g',place);
+  opt.vars.insert('h',gridFromPosition(latitude,longitude));
   opt.vars.insert('s',QString::number(lastAvgMER,'g',2));
   if(tl.doc.hasReplay()) opt.replay=replayPicture();
 

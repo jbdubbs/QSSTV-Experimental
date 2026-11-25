@@ -1093,6 +1093,12 @@ static void testMacros()
   check(tpl::expandMacros("QTH %g!", place) == "QTH Seattle, WA!", "the place macro expands");
   check(tpl::expandMacros("[%g]", QHash<QChar, QString>()) == "[]", "an empty place prints nothing");
   check(tpl::unknownMacros("%g %a").isEmpty() && tpl::sampleVars().value('g') == "Seattle, WA", "the place macro is known and has a sample");
+  check(seen.contains('h') && tpl::sampleVars().value('h') == "CN87uo", "the grid square (%h) is a macro with a sample");
+  QHash<QChar, QString> grid;
+  grid.insert('h', "FN31pr");
+  check(tpl::expandMacros("Grid %h", grid) == "Grid FN31pr", "the grid square macro expands");
+  check(tpl::expandMacros("[%h]", QHash<QChar, QString>()) == "[]", "an empty grid square prints nothing");
+  check(tpl::unknownMacros("%h %l").isEmpty(), "the grid square macro is known");
 }
 
 static void testFuzz(const QString &fx)

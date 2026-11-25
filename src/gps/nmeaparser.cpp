@@ -157,3 +157,31 @@ bool parseCoordinateText(const QString &text,bool latitude,double &degrees)
   degrees=value;
   return true;
 }
+
+QString maidenheadLocator(double lat,double lon)
+{
+  if(!(lat>=-90.0 && lat<=90.0 && lon>=-180.0 && lon<=180.0)) return QString();
+  double x=(lon+180.0)/20.0,y=(lat+90.0)/10.0;
+  const int fieldX=qBound(0,int(x),17),fieldY=qBound(0,int(y),17);
+  x=(x-fieldX)*10.0;
+  y=(y-fieldY)*10.0;
+  const int squareX=qBound(0,int(x),9),squareY=qBound(0,int(y),9);
+  x=(x-squareX)*24.0;
+  y=(y-squareY)*24.0;
+  const int subX=qBound(0,int(x),23),subY=qBound(0,int(y),23);
+  QString g;
+  g+=QChar('A'+fieldX);
+  g+=QChar('A'+fieldY);
+  g+=QChar('0'+squareX);
+  g+=QChar('0'+squareY);
+  g+=QChar('a'+subX);
+  g+=QChar('a'+subY);
+  return g;
+}
+
+QString gridFromPosition(const QString &lat,const QString &lon)
+{
+  double la,lo;
+  if(!parseCoordinateText(lat,true,la) || !parseCoordinateText(lon,false,lo)) return QString();
+  return maidenheadLocator(la,lo);
+}

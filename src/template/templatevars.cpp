@@ -45,6 +45,7 @@ const QVector<MacroInfo> &macroTable()
     {'a', tr("Latitude"), tr("Latitude (TX tab, from the GPS or typed in), in decimal degrees (north positive) or as 47 36.37N, see Configuration > GPS"), QStringLiteral("47.60620")},
     {'b', tr("Longitude"), tr("Longitude (TX tab, from the GPS or typed in), in decimal degrees (east positive) or as 122 19.93W, see Configuration > GPS"), QStringLiteral("-122.33210")},
     {'g', tr("Place"), tr("City and state of the position (TX tab, looked up on the internet from the position or typed in)"), QStringLiteral("Seattle, WA")},
+    {'h', tr("Grid square"), tr("Grid square (6 characters) of the position (TX tab, worked out from the GPS or typed-in latitude and longitude)"), QStringLiteral("CN87uo")},
     {'s', tr("MER"), tr("Signal quality (MER, dB) of the last received DRM picture"), QStringLiteral("21")},
   };
   return table;

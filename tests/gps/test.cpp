@@ -7,6 +7,7 @@
 #include "locationsource.h"
 #include "fakeservice.h"
 
+#include <cmath>
 #include <QCoreApplication>
 #include <QEventLoop>
 #include <QTcpServer>
@@ -111,6 +112,27 @@ static bool rejects(const char *text,bool latitude)
 {
   double d=12345;
   return !parseCoordinateText(QString::fromUtf8(text),latitude,d) && d==12345;   // and the output is left alone
+}
+
+static void testGridSquare()
+{
+  // known stations and the corners of the grid
+  CHECK(maidenheadLocator(41.7148,-72.7272)=="FN31pr");   // W1AW, Newington CT
+  CHECK(maidenheadLocator(47.6062,-122.3321)=="CN87uo");  // Seattle
+  CHECK(maidenheadLocator(-33.8568,151.2153)=="QF56od");  // Sydney
+  CHECK(maidenheadLocator(0,0)=="JJ00aa");
+  CHECK(maidenheadLocator(-90,-180)=="AA00aa");
+  CHECK(maidenheadLocator(90,180)=="RR99xx");             // the pole and the date line belong to the last cell
+  CHECK(maidenheadLocator(89.999,179.999)=="RR99xx");
+  CHECK(maidenheadLocator(90.5,0).isEmpty() && maidenheadLocator(0,-180.5).isEmpty());
+  CHECK(maidenheadLocator(std::nan(""),0).isEmpty());
+  // the boxes of the TX tab, in any notation
+  CHECK(gridFromPosition("47.60620","-122.33210")=="CN87uo");
+  CHECK(gridFromPosition("47 36.37N","122 19.93W")=="CN87uo");
+  CHECK(gridFromPosition("","").isEmpty());
+  CHECK(gridFromPosition("47.6","").isEmpty());
+  CHECK(gridFromPosition("north","west").isEmpty());
+  CHECK(gridFromPosition("95","10").isEmpty());
 }
 
 static void testCoordinates()
@@ -784,6 +806,7 @@ int main(int argc,char **argv)
   QCoreApplication app(argc,argv);
   testParser();
   testCoordinates();
+  testGridSquare();
   std::printf("parser done\n");
   std::fflush(stdout);
   testPlaceParser();

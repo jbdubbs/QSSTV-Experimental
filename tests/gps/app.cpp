@@ -300,6 +300,8 @@ int main(int argc, char **argv)
     checkWait([&] {return lat->text() == "47.60620";}, [&] {return "(the GPS button reads the position, " + lat->text() + ")";});
     QTest::qWait(300);
     check(fake.hits == 0 && place->text().isEmpty(), "with the lookup off nothing is asked and the Place box stays empty");
+    check(gridFromPosition(tx->latitude, tx->longitude) == "CN87uo", "the grid square follows the position without any lookup");
+    check(editorMacroValues().value('h') == "CN87uo", "the template editor previews the grid square (%h)");
 
     // a template that prints the place
     tpl::TemplateDocument d;

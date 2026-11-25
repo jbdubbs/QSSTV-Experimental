@@ -33,4 +33,12 @@ QString formatCoordinate(double degrees,bool latitude,int format);
 // beyond 90 (latitude) or 180 (longitude) degrees and free text.
 bool parseCoordinateText(const QString &text,bool latitude,double &degrees);
 
+// Maidenhead grid square of a position, 6 characters (FN31pr): field A-R, square 0-9, subsquare a-x. Latitude 90 and longitude
+// 180 belong to the last cell. Empty for a position outside the range.
+QString maidenheadLocator(double lat,double lon);
+
+// The grid square of a position written as in the TX tab boxes (any notation parseCoordinateText understands); empty when
+// one of the two is no coordinate.
+QString gridFromPosition(const QString &lat,const QString &lon);
+
 #endif // NMEAPARSER_H
