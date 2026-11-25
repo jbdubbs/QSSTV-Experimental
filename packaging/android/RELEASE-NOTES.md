@@ -20,7 +20,7 @@ A phone and tablet version of the program, with a screen of its own made for fin
 - **Receive, Transmit, Gallery.** Hold the phone next to the radio's speaker and a picture starts by itself; choose a picture, check the time, press Send.
   A level meter says when the sound is too quiet or too loud. The gallery groups pictures by day, with a viewer you can pinch and swipe, sharing, and Undo for a delete.
 - **Sound.** The phone's microphone and speaker, a headset cable or a USB audio interface; the receiver stays on with the screen off.
-- **Radio.** CAT and push to talk through USB serial interfaces (Digirig and similar), the frequencies of your radio as a list you can tune from the Receive and Transmit screens.
+- **Radio.** CAT and push to talk through USB serial interfaces (Digirig and similar) or the key pin of a CM108 USB sound-card interface, the frequencies of your radio as a list you can tune from the Receive and Transmit screens.
 - **Digital SSTV (DRM)** next to analog SSTV, one switch at the top of Receive and Transmit; profiles for the digital settings.
 - **Templates.** Make and change them by touch (move, size, turn, colors, the macros for call sign, report, time and position) or open the ones made on the computer.
 - **Calibration of the sound clock** with internet time, a radio time signal (WWV) or a picture from another station.

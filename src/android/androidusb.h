@@ -33,4 +33,20 @@ bool androidUsbSetLines(const QString &name,int rts,int dtr);
 //! Stops the bridge and closes the port
 void androidUsbClose(const QString &name);
 
+// CM108 GPIO PTT interfaces (a USB sound card with a HID interface): packaging/android/src/.../Cm108Helper.java. Names "hid:VVVV:PPPP:N"
+// (usbportname.h).
+
+QList<androidUsbPort> androidCm108Devices();
+
+//! as androidUsbAllow(), for a CM108 interface
+bool androidCm108Allow(const QString &name,int seconds,QString &why);
+
+//! Takes the HID interface of the device
+bool androidCm108Open(const QString &name,QString &why);
+
+//! One "write GPIO" report: the 4 bytes after the report number
+bool androidCm108Send(const QString &name,const unsigned char data[4],QString &why);
+
+void androidCm108Close(const QString &name);
+
 #endif // ANDROIDUSB_H

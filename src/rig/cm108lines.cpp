@@ -21,6 +21,9 @@
 #include <windows.h>
 #include <setupapi.h>
 #include <hidsdi.h>
+#elif defined(Q_OS_ANDROID)
+#define CM108_ANDROID 1
+#include "androidusb.h"
 #elif defined(Q_OS_MACOS)
 #define CM108_MACOS 1
 #include <CoreFoundation/CoreFoundation.h>
@@ -89,7 +92,9 @@ bool cm108Ptt::parseUevent(const QString &text,unsigned &vendor,unsigned &produc
 
 QString cm108Ptt::advice()
 {
-#if defined(CM108_LINUX)
+#if defined(CM108_ANDROID)
+  return "Check that the interface is plugged in and that the program may use it (the system asks), or switch CM108 PTT off.";
+#elif defined(CM108_LINUX)
   return "Check that the interface is plugged in and that you have read and write permission on its /dev/hidraw device "
          "(a udev rule gives it; see the User's Guide), or switch CM108 PTT off.";
 #else
@@ -472,7 +477,42 @@ static bool platformSend(cm108Ptt::impl *d,const QByteArray &rep,QString &why)
   return true;
 }
 
-#else   // Android, the BSDs: no way to reach the chip (yet)
+#elif defined(CM108_ANDROID)
+
+// A phone has no /dev/hidraw for an app: the report goes through the USB host API (Cm108Helper.java), as a HID SET_REPORT.
+struct cm108Ptt::impl
+{
+  QString name;   // "hid:VVVV:PPPP:N"
+};
+
+QList<cm108Device> cm108Ptt::list(const QString &)
+{
+  QList<cm108Device> devices;
+  for(const androidUsbPort &p : androidCm108Devices()) devices << cm108Device{p.name,p.description};
+  return devices;
+}
+
+static bool platformOpen(cm108Ptt::impl *d,const QString &path,QString &why)
+{
+  if(!androidCm108Allow(path,30,why) || !androidCm108Open(path,why)) return false;
+  d->name=path;
+  return true;
+}
+
+static void platformClose(cm108Ptt::impl *d)
+{
+  androidCm108Close(d->name);
+  d->name.clear();
+}
+
+static bool platformSend(cm108Ptt::impl *d,const QByteArray &rep,QString &why)
+{
+  // the report number is not sent: the interface has unnumbered reports
+  const unsigned char data[4]={(unsigned char)rep[1],(unsigned char)rep[2],(unsigned char)rep[3],(unsigned char)rep[4]};
+  return androidCm108Send(d->name,data,why);
+}
+
+#else   // the BSDs: no way to reach the chip (yet)
 
 struct cm108Ptt::impl
 {

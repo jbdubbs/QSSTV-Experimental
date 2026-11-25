@@ -243,8 +243,15 @@ Rectangle {
             PreferenceRow {
                 icon: Icons.send; title: qsTr("Push to talk"); chevron: true
                 summary: SettingsController.pttMode === 1 ? qsTr("RTS line") : SettingsController.pttMode === 2 ? qsTr("DTR line")
-                       : SettingsController.pttMode === 3 ? qsTr("CAT command") : qsTr("None (VOX or by hand)")
+                       : SettingsController.pttMode === 3 ? qsTr("CAT command")
+                       : SettingsController.pttMode === 4 ? qsTr("CM108 USB interface") : qsTr("None (VOX or by hand)")
                 onClicked: pttDialog.open = true
+            }
+            PreferenceRow {
+                visible: SettingsController.pttMode === 4
+                icon: Icons.tune; title: qsTr("CM108 pin"); chevron: true
+                summary: qsTr("GPIO %1").arg(SettingsController.cm108Gpio)
+                onClicked: cm108PinDialog.open = true
             }
             PreferenceRow {
                 icon: Icons.tune; title: qsTr("Speed"); chevron: true
@@ -520,9 +527,17 @@ Rectangle {
             {text: qsTr("None"), hint: qsTr("The radio uses VOX, or you key it by hand")},
             {text: qsTr("RTS line"), hint: qsTr("Digirig and most radio cables")},
             {text: qsTr("DTR line"), hint: qsTr("Some cables use this one instead")},
-            {text: qsTr("CAT command"), hint: qsTr("The radio keys itself on a command")}]
+            {text: qsTr("CAT command"), hint: qsTr("The radio keys itself on a command")},
+            {text: qsTr("CM108 USB interface"), hint: qsTr("A USB sound card that keys the radio with a pin")}]
         current: SettingsController.pttMode
         onPicked: (i) => SettingsController.pttMode = i
+    }
+    ChoiceDialog {
+        id: cm108PinDialog
+        title: qsTr("CM108 pin")
+        options: [1, 2, 3, 4].map(n => ({text: qsTr("GPIO %1").arg(n), hint: n === 3 ? qsTr("The usual one") : ""}))
+        current: SettingsController.cm108Gpio - 1
+        onPicked: (i) => SettingsController.cm108Gpio = i + 1
     }
     ChoiceDialog {
         id: baudDialog

@@ -92,6 +92,7 @@ private:
   cm108Ptt *cm108=nullptr;   // the CM108 GPIO PTT, opened when it is first keyed
   QString cm108OpenDevice;   // what it was opened with: another device or pin in the settings opens it again
   int cm108OpenGpio=0;
+  bool openCM108(QString &why);   // opens the device of the settings, the pin low
   void releaseCM108();       // the pin low, the device let go
   bool setPTT(bool On);
   QString pttError;       // why the last setPTT() failed

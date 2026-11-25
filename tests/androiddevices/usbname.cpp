@@ -19,6 +19,12 @@ int main()
   check(!parseUsbPortName("usb:zzzz:6001:0", v, p, port), "nor one that is not hexadecimal");
   check(!parseUsbPortName("usb:0403:6001:-1", v, p, port), "nor a negative port");
   check(!parseUsbPortName("/dev/ttyUSB0", v, p, port), "nor a path");
+  const QString h = hidDeviceName(0x0d8c, 0x0013, 0);
+  check(h == "hid:0d8c:0013:0", "the name of a CM108 interface");
+  check(parseHidDeviceName(h, v, p, port) && v == 0x0d8c && p == 0x0013 && port == 0, "it reads back");
+  check(isHidDeviceName(h) && !isHidDeviceName(n) && !isUsbPortName(h), "a CM108 is not mistaken for a serial adapter, nor the reverse");
+  check(!parseHidDeviceName(n, v, p, port) && !parseHidDeviceName("hid:0d8c:0013", v, p, port) && !parseHidDeviceName("hid:0d:0013:0", v, p, port)
+        && !parseHidDeviceName("hid:0d8c:0013:-1", v, p, port) && !parseHidDeviceName("auto", v, p, port), "nothing else reads as one");
   printf("%s\n", failures ? "FAILED" : "all ok");
   return failures ? 1 : 0;
 }

@@ -120,6 +120,12 @@ bool rigControl::init()
           delete lines;
         }
     }
+  // a CM108 interface: the same, the system's question is asked now
+  if(catParams.enableCM108PTT && cm108==nullptr)
+    {
+      QString why;
+      if(!openCM108(why)) addToLog(QString("CM108 PTT: %1").arg(why),LOGALL);
+    }
 #endif
   if(!catParams.enableCAT) return false;
 
@@ -508,6 +514,23 @@ void rigControl::releaseCM108()
   cm108=nullptr;
 }
 
+// Opens the CM108 device of the settings, the pin low as the idle state; false with \a why
+bool rigControl::openCM108(QString &why)
+{
+  cm108Ptt *dev=new cm108Ptt;
+  if(!dev->open(catParams.cm108Device,why))
+    {
+      delete dev;
+      return false;
+    }
+  cm108=dev;
+  cm108OpenDevice=catParams.cm108Device;
+  cm108OpenGpio=catParams.cm108Gpio;
+  QString ignored;
+  dev->setGpio(cm108OpenGpio,false,ignored);
+  return true;
+}
+
 void rigControl::activatePTT(bool b)
 {
   if(!soundBase::txFileName.isEmpty()) return;   // --encode writes a wav file: never key a radio
@@ -550,20 +573,8 @@ void rigControl::activatePTT(bool b)
       if(cm108 && (cm108OpenDevice!=catParams.cm108Device || cm108OpenGpio!=catParams.cm108Gpio)) releaseCM108();   // another device or pin
       if(cm108==nullptr)
         {
-          cm108Ptt *dev=new cm108Ptt;
           QString why;
-          if(dev->open(catParams.cm108Device,why))
-            {
-              cm108=dev;
-              cm108OpenDevice=catParams.cm108Device;
-              cm108OpenGpio=catParams.cm108Gpio;
-              dev->setGpio(cm108OpenGpio,false,why);   // idle (PTT-off) state as soon as the device is opened
-            }
-          else
-            {
-              problem=QString("The CM108 device cannot be opened (%1). %2").arg(why,cm108Ptt::advice());
-              delete dev;
-            }
+          if(!openCM108(why)) problem=QString("The CM108 device cannot be opened (%1). %2").arg(why,cm108Ptt::advice());
         }
       if(cm108)
         {

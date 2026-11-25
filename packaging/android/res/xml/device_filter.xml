@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The USB serial adapters the program can use (usb-serial-for-android): by vendor. Plugging one in offers to open the program,
      and a person who ticks "always" is not asked for permission again. 1027 FTDI, 4292 Silicon Labs (CP210x, the Digirig),
-     6790 WCH (CH340, CH341), 1659 Prolific. -->
+     6790 WCH (CH340, CH341), 1659 Prolific. 3468 C-Media (0x0d8c) and 3190 (0x0c76) are the sound chips of CM108 GPIO PTT
+     interfaces (Cm108Helper); the program does not open them for audio. -->
 <resources>
     <usb-device vendor-id="1027" />
     <usb-device vendor-id="4292" />
     <usb-device vendor-id="6790" />
     <usb-device vendor-id="1659" />
+    <usb-device vendor-id="3468" />
+    <usb-device vendor-id="3190" />
 </resources>

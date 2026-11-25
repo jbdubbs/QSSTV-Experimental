@@ -435,6 +435,7 @@ int SettingsController::pttMode() const
 {
   if(!rigControllerPtr) return 0;
   const scatParams *cp=rigControllerPtr->params();
+  if(cp->enableCM108PTT) return 4;
   if(cp->enableSerialPTT) return cp->activeRTS ? 1 : cp->activeDTR ? 2 : 0;
   switch(cp->pttType)
     {
@@ -465,6 +466,20 @@ void SettingsController::setPttMode(int mode)
         }
     }
   else if(mode==3) cp->pttType=RIG_PTT_RIG;
+  else if(mode==4)
+    {
+      cp->enableCM108PTT=true;   // the only CM108 that is connected (Auto), the pin it was set to
+      if(cp->cm108Gpio<1 || cp->cm108Gpio>4) cp->cm108Gpio=3;
+    }
+  saveRadio();
+}
+
+int SettingsController::cm108Gpio() const {return rigControllerPtr ? rigControllerPtr->params()->cm108Gpio : 3;}
+
+void SettingsController::setCm108Gpio(int gpio)
+{
+  if(!rigControllerPtr || gpio<1 || gpio>4) return;
+  rigControllerPtr->params()->cm108Gpio=gpio;
   saveRadio();
 }
 
@@ -488,6 +503,7 @@ QString SettingsController::radioSummary() const
     case 1: parts<<tr("RTS line keys the radio"); break;
     case 2: parts<<tr("DTR line keys the radio"); break;
     case 3: parts<<tr("CAT keys the radio"); break;
+    case 4: parts<<tr("CM108 pin %1 keys the radio").arg(cm108Gpio()); break;
     default: parts<<tr("VOX or manual"); break;
     }
   return parts.join(QStringLiteral(" · "));

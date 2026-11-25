@@ -61,7 +61,8 @@ class SettingsController : public QObject
   Q_PROPERTY(QStringList radioModels READ radioModels CONSTANT)
   Q_PROPERTY(QString radioModel READ radioModel WRITE setRadioModel NOTIFY radioChanged)   //!< a model of the list; empty: no radio control
   Q_PROPERTY(QString radioModelText READ radioModelText NOTIFY radioChanged)
-  Q_PROPERTY(int pttMode READ pttMode WRITE setPttMode NOTIFY radioChanged)           //!< 0 none (VOX), 1 RTS line, 2 DTR line, 3 CAT command
+  Q_PROPERTY(int pttMode READ pttMode WRITE setPttMode NOTIFY radioChanged)           //!< 0 none (VOX), 1 RTS line, 2 DTR line, 3 CAT command, 4 CM108 GPIO
+  Q_PROPERTY(int cm108Gpio READ cm108Gpio WRITE setCm108Gpio NOTIFY radioChanged)     //!< the pin that keys a CM108 interface, 1 to 4
   Q_PROPERTY(int baudRate READ baudRate WRITE setBaudRate NOTIFY radioChanged)
   Q_PROPERTY(QString radioSummary READ radioSummary NOTIFY radioChanged)
   Q_PROPERTY(bool pttTesting READ pttTesting NOTIFY radioChanged)
@@ -136,6 +137,8 @@ public:
   QString radioModelText() const;
   int pttMode() const;
   void setPttMode(int mode);
+  int cm108Gpio() const;
+  void setCm108Gpio(int gpio);
   int baudRate() const;
   void setBaudRate(int baud);
   QString radioSummary() const;
