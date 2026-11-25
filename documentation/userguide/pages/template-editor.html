@@ -160,14 +160,14 @@ selected text (or into a new text). <span class="ui">View &gt; Preview Macros</s
 <tr><td><code>%o</code></td><td>The operator name (the <em>Op</em> box)</td></tr>
 <tr><td><code>%m</code></td><td>Your call sign (Configuration &gt; Operator)</td></tr>
 <tr><td><code>%f</code>, <code>%n</code></td><td>Your first and last name</td></tr>
-<tr><td><code>%q</code>, <code>%l</code></td><td>Your location name and grid locator</td></tr>
+<tr><td><code>%q</code>, <code>%l</code></td><td>Your location name and your grid square as typed in the settings (<em>Grid square (typed in)</em> in the macro list); for the grid square of the GPS position use <code>%h</code></td></tr>
 <tr><td><code>%t</code>, <code>%d</code></td><td>The UTC time (hh:mm) and date (yyyy/MM/dd)</td></tr>
 <tr><td><code>%D</code>, <code>%U</code></td><td>The local date (yyyy/MM/dd) and time (hh:mm), using the computer's time zone</td></tr>
 <tr><td><code>%v</code></td><td>The QSSTV version</td></tr>
 <tr><td><code>%x</code>, <code>%y</code>, <code>%z</code></td><td>The three large text boxes on the Transmit tab</td></tr>
 <tr><td><code>%a</code>, <code>%b</code></td><td>The latitude and longitude from the <em>Lat</em> and <em>Long</em> boxes on the Transmit tab, in decimal degrees (north and east positive, for example <code>47.60620</code> and <code>-122.33210</code>) or, with <em>Position format</em> in <a href="configuration.html#gps">Configuration &gt; GPS</a> set to degrees and decimal minutes, as <code>47 36.37N</code> and <code>122 19.93W</code>; see <a href="transmit.html#gps">GPS position</a></td></tr>
 <tr><td><code>%g</code></td><td>The city and state from the <em>Place</em> box on the Transmit tab, for example <code>Seattle, WA</code>; the program can look it up from the position, see <a href="transmit.html#gps">GPS position</a></td></tr>
-<tr><td><code>%h</code></td><td>The six-character grid square of the position in the <em>Lat</em> and <em>Long</em> boxes, for example <code>CN87uo</code>. The program works it out itself, with no internet; it is empty while the boxes hold no position. <code>%l</code> stays the locator typed in the settings</td></tr>
+<tr><td><code>%h</code></td><td>(<em>Grid square (GPS)</em> in the macro list) The six-character grid square of the position in the <em>Lat</em> and <em>Long</em> boxes, for example <code>CN87uo</code>. The program works it out itself, with no internet; it is empty while the boxes hold no position. <code>%l</code> stays the grid square typed in the settings</td></tr>
 <tr><td><code>%s</code></td><td>The signal quality (MER, dB) of the last received DRM picture</td></tr>
 <tr><td><code>%%</code></td><td>A percent sign</td></tr>
 </table>

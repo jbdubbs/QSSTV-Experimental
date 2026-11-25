@@ -33,7 +33,7 @@ const QVector<MacroInfo> &macroTable()
     {'f', tr("First name"), tr("Your first name (Settings)"), QStringLiteral("Alex")},
     {'n', tr("Last name"), tr("Your last name (Settings)"), QStringLiteral("Morgan")},
     {'q', tr("QTH"), tr("Your location name (Settings)"), QStringLiteral("Newington")},
-    {'l', tr("Locator"), tr("Your grid locator (Settings)"), QStringLiteral("FN31pr")},
+    {'l', tr("Grid square (typed in)"), tr("Your grid square as typed in Settings, not from the GPS"), QStringLiteral("FN31pr")},
     {'t', tr("Time"), tr("Current UTC time, hh:mm"), QStringLiteral("12:34")},
     {'d', tr("Date"), tr("Current UTC date, yyyy/MM/dd"), QStringLiteral("2026/10/22")},
     {'D', tr("Local date"), tr("Local date, yyyy/MM/dd (computer time zone)"), QStringLiteral("2026/10/22")},
@@ -45,7 +45,7 @@ const QVector<MacroInfo> &macroTable()
     {'a', tr("Latitude"), tr("Latitude (TX tab, from the GPS or typed in), in decimal degrees (north positive) or as 47 36.37N, see Configuration > GPS"), QStringLiteral("47.60620")},
     {'b', tr("Longitude"), tr("Longitude (TX tab, from the GPS or typed in), in decimal degrees (east positive) or as 122 19.93W, see Configuration > GPS"), QStringLiteral("-122.33210")},
     {'g', tr("Place"), tr("City and state of the position (TX tab, looked up on the internet from the position or typed in)"), QStringLiteral("Seattle, WA")},
-    {'h', tr("Grid square"), tr("Grid square (6 characters) of the position (TX tab, worked out from the GPS or typed-in latitude and longitude)"), QStringLiteral("CN87uo")},
+    {'h', tr("Grid square (GPS)"), tr("Grid square (6 characters) worked out from the Lat/Long boxes of the TX tab (GPS or typed-in position), not from Settings"), QStringLiteral("CN87uo")},
     {'s', tr("MER"), tr("Signal quality (MER, dB) of the last received DRM picture"), QStringLiteral("21")},
   };
   return table;
