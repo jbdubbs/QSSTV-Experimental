@@ -130,6 +130,8 @@ public slots:
   void slotRepeaterTimer();
   void slotFileOpen();
   void slotSnapshot();
+  void slotBeaconPause();     //!< the Pause / Resume button: the countdown stops and goes on from where it was
+  void slotBeaconSendNow();   //!< the camera button of the beacon: the next picture goes out now
   void slotBeaconTick();
   void slotBeaconTimer();
   void slotBeaconFrame(const QImage &image);
@@ -201,6 +203,8 @@ private:
   //! a scheduled beacon could not transmit: report it, and retry in 30 s
   void beaconSkipped(const QString &reason);
   void beaconRestartInterval();
+  void beaconArm(int ms);       //!< starts the beacon timer; while paused the time is kept for Resume instead
+  void beaconShoot();           //!< the checks and the camera frame of one beacon picture, scheduled or sent now
   void beaconTransmitLoaded();
   //! the live camera picture may replace the Transmit picture now (no picture is on its way to the air or being waited for)
   bool liveAllowed() const;
@@ -235,6 +239,8 @@ private:
   QString beaconError;          // why the last beacon attempt failed; shown instead of the countdown until an attempt succeeds
   QString beaconCameraProblem;  // the camera is lost and being reopened; shown in place of the countdown, the schedule goes on
   bool beaconRunning=false;
+  bool beaconPaused=false;      // the user paused the countdown: the camera and the live picture go on
+  int beaconPausedLeft=0;       // ms the timer had left when it was paused (or was armed while paused)
   bool beaconHold=false;        // the camera is on and the first picture waits for the 10 s to pass
   beaconCapture beaconCap;      // on for as long as the beacon runs: the live picture on this tab, and the newest frame for each beacon picture
   bool txLocked=false;          // prepareTx() locked the controls: a picture is being prepared or sent, so it must not change (the TX thread reads it)
@@ -248,6 +254,7 @@ private:
   QString gpsTrackReason;       // ... and its reason, for the tooltip
   QFont gpsButtonFont;          // the font of the GPS button before it got a style sheet, kept in every sheet
   QString gpsBaseSheet;         // the sheet styleToolButtons() gave the GPS button (empty except on Windows): the sheets of its colors come after it
+  QString pauseBaseSheet;       // the same for the beacon Pause / Resume button
   QString snapshotBaseSheet;    // the same for the camera / beacon button
   bool placeAwaiting=false;     // a place lookup of this widget is in flight (the Test button of Configuration > GPS does not count)
   int placeState=PLACEIDLE;     // what the lookup of this widget is doing (shown on the Position page of the Qt Quick settings)

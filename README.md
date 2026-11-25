@@ -51,7 +51,7 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 - **DRM AVIF Encoding** - Allows shorter transmissions at higher image quality
 - **DRM New Bandwidth Option** - Now allows 4.8 kHz bandwidth for VHF/UHF FM data port radios (not to be used on HF)
 - **Follows Desktop Themes** - On Linux builds (also should on other OSs.  I'm not buying a Windows license to find out)
-- **WA8LMF Beacon Mode** - Beacons a connected webcam image at a user-defined interval
+- **WA8LMF Beacon Mode** - Beacons a connected webcam image at a user-defined interval, with Pause/Resume and Send now buttons
 - **GPS Functionality In Templates** - Connects to a serial GPS device and allows insertion of coordinates and an internet-connected location name lookup
 
 #### Other changes and updates

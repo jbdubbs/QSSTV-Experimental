@@ -136,6 +136,8 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   lonBoxTip=ui->lonLineEdit->toolTip();
   gpsBaseSheet=ui->gpsToolButton->styleSheet();
   snapshotBaseSheet=ui->snapshotToolButton->styleSheet();
+  pauseBaseSheet=ui->beaconPauseToolButton->styleSheet();
+  updateBeaconUi();   // the pause and send now buttons only show while the beacon runs
   QSize gpsHint;
   for(const QString &box:{gpsAmberBox,gpsGreenBox,QString()})   // ends plain: the look of a GPS that is off
     {
@@ -164,6 +166,8 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   connect(ui->openToolButton, SIGNAL(clicked()), this, SLOT(slotFileOpen()));
   connect(ui->editToolButton, SIGNAL(clicked()), this, SLOT(slotEdit()));
   connect(ui->snapshotToolButton, SIGNAL(clicked()), this, SLOT(slotSnapshot()));
+  connect(ui->beaconPauseToolButton,&QToolButton::clicked,this,&txWidget::slotBeaconPause);
+  connect(ui->beaconNowToolButton,&QToolButton::clicked,this,&txWidget::slotBeaconSendNow);
   connect(&beaconTimer,SIGNAL(timeout()),SLOT(slotBeaconTimer()));
   connect(&beaconTick,SIGNAL(timeout()),SLOT(slotBeaconTick()));
   beaconTimer.setSingleShot(true);
@@ -1654,19 +1658,81 @@ void txWidget::beaconSkipped(const QString &reason)
   beaconError=msg;
   if(beaconRunning)
     {
-      beaconTimer.start(30000);
+      beaconArm(30000);
       slotBeaconTick();
     }
 }
 
 void txWidget::beaconRestartInterval()
 {
-  beaconTimer.start(60000*beaconMinutes);
+  beaconArm(60000*beaconMinutes);
+}
+
+// while the countdown is paused nothing may start the timer: the time is kept and Resume starts it
+void txWidget::beaconArm(int ms)
+{
+  if(beaconPaused)
+    {
+      beaconPausedLeft=ms;
+      return;
+    }
+  beaconTimer.start(ms);
+}
+
+// the pause button is also the resume button
+void txWidget::slotBeaconPause()
+{
+  if(!beaconRunning) return;
+  if(beaconPaused)
+    {
+      beaconPaused=false;
+      beaconTimer.start(beaconPausedLeft);
+    }
+  else
+    {
+      beaconPausedLeft=beaconTimer.isActive() ? beaconTimer.remainingTime() : 60000*beaconMinutes;   // not active: a picture is on its way, the interval was just armed
+      beaconTimer.stop();
+      beaconPaused=true;
+    }
+  updateBeaconUi();
+  slotBeaconTick();
+}
+
+// a picture now, from the live camera: the same checks as the timer, and the interval starts again from here
+void txWidget::slotBeaconSendNow()
+{
+  if(!beaconRunning || beaconPending) return;
+  beaconHold=false;
+  beaconTimer.stop();
+  beaconShoot();
 }
 
 void txWidget::updateBeaconUi()
 {
   QIcon icon;
+  ui->beaconPauseToolButton->setVisible(beaconRunning);
+  ui->beaconNowToolButton->setVisible(beaconRunning);
+  // two bars (there is no pause icon file); amber while the countdown is paused: the button is pressed in, click it to resume
+  QPixmap bars(64,64);
+  bars.fill(Qt::transparent);
+  QPainter bp(&bars);
+  bp.setPen(Qt::NoPen);
+  bp.setBrush(QColor(53,132,228));   // the blue of the other toolbar icons: readable on a light and on a dark button face (dark gray looked disabled)
+  bp.drawRoundedRect(QRect(14,10,14,44),3,3);
+  bp.drawRoundedRect(QRect(36,10,14,44),3,3);
+  bp.end();
+  ui->beaconPauseToolButton->setIcon(QIcon(bars));
+  if(beaconPaused)
+    {
+      ui->beaconPauseToolButton->setStyleSheet(pauseBaseSheet+"QToolButton { background-color: rgba(255,170,0,110); border: 1px solid rgb(200,120,0); border-radius: 4px; }");
+      ui->beaconPauseToolButton->setToolTip("Resume the beacon");
+    }
+  else
+    {
+      ui->beaconPauseToolButton->setStyleSheet(pauseBaseSheet);
+      ui->beaconPauseToolButton->setToolTip("Pause the beacon countdown");
+    }
+  ui->beaconPauseToolButton->setStatusTip(ui->beaconPauseToolButton->toolTip());
   if(beaconRunning)
     {
       // the beacon icon with a green tint overlay
@@ -1701,7 +1767,8 @@ void txWidget::startBeacon(int minutes)
   // The camera stays on from here until the beacon is stopped and its live picture is shown on this tab. The first picture is the
   // newest live frame after 10 s: time to adjust the transmit settings, and for the camera's exposure to settle.
   beaconHold=true;
-  beaconTimer.start(10000);
+  beaconPaused=false;
+  beaconArm(10000);
   beaconTick.start();
   beaconCap.start();
   beaconCap.setPreviewWanted(liveAllowed());
@@ -1713,6 +1780,8 @@ void txWidget::stopBeacon()
   beaconRunning=false;
   beaconPending=false;
   beaconHold=false;
+  beaconPaused=false;
+  beaconPausedLeft=0;
   beaconTimer.stop();
   beaconTick.stop();
   beaconCap.stop();
@@ -1727,14 +1796,20 @@ void txWidget::slotBeaconTick()
 {
   if(!beaconRunning) return;
   beaconCap.setPreviewWanted(liveAllowed());   // once a second: off while the tab is hidden or a picture is on its way
-  if(!beaconError.isEmpty())
-    {
-      emit beaconCountdownChanged(beaconError,true);
-      return;
-    }
   if(!beaconCameraProblem.isEmpty())
     {
       emit beaconCountdownChanged(beaconCameraProblem,true);
+      return;
+    }
+  if(beaconPaused)
+    {
+      int sec=(beaconPausedLeft+999)/1000;
+      emit beaconCountdownChanged(QString("WA8LMF Beacon Mode paused: %1:%2 left").arg(sec/60).arg(sec%60,2,10,QChar('0')),false);
+      return;
+    }
+  if(!beaconError.isEmpty())
+    {
+      emit beaconCountdownChanged(beaconError,true);
       return;
     }
   QString txt;
@@ -1751,6 +1826,12 @@ void txWidget::slotBeaconTimer()
 {
   if(!beaconRunning) return;
   if(beaconPending) return;
+  beaconShoot();
+}
+
+// the checks and the camera frame of one picture: the timer calls it, and so does Send now
+void txWidget::beaconShoot()
+{
   if(beaconHold)
     {
       beaconHold=false;

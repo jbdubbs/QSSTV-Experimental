@@ -261,6 +261,74 @@ int main(int argc, char **argv)
     txw->stopBeacon();
   }
 
+  printf("\n== pause, resume and send now (#169)\n");
+  {
+    QString shown;
+    bool shownError = false;
+    QObject::connect(txw, &txWidget::beaconCountdownChanged, [&](const QString &t, bool e) {shown = t; shownError = e;});
+    txw->stopBeacon();
+    check(txw->ui->beaconPauseToolButton->isHidden() && txw->ui->beaconNowToolButton->isHidden(), "the two buttons are hidden while there is no beacon");
+    txw->beaconRunning = true;
+    txw->beaconMinutes = 5;
+    txw->beaconHold = false;
+    txw->beaconPending = false;
+    txw->beaconPaused = false;
+    txw->beaconError.clear();
+    txw->beaconCameraProblem.clear();
+    txw->updateBeaconUi();
+    check(!txw->ui->beaconPauseToolButton->isHidden() && !txw->ui->beaconNowToolButton->isHidden(), "and shown while it runs");
+    txw->beaconTimer.start(60000);
+    QTest::qWait(1100);
+    txw->slotBeaconPause();
+    check(txw->beaconPaused && !txw->beaconTimer.isActive(), "Pause stops the timer");
+    check(txw->beaconPausedLeft > 50000 && txw->beaconPausedLeft < 60000, QString("and keeps what was left (%1 ms)").arg(txw->beaconPausedLeft));
+    check(shown.contains("paused") && !shownError, "the status bar says so: " + shown);
+    check(txw->ui->beaconPauseToolButton->toolTip().contains("Resume"), "the button turns into Resume");
+    const int left = txw->beaconPausedLeft;
+    QTest::qWait(300);
+    check(txw->beaconPausedLeft == left, "the time does not run down while paused");
+
+    // nothing may start the timer while paused: a failed attempt (no camera here) keeps its 30 s retry for Resume
+    txw->slotBeaconTimer();
+    check(txw->beaconError.contains("camera") && !txw->beaconTimer.isActive() && txw->beaconPausedLeft == 30000, "a failed attempt while paused does not start the timer");
+    txw->slotBeaconTick();
+    check(shown.contains("paused") && !shownError, "and the paused text stays on show");
+    txw->beaconCameraProblem = "camera lost";
+    txw->slotBeaconTick();
+    check(shownError && shown.contains("camera lost"), "a camera problem is shown in place of it");
+    txw->beaconCameraProblem.clear();
+
+    txw->slotBeaconPause();
+    check(!txw->beaconPaused && txw->beaconTimer.isActive(), "Resume starts the timer");
+    check(txw->beaconTimer.remainingTime() > 28000 && txw->beaconTimer.remainingTime() <= 31000, QString("with the time that was left (%1 ms)").arg(txw->beaconTimer.remainingTime()));
+    check(txw->ui->beaconPauseToolButton->toolTip().contains("Pause"), "the button is Pause again");
+
+    // Send now
+    txw->beaconPending = true;
+    txw->beaconError.clear();
+    txw->slotBeaconSendNow();
+    check(txw->beaconError.isEmpty() && txw->beaconTimer.isActive(), "Send now does nothing while a picture is on its way");
+    txw->beaconPending = false;
+    txw->slotBeaconSendNow();
+    check(txw->beaconError.contains("camera"), "Send now takes the checks of a scheduled picture: " + txw->beaconError);
+    check(txw->beaconTimer.isActive() && txw->beaconTimer.remainingTime() > 28000, "a failed one tries again in 30 s");
+
+    txw->slotBeaconPause();
+    txw->beaconError.clear();
+    txw->slotBeaconSendNow();
+    check(txw->beaconPaused && !txw->beaconTimer.isActive(), "Send now while paused leaves it paused");
+    check(txw->beaconPausedLeft == 30000, "with the time of the retry for Resume");
+
+    // a picture that was sent: the interval is armed again, in the paused state too
+    txw->beaconRestartInterval();
+    check(txw->beaconPaused && !txw->beaconTimer.isActive() && txw->beaconPausedLeft == 300000, "an interval started while paused is kept for Resume");
+
+    txw->stopBeacon();
+    check(!txw->beaconPaused && !txw->beaconTimer.isActive(), "stopping the beacon ends the pause");
+    check(txw->ui->beaconPauseToolButton->isHidden() && txw->ui->beaconNowToolButton->isHidden(), "and hides the buttons");
+    check(shown.isEmpty(), "and clears the status bar");
+  }
+
   printf("\n%d passed, %d failed\n", passed, failed);
   return failed ? 1 : 0;
 }

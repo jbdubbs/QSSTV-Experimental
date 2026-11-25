@@ -44,6 +44,7 @@ A DRM signal is noise-like, so on a level meter it reads lower than an SSTV tone
 <tr><td>Folder</td><td>Load image.</td></tr>
 <tr><td>Pencil</td><td>Edit picture. Opens a copy of the current picture in your picture editor and uses it again when you save it (not available while transmitting). See <a href="template-editor.html#pictures">Editing a picture</a>.</td></tr>
 <tr><td>Camera</td><td>Camera snapshot, from a connected webcam, or WA8LMF Beacon Mode (see <a href="#beacon">below</a>). While WA8LMF Beacon Mode runs the icon turns into a green-tinted beacon icon: click it to stop.</td></tr>
+<tr><td>Pause bars, camera</td><td>Two more buttons that show only while WA8LMF Beacon Mode runs: <strong>Pause</strong> (lit amber while paused: click it again to resume) and a <strong>Camera</strong> that sends a picture now. See <a href="#beacon-controls">Pausing and sending now</a>.</td></tr>
 <tr><td>Binary icon (1 0 101)</td><td>Send binary file. A DRM function: see <a href="drm.html">Digital SSTV (DRM)</a>.</td></tr>
 <tr><td>Hybrid checkbox</td><td>Hybrid mode for DRM transmissions (see <a href="configuration.html#hybrid">Hybrid</a>). It is only available on the DRM tab.</td></tr>
 <tr><td>Cloud arrow</td><td>Upload Now: upload a hybrid picture to the server without transmitting.</td></tr>
@@ -65,6 +66,10 @@ Press <strong>Start</strong> at any time to send what the Transmit tab shows rig
 instead of the live picture until a transmission is over; the beacon still takes its next picture from the camera. The live picture is not shown with a grid (a beacon picture is still taken). The camera's LED stays on, which matters on a battery.</p>
 <p>Click the green beacon icon to stop WA8LMF Beacon Mode; the camera goes off and the last live picture stays on the Transmit tab. To start it again, open the camera dialog and press OK again (the WA8LMF Beacon Mode setting is Off
 every time the dialog opens).</p>
+<p id="beacon-controls">While WA8LMF Beacon Mode runs, two buttons appear next to the camera button. <strong>Pause</strong> (two bars) stops the countdown and keeps the camera and the live picture on; the status bar says
+<em>paused</em> and how much time was left. Click the same button again, lit amber, to <strong>resume</strong> the countdown from where it stopped, so pausing for two seconds delays the next picture by two seconds.
+The <strong>Camera</strong> button next to it sends a picture <em>now</em>, from the live camera, and the interval starts again from that picture. It makes the same checks as a scheduled picture (a picture being received,
+a busy transmitter and so on), and while the beacon is paused it leaves it paused.</p>
 <p>WA8LMF Beacon Mode has no transmit settings of its own. Each picture is sent exactly as if you had pressed Start: with the
 <strong>SSTV</strong> or <strong>DRM</strong> tab that is currently selected, its mode and options, the selected template (for example a call
 sign overlay) and the picture size. The camera uses the format and resolution chosen in the dialog. It is always off when the program starts.</p>
