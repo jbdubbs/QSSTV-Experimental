@@ -250,6 +250,21 @@ int main(int argc, char **argv)
   key(true);
   check(boxes().isEmpty(), "PTT through XML-RPC: no box");
   cp->enableXMLRPC = false;
+
+  // the CM108 GPIO PTT (rig/cm108lines.h): a device that is not there is a box too; no real device is opened here
+  cp->enableCM108PTT = true;
+  cp->cm108Gpio = 3;
+  cp->cm108Device = "/dev/qsstv-no-such-device";
+  key(true);
+  printf("  .. box: '%s'\n", boxes().isEmpty() ? "" : qPrintable(boxes().first()->text()));
+  check(boxWith("PTT problem", "CM108 device cannot be opened") && boxWith("PTT problem", "qsstv-no-such-device"),
+        "CM108 PTT on a device that cannot be opened: a box names the device");
+  key(false);
+  check(boxes().isEmpty(), "(and the release is quiet)");
+  cp->enableCM108PTT = false;
+  cp->pttType = RIG_PTT_NONE;
+  key(true);
+  check(boxes().isEmpty(), "CM108 PTT switched off again: nothing is keyed, no box");
   closeBoxes();
 
   printf("\n== a DRM picture that cannot be compressed (#166): nothing stays locked\n");

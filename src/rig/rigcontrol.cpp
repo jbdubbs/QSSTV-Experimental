@@ -73,6 +73,7 @@ rigControl::~rigControl()
 {
   closeRig();
   delete pttLines; // closes the port too, if still open
+  releaseCM108();
 }
 
 // Lets go of the Hamlib handle (and, on Android, of the USB adapter behind it) and forgets what the radio could do. The
@@ -92,6 +93,7 @@ void rigControl::closeRig()
   bridgePtt=0;
 #endif
   rigControlEnabled=false;
+  releaseCM108();   // the next transmission opens it again, with whatever the settings say by then
   canSetFreq=canGetFreq=canSetMode=canGetMode=canSetPTT=canGetPTT=false;
 }
 
@@ -495,6 +497,17 @@ void rigControl::setSerialPTTLines(bool b)
   else if(catParams.nactiveRTS) pttLines->setRts(!b);
 }
 
+// A CM108 is keyed by a GPIO pin: the pin goes low and the device is let go of, so a program that ends or a changed setting never
+// leaves the radio keyed.
+void rigControl::releaseCM108()
+{
+  if(cm108==nullptr) return;
+  QString why;
+  if(cm108->isOpen()) cm108->setGpio(cm108OpenGpio,false,why);
+  delete cm108;
+  cm108=nullptr;
+}
+
 void rigControl::activatePTT(bool b)
 {
   if(!soundBase::txFileName.isEmpty()) return;   // --encode writes a wav file: never key a radio
@@ -505,6 +518,7 @@ void rigControl::activatePTT(bool b)
   // says it in a box; letting go of a PTT that was never keyed stays quiet. Nothing is cancelled: the transmission goes on (a
   // radio that is keyed some other way, VOX say, still sends it) and Stop ends it.
   QString problem;
+  if(!catParams.enableCM108PTT) releaseCM108();   // switched off while it was open
   if(catParams.enableSerialPTT)
     {
       if(catParams.pttSerialPort.isEmpty())
@@ -529,6 +543,36 @@ void rigControl::activatePTT(bool b)
                 }
             }
           if(pttLines) setSerialPTTLines(b);
+        }
+    }
+  else if(catParams.enableCM108PTT)
+    {
+      if(cm108 && (cm108OpenDevice!=catParams.cm108Device || cm108OpenGpio!=catParams.cm108Gpio)) releaseCM108();   // another device or pin
+      if(cm108==nullptr)
+        {
+          cm108Ptt *dev=new cm108Ptt;
+          QString why;
+          if(dev->open(catParams.cm108Device,why))
+            {
+              cm108=dev;
+              cm108OpenDevice=catParams.cm108Device;
+              cm108OpenGpio=catParams.cm108Gpio;
+              dev->setGpio(cm108OpenGpio,false,why);   // idle (PTT-off) state as soon as the device is opened
+            }
+          else
+            {
+              problem=QString("The CM108 device cannot be opened (%1). %2").arg(why,cm108Ptt::advice());
+              delete dev;
+            }
+        }
+      if(cm108)
+        {
+          QString why;
+          if(!cm108->setGpio(cm108OpenGpio,b,why))
+            {
+              problem=QString("The CM108 device did not accept the PTT command (%1). %2").arg(why,cm108Ptt::advice());
+              releaseCM108();   // an unplugged device is found again, or not, by the next transmission
+            }
         }
     }
   else if(catParams.enableXMLRPC)

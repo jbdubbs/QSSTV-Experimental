@@ -26,6 +26,7 @@
 #include "supportfunctions.h"
 #include "rigcontrol.h"
 #include "serialports.h"
+#include "cm108lines.h"
 #include <QSettings>
 #include <QMessageBox>
 
@@ -36,6 +37,8 @@ rigConfig::rigConfig(QWidget *parent) : baseConfig(parent),  ui(new Ui::rigConfi
   connect(ui->enableCATCheckBox,SIGNAL(clicked()),SLOT(slotEnableCAT()));
   connect(ui->enablePTTCheckBox,SIGNAL(clicked()),SLOT(slotEnablePTT()));
   connect(ui->enableXMLRPCCheckBox,SIGNAL(clicked()),SLOT(slotEnableXMLRPC()));
+  connect(ui->enableCM108CheckBox,SIGNAL(clicked()),SLOT(slotEnableCM108()));
+  connect(ui->cm108RescanToolButton,SIGNAL(clicked()),SLOT(slotRescanCM108()));
   connect(ui->restartPushButton,SIGNAL(clicked()),SLOT(slotRestart()));
   connect(ui->rescanToolButton,SIGNAL(clicked()),SLOT(slotRescanPorts()));
   connect(ui->pttRescanToolButton,SIGNAL(clicked()),SLOT(slotRescanPorts()));
@@ -46,6 +49,7 @@ rigConfig::rigConfig(QWidget *parent) : baseConfig(parent),  ui(new Ui::rigConfi
   rigController=NULL;
   cp=NULL;
   slotRescanPorts();
+  fillCM108ComboBox();
 }
 
 
@@ -84,6 +88,9 @@ void rigConfig::readSettings()
   cp->activeDTR=qSettings.value("activeDTR",0).toBool();
   cp->nactiveRTS=qSettings.value("nactiveRTS",1).toBool();
   cp->nactiveDTR=qSettings.value("nactiveDTR",0).toBool();
+  cp->enableCM108PTT=qSettings.value("enableCM108PTT",0).toBool();
+  cp->cm108Device=qSettings.value("cm108Device","auto").toString();
+  cp->cm108Gpio=qSettings.value("cm108Gpio",3).toInt();
   cp->enableXMLRPC=qSettings.value("enableXMLRPC",0).toBool();
   cp->XMLRPCPort=qSettings.value("XMLRPCPort","7362").toInt();
   cp->txOnDelay=qSettings.value("txOnDelay",0.0).toDouble();
@@ -113,6 +120,9 @@ void rigConfig::writeSettings()
   qSettings.setValue("nactiveRTS",cp->nactiveRTS);
   qSettings.setValue("nactiveDTR",cp->nactiveDTR);
   qSettings.setValue("pttType",(int) cp->pttType);
+  qSettings.setValue("enableCM108PTT",cp->enableCM108PTT);
+  qSettings.setValue("cm108Device",cp->cm108Device);
+  qSettings.setValue("cm108Gpio",cp->cm108Gpio);
   qSettings.setValue("enableXMLRPC",cp->enableXMLRPC);
   qSettings.setValue("XMLRPCPort",cp->XMLRPCPort);
   qSettings.setValue("txOnDelay",cp->txOnDelay);
@@ -143,6 +153,11 @@ void rigConfig::getParams()
   if(ui->catDataRadioButton->isChecked()) cp->pttType=RIG_PTT_RIG_MICDATA;
   if(ui->rtsRadioButton->isChecked()) cp->pttType=RIG_PTT_SERIAL_RTS;
   if(ui->dtrRadioButton->isChecked()) cp->pttType=RIG_PTT_SERIAL_DTR;
+  getValue(cp->enableCM108PTT,ui->enableCM108CheckBox);
+  cp->cm108Device=ui->cm108DeviceComboBox->currentText().trimmed();
+  if(cm108Ptt::isAuto(cp->cm108Device)) cp->cm108Device="auto";
+  cp->cm108Gpio=ui->cm108GpioComboBox->currentText().toInt();
+  if(cp->cm108Gpio<1 || cp->cm108Gpio>4) cp->cm108Gpio=3;
   getValue(cp->txOnDelay,ui->txOnDelayDoubleSpinBox);
   getValue(cp->enableXMLRPC,ui->enableXMLRPCCheckBox);
   getValue(cp->XMLRPCPort,ui->XMLRPCPortLineEdit);
@@ -162,6 +177,9 @@ void rigConfig::getParams()
       || cpCopy->nactiveRTS!=cp->nactiveRTS
       || cpCopy->nactiveDTR!=cp->nactiveDTR
       || cpCopy->pttType!=cp->pttType
+      || cpCopy->enableCM108PTT!=cp->enableCM108PTT
+      || cpCopy->cm108Device!=cp->cm108Device
+      || cpCopy->cm108Gpio!=cp->cm108Gpio
       || cpCopy->enableXMLRPC!=cp->enableXMLRPC
       || cpCopy->XMLRPCPort!=cp->XMLRPCPort
       )
@@ -216,6 +234,9 @@ void rigConfig::setParams()
         }
     }
   setValue(cp->enableSerialPTT,ui->enablePTTCheckBox);
+  setValue(cp->enableCM108PTT,ui->enableCM108CheckBox);
+  ui->cm108DeviceComboBox->setCurrentText(cm108Ptt::isAuto(cp->cm108Device) ? QStringLiteral("Auto") : cp->cm108Device);
+  ui->cm108GpioComboBox->setCurrentText(QString::number(cp->cm108Gpio));
   setValue(cp->txOnDelay,ui->txOnDelayDoubleSpinBox);
   setValue(cp->enableXMLRPC,ui->enableXMLRPCCheckBox);
   setValue(cp->XMLRPCPort,ui->XMLRPCPortLineEdit);
@@ -265,8 +286,39 @@ void rigConfig::slotEnablePTT()
   if(ui->enablePTTCheckBox->isChecked())
     {
       ui->enableXMLRPCCheckBox->setChecked(false);
+      ui->enableCM108CheckBox->setChecked(false);   // one PTT interface of its own at a time
     }
   getParams();
+}
+
+void rigConfig::slotEnableCM108()
+{
+  if(ui->enableCM108CheckBox->isChecked())
+    {
+      ui->enableXMLRPCCheckBox->setChecked(false);
+      ui->enablePTTCheckBox->setChecked(false);
+    }
+  getParams();
+}
+
+// the devices to offer: Auto, then each CM108 that is connected (its label as the tooltip); what is typed or chosen stays
+void rigConfig::fillCM108ComboBox()
+{
+  QComboBox *box=ui->cm108DeviceComboBox;
+  const QString keep=box->currentText();
+  box->clear();
+  box->addItem(QStringLiteral("Auto"));
+  for(const cm108Device &dev : cm108Ptt::list())
+    {
+      box->addItem(dev.path);
+      box->setItemData(box->count()-1,dev.label,Qt::ToolTipRole);
+    }
+  if(!keep.isEmpty()) box->setCurrentText(keep);
+}
+
+void rigConfig::slotRescanCM108()
+{
+  fillCM108ComboBox();
 }
 
 // the CAT port and the PTT port are chosen from the same list
@@ -280,6 +332,7 @@ void rigConfig::slotEnableXMLRPC()
 {
   ui->enableCATCheckBox->setChecked(false);
   ui->enablePTTCheckBox->setChecked(false);
+  ui->enableCM108CheckBox->setChecked(false);
 }
 
 void rigConfig::slotRestart()

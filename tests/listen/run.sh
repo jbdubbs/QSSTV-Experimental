@@ -104,6 +104,18 @@ else
 fi
 rm -f "$HOME/.config/qsstv-experimental/qsstv-experimental.conf"
 
+echo "== a CM108 PTT device that cannot be opened does not hold the receiver up either"
+printf '[radio1]\nenableCM108PTT=true\ncm108Device=/dev/qsstv-no-such-device\n' > "$HOME/.config/qsstv-experimental/qsstv-experimental.conf"
+if listener_start "$T/o_cm108" --timeout 4; then
+  ok "the listener starts"
+  wait $LPID; rc=$?
+  expect_exit "--timeout with an unusable CM108 PTT device" 1 $rc
+else
+  bad "the listener did not start with an unusable CM108 PTT device: $(tail -3 "$T/stderr")"
+  listener_stop KILL
+fi
+rm -f "$HOME/.config/qsstv-experimental/qsstv-experimental.conf"
+
 echo "== a picture through the virtual cable, stopped with SIGINT"
 if listener_start "$T/o_full"; then
   paplay --device=$SINK "$T/jb.wav" &

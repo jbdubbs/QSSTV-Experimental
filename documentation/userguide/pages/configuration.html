@@ -98,6 +98,17 @@ A serial port that has no such name, such as the built-in <code>/dev/ttyS0</code
 <h3>Special Serial Port</h3>
 <p>Enable a plain serial port for PTT: tick <strong>Enable PTT serial Interface</strong>, set <strong>PTT Serial Port</strong>, and choose which lines key
 the transmitter with <strong>+RTS</strong>, <strong>+DTR</strong>, <strong>-RTS</strong> and <strong>-DTR</strong> (the sign sets the polarity).</p>
+<h3>CM108 GPIO PTT</h3>
+<p>Many simple USB radio interfaces (AllScan, Masters Communications, DRA-style boards and other boards with a C-Media CM108 or CM119 chip, or an SSS1621/23) key the transmitter through a pin of the sound chip, so there is no serial port to choose.
+Tick <strong>Enable CM108 PTT</strong>, choose the <strong>Device</strong> and the <strong>GPIO</strong> pin that your interface keys with (usually <strong>3</strong>; the interface's documentation says). <strong>Auto</strong> uses the only CM108 that is connected;
+with two or more, choose one from the list (<strong>Rescan</strong> looks again). The pin goes high while the program transmits and low otherwise, and it is set low when the program starts using the device and when it ends. This works with or without a radio under
+<a href="#cat">Hamlib Control</a> (CAT then sets the frequency, and the CM108 keys the radio). It excludes <em>Special Serial Port</em> PTT and the XML-RPC interface: switching one on switches the others off.
+The device is opened the first time the radio is keyed, not when the box is ticked, so a device that cannot be opened is reported by the &ldquo;PTT problem&rdquo; box (see <a href="troubleshooting.html">Troubleshooting</a>).</p>
+<p>The device is named by the system: on <strong>Linux</strong> it is <code>/dev/hidrawN</code>, on <strong>Windows</strong> a HID interface path, and on <strong>macOS</strong> a <code>DevSrvsID:</code> number; the list shows the name of the interface with its USB id, for example <code>0d8c:0013</code>.
+Nothing needs to be installed on any of them. On Linux, a user normally may not open <code>/dev/hidraw*</code>; a udev rule gives it to the user at the computer. Put this line in <code>/etc/udev/rules.d/99-cm108.rules</code>
+(use the vendor id <code>0c76</code> too if you have an SSS1621/23 board), run <code>sudo udevadm control --reload</code> and <code>sudo udevadm trigger</code>, and plug the interface in again:</p>
+<pre>SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0d8c", TAG+="uaccess", MODE="0660"</pre>
+<p>The CM108 interface is a USB sound card, too: choose it in <a href="#sound">Configuration &gt; Sound</a> as well. The Windows and macOS versions of this feature have been tested less than the Linux one.</p>
 <h3>Hamlib Control</h3>
 <p>Tick <strong>Enable Hamlib Cat Interface</strong> to control a rig through Hamlib. Pick your <strong>Radio Model</strong>, the <strong>Serial Port/Host</strong>,
 and the serial settings the rig needs: <strong>Baudrate</strong>, <strong>Parity</strong>, <strong>Databits</strong>, <strong>StopBits</strong> and <strong>Handshake</strong>.

@@ -273,6 +273,7 @@ set(QSSTV_SOURCES
     mainwidgets/txwidget.cpp
     rig/rigcontrol.cpp
     rig/seriallines.cpp
+    rig/cm108lines.cpp
     sstv/modes/modeavt.cpp
     sstv/modes/modebase.cpp
     sstv/modes/modebw.cpp
@@ -472,6 +473,13 @@ endif()
 
 if(UNIX AND NOT APPLE AND NOT ANDROID)
   target_link_libraries(qsstv PRIVATE Qt6::DBus)
+endif()
+
+# the CM108 GPIO PTT (rig/cm108lines.cpp) talks to the HID stack of the system itself: no library to bundle, only system ones to link
+if(WIN32)
+  target_link_libraries(qsstv PRIVATE hid setupapi)
+elseif(APPLE)
+  target_link_libraries(qsstv PRIVATE "-framework IOKit" "-framework CoreFoundation")
 endif()
 
 target_link_libraries(qsstv PRIVATE

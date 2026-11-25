@@ -42,7 +42,7 @@ cell() {   # label binary sens min
   local label=$1 bin=$2 s=$3 m=$4 d="$OUT/${1}_s${3}_m${4}"
   mkdir -p "$d/home/.config/qsstv-experimental" "$d/pics"
   sed -E -e "s/^sensitivity=.*/sensitivity=$s/" -e "s/^minCompletion=.*/minCompletion=$m/" \
-         -e 's/^(enableSerialPTT|enableCAT|enableXMLRPC)=.*/\1=false/' "$CONF" > "$d/home/.config/qsstv-experimental/qsstv-experimental.conf"
+         -e 's/^(enableSerialPTT|enableCM108PTT|enableCAT|enableXMLRPC)=.*/\1=false/' "$CONF" > "$d/home/.config/qsstv-experimental/qsstv-experimental.conf"
   local t0=$SECONDS
   HOME="$d/home" XDG_CONFIG_HOME="$d/home/.config" XDG_DATA_HOME="$d/home/.local/share" QT_QPA_PLATFORM=offscreen \
     QSSTV_RX_TRACE="$d/trace.tsv" "$bin" --batch -o "$d/pics" "$WAV" > "$d/stdout" 2> "$d/stderr"

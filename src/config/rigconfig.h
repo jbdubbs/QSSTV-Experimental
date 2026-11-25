@@ -27,6 +27,8 @@ public:
 public slots:
   void slotEnableCAT();
   void slotEnablePTT();
+  void slotEnableCM108();
+  void slotRescanCM108();
   void slotEnableXMLRPC();
   void slotRestart();
   void slotRescanPorts();
@@ -41,6 +43,7 @@ private:
   scatParams *cp;
   rigControl *rigController;
   void checkPTT(int p,bool b);
+  void fillCM108ComboBox();
 };
 
 #endif // RIGCONFIG_H

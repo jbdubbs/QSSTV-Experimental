@@ -451,6 +451,7 @@ void SettingsController::setPttMode(int mode)
   if(!rigControllerPtr) return;
   scatParams *cp=rigControllerPtr->params();
   cp->enableSerialPTT=false;
+  cp->enableCM108PTT=false;   // the choice made here replaces a CM108 chosen on the desktop page
   cp->activeRTS=cp->activeDTR=cp->nactiveRTS=cp->nactiveDTR=false;
   cp->pttType=RIG_PTT_NONE;
   if(mode==1 || mode==2)
@@ -514,6 +515,9 @@ void SettingsController::saveRadio()
   qSettings.setValue("nactiveRTS",cp->nactiveRTS);
   qSettings.setValue("nactiveDTR",cp->nactiveDTR);
   qSettings.setValue("pttType",int(cp->pttType));
+  qSettings.setValue("enableCM108PTT",cp->enableCM108PTT);
+  qSettings.setValue("cm108Device",cp->cm108Device);
+  qSettings.setValue("cm108Gpio",cp->cm108Gpio);
   qSettings.endGroup();
   emit radioChanged();
   QTimer::singleShot(0,this,[]   // outside the tap that asked for it: opening an adapter may ask the person first

@@ -7,6 +7,7 @@
 
 #include <QObject>
 #include "seriallines.h"
+#include "cm108lines.h"
 #include <QComboBox>
 #include <QSerialPort>
 
@@ -42,7 +43,9 @@ struct scatParams
   bool enableXMLRPC;
   int XMLRPCPort;
   double txOnDelay;
-
+  bool enableCM108PTT;   /**<  a CM108 USB sound-card interface keys the transmitter through a GPIO pin (rig/cm108lines.h)*/
+  QString cm108Device;   /**<  "auto" (the only one connected) or the path of the device*/
+  int cm108Gpio;         /**<  the GPIO pin that keys it, 1 to 4*/
 };
 
 class rigControl: public QObject
@@ -86,6 +89,10 @@ private:
   QString catUsbKey;        // Android: the USB adapter whose CAT bridge Hamlib is talking through (usbportname.h), or empty
   int bridgePtt=0;          // Android: RTS or DTR of that adapter keys the radio (Hamlib has no serial port to set them on): 0 none, 1 RTS, 2 DTR
   void setSerialPTTLines(bool b);
+  cm108Ptt *cm108=nullptr;   // the CM108 GPIO PTT, opened when it is first keyed
+  QString cm108OpenDevice;   // what it was opened with: another device or pin in the settings opens it again
+  int cm108OpenGpio=0;
+  void releaseCM108();       // the pin low, the device let go
   bool setPTT(bool On);
   QString pttError;       // why the last setPTT() failed
   double lastFrequency;

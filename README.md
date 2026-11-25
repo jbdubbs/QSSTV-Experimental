@@ -20,7 +20,7 @@ Sam Saccone. This program is based in part on QSSTV and, like it, is released un
 - Image viewer for gallery pictures
 - TX templates with macros, text and image items; stock and template libraries
 - Image import and export in PNG, JPEG, GIF, BMP and JPEG 2000
-- Rig control through Hamlib, CAT, serial (RTS/DTR) and VOX PTT, and XML-RPC remote control
+- Rig control through Hamlib, CAT, serial (RTS/DTR), CM108 GPIO (Linux, Windows, macOS) and VOX PTT, and XML-RPC remote control
 - CW identification, FSK ID, and a waterfall / spectrum / scope display
 
 ## Changes versus upstream QSSTV 9.5.11

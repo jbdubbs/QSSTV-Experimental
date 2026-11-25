@@ -39,7 +39,7 @@ mkdir -p "$OUT/pics" || exit 2
 
 RXHOME=$OUT/home
 mkdir -p "$RXHOME/.config/qsstv-experimental" || exit 2
-sed -E 's/^(enableSerialPTT|enableCAT|enableXMLRPC)=.*/\1=false/' "$CONF" > "$RXHOME/.config/qsstv-experimental/qsstv-experimental.conf"
+sed -E 's/^(enableSerialPTT|enableCM108PTT|enableCAT|enableXMLRPC)=.*/\1=false/' "$CONF" > "$RXHOME/.config/qsstv-experimental/qsstv-experimental.conf"
 RATE=$(pactl list sources 2>/dev/null | awk -v s="$SOURCE" '$1=="Name:"{on=($2==s)} on&&/Sample Specification/{print $NF; exit}' | tr -d 'Hz')
 {
   echo "start_utc   $(date -u +%FT%TZ)"
