@@ -45,8 +45,10 @@ It also starts, stops and synchronizes the threads.
 #include "dirdialog.h"
 #include "ftpfunctions.h"
 #include "filedecoder.h"
+#ifndef Q_OS_ANDROID   // the Qt Quick screens have their own template editor (#215)
 #include "templateeditor.h"
 #include "editorsetup.h"
+#endif
 
 #include <QDir>
 #include <QElapsedTimer>
@@ -80,6 +82,7 @@ void dispatcher::init()
 }
 
 
+#ifndef Q_OS_ANDROID
 void dispatcher::openTemplateEditor(const QString &fileName)
 {
   if(!templateEditor)
@@ -102,13 +105,25 @@ bool dispatcher::closeTemplateEditor()
   if(!templateEditor) return true;
   return templateEditor->close();   // asks about unsaved changes; false when cancelled
 }
+#else
+void dispatcher::openTemplateEditor(const QString &)
+{
+}
 
+bool dispatcher::closeTemplateEditor()
+{
+  return true;
+}
+#endif
+
+#ifndef Q_OS_ANDROID
 /*! a template was written: the gallery and the TX template list (and so the TX picture) follow */
 void dispatcher::slotTemplateSaved()
 {
   galleryWidgetPtr->changedMatrix(imageViewer::TEMPLATETHUMB);
   txWidgetPtr->setupTemplatesComboBox();
 }
+#endif
 
 
 #ifdef Q_OS_ANDROID

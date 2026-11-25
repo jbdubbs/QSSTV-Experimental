@@ -24,7 +24,9 @@
 #include "configparams.h"
 #include "dispatcher.h"
 #include "dirdialog.h"
+#ifndef Q_OS_ANDROID
 #include "extviewer.h"
+#endif
 #include "jp2io.h"
 #include "avifenc.h"
 #include <QThread>
@@ -947,8 +949,10 @@ void imageViewer::slotEdit()
   if(ttype==TEMPLATETHUMB)
     {
       // templates are edited in the template editor; no file means a new template
+#ifndef Q_OS_ANDROID   // the Qt Quick screens have their own editor (#215)
       callEditorEvent *ce = new callEditorEvent(imageFileName);
       QApplication::postEvent(dispatcherPtr, ce );  // Qt will delete it when done
+#endif
       return;
     }
   editInExternalEditor();
@@ -1054,8 +1058,10 @@ void imageViewer::slotLoad()
 void imageViewer::slotNew()
 {
   // only offered for templates: a new, empty template
+#ifndef Q_OS_ANDROID   // the Qt Quick screens have their own editor (#215)
   callEditorEvent *ce = new callEditorEvent(QString());
   QApplication::postEvent(dispatcherPtr, ce );  // Qt will delete it when done
+#endif
 }
 
 
@@ -1089,11 +1095,13 @@ void imageViewer::slotView()
       if(gridActive()) img=segImages.value(activeSeg);   // only the selected segment
       if(img.isNull()) return;
     }
+#ifndef Q_OS_ANDROID   // no separate viewer window on a phone: the Qt Quick screens zoom the picture themselves (#215)
   extViewer *vm=new extViewer(nullptr);
   vm->setAttribute(Qt::WA_DeleteOnClose);
   if(haveFile) vm->setup(imageFileName);
   else vm->setup(img,tr("RX image"));
   vm->show();
+#endif
 }
 
 

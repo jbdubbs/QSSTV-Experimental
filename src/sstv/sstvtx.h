@@ -1,7 +1,7 @@
 #ifndef SSTVTX_H
 #define SSTVTX_H
 #include "sstvparam.h"
-#include "testpatternselection.h"
+#include "testpattern.h"
 
 
 class modeBase;

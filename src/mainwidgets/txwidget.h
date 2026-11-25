@@ -107,8 +107,10 @@ public:
 
   //  void test();
   //  void sendFIX();
+#ifndef Q_OS_ANDROID   // Widgets dialogs the Qt Quick screens do not reach (#215)
   void sendBSR();
   void sendWfText();
+#endif
   void sendWFID();
   void sendCWID();
 
@@ -120,16 +122,22 @@ public slots:
   void slotUpload();
   void slotStop();
   //  void slotDisplayStatusMessage(QString);
+#ifndef Q_OS_ANDROID
   void slotGenerateSignal();
   void slotSweepSignal();
+#endif
   void slotGenerateRepeaterTone();
   void slotEdit();
+#ifndef Q_OS_ANDROID
   void slotEditTemplate();
   void slotNewTemplate();
+#endif
   //  void slotReplay();
   void slotRepeaterTimer();
   void slotFileOpen();
+#ifndef Q_OS_ANDROID
   void slotSnapshot();
+#endif
   void slotBeaconPause();     //!< the Pause / Resume button: the countdown stops and goes on from where it was
   void slotBeaconSendNow();   //!< the camera button of the beacon: the next picture goes out now
   void slotBeaconTick();

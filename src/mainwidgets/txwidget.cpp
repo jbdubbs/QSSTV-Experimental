@@ -18,17 +18,18 @@
 #include "gallerywidget.h"
 #include "waterfalltext.h"
 
+#ifndef Q_OS_ANDROID   // the Qt Quick screens have their own for these (#215)
 #include "ui_freqform.h"
 #include "ui_sweepform.h"
 #include "cameradialog.h"
-#include "soundbase.h"
 #include "waterfallform.h"
 #include "bsrform.h"
+#endif
+#include "soundbase.h"
 #include "mainwindow.h"
 #include "rigcontrol.h"
 #include "imageviewer.h"
 #include "templatedoc.h"
-#include "testpatternselection.h"
 #include "gpsreader.h"
 #include "placelookup.h"
 #include "nmeaparser.h"
@@ -108,6 +109,7 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
     }
 
   connect(ui->templatesComboBox,SIGNAL(currentIndexChanged(int)),SLOT(slotGetParams()));
+#ifndef Q_OS_ANDROID
   {
     // Edit... opens the selected template in the template editor; its menu starts a new one
     QToolButton *editTemplate=new QToolButton(this);
@@ -121,6 +123,7 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
     connect(editTemplate,&QToolButton::clicked,this,&txWidget::slotEditTemplate);
     ui->gridLayout_3->addWidget(editTemplate,1,2);
   }
+#endif
   connect(ui->templateCheckBox,SIGNAL(toggled(bool)),SLOT(slotGetParams()));
   connect(ui->refreshPushButton,SIGNAL(clicked()),SLOT(slotGetParams()));
   connect(ui->cwCheckBox,SIGNAL(toggled(bool)),SLOT(slotGetTXParams()));
@@ -160,12 +163,16 @@ txWidget::txWidget(QWidget *parent) :  QWidget(parent), ui(new Ui::txWidget)
   connect(ui->hybridCheckBox,SIGNAL(toggled(bool)),SLOT(slotHybridToggled()));
   connect(ui->uploadToolButton, SIGNAL(clicked()), this, SLOT(slotUpload()));
 
+#ifndef Q_OS_ANDROID
   connect(ui->generateToneToolButton, SIGNAL(clicked()), this, SLOT(slotGenerateSignal()));
   connect(ui->sweepToneToolButton, SIGNAL(clicked()), this, SLOT(slotSweepSignal()));
+#endif
   connect(ui->repeaterToneToolButton, SIGNAL(clicked()), this, SLOT(slotGenerateRepeaterTone()));
   connect(ui->openToolButton, SIGNAL(clicked()), this, SLOT(slotFileOpen()));
   connect(ui->editToolButton, SIGNAL(clicked()), this, SLOT(slotEdit()));
+#ifndef Q_OS_ANDROID
   connect(ui->snapshotToolButton, SIGNAL(clicked()), this, SLOT(slotSnapshot()));
+#endif
   connect(ui->beaconPauseToolButton,&QToolButton::clicked,this,&txWidget::slotBeaconPause);
   connect(ui->beaconNowToolButton,&QToolButton::clicked,this,&txWidget::slotBeaconSendNow);
   connect(&beaconTimer,SIGNAL(timeout()),SLOT(slotBeaconTimer()));
@@ -481,6 +488,7 @@ void txWidget::setupTemplatesComboBox()
 }
 
 
+#ifndef Q_OS_ANDROID   // the Widgets dialog is not reachable from the Qt Quick screens (#215)
 void txWidget::slotEditTemplate()
 {
   if(txFunctionsPtr->txBusy())
@@ -490,8 +498,10 @@ void txWidget::slotEditTemplate()
     }
   dispatcherPtr->openTemplateEditor(galleryWidgetPtr->getTemplateFileName(ui->templatesComboBox->currentIndex()));
 }
+#endif
 
 
+#ifndef Q_OS_ANDROID   // the Widgets dialog is not reachable from the Qt Quick screens (#215)
 void txWidget::slotNewTemplate()
 {
   if(txFunctionsPtr->txBusy())
@@ -501,6 +511,7 @@ void txWidget::slotNewTemplate()
     }
   dispatcherPtr->openTemplateEditor(QString());
 }
+#endif
 
 
 QString txWidget::getPreviewFilename()
@@ -832,6 +843,7 @@ void txWidget::txStartFailed(const QString &why)
   slotStop();
 }
 
+#ifndef Q_OS_ANDROID   // the Widgets dialog is not reachable from the Qt Quick screens (#215)
 void txWidget::sendBSR()
 {
   if(busyNotice()) return;
@@ -854,6 +866,7 @@ void txWidget::sendBSR()
     }
   txFunctionsPtr->sendBSR(p,bsrf.getDRMParams());
 }
+#endif
 
 
 void txWidget::sendWFID()
@@ -870,6 +883,7 @@ void txWidget::sendCWID()
   addToLog("sendWFID",LOGTXMAIN);
 }
 
+#ifndef Q_OS_ANDROID   // the Widgets dialog is not reachable from the Qt Quick screens (#215)
 void txWidget::sendWfText()
 {
   waterfallForm wf;
@@ -880,6 +894,7 @@ void txWidget::sendWfText()
       addToLog("sendID",LOGTXMAIN);
     }
 }
+#endif
 
 void txWidget::slotStop()
 {
@@ -939,6 +954,7 @@ void txWidget::slotFileOpen()
   applyTemplate();
 }
 
+#ifndef Q_OS_ANDROID   // the Widgets dialog is not reachable from the Qt Quick screens (#215)
 void txWidget::slotGenerateSignal()
 {
   QDialog qd;
@@ -1018,7 +1034,9 @@ void txWidget::slotGenerateSignal()
   saveValues();
   disconnect(endConn);
 }
+#endif
 
+#ifndef Q_OS_ANDROID   // the Widgets dialog is not reachable from the Qt Quick screens (#215)
 void txWidget::slotSweepSignal()
 {
   QDialog qd;
@@ -1049,6 +1067,7 @@ void txWidget::slotSweepSignal()
       dispatcherPtr->startTX(txFunctions::TXSENDTONE);
     }
 }
+#endif
 
 
 
@@ -1227,6 +1246,7 @@ void txWidget::slotResizeChanged(int i)
 
 
 
+#ifndef Q_OS_ANDROID   // the Widgets dialog is not reachable from the Qt Quick screens (#215)
 void txWidget::slotSnapshot()
 {
   // Qt Multimedia camera capture (Phase 5 of the cross-platform plan) works on every OS,
@@ -1276,6 +1296,7 @@ void txWidget::slotSnapshot()
   setImage(itmp.fileName());
   galleryWidgetPtr->txStockImageChanged();
 }
+#endif
 
 
 

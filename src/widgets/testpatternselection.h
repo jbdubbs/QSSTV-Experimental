@@ -2,8 +2,7 @@
 #define TESTPATTERNSELECTION_H
 
 #include <QDialog>
-
-enum etpSelect {TPSMPTE,TPPM5544,TPINDIANHEAD};
+#include "testpattern.h"
 
 namespace Ui {
 class testPatternSelection;

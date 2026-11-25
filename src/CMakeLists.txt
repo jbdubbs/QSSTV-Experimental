@@ -27,7 +27,7 @@ if(ANDROID)
   find_package(Qt6 6.5 REQUIRED COMPONENTS Positioning)   # the phone's own location (android/qtlocationsource.cpp)
 endif()
 # The Qt Quick user interface for phones and tablets (src/qml): on for Android, and for a development build on the desktop (run with
-# QSSTV_UI=qml). Off, the Android build keeps the Widgets touch shell.
+# QSSTV_UI=qml). Android always builds it.
 option(QSSTV_QML_UI "Build the Qt Quick user interface for phones and tablets (src/qml)" ${ANDROID})
 if(ANDROID AND NOT QSSTV_QML_UI)
   message(FATAL_ERROR "The Android program has only the Qt Quick interface: build it with QSSTV_QML_UI=ON (the Widgets touch shell is gone)")
@@ -400,6 +400,20 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     scope/scopeoffset.ui
     scope/plotform.ui
   )
+endif()
+
+if(ANDROID)
+  # The Widgets dialogs that nothing in the Qt Quick screens reaches (#215). The Classic settings dialog, the state-holding pages
+  # (mainWindow, rxWidget, txWidget, galleryWidget) and the config pages stay: the Qt Quick code reads and drives them. The callers
+  # are cut out with #ifndef Q_OS_ANDROID. The Qt Quick template editor keeps editordocument, editorcommands and templatepresets.
+  list(REMOVE_ITEM QSSTV_SOURCES
+    editor/editorcanvas.cpp editor/editoricons.cpp editor/gradientedit.cpp editor/propertiespanel.cpp editor/layerspanel.cpp
+    editor/macropalette.cpp editor/canvassizedialog.cpp editor/sizepreviewpanel.cpp editor/templateeditor.cpp editor/editorsetup.cpp
+    sound/calibration.cpp widgets/extviewer.cpp videocapt/cameradialog.cpp videocapt/imagesettings.cpp
+    drmtx/bsrform.cpp widgets/waterfallform.cpp widgets/testpatternselection.cpp)
+  list(REMOVE_ITEM QSSTV_FORMS
+    sound/calibration.ui widgets/extviewer.ui widgets/sweepform.ui widgets/waterfallform.ui drmtx/bsrform.ui widgets/freqform.ui
+    widgets/testpatternselection.ui videocapt/cameradialog.ui videocapt/imagesettings.ui)
 endif()
 
 if(ANDROID)

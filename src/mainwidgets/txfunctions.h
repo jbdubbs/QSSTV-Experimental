@@ -4,7 +4,7 @@
 #include <QThread>
 #include "appdefs.h"
 #include "drmparams.h"
-#include "testpatternselection.h"
+#include "testpattern.h"
 
 #define SILENCEDELAY 0.600           // send silence after transmission
 

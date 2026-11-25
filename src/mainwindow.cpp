@@ -70,7 +70,9 @@
 #include "gpsreader.h"
 #include "placelookup.h"
 #include "waterfalltext.h"
+#ifndef Q_OS_ANDROID
 #include "calibration.h"
+#endif
 #include "frequencyselectwidget.h"
 #include "hexconvertor.h"
 #ifndef QT_NO_DEBUG
@@ -79,7 +81,9 @@
 #include "scope/scopeoffset.h"
 #include "rxfunctions.h"
 #include "logbook.h"
+#ifndef Q_OS_ANDROID
 #include "testpatternselection.h"
+#endif
 #include <QFont>
 #include <QCloseEvent>
 #include <QMessageBox>
@@ -177,7 +181,9 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
   connect(ui->actionDecodeFromFile,SIGNAL(triggered()),this, SLOT(slotDecodeFromFile()));
   connect(ui->actionExit,SIGNAL(triggered()),this, SLOT(slotExit()));
   connect(ui->actionConfigure,SIGNAL(triggered()),this, SLOT(slotConfigure()));
+#ifndef Q_OS_ANDROID
   connect(ui->actionCalibrate,SIGNAL(triggered()),this, SLOT(slotCalibrate()));
+#endif
   connect(ui->actionAboutQSSTV, SIGNAL(triggered()),SLOT(slotAboutQSSTV()));
   connect(ui->actionAboutQt, SIGNAL(triggered()),SLOT(slotAboutQt()));
   connect(ui->actionUsersGuide, SIGNAL(triggered()),SLOT(slotDocumentation()));
@@ -209,9 +215,13 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
 #endif
   connect(idPushButton, SIGNAL(clicked()), this, SLOT(slotSendWFID()));
   connect(cwPushButton, SIGNAL(clicked()), this, SLOT(slotSendCWID()));
+#ifndef Q_OS_ANDROID
   connect(rxWidgetPtr,SIGNAL(fixFileRequested()),this,SLOT(slotSendBSR()));
+#endif
   connect(freqComboBox,SIGNAL(activated(int)),SLOT(slotSetFrequency(int)));
+#ifndef Q_OS_ANDROID
   connect(wfTextPushButton, SIGNAL(clicked()), this, SLOT(slotSendWfText()));
+#endif
   connect(rxWidgetPtr,SIGNAL(modeSwitch(int)),this, SLOT(slotModeChange(int)));
   connect(txWidgetPtr,SIGNAL(modeSwitch(int)),this, SLOT(slotModeChange(int)));
   // The beacon countdown/error is a normal status bar widget. It must never share the line with a status/hover
@@ -259,7 +269,9 @@ mainWindow::mainWindow(QWidget *parent) : QMainWindow(parent),  ui(new Ui::MainW
   ui->menuScope->menuAction()->setVisible(false);
 
 #endif
+#ifndef Q_OS_ANDROID
   connect(ui->actionTxTestPattern,SIGNAL(triggered()),this, SLOT(slotTxTestPattern()));
+#endif
 
 
 
@@ -1065,6 +1077,7 @@ void mainWindow::setSSTVDRMPushButton(bool inDRM)
     }
 }
 
+#ifndef Q_OS_ANDROID   // the Widgets dialog is not reachable from the Qt Quick screens (#215)
 void mainWindow::slotCalibrate()
 {
   // the calibration needs the soundcard to itself; resume receive afterwards if it was running
@@ -1083,6 +1096,7 @@ void mainWindow::slotCalibrate()
   if(calib.exec()==QDialog::Accepted) applyClocks(calib.getRXClock(),calib.getTXClock());
   if(rxWasActive) dispatcherPtr->startRX();
 }
+#endif
 
 int mainWindow::busyMode()
 {
@@ -1128,10 +1142,12 @@ void mainWindow::slotModeChange(int rxtxMode)
     }
 }
 
+#ifndef Q_OS_ANDROID   // the Widgets dialog is not reachable from the Qt Quick screens (#215)
 void mainWindow::slotSendBSR()
 {
   txWidgetPtr->sendBSR();
 }
+#endif
 
 
 void mainWindow::slotSendWFID()
@@ -1144,10 +1160,12 @@ void mainWindow::slotSendCWID()
   txWidgetPtr->sendCWID();
 }
 
+#ifndef Q_OS_ANDROID   // the Widgets dialog is not reachable from the Qt Quick screens (#215)
 void mainWindow::slotSendWfText()
 {
   txWidgetPtr->sendWfText();
 }
+#endif
 
 void mainWindow::slotSetFrequency(int freqIndex)
 {
@@ -1305,6 +1323,7 @@ void mainWindow::slotClearScope()
 
 #endif
 
+#ifndef Q_OS_ANDROID   // the Widgets dialog is not reachable from the Qt Quick screens (#215)
 void mainWindow::slotTxTestPattern()
 {
   etpSelect sel;
@@ -1318,3 +1337,4 @@ void mainWindow::slotTxTestPattern()
       if(ui->maintabWidget->isTabEnabled(txIdx)) ui->maintabWidget->setCurrentIndex(txIdx);
     }
 }
+#endif

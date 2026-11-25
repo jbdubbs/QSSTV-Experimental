@@ -64,7 +64,9 @@ signals:
   void sstvImageReceived(int mode);   //!< a picture was completed (NOTVALID if too few lines); only while setCalibrationRx(true)
 
 private slots:
+#ifndef Q_OS_ANDROID
   void slotTemplateSaved();
+#endif
 //  void slotRXNotification(QString info);
   void slotRenameListing(bool err);
 
@@ -78,7 +80,9 @@ private:
   bool inList(QList <QUrlInfo> lst,QString fn);
   void timerEvent(QTimerEvent *event);
   bool calibrationRx=false;
+#ifndef Q_OS_ANDROID
   QPointer<TemplateEditor> templateEditor;   // clears itself when the window is closed
+#endif
   int txTimeCounter;
   int prTimerIndex;
   textDisplay *infoTextPtr;

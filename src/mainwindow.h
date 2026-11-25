@@ -66,12 +66,16 @@ private slots:
   void slotAboutQSSTV();
   void slotFullScreen();
   void slotDocumentation();
+#ifndef Q_OS_ANDROID   // Widgets dialogs the Qt Quick screens do not reach (#215)
   void slotCalibrate();
+#endif
   void slotModeChange(int);
   void slotSendWFID();
   void slotSendCWID();
+#ifndef Q_OS_ANDROID   // Widgets dialogs the Qt Quick screens do not reach (#215)
   void slotSendBSR();
   void slotSendWfText();
+#endif
   void slotSetFrequency(int freqIndex);
 
 
@@ -84,7 +88,9 @@ private slots:
   void slotClearScope();
   void slotDumpSamplesPerLine();
 #endif
+#ifndef Q_OS_ANDROID   // Widgets dialogs the Qt Quick screens do not reach (#215)
   void slotTxTestPattern();
+#endif
 
 private:
   Ui::MainWindow *ui;
