@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <algorithm>
 #include <cmath>
+#include <vector>
 #include "appglobal.h"
 #include "sstvparam.h"
 #include "configparams.h"
@@ -100,6 +101,10 @@ static unsigned int pulsePosition(const ssyncEntry &e,bool narrow,esstvMode m,un
 #define VISFRESHSECONDS 10    // a VIS code at most this old started the picture
 #define SLANTMINPOINTS 8      // the clock is only corrected from a regression over at least this many pulses ...
 #define SLANTMINLINES 16      // ... that span at least this many lines (a few noisy pulses give a slope that is wrong by a good fraction of a percent)
+#define ACQMAXERROR 0.04      // a first clock correction up to this much (4 %) is believed when the pulses of the whole picture agree on it (acquireClock)
+#define ACQMAXPULSES 160      // acquireClock looks at the first pulses of the picture only
+#define ACQMINRESULTANT 0.5   // ... and wants at least this share of them in step (the resultant of their phases)
+#define ACQTOLERANCE 0.012    // a pulse is on the line grid of the fit when it is this close (a fraction of a line)
 #define VISSTAYMS 3           // a picture that runs by its VIS code moves to the position of its pulses only if they are this far (ms) from it
 #define VISADOPTMS 12         // a chain of pulses is adopted by a picture that runs by its VIS code only if its line grid is this close (ms) to the one of the code
 #define VISSTOPBITMS 40       // a retrace pulse that ends this soon after the first line of a picture that a VIS code started is the stop bit of the code
@@ -585,6 +590,7 @@ bool syncProcessor::validateSync()
     case INSYNC:
       if(enableSyncDetection)
       {
+        if(visAnchored) acquireClockNoChain();     // (a chain that is there already does not mean the clock is right: in noise it is a few pulses)
         if(visAnchored && activeChainPtr==NULL) adoptChain();
         else trackSyncs();
       }
@@ -1850,6 +1856,124 @@ void syncProcessor::regression(DSPFLOAT &a,DSPFLOAT &b,bool initial)
 
 
 
+/**
+ * @brief syncProcessor::acquireClock the line time of the picture from all its pulses, whatever the chain says
+ * @param a offset of the first pulse from the line grid (samples), as regression() gives it
+ * @param b ratio of the line time of the signal to the one the clock gives, as regression() gives it
+ * @return true if enough pulses agree on a line time
+ *
+ * The chain of pulses only holds the pulses that fit the line time of the clock the picture started with, to within the line tolerance
+ * (0.8 % of a line from one pulse to the next); a sound card or a transmitter that is off by more has no chain at all, and one that
+ * is off by 0.2 % has the pulses of the later lines thrown out of the regression as false (150 samples from the grid). Here the pulses are
+ * taken as they are: the line time is the period that makes most of them fall on one line grid (the resultant of their phases, the
+ * way a period is found in a pulse train), then the pulses that are on that grid are fitted. A pulse of noise has any phase and counts
+ * for nothing, a missing one does not matter. MMSSTV tracks its sync position line by line in a window of +-10 % of a line instead,
+ * and corrects up to about 4 %.
+ */
+
+bool syncProcessor::acquireClock(DSPFLOAT &a,DSPFLOAT &b)
+{
+  if(currentMode==NOTVALID || samplesPerLine<=0 || (activeChainPtr==NULL && !visAnchored)) return false;
+  const double T=samplesPerLine;
+  const double e0=syncArray[0].end;
+  double first=e0;
+  if(visAnchored) first=std::max((double)syncPosition,e0);
+  std::vector<double> e;
+  for(uint k=0;k<=syncArrayIndex && e.size()<ACQMAXPULSES;k++)
+  {
+    if(syncArray[k].retrace || syncArray[k].end==0 || (double)syncArray[k].end<=first) continue;
+    e.push_back((double)syncArray[k].end-e0);
+  }
+  const int n=(int)e.size();
+  if(n<SLANTMINPOINTS) return false;
+  double span=(e.back()-e.front())/T;
+  if(span<SLANTMINLINES) return false;
+
+  // the period that puts most pulses on one grid: the phases of the pulses at that period add up
+  double bestR=0,bestPhase=0,bestRatio=1;
+  double step=std::min(2e-3,std::max(1e-4,0.1/span));
+  for(double r=1.-ACQMAXERROR;r<=1.+ACQMAXERROR;r+=step)
+  {
+    double sc=0,ss=0;
+    for(int k=0;k<n;k++)
+    {
+      double ph=2.*M_PI*e[k]/(T*r);
+      sc+=cos(ph);
+      ss+=sin(ph);
+    }
+    double R=sqrt(sc*sc+ss*ss)/n;
+    if(R>bestR)
+    {
+      bestR=R;
+      bestRatio=r;
+      bestPhase=atan2(ss,sc)/(2.*M_PI);
+    }
+  }
+  if(bestR<ACQMINRESULTANT) return false;
+
+  // fit the pulses that are on the grid, a few times with a narrower window: y=A+B*line
+  double A=bestPhase*T*bestRatio,B=T*bestRatio;
+  const double tols[]={0.15,0.05,ACQTOLERANCE,ACQTOLERANCE};
+  int m=0;
+  double lmin=0,lmax=0;
+  for(int it=0;it<4;it++)
+  {
+    double sx=0,sy=0,sxx=0,sxy=0;
+    m=0;
+    for(int k=0;k<n;k++)
+    {
+      double u=(e[k]-A)/B;
+      double ln=round(u);
+      if(fabs(u-ln)>tols[it]) continue;
+      double x=ln;
+      if(m==0) lmin=lmax=ln;
+      lmin=std::min(lmin,ln);
+      lmax=std::max(lmax,ln);
+      sx+=x;
+      sy+=e[k];
+      sxx+=x*x;
+      sxy+=x*e[k];
+      m++;
+    }
+    if(m<SLANTMINPOINTS) return false;
+    double den=m*sxx-sx*sx;
+    if(den<=0) return false;
+    B=(m*sxy-sx*sy)/den;
+    A=(sy-B*sx)/m;
+  }
+  slantPoints=m;
+  slantSpanLines=lmax-lmin;
+  if(m<SLANTMINPOINTS || slantSpanLines<SLANTMINLINES || m<0.5*(slantSpanLines+1)) return false;
+  b=B/T;
+  // offset of the pulse that is syncArray[0]: the grid line number 0 of the fit is the one of the pulse at e0, whose own offset is A
+  a=A;
+  return true;
+}
+
+/**
+ * @brief syncProcessor::acquireClockNoChain a picture that runs by its VIS code takes its clock from the pulses, with a chain or without one
+ *
+ * The position of the picture stays where the code put it; only the line time changes (the receiver decodes the picture again with it).
+ * The chain that follows is then found with the corrected line time (adoptChain).
+ */
+
+void syncProcessor::acquireClockNoChain()
+{
+  if(!autoSlantAdjust || clockAdjusted || currentMode==NOTVALID) return;
+  DSPFLOAT a,b;
+  if(!acquireClock(a,b)) return;
+  if(fabs(1.-b)>ACQMAXERROR || fabs(1.-b)<0.00001) return;
+  newClock=true;
+  clockAdjusted=true;
+  modifiedClock*=b;
+  samplesPerLine=getLineLength(currentMode,modifiedClock);
+  syncWidth=getSyncWidth(currentMode,modifiedClock);
+  addToLog(QString("new clock from the pulses: %1 b=%2").arg(modifiedClock).arg(b),LOGSLANT);
+  if(rxTraceOn()) rxTrace("CLOCK",QString("%1\tproc=%2\tmode=%3\tvia=pulses-nochain\tb=%4\ta=%5\tlines=%6").arg(traceTime(sampleCounter)).arg(detectNarrow?"N":"W").arg(getSSTVModeNameShort(currentMode)).arg(b,0,'f',6).arg(a,0,'f',1).arg(slantSpanLines,0,'f',0));
+}
+
+
+
 bool syncProcessor::slantAdjust(bool initial)
 {
   DSPFLOAT a,b;
@@ -1861,10 +1985,23 @@ bool syncProcessor::slantAdjust(bool initial)
     if(syncArray[activeChainPtr->last()->to].lineNumber<slantAdjustLine) return false;
   }
   regression(a,b,initial);
+  // The pulses of the picture, taken together, tell the line time without a chain: a clock that is off by more than the line tolerance gives
+  // no chain at all, and one that is off by a fraction of a percent gets the pulses of the later lines thrown out as false by regression().
+  bool acquired=false;
+  if(autoSlantAdjust && !clockAdjusted)
+  {
+    DSPFLOAT aa,bb;
+    if(acquireClock(aa,bb))
+    {
+      a=aa;
+      b=bb;
+      acquired=true;
+    }
+  }
   // A clock correction may be big (up to 2% the first time), so it is only believed when it rests on enough pulses that are spread
   // over enough lines: from the four of a chain that a VIS code lets through, in noise, it came out 0.65% off and the pulses that
   // followed no longer fitted; a picture whose clock is a little wrong comes out sheared.
-  if(slantPoints<SLANTMINPOINTS || slantSpanLines<SLANTMINLINES)
+  if(!acquired && (slantPoints<SLANTMINPOINTS || slantSpanLines<SLANTMINLINES))
   {
     if(!initial || slantPoints<2)
     {
@@ -1881,7 +2018,11 @@ bool syncProcessor::slantAdjust(bool initial)
   if(!autoSlantAdjust) return false;
   if(initial || !clockAdjusted)
   {
-    if((fabs(1.-b)>0.02) || (fabs(a)>100)) return false;
+    if(acquired)
+    {
+      if((fabs(1.-b)>ACQMAXERROR) || (fabs(a)>std::max(100.,0.03*samplesPerLine))) return false;
+    }
+    else if((fabs(1.-b)>0.02) || (fabs(a)>100)) return false;
   }
   else
   {
@@ -1890,10 +2031,13 @@ bool syncProcessor::slantAdjust(bool initial)
   if  (((fabs(1.-b)>0.00001)  || (fabs(a)>1)  )    && autoSlantAdjust)
   {
     newClock=true;
-    clockAdjusted=true;
+    // (a picture that only moves to where its pulses are, from too few of them for a clock, has not had its clock corrected: the first
+    // correction that does comes later and may be as big as the first one)
+    if(fabs(1.-b)>0.00001) clockAdjusted=true;
     modifiedClock*=b;
     samplesPerLine=getLineLength(currentMode,modifiedClock); //recalculate the samples per line
     addToLog(QString("new clock accepted: %1 a=%2,b=%3").arg(modifiedClock).arg(a).arg(b),LOGSLANT);
+    if(rxTraceOn()) rxTrace("CLOCK",QString("%1\tproc=%2\tmode=%3\tvia=%4\tb=%5\ta=%6\tlines=%7").arg(traceTime(sampleCounter)).arg(detectNarrow?"N":"W").arg(getSSTVModeNameShort(currentMode)).arg(acquired?"pulses":"chain").arg(b,0,'f',6).arg(a,0,'f',1).arg(slantSpanLines,0,'f',0));
 
     syncArray[0].end+=(long)round(a);
     syncArray[0].start+=(long)round(a);

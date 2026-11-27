@@ -226,6 +226,8 @@ private:
   void calculateLineNumber(uint fromIdx, uint toIdx);
   void regression(DSPFLOAT &a, DSPFLOAT &b, bool initial);
   bool slantAdjust(bool initial);
+  bool acquireClock(DSPFLOAT &a,DSPFLOAT &b);
+  void acquireClockNoChain();
   DSPFLOAT syncWidth;
 
 
